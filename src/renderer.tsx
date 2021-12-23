@@ -6,78 +6,11 @@ import {
   splitProps,
   untrack,
 } from "solid-js";
-import { createRenderer } from "./core/renderer";
-import { createThreeRoot, roots } from "./core";
-import { Instance } from "./core/renderer";
-import { createSolidRenderer, log } from "./solid";
+import { createThreeRenderer } from "./core/renderer";
+import { roots } from "./core";
+import { createSolidRenderer } from "./solid";
 
-export const threeRenderer = createSolidRenderer(createRenderer(roots));
-
-const PROPERTIES = new Set(["className", "class", "textContent"]);
-
-const domRenderer = {
-  createElement(el: string) {
-    log("dom", "createElement", el);
-    return document.createElement(el);
-  },
-  owns: function (node: any): node is HTMLElement {
-    return node instanceof HTMLElement || node instanceof Text;
-  },
-  createTextNode(value) {
-    log("dom", "createTextNode", value);
-    return document.createTextNode(value);
-  },
-  replaceText(textNode: Text, value) {
-    log("dom", "replaceText", textNode, value);
-    textNode.data = value;
-  },
-  setProperty(node: HTMLElement, name: string, value: any) {
-    log("dom", "setProperty", node, name, node[name], value);
-    if (name === "style") {
-      Object.assign(node.style, value);
-      return;
-    } else if (name === "class") node.className = value;
-    else if (name.startsWith("on")) node[name.toLowerCase()] = value;
-    else if (PROPERTIES.has(name)) node[name] = value;
-    else {
-      node.setAttribute(name, value);
-    }
-  },
-  insertNode(
-    parent: HTMLElement,
-    node: HTMLElement | Text,
-    anchor?: HTMLElement | Text
-  ) {
-    log("dom", "insertNode", parent, node, anchor);
-    if (
-      parent instanceof HTMLElement &&
-      (node instanceof HTMLElement || node instanceof Text)
-    ) {
-      parent.insertBefore(node, anchor);
-    }
-  },
-  isTextNode(node) {
-    log("dom", "isTextNode", node);
-    return node.type === 3;
-  },
-  removeNode(parent, node) {
-    log("dom", "removeNode", parent, node);
-    if (parent instanceof HTMLElement) {
-      parent.removeChild(node);
-    } else {
-      parent.remove(node);
-    }
-  },
-  getParentNode(node) {
-    return node.parentNode;
-  },
-  getFirstChild(node) {
-    return node.firstChild;
-  },
-  getNextSibling(node) {
-    return node.nextSibling;
-  },
-};
+export const threeRenderer = createSolidRenderer(createThreeRenderer(roots));
 
 export const {
   render,
@@ -91,69 +24,7 @@ export const {
   spread,
   setProp,
   mergeProps,
-} = createRenderer<HTMLElement | Instance | Text>({
-  createElement(string) {
-    if (threeRenderer.knowsElement(string) && string !== "path") {
-      return threeRenderer.createElement(string);
-    } else {
-      return domRenderer.createElement(string);
-    }
-  },
-  createTextNode(value) {
-    return domRenderer.createTextNode(value);
-  },
-  replaceText(textNode: Text, value: string) {
-    return domRenderer.replaceText(textNode, value);
-  },
-  setProperty(node, name, value) {
-    if (domRenderer.owns(node)) {
-      return domRenderer.setProperty(node, name, value);
-    }
-
-    return threeRenderer.setProperty(node, name, value);
-  },
-  insertNode(parent, node, anchor) {
-    if (domRenderer.owns(parent) && domRenderer.owns(node)) {
-      return domRenderer.insertNode(parent, node, anchor as HTMLElement | Text);
-    } else if (
-      domRenderer.owns(parent) &&
-      parent instanceof HTMLCanvasElement
-    ) {
-      let root = createThreeRoot(parent, {});
-      root.setState({ scene: node as unknown as THREE.Scene });
-      // createRenderEffect(() => {
-      // });
-    }
-
-    return threeRenderer.insertNode(parent, node, anchor);
-  },
-  isTextNode(node) {
-    if (domRenderer.owns(node)) {
-      return domRenderer.isTextNode(node);
-    }
-  },
-  removeNode(parent, node) {
-    if (domRenderer.owns(parent)) {
-      return domRenderer.removeNode(parent, node);
-    }
-    return threeRenderer.removeNode(parent, node);
-  },
-  getParentNode(node) {
-    if (domRenderer.owns(node)) {
-      return domRenderer.getParentNode(node);
-    }
-    return threeRenderer.getParentNode(node);
-  },
-  getFirstChild(node) {
-    if (domRenderer.owns(node)) {
-      return domRenderer.getFirstChild(node);
-    }
-    return threeRenderer.getFirstChild(node);
-  },
-  getNextSibling(node) {
-    return domRenderer.getNextSibling(node);
-  },
-});
+} = threeRenderer;
 
 export * from "solid-js";
 

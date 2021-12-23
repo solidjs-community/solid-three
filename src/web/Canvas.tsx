@@ -1,35 +1,52 @@
 import * as THREE from "three";
-import { extend, createThreeRoot } from "../core";
+import { extend, createThreeRoot, RenderProps } from "../core";
 import { createPointerEvents } from "./events";
-import { ThreeContext } from "../core/store";
+import { RootState, ThreeContext } from "../core/store";
 import { Accessor, createEffect, onCleanup } from "solid-js";
 import { Scene } from "three";
 import { insert, insertNode } from "../renderer";
 import { prepare } from "../core/utils";
 import { Instance } from "../core/renderer";
+import { StoreApi } from "zustand/vanilla";
+import { EventManager } from "../core/events";
 
 extend(THREE);
 
-// const CANVAS_PROPS: Array<keyof Props> = [
-//   "gl",
-//   "events",
-//   "shadows",
-//   "linear",
-//   "flat",
-//   "orthographic",
-//   "frameloop",
-//   "dpr",
-//   "performance",
-//   "clock",
-//   "raycaster",
-//   "camera",
-//   "onPointerMissed",
-//   "onCreated",
-// ];
+export interface Props
+  extends Omit<RenderProps<HTMLCanvasElement>, "size" | "events">,
+    React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+  // resize?: ResizeOptions
+  events?: (store: StoreApi<RootState>) => EventManager<any>;
+}
 
-export function Canvas(props) {
+type SetBlock = false | Promise<null> | null;
+type UnblockProps = {
+  set: React.Dispatch<React.SetStateAction<SetBlock>>;
+  children: React.ReactNode;
+};
+
+const CANVAS_PROPS: Array<keyof Props> = [
+  "gl",
+  "events",
+  "shadows",
+  "linear",
+  "flat",
+  "orthographic",
+  "frameloop",
+  "dpr",
+  "performance",
+  "clock",
+  "raycaster",
+  "camera",
+  "onPointerMissed",
+  "onCreated",
+];
+
+export function Canvas(props: Props) {
   let canvas: HTMLCanvasElement;
-  let containerRef: HTMLDivElement;
+  let containerRef: HTMLDivElement ;
 
   createEffect(() => {
     const root = createThreeRoot(canvas, {

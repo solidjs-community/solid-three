@@ -12,7 +12,7 @@ import {
   RootState,
   Size,
 } from "./store";
-import { createRenderer, extend, Root } from "./renderer";
+import { extend, Root } from "./renderer";
 import { createLoop, addEffect, addAfterEffect, addTail } from "./loop";
 import { EventManager } from "./events";
 import { createEffect, PropsWithChildren } from "solid-js";
@@ -68,14 +68,17 @@ const createRendererInstance = <TElement extends Element>(
   return renderer;
 };
 
-function createThreeRoot<TCanvas extends Element>(
+function createThreeRoot<TCanvas extends HTMLElement>(
   canvas: TCanvas,
   config?: RenderProps<TCanvas>
 ) {
   let { gl, size, events, onCreated, ...props } = config || {};
   // Allow size to take on container bounds initially
   if (!size) {
-    size = canvas.parentElement.getBoundingClientRect();
+    size = canvas.parentElement?.getBoundingClientRect() ?? {
+      width: 0,
+      height: 0,
+    };
   }
 
   // if (fiber && state) {

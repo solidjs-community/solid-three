@@ -95,7 +95,7 @@ export let catalogue: Catalogue = {};
 let extend = (objects: object): void =>
   void (catalogue = { ...catalogue, ...objects });
 
-function createRenderer<TCanvas>(
+function createThreeRenderer<TCanvas>(
   roots: Map<TCanvas, Root>,
   getEventPriority?: () => any
 ) {
@@ -350,6 +350,6 @@ function createRenderer<TCanvas>(
     removeRecursive,
   };
 }
-export type ThreeRenderer = ReturnType<typeof createRenderer>;
+export type ThreeRenderer = ReturnType<typeof createThreeRenderer>;
 
-export { prepare, createRenderer, extend };
+export { prepare, createThreeRenderer, extend };
