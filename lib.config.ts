@@ -13,7 +13,6 @@ build({
       formats: ["es"],
       fileName: "index",
     },
-
     rollupOptions: {
       external: ["three", "solid-js", "zustand/vanilla", "solid-js/universal"],
     },

@@ -46,9 +46,10 @@ const CANVAS_PROPS: Array<keyof Props> = [
 
 export function Canvas(props: Props) {
   let canvas: HTMLCanvasElement;
-  let containerRef: HTMLDivElement ;
+  let containerRef: HTMLDivElement;
 
   createEffect(() => {
+    if (!canvas || !containerRef) return;
     const root = createThreeRoot(canvas, {
       events: createPointerEvents,
       size: containerRef.getBoundingClientRect(),
@@ -93,9 +94,14 @@ export function Canvas(props: Props) {
         overflow: "hidden",
       }}
       tabIndex={props.tabIndex}
+      // @ts-expect-error
       ref={containerRef}
     >
-      <canvas style={{ height: "100%", width: "100%" }} ref={canvas} />
+      <canvas
+        style={{ height: "100%", width: "100%" }}
+        // @ts-expect-error
+        ref={canvas}
+      />
     </div>
   );
 }

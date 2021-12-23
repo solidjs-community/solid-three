@@ -24,38 +24,52 @@ extend(THREE);
 //   "onCreated",
 // ];
 export function Canvas(props) {
-    let canvas;
-    let containerRef;
-    createEffect(() => {
-        const root = createThreeRoot(canvas, {
-            events: createPointerEvents,
-            size: containerRef.getBoundingClientRect(),
-            camera: props.camera,
-            shadows: props.shadows,
-        });
-        new ResizeObserver((entries) => {
-            var _a;
-            if (((_a = entries[0]) === null || _a === void 0 ? void 0 : _a.target) !== containerRef)
-                return;
-            root
-                .getState()
-                .setSize(entries[0].contentRect.width, entries[0].contentRect.height);
-        }).observe(containerRef);
-        let scene = prepare(new Scene());
-        root.setState({ scene });
-        insert(scene, (<ThreeContext.Provider value={root}>
-            {props.children}
-          </ThreeContext.Provider>)());
-        onCleanup(() => {
-            root.destroy();
-        });
+  let canvas;
+  let containerRef;
+  createEffect(() => {
+    const root = createThreeRoot(canvas, {
+      events: createPointerEvents,
+      size: containerRef.getBoundingClientRect(),
+      camera: props.camera,
+      shadows: props.shadows,
     });
-    return (<div id={props.id} className={props.className} style={{
-            height: "100%",
-            width: "100%",
-            position: "relative",
-            overflow: "hidden",
-        }} tabIndex={props.tabIndex} ref={containerRef}>
-      <canvas style={{ height: "100%", width: "100%" }} ref={canvas}/>
-    </div>);
+    new ResizeObserver((entries) => {
+      var _a;
+      if (
+        ((_a = entries[0]) === null || _a === void 0 ? void 0 : _a.target) !==
+        containerRef
+      )
+        return;
+      root
+        .getState()
+        .setSize(entries[0].contentRect.width, entries[0].contentRect.height);
+    }).observe(containerRef);
+    let scene = prepare(new Scene());
+    root.setState({ scene });
+    insert(
+      scene,
+      (<ThreeContext.Provider value={root}>
+        {props.children}
+      </ThreeContext.Provider>)()
+    );
+    onCleanup(() => {
+      root.destroy();
+    });
+  });
+  return (
+    <div
+      id={props.id}
+      className={props.className}
+      style={{
+        height: "100%",
+        width: "100%",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      tabIndex={props.tabIndex}
+      ref={containerRef}
+    >
+      <canvas style={{ height: "100%", width: "100%" }} ref={canvas} />
+    </div>
+  );
 }
