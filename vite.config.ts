@@ -1,5 +1,5 @@
 import { defineConfig } from "vite";
-import solidPlugin from "vite-plugin-solid";
+import solidPlugin from "@vinxi/vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
 import { HTMLElements, SVGElements } from "./elements";
 import dts from "vite-dts";
@@ -25,8 +25,6 @@ export default defineConfig({
     polyfillDynamicImport: false,
   },
   plugins: [
-    dts(),
-
     // for the playground, we need to be able to use the solid-three package itself
     solidPlugin({
       solid: {
