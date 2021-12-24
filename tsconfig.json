@@ -2,10 +2,9 @@
   "extends": "@vinxi/tsconfig/solid-library.json",
   "include": ["./src"],
   "compilerOptions": {
-    "lib": ["ES2015"],
-    "module": "ES2015",
-    "outDir": "./dist",
+    "outDir": "./types",
     "rootDir": "./src",
+    "jsxImportSource": "solid-js",
     "emitDeclarationOnly": true
   },
   "exclude": ["dist", "build", "node_modules"]

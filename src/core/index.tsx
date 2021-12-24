@@ -1,7 +1,5 @@
 import * as THREE from "three";
-// @ts-ignore
-import { UseBoundStore as UseStore } from "zustand/vanilla";
-
+import { StoreApi as UseStore } from "zustand/vanilla";
 import { dispose, calculateDpr, applyProps } from "./utils";
 import {
   Renderer,
@@ -134,7 +132,7 @@ function createThreeRoot<TCanvas extends HTMLElement>(
     // Connect events
     state.events.connect?.(canvas);
     // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
-    // onCreated?.(state);
+    onCreated?.(state);
 
     state.invalidate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
