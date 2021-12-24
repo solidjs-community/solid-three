@@ -1,6 +1,6 @@
 {
   "name": "solid-three",
-  "version": "0.0.1-alpha.10",
+  "version": "0.0.1-alpha.11",
   "module": "./dist/index.es.js",
   "main": "./dist/index.cjs.js",
   "types": "./types/index.d.ts",
