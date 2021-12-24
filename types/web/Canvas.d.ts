@@ -9,6 +9,8 @@ export interface Props extends Omit<RenderProps<HTMLCanvasElement>, "size" | "ev
     events?: (store: StoreApi<RootState>) => EventManager<any>;
     id?: string;
     class?: string;
+    height?: string;
+    width?: string;
     tabIndex?: number;
 }
 export declare function Canvas(props: Props): JSX.Element;

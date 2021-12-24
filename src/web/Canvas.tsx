@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { extend, createThreeRoot, RenderProps } from "../core";
 import { createPointerEvents } from "./events";
 import { RootState, ThreeContext } from "../core/store";
-import { Accessor, createEffect, onCleanup, JSX } from "solid-js";
+import { Accessor, createEffect, onCleanup, JSX, mergeProps } from "solid-js";
 import { insert } from "../renderer";
 import { Instance } from "../core/renderer";
 import { StoreApi } from "zustand/vanilla";
@@ -11,23 +11,22 @@ import { EventManager } from "../core/events";
 extend(THREE);
 
 export interface Props
-  extends Omit<RenderProps<HTMLCanvasElement>, "size" | "events">
+  extends Omit<RenderProps<HTMLCanvasElement>, "size" | "events"> {
   // ,
-  //   HTMLAttributes<HTMLDivElement> 
-    {
+  //   HTMLAttributes<HTMLDivElement>
   children: JSX.Element;
   fallback?: JSX.Element;
   // resize?: ResizeOptions
   events?: (store: StoreApi<RootState>) => EventManager<any>;
   id?: string;
   class?: string;
+  height?: string;
+  width?: string;
   tabIndex?: number;
   // style?: CSSProperties;
-
 }
 
 // type SetBlock = false | Promise<null> | null;
-
 
 // const CANVAS_PROPS: Array<keyof Props> = [
 //   "gl",
@@ -47,6 +46,14 @@ export interface Props
 // ];
 
 export function Canvas(props: Props) {
+  props = mergeProps(
+    {
+      height: "100vh",
+      width: "100vw",
+    },
+    props
+  );
+
   let canvas: HTMLCanvasElement;
   let containerRef: HTMLDivElement;
 
@@ -91,10 +98,10 @@ export function Canvas(props: Props) {
   return (
     <div
       id={props.id}
-      className={props.class}
+      class={props.class}
       style={{
-        height: "100vh",
-        width: "100vw",
+        height: props.height,
+        width: props.width,
         position: "relative",
         overflow: "hidden",
       }}

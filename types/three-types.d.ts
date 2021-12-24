@@ -217,8 +217,8 @@ export declare type FogProps = Node<THREE.Fog, typeof THREE.Fog>;
 export declare type FogExp2Props = Node<THREE.FogExp2, typeof THREE.FogExp2>;
 export declare type ShapeProps = Node<THREE.Shape, typeof THREE.Shape>;
 declare module "solid-js" {
-    export namespace JSX {
-        export interface IntrinsicElements {
+    namespace JSX {
+        interface IntrinsicElements {
             audioListener: AudioListenerProps;
             positionalAudio: PositionalAudioProps;
             mesh: MeshProps;
