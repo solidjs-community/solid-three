@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import solidPlugin from "@vinxi/vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
 import { HTMLElements, SVGElements } from "./elements";
-import dts from "vite-dts";
 
 export default defineConfig({
   build: {
