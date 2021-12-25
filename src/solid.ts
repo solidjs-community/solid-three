@@ -41,7 +41,10 @@ export function createSolidRenderer({
       return createInstance(element, {}, root);
     },
     createTextNode(value: string) {
-      throw new Error("Cant create text node in three");
+      return prepare({
+        text: value,
+        type: "text",
+      }) as any;
     },
     replaceText(textNode: Instance, value: string) {
       throw new Error("Cant replace text node in three");
@@ -64,6 +67,7 @@ export function createSolidRenderer({
       if (node instanceof Text) {
         return;
       }
+
       appendChild(parent, node);
 
       if (node.__r3f.attach && node.__r3f.parent) {

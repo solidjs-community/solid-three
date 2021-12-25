@@ -1,4 +1,5 @@
 export * from "./renderer";
+export * from "./core/renderer";
 export * from "./three-types";
 import * as ThreeJSX from "./three-types";
 export { ThreeJSX };
