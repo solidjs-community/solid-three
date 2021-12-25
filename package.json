@@ -1,6 +1,6 @@
 {
   "name": "solid-three",
-  "version": "0.0.1-alpha.11",
+  "version": "0.0.1",
   "module": "./dist/index.es.js",
   "main": "./dist/index.cjs.js",
   "types": "./types/index.d.ts",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@types/three": "^0.135.0",
-    "@vinxi/tsconfig": "*",
+    "@vinxi/tsconfig": "0.0.1",
     "rollup": "^2.61.1",
     "rollup-plugin-dts": "^4.0.1",
     "three": "0.135.0",
