@@ -19,31 +19,37 @@ export function log(renderer: string, action: any, ...options: any[]) {
 }
 
 function checkCatalogue(element: string) {
-  return (
-    catalogue[toFirstUpper(element)] !== undefined || element === "primitive"
-  );
+  return catalogue[toFirstUpper(element)] !== undefined || element === "primitive";
 }
 
 export function createSolidRenderer({
   createInstance,
   applyProp,
   appendChild,
+  insertBefore,
+  removeChild,
+  attach
 }: ThreeRenderer) {
   return createRenderer<Instance>({
     // @ts-ignore
-
-    createElement(element: string) {
+    createElement(element: string, args) {
       log("three", "createElement", element);
       if (element === "scene") {
         return prepare<Instance>(new Scene() as unknown as Instance);
       }
       let root = useContext(ThreeContext);
-      return createInstance(element, {}, root);
+      return createInstance(
+        element,
+        {
+          args
+        },
+        root
+      );
     },
     createTextNode(value: string) {
       return prepare({
         text: value,
-        type: "text",
+        type: "text"
       }) as any;
     },
     replaceText(textNode: Instance, value: string) {
@@ -59,7 +65,7 @@ export function createSolidRenderer({
       applyProp(node, [key, value, false, entries]);
 
       if (key === "attach" && node.__r3f.parent) {
-        node.__r3f.parent[value] = node;
+        attach(node.__r3f.parent, node, value);
       }
     },
     insertNode(parent, node, anchor) {
@@ -68,28 +74,30 @@ export function createSolidRenderer({
         return;
       }
 
-      appendChild(parent, node);
-
-      if (node.__r3f.attach && node.__r3f.parent) {
-        if (typeof node.__r3f.attach === "string") {
-          node.__r3f.parent[node.__r3f.attach] = node;
-        }
+      if (anchor) {
+        insertBefore(parent, node, anchor);
+      } else {
+        appendChild(parent, node);
       }
     },
     isTextNode(node) {
-      return false;
+      return node.type === "text";
     },
     removeNode(parent, node) {
-      parent.remove(node);
+      log("three", "removeNode", parent, node);
+      removeChild(parent, node, true);
     },
+
     getParentNode(node) {
-      return node.parent as unknown as Instance;
+      log("three", "getParentNode", node);
+      return node.__r3f.parent as unknown as Instance;
     },
     getFirstChild(node) {
-      return node.children[0];
+      log("three", "getFirstChild", node);
+      return node.__r3f.objects[0];
     },
     getNextSibling(node) {
       return node.nextSibling;
-    },
+    }
   });
 }

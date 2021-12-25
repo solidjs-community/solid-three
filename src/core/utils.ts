@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { StoreApi as UseStore } from "zustand/vanilla";
+import { log } from "../solid";
 import { EventHandlers } from "./events";
 import { AttachType, Instance, InstanceProps, LocalState } from "./renderer";
 import { Dpr, RootState } from "./store";
@@ -10,8 +11,7 @@ export type DiffSet = {
   changes: [key: string, value: unknown, isEvent: boolean, keys: string[]][];
 };
 
-export const isDiffSet = (def: any): def is DiffSet =>
-  def && !!(def as DiffSet).changes;
+export const isDiffSet = (def: any): def is DiffSet => def && !!(def as DiffSet).changes;
 export type ClassConstructor = { new (): void };
 
 export type ObjectMap = {
@@ -20,9 +20,7 @@ export type ObjectMap = {
 };
 
 export function calculateDpr(dpr: Dpr) {
-  return Array.isArray(dpr)
-    ? Math.min(Math.max(dpr[0], window.devicePixelRatio), dpr[1])
-    : dpr;
+  return Array.isArray(dpr) ? Math.min(Math.max(dpr[0], window.devicePixelRatio), dpr[1]) : dpr;
 }
 
 /**
@@ -83,7 +81,7 @@ export const is = {
     for (i in a) if (!(i in b)) return false;
     for (i in b) if (a[i] !== b[i]) return false;
     return is.und(i) ? a === b : true;
-  },
+  }
 };
 
 // Collects nodes and materials from a THREE.Object3D
@@ -100,9 +98,9 @@ export function buildGraph(object: THREE.Object3D) {
 }
 
 // Disposes an object and all its properties
-export function dispose<
-  TObj extends { dispose?: () => void; type?: string; [key: string]: any }
->(obj: TObj) {
+export function dispose<TObj extends { dispose?: () => void; type?: string; [key: string]: any }>(
+  obj: TObj
+) {
   if (obj.dispose && obj.type !== "Scene") obj.dispose();
   for (const p in obj) {
     (p as any).dispose?.();
@@ -111,10 +109,7 @@ export function dispose<
 }
 
 // Each object in the scene carries a small LocalState descriptor
-export function prepare<T = THREE.Object3D>(
-  object: T,
-  state?: Partial<LocalState>
-) {
+export function prepare<T = THREE.Object3D>(object: T, state?: Partial<LocalState>) {
   const instance = object as unknown as Instance;
   if (state?.primitive || !instance.__r3f) {
     instance.__r3f = {
@@ -124,7 +119,7 @@ export function prepare<T = THREE.Object3D>(
       handlers: {},
       objects: [],
       parent: null,
-      ...state,
+      ...state
     };
   }
   return object;
@@ -141,9 +136,12 @@ function resolve(instance: Instance, key: string) {
 }
 
 export function attach(parent: Instance, child: Instance, type: AttachType) {
+  log("three", "attach", parent, child, type);
   if (is.str(type)) {
     const { target, key } = resolve(parent, type);
     parent.__r3f.previousAttach = target[key];
+    console.log(target, key);
+
     target[key] = child;
   } else if (is.arr(type)) {
     const [attach] = type;
@@ -153,14 +151,15 @@ export function attach(parent: Instance, child: Instance, type: AttachType) {
 }
 
 export function detach(parent: Instance, child: Instance, type: AttachType) {
-  if (is.str(type)) {
-    const { target, key } = resolve(parent, type);
-    target[key] = parent.__r3f.previousAttach;
-  } else if (is.arr(type)) {
-    const [, detach] = type;
-    if (is.str(detach)) parent[detach](child);
-    else if (is.fun(detach)) detach(parent, child);
-  }
+  log("three", "detach", parent, child, type);
+  // if (is.str(type)) {
+  //   const { target, key } = resolve(parent, type);
+  //   target[key] = parent.__r3f.previousAttach;
+  // } else if (is.arr(type)) {
+  //   const [, detach] = type;
+  //   if (is.str(detach)) parent[detach](child);
+  //   else if (is.fun(detach)) detach(parent, child);
+  // }
 }
 
 // Shallow check arrays, but check objects atomically
@@ -179,12 +178,7 @@ export function diffProps(
 ): DiffSet {
   const localState = (instance?.__r3f ?? {}) as LocalState;
   const entries = Object.entries(props);
-  const changes: [
-    key: string,
-    value: unknown,
-    isEvent: boolean,
-    keys: string[]
-  ][] = [];
+  const changes: [key: string, value: unknown, isEvent: boolean, keys: string[]][] = [];
 
   // Catch removed props, prepend them so they can be reset or removed
   if (remove) {
@@ -230,7 +224,7 @@ export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
   // Prepare memoized props
   // if (instance.__r3f) instance.__r3f.memoizedProps = memoized;
 
-  changes.forEach((change) => {
+  changes.forEach(change => {
     applyProp(instance, change, localState, rootState);
   });
 
@@ -241,15 +235,11 @@ export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
     prevHandlers !== localState.eventCount
   ) {
     // Pre-emptively remove the instance from the interaction manager
-    const index = rootState.internal.interaction.indexOf(
-      instance as unknown as THREE.Object3D
-    );
+    const index = rootState.internal.interaction.indexOf(instance as unknown as THREE.Object3D);
     if (index > -1) rootState.internal.interaction.splice(index, 1);
     // Add the instance to the interaction manager only when it has handlers
     if (localState.eventCount)
-      rootState.internal.interaction.push(
-        instance as unknown as THREE.Object3D
-      );
+      rootState.internal.interaction.push(instance as unknown as THREE.Object3D);
   }
 
   // Call the update lifecycle when it is being updated, but only when it is part of the scene
@@ -258,12 +248,7 @@ export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
 
 export function applyProp(
   instance: Instance,
-  [key, value, isEvent, keys]: [
-    key: string,
-    value: unknown,
-    isEvent: boolean,
-    keys: string[]
-  ],
+  [key, value, isEvent, keys]: [key: string, value: unknown, isEvent: boolean, keys: string[]],
   localState: LocalState = instance?.__r3f ?? ({} as unknown as LocalState),
   rootState: RootState = localState.root?.getState()
 ) {
@@ -276,9 +261,7 @@ export function applyProp(
     // If the target is atomic, it forces us to switch the root
     if (!(targetProp && targetProp.set)) {
       const [name, ...reverseEntries] = keys.reverse();
-      currentInstance = reverseEntries
-        .reverse()
-        .reduce((acc, key) => acc[key], instance);
+      currentInstance = reverseEntries.reverse().reduce((acc, key) => acc[key], instance);
       key = name;
     }
   }
@@ -331,8 +314,7 @@ export function applyProp(
       targetProp.copy &&
       value &&
       (value as ClassConstructor).constructor &&
-      targetProp.constructor.name ===
-        (value as ClassConstructor).constructor.name
+      targetProp.constructor.name === (value as ClassConstructor).constructor.name
     ) {
       targetProp.copy(value);
     }
@@ -344,10 +326,7 @@ export function applyProp(
       // Allow setting array scalars
       if (!isColor && targetProp.setScalar) targetProp.setScalar(value);
       // Layers have no copy function, we must therefore copy the mask property
-      else if (
-        targetProp instanceof THREE.Layers &&
-        value instanceof THREE.Layers
-      )
+      else if (targetProp instanceof THREE.Layers && value instanceof THREE.Layers)
         targetProp.mask = value.mask;
       // Otherwise just set ...
       else targetProp.set(value);
@@ -372,15 +351,11 @@ export function applyProp(
     // prevHandlers !== localState.eventCount
   ) {
     // Pre-emptively remove the instance from the interaction manager
-    const index = rootState.internal.interaction.indexOf(
-      instance as unknown as THREE.Object3D
-    );
+    const index = rootState.internal.interaction.indexOf(instance as unknown as THREE.Object3D);
     if (index > -1) rootState.internal.interaction.splice(index, 1);
     // Add the instance to the interaction manager only when it has handlers
     if (localState.eventCount)
-      rootState.internal.interaction.push(
-        instance as unknown as THREE.Object3D
-      );
+      rootState.internal.interaction.push(instance as unknown as THREE.Object3D);
   }
 
   invalidateInstance(instance);
@@ -395,8 +370,6 @@ export function invalidateInstance(instance: Instance) {
 export function updateInstance(instance: Instance) {
   instance.onUpdate?.(instance);
 }
-
-
 
 export function toFirstUpper(string: string) {
   return `${string.charAt(0).toUpperCase()}${string.slice(1)}`;

@@ -10,7 +10,7 @@ import {
   invalidateInstance,
   attach,
   detach,
-  applyProp,
+  applyProp
 } from "./utils";
 import { RootState } from "./store";
 import { EventHandlers, removeInteractivity } from "./events";
@@ -33,9 +33,7 @@ export type LocalState = {
 };
 
 export type AttachFnType = (parent: Instance, self: Instance) => void;
-export type AttachType =
-  | string
-  | [attach: string | AttachFnType, detach: string | AttachFnType];
+export type AttachType = string | [attach: string | AttachFnType, detach: string | AttachFnType];
 
 // This type clamps down on a couple of assumptions that we can make regarding native types, which
 // could anything from scene objects, THREE.Objects, JSM, user-defined classes and non-scene objects.
@@ -48,10 +46,7 @@ export type BaseInstance = Omit<
   children: Instance[];
   remove: (...object: Instance[]) => Instance;
   add: (...object: Instance[]) => Instance;
-  raycast?: (
-    raycaster: THREE.Raycaster,
-    intersects: THREE.Intersection[]
-  ) => void;
+  raycast?: (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => void;
 };
 export type Instance = BaseInstance & { [key: string]: any };
 
@@ -92,13 +87,9 @@ const isStore = (def: any): def is UseStore<RootState> =>
 // });
 
 export let catalogue: Catalogue = {};
-let extend = (objects: object): void =>
-  void (catalogue = { ...catalogue, ...objects });
+let extend = (objects: object): void => void (catalogue = { ...catalogue, ...objects });
 
-function createThreeRenderer<TCanvas>(
-  roots: Map<TCanvas, Root>,
-  getEventPriority?: () => any
-) {
+function createThreeRenderer<TCanvas>(roots: Map<TCanvas, Root>, getEventPriority?: () => any) {
   function createInstance(
     type: string,
     { args = [], attach, ...props }: InstanceProps,
@@ -127,13 +118,12 @@ function createThreeRenderer<TCanvas>(
     }
 
     if (type === "primitive") {
-      if (props.object === undefined)
-        throw `Primitives without 'object' are invalid!`;
+      if (props.object === undefined) throw `Primitives without 'object' are invalid!`;
       const object = props.object as Instance;
       instance = prepare<Instance>(object, {
         root,
         attach,
-        primitive: true,
+        primitive: true
       });
     } else {
       const target = catalogue[name];
@@ -150,7 +140,7 @@ function createThreeRenderer<TCanvas>(
         root,
         attach,
         // TODO: Figure out what this is for
-        memoizedProps: { args: args.length === 0 ? null : args },
+        memoizedProps: { args: args.length === 0 ? null : args }
       });
     }
 
@@ -182,11 +172,7 @@ function createThreeRenderer<TCanvas>(
     }
   }
 
-  function insertBefore(
-    parentInstance: Instance,
-    child: Instance,
-    beforeChild: Instance
-  ) {
+  function insertBefore(parentInstance: Instance, child: Instance, beforeChild: Instance) {
     let added = false;
     if (child) {
       if (child.__r3f.attach) {
@@ -194,14 +180,12 @@ function createThreeRenderer<TCanvas>(
       } else if (child.isObject3D && parentInstance.isObject3D) {
         child.parent = parentInstance as unknown as THREE.Object3D;
         child.dispatchEvent({ type: "added" });
-        const restSiblings = parentInstance.children.filter(
-          (sibling) => sibling !== child
-        );
+        const restSiblings = parentInstance.children.filter(sibling => sibling !== child);
         const index = restSiblings.indexOf(beforeChild);
         parentInstance.children = [
           ...restSiblings.slice(0, index),
           child,
-          ...restSiblings.slice(index),
+          ...restSiblings.slice(index)
         ];
         added = true;
       }
@@ -214,28 +198,17 @@ function createThreeRenderer<TCanvas>(
     }
   }
 
-  function removeRecursive(
-    array: Instance[],
-    parent: Instance,
-    dispose: boolean = false
-  ) {
-    if (array)
-      [...array].forEach((child) => removeChild(parent, child, dispose));
+  function removeRecursive(array: Instance[], parent: Instance, dispose: boolean = false) {
+    if (array) [...array].forEach(child => removeChild(parent, child, dispose));
   }
 
-  function removeChild(
-    parentInstance: Instance,
-    child: Instance,
-    dispose?: boolean
-  ) {
+  function removeChild(parentInstance: Instance, child: Instance, dispose?: boolean) {
     if (child) {
       // Clear the parent reference
       if (child.__r3f) child.__r3f.parent = null;
       // Remove child from the parents objects
       if (parentInstance.__r3f?.objects)
-        parentInstance.__r3f.objects = parentInstance.__r3f.objects.filter(
-          (x) => x !== child
-        );
+        parentInstance.__r3f.objects = parentInstance.__r3f.objects.filter(x => x !== child);
       // Remove attachment
       if (child.__r3f.attach) {
         detach(parentInstance, child, child.__r3f.attach);
@@ -243,10 +216,7 @@ function createThreeRenderer<TCanvas>(
         parentInstance.remove(child);
         // Remove interactivity
         if (child.__r3f?.root) {
-          removeInteractivity(
-            child.__r3f.root,
-            child as unknown as THREE.Object3D
-          );
+          removeInteractivity(child.__r3f.root, child as unknown as THREE.Object3D);
         }
       }
 
@@ -261,9 +231,7 @@ function createThreeRenderer<TCanvas>(
       // when the reconciler calls it, but then carry our own check recursively
       const isPrimitive = child.__r3f?.primitive;
       const shouldDispose =
-        dispose === undefined
-          ? child.dispose !== null && !isPrimitive
-          : dispose;
+        dispose === undefined ? child.dispose !== null && !isPrimitive : dispose;
 
       // Remove nested child objects. Primitives should not have objects and children that are
       // attached to them declaratively ...
@@ -275,12 +243,9 @@ function createThreeRenderer<TCanvas>(
       // Remove references
       if (child.__r3f) {
         delete ((child as Partial<Instance>).__r3f as Partial<LocalState>).root;
-        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>)
-          .objects;
-        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>)
-          .handlers;
-        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>)
-          .memoizedProps;
+        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>).objects;
+        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>).handlers;
+        delete ((child as Partial<Instance>).__r3f as Partial<LocalState>).memoizedProps;
         if (!isPrimitive) delete (child as Partial<Instance>).__r3f;
       }
 
@@ -299,11 +264,7 @@ function createThreeRenderer<TCanvas>(
     }
   }
 
-  function switchInstance(
-    instance: Instance,
-    type: string,
-    newProps: InstanceProps
-  ) {
+  function switchInstance(instance: Instance, type: string, newProps: InstanceProps) {
     const parent = instance.__r3f?.parent;
     if (!parent) return;
 
@@ -314,11 +275,11 @@ function createThreeRenderer<TCanvas>(
     // forces r3f to re-parent the children and non-scene objects
     // This can not include primitives, which should not have declarative children
     if (type !== "primitive" && instance.children) {
-      instance.children.forEach((child) => appendChild(newInstance, child));
+      instance.children.forEach(child => appendChild(newInstance, child));
       instance.children = [];
     }
 
-    instance.__r3f.objects.forEach((child) => appendChild(newInstance, child));
+    instance.__r3f.objects.forEach(child => appendChild(newInstance, child));
     instance.__r3f.objects = [];
 
     removeChild(parent, instance);
@@ -348,6 +309,7 @@ function createThreeRenderer<TCanvas>(
     insertBefore,
     removeChild,
     removeRecursive,
+    attach
   };
 }
 export type ThreeRenderer = ReturnType<typeof createThreeRenderer>;

@@ -47,7 +47,7 @@ export interface NodeProps<T, P> {
   /** Constructor arguments */
   args?: Args<P>;
   children?: any;
-  ref?: T;
+  ref?: T | ((instance: T) => void);
   // key?: React.Key;
   onUpdate?: (self: T) => void;
 }
