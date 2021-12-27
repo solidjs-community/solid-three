@@ -10,7 +10,7 @@ export let DEBUG = window.location.search.indexOf("debug") > -1;
 export function log(renderer: string, action: any, ...options: any[]) {
   DEBUG &&
     console.debug(
-      `%c[${renderer}] %s  %c`,
+      `%c${renderer} %s  %c`,
       "font-weight: bold",
       action,
       "font-weight: normal",
@@ -94,9 +94,10 @@ export function createSolidRenderer({
     },
     getFirstChild(node) {
       log("three", "getFirstChild", node);
-      return node.__r3f.objects[0];
+      return node.__r3f.objects?.length ? node.__r3f.objects[0] : node.children[0];
     },
     getNextSibling(node) {
+      log("three", "getNextSibling", node);
       return node.nextSibling;
     }
   });

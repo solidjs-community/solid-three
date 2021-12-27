@@ -140,7 +140,6 @@ export function attach(parent: Instance, child: Instance, type: AttachType) {
   if (is.str(type)) {
     const { target, key } = resolve(parent, type);
     parent.__r3f.previousAttach = target[key];
-    console.log(target, key);
 
     target[key] = child;
   } else if (is.arr(type)) {
@@ -152,14 +151,18 @@ export function attach(parent: Instance, child: Instance, type: AttachType) {
 
 export function detach(parent: Instance, child: Instance, type: AttachType) {
   log("three", "detach", parent, child, type);
-  // if (is.str(type)) {
-  //   const { target, key } = resolve(parent, type);
-  //   target[key] = parent.__r3f.previousAttach;
-  // } else if (is.arr(type)) {
-  //   const [, detach] = type;
-  //   if (is.str(detach)) parent[detach](child);
-  //   else if (is.fun(detach)) detach(parent, child);
-  // }
+  if (is.str(type)) {
+    const { target, key } = resolve(parent, type);
+    if (child === parent.__r3f.previousAttach) {
+      return;
+    }
+
+    target[key] = parent.__r3f.previousAttach;
+  } else if (is.arr(type)) {
+    const [, detach] = type;
+    if (is.str(detach)) parent[detach](child);
+    else if (is.fun(detach)) detach(parent, child);
+  }
 }
 
 // Shallow check arrays, but check objects atomically
