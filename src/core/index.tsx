@@ -8,7 +8,7 @@ import {
   isRenderer,
   ThreeContext,
   RootState,
-  Size,
+  Size
 } from "./store";
 import { extend, Root } from "./renderer";
 import { createLoop, addEffect, addAfterEffect, addTail } from "./loop";
@@ -18,10 +18,7 @@ import { createEffect, PropsWithChildren } from "solid-js";
 export const roots = new Map<Element, Root>();
 const { invalidate, advance } = createLoop(roots);
 
-type Properties<T> = Pick<
-  T,
-  { [K in keyof T]: T[K] extends (_: any) => any ? never : K }[keyof T]
->;
+type Properties<T> = Pick<T, { [K in keyof T]: T[K] extends (_: any) => any ? never : K }[keyof T]>;
 
 type GLProps =
   | Renderer
@@ -29,10 +26,7 @@ type GLProps =
   | Partial<Properties<THREE.WebGLRenderer> | THREE.WebGLRendererParameters>
   | undefined;
 
-export type RenderProps<TCanvas extends Element> = Omit<
-  StoreProps,
-  "gl" | "events" | "size"
-> & {
+export type RenderProps<TCanvas extends Element> = Omit<StoreProps, "gl" | "events" | "size"> & {
   gl?: GLProps;
   events?: (store: UseStore<RootState>) => EventManager<TCanvas>;
   size?: Size;
@@ -53,7 +47,7 @@ const createRendererInstance = <TElement extends Element>(
     canvas: canvas as unknown as HTMLCanvasElement,
     antialias: true,
     alpha: true,
-    ...gl,
+    ...gl
   });
 
   // Set color management
@@ -75,7 +69,7 @@ function createThreeRoot<TCanvas extends HTMLElement>(
   if (!size) {
     size = canvas.parentElement?.getBoundingClientRect() ?? {
       width: 0,
-      height: 0,
+      height: 0
     };
   }
 
@@ -115,7 +109,7 @@ function createThreeRoot<TCanvas extends HTMLElement>(
   const store = createThreeStore(applyProps, invalidate, advance, {
     gl: glRenderer,
     size,
-    ...props,
+    ...props
   });
 
   const state = store.getState();
@@ -128,7 +122,7 @@ function createThreeRoot<TCanvas extends HTMLElement>(
   createEffect(() => {
     const state = store.getState();
     // Flag the canvas active, rendering will now begin
-    state.set((state) => ({ internal: { ...state.internal, active: true } }));
+    state.set(state => ({ internal: { ...state.internal, active: true } }));
     // Connect events
     state.events.connect?.(canvas);
     // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
@@ -150,23 +144,20 @@ function unmountComponentAtNode<TElement extends Element>(
   // if (fiber) {
   //   const state = root?.store.getState();
   //   if (state) state.internal.active = false;
-  //   reconciler.updateContainer(null, fiber, null, () => {
-  //     if (state) {
-  //       setTimeout(() => {
-  //         try {
-  //           state.events.disconnect?.();
-  //           state.gl?.renderLists?.dispose?.();
-  //           state.gl?.forceContextLoss?.();
-  //           if (state.gl?.xr) state.internal.xr.disconnect();
-  //           dispose(state);
-  //           roots.delete(canvas);
-  //           if (callback) callback(canvas);
-  //         } catch (e) {
-  //           /* ... */
-  //         }
-  //       }, 500);
+
+  //   setTimeout(() => {
+  //     try {
+  //       state.events.disconnect?.();
+  //       state.gl?.renderLists?.dispose?.();
+  //       state.gl?.forceContextLoss?.();
+  //       if (state.gl?.xr) state.internal.xr.disconnect();
+  //       dispose(state);
+  //       roots.delete(canvas);
+  //       if (callback) callback(canvas);
+  //     } catch (e) {
+  //       /* ... */
   //     }
-  //   });
+  //   }, 500);
   // }
 }
 
@@ -192,5 +183,5 @@ export {
   addAfterEffect,
   addTail,
   // act,
-  roots as _roots,
+  roots as _roots
 };

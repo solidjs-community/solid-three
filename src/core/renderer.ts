@@ -14,6 +14,8 @@ import {
 } from "./utils";
 import { RootState } from "./store";
 import { EventHandlers, removeInteractivity } from "./events";
+import { log } from "../solid";
+import { dispose } from ".";
 
 export type Root = { store: UseStore<RootState> };
 
@@ -202,7 +204,7 @@ function createThreeRenderer<TCanvas>(roots: Map<TCanvas, Root>, getEventPriorit
     if (array) [...array].forEach(child => removeChild(parent, child, dispose));
   }
 
-  function removeChild(parentInstance: Instance, child: Instance, dispose?: boolean) {
+  function removeChild(parentInstance: Instance, child: Instance, canDispose?: boolean) {
     if (child) {
       // Clear the parent reference
       if (child.__r3f) child.__r3f.parent = null;
@@ -210,9 +212,10 @@ function createThreeRenderer<TCanvas>(roots: Map<TCanvas, Root>, getEventPriorit
       if (parentInstance.__r3f?.objects)
         parentInstance.__r3f.objects = parentInstance.__r3f.objects.filter(x => x !== child);
       // Remove attachment
-      if (child.__r3f.attach) {
+      if (child.__r3f?.attach) {
         detach(parentInstance, child, child.__r3f.attach);
       } else if (child.isObject3D && parentInstance.isObject3D) {
+        log("three", "removeObject", parentInstance, child);
         parentInstance.remove(child);
         // Remove interactivity
         if (child.__r3f?.root) {
@@ -231,7 +234,7 @@ function createThreeRenderer<TCanvas>(roots: Map<TCanvas, Root>, getEventPriorit
       // when the reconciler calls it, but then carry our own check recursively
       const isPrimitive = child.__r3f?.primitive;
       const shouldDispose =
-        dispose === undefined ? child.dispose !== null && !isPrimitive : dispose;
+        canDispose === undefined ? child.dispose !== null && !isPrimitive : canDispose;
 
       // Remove nested child objects. Primitives should not have objects and children that are
       // attached to them declaratively ...
@@ -250,10 +253,12 @@ function createThreeRenderer<TCanvas>(roots: Map<TCanvas, Root>, getEventPriorit
       }
 
       // Dispose item whenever the reconciler feels like it
-      if (shouldDispose && child.dispose && child.type !== "Scene") {
+      if (shouldDispose && child.type !== "Scene") {
         // scheduleCallback(idlePriority, () => {
         try {
-          child.dispose();
+          log("three", "dispose", child);
+          child.dispose?.();
+          dispose(child);
         } catch (e) {
           /* ... */
         }

@@ -1,16 +1,10 @@
-import {
-  Accessor,
-  Component,
-  createMemo,
-  JSX,
-  splitProps,
-  untrack,
-} from "solid-js";
+import { Accessor, Component, createMemo, JSX, splitProps, untrack } from "solid-js";
 import { createThreeRenderer } from "./core/renderer";
 import { roots } from "./core";
 import { createSolidRenderer } from "./solid";
 
-export const threeRenderer = createSolidRenderer(createThreeRenderer(roots));
+export const threeReconciler = createThreeRenderer(roots);
+export const threeRenderer = createSolidRenderer(threeReconciler);
 
 export const {
   render,
@@ -23,7 +17,7 @@ export const {
   insert,
   spread,
   setProp,
-  mergeProps,
+  mergeProps
 } = threeRenderer;
 
 export * from "solid-js";
