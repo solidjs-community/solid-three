@@ -12,9 +12,9 @@ export type {
   Camera,
   RenderCallback,
   Performance,
-  RootState,
+  RootState
 } from "./core/store";
-export type { ThreeEvent, Events, EventManager } from "./core/events";
+export type { ThreeEvent, Events, EventManager, IntersectionEvent } from "./core/events";
 export type { ObjectMap } from "./core/utils";
 export * from "./hooks";
 export * from "./web/Canvas";

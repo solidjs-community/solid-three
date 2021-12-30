@@ -5,10 +5,10 @@ export function App() {
   return (
     <Canvas
       camera={{
-        position: [3, 3, 3],
+        position: [3, 3, 3]
       }}
       gl={{
-        antialias: true,
+        antialias: true
       }}
     >
       <Box />
@@ -23,11 +23,7 @@ function Box() {
   useFrame(() => (mesh!.rotation.y += 0.01));
 
   return (
-    <mesh
-      ref={mesh}
-      onPointerEnter={(e) => setHovered(true)}
-      onPointerLeave={(e) => setHovered(false)}
-    >
+    <mesh ref={mesh} onPointerEnter={e => setHovered(true)} onPointerLeave={e => setHovered(false)}>
       <boxBufferGeometry />
       <meshStandardMaterial color={hovered() ? "blue" : "red"} />
       <ambientLight />

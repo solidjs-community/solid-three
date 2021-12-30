@@ -9,7 +9,7 @@ import {
   createSignal,
   onCleanup,
   untrack,
-  useContext,
+  useContext
 } from "solid-js";
 
 export interface Loader<T> extends THREE.Loader {
@@ -23,15 +23,8 @@ export interface Loader<T> extends THREE.Loader {
 
 export type Extensions = (loader: THREE.Loader) => void;
 export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>;
-export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent
-  ? Truthy
-  : Falsy;
-export type BranchingReturn<T, Parent, Coerced> = ConditionalType<
-  T,
-  Parent,
-  Coerced,
-  T
->;
+export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent ? Truthy : Falsy;
+export type BranchingReturn<T, Parent, Coerced> = ConditionalType<T, Parent, Coerced, T>;
 
 export function useStore() {
   const store = useContext(ThreeContext);
@@ -40,7 +33,7 @@ export function useStore() {
 }
 
 export function useThree<T = RootState, U = T>(
-  selector: StateSelector<RootState, U> = (state) => state as unknown as U,
+  selector: StateSelector<RootState, U> = state => state as unknown as U,
   equalityFn?: EqualityChecker<U>
 ) {
   let store = useStore();
@@ -50,7 +43,7 @@ export function useThree<T = RootState, U = T>(
     let cleanup = useStore().subscribe<U>(
       // @ts-expect-error
       selector,
-      (v) => {
+      v => {
         // @ts-expect-error
         setSignal(() => v);
       },
@@ -63,18 +56,25 @@ export function useThree<T = RootState, U = T>(
   return signal;
 }
 
-export function useFrame(
-  callback: RenderCallback,
-  renderPriority: number = 0
-): null {
+/**
+ * Creates a signal that is updated when the given effect is run.
+ *
+ * @example
+ * ```ts
+ * const [count, setCount] = useSignal(0);
+ * useFrame(() => {
+ *  setCount(count + 1);
+ * });
+ * ```
+ *
+ * @param callback - a function to run on every frame render
+ * @param renderPriority -  priority of the callback decides its order in the frameloop, higher is earlier
+ */
+export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
   const subscribe = useStore().getState().internal.subscribe;
-  let cleanup = subscribe(
-    (t, delta) => untrack(() => callback(t, delta)),
-    renderPriority
-  );
+  let cleanup = subscribe((t, delta) => untrack(() => callback(t, delta)), renderPriority);
 
   onCleanup(cleanup);
-  return null;
 }
 
 export function useGraph(object: THREE.Object3D) {
@@ -92,7 +92,7 @@ export function loadingFn<T>(
     // Go through the urls and load them
     return Promise.all(
       input.map(
-        (input) =>
+        input =>
           new Promise((res, reject) =>
             loader.load(
               input,
@@ -101,7 +101,7 @@ export function loadingFn<T>(
                 res(data);
               },
               onProgress,
-              (error) => reject(`Could not load ${input}: ${error.message}`)
+              error => reject(`Could not load ${input}: ${error.message}`)
             )
           )
       )

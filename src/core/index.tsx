@@ -15,6 +15,12 @@ import { createLoop, addEffect, addAfterEffect, addTail } from "./loop";
 import { EventManager } from "./events";
 import { createEffect, PropsWithChildren } from "solid-js";
 
+export type { IntersectionEvent, EventHandlers, Intersection, Camera } from "./events";
+export { attach, applyProp } from "./utils";
+export { catalogue } from "./renderer";
+export type { InternalState, Raycaster } from "./store";
+export type { DiffSet } from "./utils";
+
 export const roots = new Map<Element, Root>();
 const { invalidate, advance } = createLoop(roots);
 
