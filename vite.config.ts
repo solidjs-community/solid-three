@@ -3,7 +3,7 @@ import solidPlugin from "@vinxi/vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
 import { HTMLElements, SVGElements } from "./elements";
 import mdx from "solid-mdx/vite-plugin";
-
+import docs from "vite-plugin-docs";
 export default defineConfig(async () => ({
   build: {
     lib: {
@@ -25,6 +25,7 @@ export default defineConfig(async () => ({
     polyfillDynamicImport: false
   },
   plugins: [
+    docs(),
     mdx({
       transformMDX: code => {
         return code.replace(/<\!--[a-zA-Z\.\s]+-->/g, ` `);
@@ -33,7 +34,7 @@ export default defineConfig(async () => ({
         remarkPlugins: [(await import("remark-gfm")).default]
       }
     }),
-    // for the playground, we need to be able to use the solid-three package itself
+    // for the playground, we need to be able to use the renderer from the src itself
     solidPlugin({
       solid: {
         moduleName: "solid-js/web",
