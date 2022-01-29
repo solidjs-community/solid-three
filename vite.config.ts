@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import solidPlugin from "@vinxi/vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
 import { HTMLElements, SVGElements } from "./elements";
-import mdx from "solid-mdx/vite-plugin";
 import docs from "vite-plugin-docs";
 export default defineConfig(async () => ({
   build: {
@@ -10,7 +9,7 @@ export default defineConfig(async () => ({
       entry: "./src/index.tsx",
       formats: ["es", "cjs", "umd"],
       fileName: "index",
-      name: "SolidThree"
+      name: "SolidThree",
     },
     rollupOptions: {
       external: [
@@ -19,21 +18,21 @@ export default defineConfig(async () => ({
         "solid-js/store",
         "three",
         "zustand",
-        "zustand/vanilla"
-      ]
+        "zustand/vanilla",
+      ],
     },
-    polyfillDynamicImport: false
+    polyfillDynamicImport: false,
   },
   plugins: [
     docs(),
-    mdx({
-      transformMDX: code => {
-        return code.replace(/<\!--[a-zA-Z\.\s]+-->/g, ` `);
-      },
-      xdm: {
-        remarkPlugins: [(await import("remark-gfm")).default]
-      }
-    }),
+    // mdx({
+    //   transformMDX: (code) => {
+    //     return code.replace(/<\!--[a-zA-Z\.\s]+-->/g, ` `);
+    //   },
+    //   xdm: {
+    //     remarkPlugins: [(await import("remark-gfm")).default],
+    //   },
+    // }),
     // for the playground, we need to be able to use the renderer from the src itself
     solidPlugin({
       solid: {
@@ -44,16 +43,16 @@ export default defineConfig(async () => ({
           {
             name: "dom",
             moduleName: "solid-js/web",
-            elements: [...HTMLElements, ...SVGElements]
+            elements: [...HTMLElements, ...SVGElements],
           },
           {
             name: "universal",
             moduleName: "/src/renderer.tsx",
-            elements: []
-          }
-        ]
-      }
+            elements: [],
+          },
+        ],
+      },
     }),
-    inspect()
-  ]
+    inspect(),
+  ],
 }));
