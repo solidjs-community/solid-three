@@ -1,5 +1,5 @@
-import { Mesh } from "three";
-import { Canvas, createSignal, useFrame } from "../src";
+import { Canvas } from "../src";
+import { Box } from "./Box";
 
 export function App() {
   return (
@@ -10,24 +10,11 @@ export function App() {
       gl={{
         antialias: true
       }}
+      shadows
     >
       <Box />
-    </Canvas>
-  );
-}
-
-function Box() {
-  let mesh: Mesh | undefined;
-  const [hovered, setHovered] = createSignal(false);
-
-  useFrame(() => (mesh!.rotation.y += 0.01));
-
-  return (
-    <mesh ref={mesh} onPointerEnter={e => setHovered(true)} onPointerLeave={e => setHovered(false)}>
-      <boxBufferGeometry />
-      <meshStandardMaterial color={hovered() ? "blue" : "red"} />
       <ambientLight />
       <spotLight position={[0, 5, 10]} intensity={1} />
-    </mesh>
+    </Canvas>
   );
 }
