@@ -1,5 +1,11 @@
 # solid-three
 
+## 0.0.3
+
+### Patch Changes
+
+- c3ee88e: fix for typescript docs
+
 ## 0.0.2
 
 ### Patch Changes
