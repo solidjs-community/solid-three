@@ -1,8 +1,7 @@
 import { defineConfig } from "vite";
-import solidPlugin from "@vinxi/vite-plugin-solid";
+import solidPlugin from "vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
-import { HTMLElements, SVGElements } from "./elements";
-import docs from "vite-plugin-docs";
+import { DOMElements, SVGElements } from "solid-js/web/dist/dev.cjs";
 export default defineConfig(async () => ({
   build: {
     lib: {
@@ -24,7 +23,6 @@ export default defineConfig(async () => ({
     polyfillDynamicImport: false,
   },
   plugins: [
-    docs(),
     // mdx({
     //   transformMDX: (code) => {
     //     return code.replace(/<\!--[a-zA-Z\.\s]+-->/g, ` `);
@@ -43,7 +41,7 @@ export default defineConfig(async () => ({
           {
             name: "dom",
             moduleName: "solid-js/web",
-            elements: [...HTMLElements, ...SVGElements],
+            elements: [...DOMElements.values(), ...SVGElements.values()],
           },
           {
             name: "universal",
