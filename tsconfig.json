@@ -4,7 +4,8 @@
   "compilerOptions": {
     "outDir": "./types",
     "rootDir": "./src",
-    "target": "esnext"
+    "target": "esnext",
+    "lib": ["dom", "esnext"]
   },
   "exclude": ["dist", "build", "node_modules"]
 }
