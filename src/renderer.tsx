@@ -17,7 +17,8 @@ export const {
   insert,
   spread,
   setProp,
-  mergeProps
+  mergeProps,
+  use
 } = threeRenderer;
 
 export * from "solid-js";
