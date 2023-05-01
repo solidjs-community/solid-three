@@ -11,8 +11,9 @@ originally created by [Nikhil Saraf](https://github.com/nksaraf).
 It allows you to declaratively construct a [Three.js](https://threejs.org/)
 scene, with reactive primitives, just as you would construct a DOM tree in SolidJS.
 
-> **Note** This library has not been published to NPM from this repo yet;
-> stay tuned.
+> **Note** This library has just been published to NPM from this repo.
+> It is still in early development, and is not yet ready for production use.
+> Please feel free to try it out and report any issues you find!
 
 ## Quick start
 
@@ -32,4 +33,22 @@ Use it:
 import { Canvas } from 'solid-three'
 ```
 
-Sample application coming soon!
+## Documentation
+
+> **Note**: Coming Soon!
+
+## Sample Applications
+
+> **Note**: More Coming Soon!
+
+### solid-three-template
+
+This is a template for a SolidJS application that uses solid-three.
+
+This project is a bare-bones `Vite` project that has been configured to use `SolidJS`, `solid-three`, and `ESLint` with `Prettier` for formatting.
+
+[solid-Three-Template](https://github.com/ZanzyTHEbar/solid-three-template)
+
+## Contributing
+
+> **Note**: Coming Soon!
