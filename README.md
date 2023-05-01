@@ -44,8 +44,9 @@ If you are using VSCode on windows (or just prefer to develope in a container), 
 
 #### Dev Container Notes
 
-- We clone into the wsl instance because the dev container is running a linux container, and the windows filesystem will cause extreme performance loss due to IO overhead.
+- We clone into the `wsl` instance because the dev container is running a linux container, and the windows filesystem will cause extreme performance loss due to IO overhead.
 - If you are using a different shell, you may need to modify the `devcontainer.json` file to use your shell of choice.
+- A port will automatically be forwarded when you run the project in dev mode, so you can access the dev server from your browser on windows at `localhost:<port>` - the port will be displayed in the terminal when you run the project. This can be configured by you as well.
 
 ## Documentation
 
