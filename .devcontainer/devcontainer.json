@@ -1,0 +1,41 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/typescript-node
+{
+	"name": "Node.js & TypeScript",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	//"image": ""
+
+	"build": {
+		// Sets the run context to one level up instead of the .devcontainer folder.
+		"context": "..",
+		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+		"dockerfile": "Dockerfile"
+	},
+
+
+	"features": {
+		"ghcr.io/akhildevelops/devcontainer-features/apt:0": {}
+	},
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "pnpm install",
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": [
+				//"streetsidesoftware.code-spell-checker",
+				"ms-azuretools.vscode-docker",
+				"wayou.vscode-todo-highlight",
+				"gruntfuggly.todo-tree",
+				"eamodio.gitlens",
+				"github.vscode-pull-request-github",
+				"dbaeumer.vscode-eslint",
+				"pkief.material-icon-theme",
+				"esbenp.prettier-vscode",
+				"ms-vscode.vscode-typescript-tslint-plugin"
+			]
+		}
+	}
+}

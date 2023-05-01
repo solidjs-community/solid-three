@@ -33,6 +33,20 @@ Use it:
 import { Canvas } from 'solid-three'
 ```
 
+### Dev Container
+
+If you are using VSCode on windows (or just prefer to develope in a container), you can use the included dev container to get started quickly.
+
+1. Clone this repo to a directory _inside of your wsl instance_ such as `~/Github`
+2. Navigate to the `solid-three` directory and run `code .`
+3. Open the workspace from the provided file.
+4. Make sure the [DevContainers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension is installed Click the bottom left corner of the window and select `Reopen in Container` - if the extension is installed, vscode should prompt you to open the project in a dev container when you open the workspace file.
+
+#### Dev Container Notes
+
+- We clone into the wsl instance because the dev container is running a linux container, and the windows filesystem will cause extreme performance loss due to IO overhead.
+- If you are using a different shell, you may need to modify the `devcontainer.json` file to use your shell of choice.
+
 ## Documentation
 
 > **Note**: Coming Soon!
