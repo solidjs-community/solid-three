@@ -2,7 +2,7 @@
   "name": "solid-three",
   "version": "0.1.0",
   "module": "./dist/index.mjs",
-  "main": "./dist/index.cjs.js",
+  "main": "./dist/index.js",
   "types": "./types/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
@@ -53,6 +53,6 @@
   },
   "dependencies": {
     "@types/three": "0.149.0",
-    "zustand": "^4.3.1"
+    "zustand": "^3.7.2"
   }
 }

@@ -12,6 +12,7 @@ export default defineConfig(async (mode) => ({
             fileName: "index",
             name: "SolidThree",
           },
+          minify: false,
           rollupOptions: {
             external: [
               "solid-js",
