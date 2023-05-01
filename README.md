@@ -47,7 +47,7 @@ This is a template for a SolidJS application that uses solid-three.
 
 This project is a bare-bones `Vite` project that has been configured to use `SolidJS`, `solid-three`, and `ESLint` with `Prettier` for formatting.
 
-[solid-Three-Template](https://github.com/ZanzyTHEbar/solid-three-template)
+[solid-three-template](https://github.com/ZanzyTHEbar/solid-three-template)
 
 ## Contributing
 

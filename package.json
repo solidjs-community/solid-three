@@ -1,6 +1,11 @@
 {
   "name": "solid-three",
   "version": "0.1.0",
+  "description": "SolidJS bindings for ThreeJS",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solidjs-community/solid-three.git"
+  },
   "module": "./dist/index.mjs",
   "main": "./dist/index.js",
   "types": "./types/index.d.ts",
@@ -54,5 +59,6 @@
   "dependencies": {
     "@types/three": "0.149.0",
     "zustand": "^3.7.2"
-  }
+  },
+  "packageManager": "pnpm@7.26.0"
 }
