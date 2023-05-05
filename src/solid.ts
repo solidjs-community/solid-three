@@ -38,13 +38,17 @@ export function createSolidRenderer({
         return prepare<Instance>(new Scene() as unknown as Instance);
       }
       let root = useContext(ThreeContext);
-      return createInstance(
-        element,
-        {
-          args
-        },
-        root
-      );
+
+      if (root) {
+        return createInstance(
+          element,
+          {
+            args
+          },
+          root
+        );
+      }
+      throw new Error("No root found");
     },
     createTextNode(value: string) {
       return prepare({
