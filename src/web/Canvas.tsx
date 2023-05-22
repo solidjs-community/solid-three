@@ -76,7 +76,9 @@ export function Canvas(props: Props) {
     events: createPointerEvents,
     size: containerRef.getBoundingClientRect(),
     camera: props.camera,
-    shadows: props.shadows
+    shadows: props.shadows,
+    onPointerMissed: props.onPointerMissed
+    // TODO: add the rest of the canvas props!
   });
 
   new ResizeObserver(entries => {
