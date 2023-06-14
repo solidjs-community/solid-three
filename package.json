@@ -1,6 +1,6 @@
 {
   "name": "solid-three",
-  "version": "0.2.0",
+  "version": "0.9.0",
   "description": "SolidJS bindings for ThreeJS",
   "repository": {
     "type": "git",
@@ -57,7 +57,9 @@
     "preset": "scripts/jest/node"
   },
   "dependencies": {
+    "@solid-primitives/resize-observer": "^2.0.18",
     "@types/three": "0.149.0",
+    "scheduler": "^0.23.0",
     "zustand": "^3.7.2"
   },
   "packageManager": "pnpm@7.26.0"

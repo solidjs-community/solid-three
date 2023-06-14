@@ -1,22 +1,17 @@
-export * from "./renderer";
-export * from "./core/renderer";
-export * from "./three-types";
-import * as ThreeJSX from "./three-types";
-export { ThreeJSX };
-export type {
-  Intersection,
-  Subscription,
-  Dpr,
-  Size,
-  Viewport,
-  Camera,
-  RenderCallback,
-  Performance,
-  RootState
-} from "./core/store";
-export type { ThreeEvent, Events, EventManager, IntersectionEvent } from "./core/events";
-export type { ObjectMap } from "./core/utils";
-export * from "./hooks";
-export * from "./web/Canvas";
-export { createPointerEvents as events } from "./web/events";
-export * from "./core";
+export * from './three-types'
+import * as ReactThreeFiber from './three-types'
+export { ReactThreeFiber }
+export type { BaseInstance, LocalState } from './core/renderer'
+export type { Subscription, Dpr, Size, Viewport, RenderCallback, Performance, RootState } from './core/store'
+export type { ThreeEvent, Events, EventManager, ComputeFunction, Intersection } from './core/events'
+export type { ObjectMap, Camera } from './core/utils'
+export * from './solid/web/Canvas'
+export { createEvents } from './core/events'
+export { createPointerEvents as events } from './web/events'
+export * from './solid'
+export * from './solid/hooks'
+export * from './core'
+export { Stage, FixedStage, Stages } from './core/stages'
+export { defaultProxy as T } from './solid/components'
+export * from './solid/components'
+export * from './solid/useHelper'

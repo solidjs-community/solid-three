@@ -1,4 +1,4 @@
-import { Canvas } from "../src";
+import { T, Canvas } from "../src";
 import { Box } from "./Box";
 
 export function App() {
@@ -13,8 +13,8 @@ export function App() {
       shadows
     >
       <Box />
-      <ambientLight />
-      <spotLight position={[0, 5, 10]} intensity={1} />
+      <T.AmbientLight />
+      <T.SpotLight position={[0, 5, 10]} intensity={1} />
     </Canvas>
   );
 }

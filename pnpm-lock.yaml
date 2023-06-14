@@ -1,62 +1,74 @@
-lockfileVersion: '6.0'
+lockfileVersion: '6.1'
 
-dependencies:
-  '@types/three':
-    specifier: 0.149.0
-    version: 0.149.0
-  zustand:
-    specifier: ^3.7.2
-    version: 3.7.2
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
 
-devDependencies:
-  '@types/node':
-    specifier: ^18.11.18
-    version: 18.11.18
-  '@vinxi/tsconfig':
-    specifier: 0.0.3
-    version: 0.0.3
-  esbuild:
-    specifier: ^0.16.16
-    version: 0.16.16
-  esbuild-register:
-    specifier: ^3.4.2
-    version: 3.4.2(esbuild@0.16.16)
-  remark-gfm:
-    specifier: ^3.0.1
-    version: 3.0.1
-  rollup:
-    specifier: ^3.9.1
-    version: 3.9.1
-  rollup-plugin-dts:
-    specifier: ^5.1.1
-    version: 5.1.1(rollup@3.9.1)(typescript@4.9.4)
-  solid-app-router:
-    specifier: ^0.1.14
-    version: 0.1.14(solid-js@1.7.0)
-  solid-js:
-    specifier: ^1.7.0
-    version: 1.7.0
-  three:
-    specifier: 0.149.0
-    version: 0.149.0
-  tsm:
-    specifier: ^2.3.0
-    version: 2.3.0
-  tsup:
-    specifier: ^6.5.0
-    version: 6.5.0(typescript@4.9.4)
-  typescript:
-    specifier: ^4.9.4
-    version: 4.9.4
-  vite:
-    specifier: 4.1.1
-    version: 4.1.1(@types/node@18.11.18)
-  vite-plugin-inspect:
-    specifier: 0.7.14
-    version: 0.7.14(rollup@3.9.1)(vite@4.1.1)
-  vite-plugin-solid:
-    specifier: 2.5.0
-    version: 2.5.0(solid-js@1.7.0)(vite@4.1.1)
+importers:
+
+  .:
+    dependencies:
+      '@solid-primitives/resize-observer':
+        specifier: ^2.0.18
+        version: 2.0.18(solid-js@1.7.0)
+      '@types/three':
+        specifier: 0.149.0
+        version: 0.149.0
+      scheduler:
+        specifier: ^0.23.0
+        version: 0.23.0
+      zustand:
+        specifier: ^3.7.2
+        version: 3.7.2
+    devDependencies:
+      '@types/node':
+        specifier: ^18.11.18
+        version: 18.11.18
+      '@vinxi/tsconfig':
+        specifier: 0.0.3
+        version: 0.0.3
+      esbuild:
+        specifier: ^0.16.16
+        version: 0.16.16
+      esbuild-register:
+        specifier: ^3.4.2
+        version: 3.4.2(esbuild@0.16.16)
+      remark-gfm:
+        specifier: ^3.0.1
+        version: 3.0.1
+      rollup:
+        specifier: ^3.9.1
+        version: 3.9.1
+      rollup-plugin-dts:
+        specifier: ^5.1.1
+        version: 5.1.1(rollup@3.9.1)(typescript@4.9.4)
+      solid-app-router:
+        specifier: ^0.1.14
+        version: 0.1.14(solid-js@1.7.0)
+      solid-js:
+        specifier: ^1.7.0
+        version: 1.7.0
+      three:
+        specifier: 0.149.0
+        version: 0.149.0
+      tsm:
+        specifier: ^2.3.0
+        version: 2.3.0
+      tsup:
+        specifier: ^6.5.0
+        version: 6.5.0(typescript@4.9.4)
+      typescript:
+        specifier: ^4.9.4
+        version: 4.9.4
+      vite:
+        specifier: 4.1.1
+        version: 4.1.1(@types/node@18.11.18)
+      vite-plugin-inspect:
+        specifier: 0.7.14
+        version: 0.7.14(rollup@3.9.1)(vite@4.1.1)
+      vite-plugin-solid:
+        specifier: 2.5.0
+        version: 2.5.0(solid-js@1.7.0)(vite@4.1.1)
 
 packages:
 
@@ -710,6 +722,53 @@ packages:
       rollup: 3.9.1
     dev: true
 
+  /@solid-primitives/event-listener@2.2.13(solid-js@1.7.0):
+    resolution: {integrity: sha512-8GtVEq0ECZoa5Klo1jjfGPfwg0zVJ8TNnNkWu8FqRkh0CkhbhCVJAKwjleem9K/qL6zUDfJihLjhqGBTBbb+8w==}
+    peerDependencies:
+      solid-js: ^1.6.12
+    dependencies:
+      '@solid-primitives/utils': 6.2.0(solid-js@1.7.0)
+      solid-js: 1.7.0
+    dev: false
+
+  /@solid-primitives/resize-observer@2.0.18(solid-js@1.7.0):
+    resolution: {integrity: sha512-k4jTqa2hQc1HBLGUUSy69ziVJF2xlBzglUp2Saeor7RrZiWudODGyoUMdNAY+PN3iH4zyH4eEa/Fs+9kIrREig==}
+    peerDependencies:
+      solid-js: ^1.6.12
+    dependencies:
+      '@solid-primitives/event-listener': 2.2.13(solid-js@1.7.0)
+      '@solid-primitives/rootless': 1.4.1(solid-js@1.7.0)
+      '@solid-primitives/static-store': 0.0.4(solid-js@1.7.0)
+      '@solid-primitives/utils': 6.2.0(solid-js@1.7.0)
+      solid-js: 1.7.0
+    dev: false
+
+  /@solid-primitives/rootless@1.4.1(solid-js@1.7.0):
+    resolution: {integrity: sha512-h7VBUk8usD76Eh1a4wT17PcGtIRxGPlLuJ4Mf7roCNu46W5cc9DAoz8M6XebuZWVKeUkML/JuPMZQSV0mLo2Fw==}
+    peerDependencies:
+      solid-js: ^1.6.12
+    dependencies:
+      '@solid-primitives/utils': 6.2.0(solid-js@1.7.0)
+      solid-js: 1.7.0
+    dev: false
+
+  /@solid-primitives/static-store@0.0.4(solid-js@1.7.0):
+    resolution: {integrity: sha512-NcLtDNA6H+Z9LmqaUe4SKfMx0YbszIMXEqfV15cB34t5XyEeOM5TihYwsVJ/dpkmpHYzflm0SwAL+P9uwyzvWQ==}
+    peerDependencies:
+      solid-js: ^1.6.12
+    dependencies:
+      '@solid-primitives/utils': 6.2.0(solid-js@1.7.0)
+      solid-js: 1.7.0
+    dev: false
+
+  /@solid-primitives/utils@6.2.0(solid-js@1.7.0):
+    resolution: {integrity: sha512-T62WlLwKkbmicsw/xpwMQyv9MmZRSaVyutXfS5icc9v0cb8qGMUxRxr5LVvZHYQCZ9DEFboZB0r711xsbVBbeA==}
+    peerDependencies:
+      solid-js: ^1.6.12
+    dependencies:
+      solid-js: 1.7.0
+    dev: false
+
   /@types/debug@4.1.7:
     resolution: {integrity: sha512-9AonUzyTjXXhEOa0DnqpzZi6VHlqKMswga9EXjpXnnqxwLtdvPPtlO8evrI5D9S6asFRCQ6v+wpiUKbw+vKqyg==}
     dependencies:
@@ -923,7 +982,6 @@ packages:
 
   /csstype@3.1.2:
     resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
-    dev: true
 
   /debug@4.3.4:
     resolution: {integrity: sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==}
@@ -1449,7 +1507,6 @@ packages:
 
   /js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
-    dev: true
 
   /jsesc@2.5.2:
     resolution: {integrity: sha512-OYu7XEzjkCQ3C5Ps3QIZsQfNpqoJyZZA99wd9aWd05NCtC5pWOkShK2mkL6HXQR6/Cy2lbNdPlZBpuQHXE63gA==}
@@ -1501,6 +1558,13 @@ packages:
   /longest-streak@3.0.1:
     resolution: {integrity: sha512-cHlYSUpL2s7Fb3394mYxwTYj8niTaNHUCLr0qdiCXQfSjfuA7CKofpX2uSwEfFDQ0EB7JcnMnm+GjbqqoinYYg==}
     dev: true
+
+  /loose-envify@1.4.0:
+    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
+    hasBin: true
+    dependencies:
+      js-tokens: 4.0.0
+    dev: false
 
   /lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
@@ -2114,6 +2178,12 @@ packages:
     resolution: {integrity: sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==}
     dev: true
 
+  /scheduler@0.23.0:
+    resolution: {integrity: sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==}
+    dependencies:
+      loose-envify: 1.4.0
+    dev: false
+
   /semver@6.3.0:
     resolution: {integrity: sha512-b39TBaTSfV6yBrapU89p5fKekE2m/NwnDocOVruQFS1/veMgdzuPcnOM34M6CwxW8jH/lxEa5rBoDeUwu5HHTw==}
     hasBin: true
@@ -2122,7 +2192,6 @@ packages:
   /seroval@0.5.1:
     resolution: {integrity: sha512-ZfhQVB59hmIauJG5Ydynupy8KHyr5imGNtdDhbZG68Ufh1Ynkv9KOYOAABf71oVbQxJ8VkWnMHAjEHE7fWkH5g==}
     engines: {node: '>=10'}
-    dev: true
 
   /shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -2167,7 +2236,6 @@ packages:
     dependencies:
       csstype: 3.1.2
       seroval: 0.5.1
-    dev: true
 
   /solid-refresh@0.4.3(solid-js@1.7.0):
     resolution: {integrity: sha512-7+4/gYsVi0BlM4PzT1PU1TB5nW3Hv8FWuB+Kw/ofWui7KQkWBf+dVZOrReQYHEmLCzytHUa2JysUXgzVALJmSw==}
