@@ -1,6 +1,6 @@
 import { StoreApi } from 'zustand/vanilla'
 import { Root } from './renderer'
-import { RootState, Store, Subscription } from './store'
+import { RootState, Store } from './store'
 
 type GlobalRenderCallback = (timeStamp: number) => void
 type SubItem = { callback: GlobalRenderCallback }
@@ -11,7 +11,6 @@ function createSubs(callback: GlobalRenderCallback, subs: Set<SubItem>): () => v
   return () => void subs.delete(sub)
 }
 
-let i
 let globalEffects: Set<SubItem> = new Set()
 let globalAfterEffects: Set<SubItem> = new Set()
 let globalTailEffects: Set<SubItem> = new Set()
