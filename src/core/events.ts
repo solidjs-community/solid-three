@@ -172,12 +172,12 @@ export function createEvents(store: Store) {
     // Allow callers to eliminate event objects
     const eventsObjects = filter ? filter(state.internal.interaction) : state.internal.interaction
     // Reset all raycaster cameras to undefined
-    eventsObjects.forEach((obj) => {
+    /* eventsObjects.forEach((obj) => {
       const state = getRootState(obj)
       if (state) {
         state.raycaster.camera = undefined!
       }
-    })
+    }) */
 
     if (!state.previousRoot) {
       // Make sure root-level pointer and ray are set up
