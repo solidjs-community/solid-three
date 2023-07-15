@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
-import solidPlugin from "vite-plugin-solid";
 import inspect from "vite-plugin-inspect";
-import { DOMElements, SVGElements } from "solid-js/web/dist/dev.cjs";
+import solidPlugin from "vite-plugin-solid";
 export default defineConfig(async (mode) => ({
   build:
     process.env.BUILD_MODE === "lib"
@@ -36,25 +35,7 @@ export default defineConfig(async (mode) => ({
     //   },
     // }),
     // for the playground, we need to be able to use the renderer from the src itself
-    solidPlugin({
-      solid: {
-        moduleName: "solid-js/web",
-        // @ts-ignore
-        generate: "dynamic",
-        renderers: [
-          {
-            name: "dom",
-            moduleName: "solid-js/web",
-            elements: [...DOMElements.values(), ...SVGElements.values()],
-          },
-          {
-            name: "universal",
-            moduleName: "/src/renderer.tsx",
-            elements: [],
-          },
-        ],
-      },
-    }),
+    solidPlugin(),
     inspect(),
   ],
 }));
