@@ -321,7 +321,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
         applyProps(gl as any, glConfig as any)
       // Store events internally
-      if (events && !state.events.handlers) state.set({ events: events(store) })
+      if (events && !state.events.handlers) state.set({ events: {...state.events, ...events(store)} })
       // Check pixelratio
       if (dpr && state.viewport.dpr !== calculateDpr(dpr)) state.setDpr(dpr)
       // Check size, allow it to take on container bounds initially
