@@ -133,7 +133,7 @@ const createStages = (stages: Stage[] | undefined, store: UseBoundStore<RootStat
       subscribers = state.internal.subscribers
       for (let i = 0; i < subscribers.length; i++) {
         subscription = subscribers[i]
-        subscription.ref.current(subscription.store.getState(), delta, frame)
+        subscription.ref(subscription.store.getState(), delta, frame)
       }
     }
   
