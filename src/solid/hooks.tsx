@@ -67,7 +67,7 @@ export function useFrame(callback: RenderCallback, renderPriority: number = 0): 
   const store = useStore()
   const subscribe = store.getState().internal.subscribe
   const cleanup = subscribe(
-    { current: (state, delta, frame) => untrack(() => callback(state, delta, frame)) },
+    (state, delta, frame) => untrack(() => callback(state, delta, frame)) ,
     renderPriority,
     store,
   )

@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { UseBoundStore } from 'zustand'
 import create, { GetState, SetState, StoreApi } from 'zustand/vanilla'
-import { MutableRefObject } from '../solid/useHelper'
 import { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
 import { FixedStage, Stage } from './stages'
 import { Camera, calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
@@ -87,7 +86,7 @@ export type InternalState = {
   render: 'auto' | 'manual'
   /** The max delta time between two frames. */
   maxDelta: number
-  subscribe: (callback: MutableRefObject<RenderCallback>, priority: number, store: Store) => () => void
+  subscribe: (callback: RenderCallback, priority: number, store: Store) => () => void
 }
 
 export type RootState = {
@@ -309,7 +308,7 @@ const createStore = (
         render: 'auto',
         maxDelta: 1 / 10,
         priority: 0,
-        subscribe: (ref: MutableRefObject<RenderCallback>, priority: number, store: Store) => {
+        subscribe: (ref: RenderCallback, priority: number, store: Store) => {
           const state = get()
           const internal = state.internal
           // If this subscription was given a priority, it takes rendering into its own hands
