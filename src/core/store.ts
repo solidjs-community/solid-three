@@ -23,7 +23,7 @@ export const privateKeys = [
 export type PrivateKeys = typeof privateKeys[number]
 
 export type Subscription = {
-  ref: MutableRefObject<RenderCallback>
+  ref: RenderCallback
   priority: number
   store: Store
 }

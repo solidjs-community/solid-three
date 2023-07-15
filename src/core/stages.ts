@@ -1,12 +1,10 @@
-import { MutableRefObject } from '../solid/useHelper';
 import { RootState, Store } from './store';
 
 export interface UpdateCallback {
   (state: RootState, delta: number, frame?: XRFrame): void
 }
 
-export type UpdateCallbackRef = MutableRefObject<UpdateCallback>
-export type UpdateSubscription = { ref: UpdateCallbackRef; store: Store }
+export type UpdateSubscription = { ref: UpdateCallback; store: Store }
 
 export type FixedStageOptions = { fixedStep?: number; maxSubsteps?: number }
 export type FixedStageProps = { fixedStep: number; maxSubsteps: number; accumulator: number; alpha: number }
@@ -34,7 +32,7 @@ export class Stage {
     const initialTime = performance.now()
 
     for (let i = 0; i < subs.length; i++) {
-      subs[i].ref.current(subs[i].store.getState(), delta, frame)
+      subs[i].ref(subs[i].store.getState(), delta, frame)
     }
 
     this._frameTime = performance.now() - initialTime
@@ -46,7 +44,7 @@ export class Stage {
    * @param store - The store to be used with the callback execution.
    * @returns A function to remove the subscription.
    */
-  add(ref: UpdateCallbackRef, store: Store) {
+  add(ref: UpdateCallback, store: Store) {
     this.subscribers.push({ ref, store })
 
     return () => {

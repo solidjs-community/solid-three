@@ -1,22 +1,22 @@
-import * as THREE from 'three'
-import type { StateSelector, EqualityChecker } from 'zustand'
-import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
-import { RootState, RenderCallback, StageTypes } from '../core/store'
-import { buildGraph, ObjectMap, is } from '../core/utils'
-import { LoadingManager } from 'three'
-import { context } from './context'
 import {
-  useContext,
-  untrack,
-  onCleanup,
+  Accessor,
+  Resource,
+  createEffect,
   createMemo,
   createRenderEffect,
-  createEffect,
   createResource,
-  Resource,
-  Accessor,
+  onCleanup,
+  untrack,
+  useContext,
 } from 'solid-js'
+import * as THREE from 'three'
+import { LoadingManager } from 'three'
+import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
+import type { EqualityChecker, StateSelector } from 'zustand'
 import { Stages, UpdateCallback } from '../core'
+import { RenderCallback, RootState, StageTypes } from '../core/store'
+import { ObjectMap, buildGraph } from '../core/utils'
+import { context } from './context'
 export interface Loader<T> extends THREE.Loader {
   load(
     url: string,
@@ -85,7 +85,7 @@ export function useUpdate(callback: UpdateCallback, stage: StageTypes = Stages.U
   if (!stages.includes(stage)) throw new Error(`An invoked stage does not exist in the lifecycle.`)
   const subscribe = useStore().getState().internal.subscribe
   let cleanup = stage.add(
-    { current: (state: RootState, delta: number, frame?: XRFrame) => untrack(() => callback(state, delta, frame)) },
+     (state: RootState, delta: number, frame?: XRFrame) => untrack(() => callback(state, delta, frame)) ,
     store,
   )
 

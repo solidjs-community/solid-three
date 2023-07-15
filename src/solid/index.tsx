@@ -129,23 +129,20 @@ const createStages = (stages: Stage[] | undefined, store: UseBoundStore<RootStat
   state.set(({ internal }) => ({ internal: { ...internal, stages: _stages } }))
 
   // Add useFrame loop to update stage
-  const frameCallback = {
-    current: (state: RootState, delta: number, frame?: XRFrame | undefined) => {
+  const frameCallback = (state: RootState, delta: number, frame?: XRFrame | undefined) => {
       subscribers = state.internal.subscribers
       for (let i = 0; i < subscribers.length; i++) {
         subscription = subscribers[i]
         subscription.ref.current(subscription.store.getState(), delta, frame)
       }
-    },
-  }
+    }
+  
   Stages.Update.add(frameCallback, store)
 
   // Add render callback to render stage
-  const renderCallback = {
-    current: (state: RootState) => {
+  const renderCallback =  (state: RootState) => {
       if (state.internal.render === 'auto' && state.gl.render) state.gl.render(state.scene, state.camera)
-    },
-  }
+    }
   Stages.Render.add(renderCallback, store)
 }
 
