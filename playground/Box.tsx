@@ -1,12 +1,13 @@
 
 import { createSignal } from "solid-js";
+import * as THREE from "three";
 import { Mesh } from "three";
-import { useFrame, T } from "../src";
+import { T, useFrame } from "../src";
 
 export function Box() {
   let mesh: Mesh | undefined;
   const [hovered, setHovered] = createSignal(false);
-
+  
   useFrame(() => (mesh!.rotation.y += 0.01));
 
   return (
@@ -16,7 +17,7 @@ export function Box() {
       onPointerLeave={e => setHovered(false)}
     >
       <T.BoxGeometry />
-      <T.MeshStandardMaterial color={hovered() ? "blue" : "green"} />
+      <T.MeshStandardMaterial color={new THREE.Color(hovered() ? "blue" : "green")} />
     </T.Mesh>
   );
 }
