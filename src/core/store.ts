@@ -77,7 +77,7 @@ export type InternalState = {
   capturedMap: Map<number, Map<THREE.Object3D, PointerCaptureTarget>>
   initialClick: [x: number, y: number]
   initialHits: THREE.Object3D[]
-  lastEvent: MutableRefObject<DomEvent | null>
+  lastEvent: DomEvent | null
   active: boolean
   priority: number
   frames: number
@@ -300,7 +300,7 @@ const createStore = (
         initialClick: [0, 0],
         initialHits: [],
         capturedMap: new Map(),
-        lastEvent: { current: null },
+        lastEvent: null,
 
         // Updates
         active: false,
