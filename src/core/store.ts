@@ -1,9 +1,9 @@
 import * as THREE from 'three'
+import { UseBoundStore } from 'zustand'
 import create, { GetState, SetState, StoreApi } from 'zustand/vanilla'
-import { prepare } from './utils'
 import { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
-import { calculateDpr, Camera, isOrthographicCamera, updateCamera } from './utils'
 import { FixedStage, Stage } from './stages'
+import { Camera, calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
 
 // Keys that shouldn't be copied between R3F stores
 export const privateKeys = [
@@ -67,6 +67,7 @@ export type Renderer = { render: (scene: THREE.Scene, camera: THREE.Camera) => a
 export const isRenderer = (def: any) => !!def?.render
 
 export type StageTypes = Stage | FixedStage
+export type RootStore = UseBoundStore<RootState>;
 
 export type InternalState = {
   interaction: THREE.Object3D[]
