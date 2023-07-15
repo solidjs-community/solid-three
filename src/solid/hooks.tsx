@@ -64,10 +64,10 @@ export function useThree<T = RootState>(
 // }
 
 export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
-  let store = useStore()
+  const store = useStore()
   const subscribe = store.getState().internal.subscribe
-  let cleanup = subscribe(
-    { current: (state: RootState, delta: number, frame?: XRFrame) => untrack(() => callback(state, delta, frame)) },
+  const cleanup = subscribe(
+    { current: (state, delta, frame) => untrack(() => callback(state, delta, frame)) },
     renderPriority,
     store,
   )
@@ -80,15 +80,15 @@ export function useFrame(callback: RenderCallback, renderPriority: number = 0): 
  * Uses the stage instance to indetify which stage to target in the lifecycle.
  */
 export function useUpdate(callback: UpdateCallback, stage: StageTypes = Stages.Update) {
-  let store = useStore()
+  const store = useStore()
   const stages = store.getState().internal.stages
+  // Throw an error if a stage does not exist in the lifecycle
   if (!stages.includes(stage)) throw new Error(`An invoked stage does not exist in the lifecycle.`)
-  const subscribe = useStore().getState().internal.subscribe
-  let cleanup = stage.add(
-     (state: RootState, delta: number, frame?: XRFrame) => untrack(() => callback(state, delta, frame)) ,
+  // Subscribe on mount, unsubscribe on unmount
+  const cleanup = stage.add(
+     (state, delta, frame) => untrack(() => callback(state, delta, frame)) ,
     store,
   )
-
   onCleanup(cleanup)
 }
 
@@ -125,7 +125,7 @@ function loadingFn<T>(extensions?: Extensions, onProgress?: (event: ProgressEven
   }
 }
 
-let cache = new Map()
+const cache = new Map()
 
 /**
  * Synchronously loads and caches assets with a three loader.
