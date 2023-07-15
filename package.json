@@ -60,7 +60,6 @@
   "dependencies": {
     "@solid-primitives/resize-observer": "^2.0.18",
     "@types/three": "0.154.0",
-    "scheduler": "^0.23.0",
     "three:0.130.0": "link:@types/three:0.130.0",
     "three:0.139.0": "link:@types/three:0.139.0",
     "zustand": "^3.7.2"
