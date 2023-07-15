@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { UseBoundStore } from 'zustand'
 import create, { GetState, SetState, StoreApi } from 'zustand/vanilla'
+import { MutableRefObject } from '../solid/useHelper'
 import { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
 import { FixedStage, Stage } from './stages'
 import { Camera, calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
@@ -22,7 +23,7 @@ export const privateKeys = [
 export type PrivateKeys = typeof privateKeys[number]
 
 export type Subscription = {
-  ref: React.MutableRefObject<RenderCallback>
+  ref: MutableRefObject<RenderCallback>
   priority: number
   store: Store
 }
@@ -76,7 +77,7 @@ export type InternalState = {
   capturedMap: Map<number, Map<THREE.Object3D, PointerCaptureTarget>>
   initialClick: [x: number, y: number]
   initialHits: THREE.Object3D[]
-  lastEvent: React.MutableRefObject<DomEvent | null>
+  lastEvent: MutableRefObject<DomEvent | null>
   active: boolean
   priority: number
   frames: number
@@ -86,7 +87,7 @@ export type InternalState = {
   render: 'auto' | 'manual'
   /** The max delta time between two frames. */
   maxDelta: number
-  subscribe: (callback: React.MutableRefObject<RenderCallback>, priority: number, store: Store) => () => void
+  subscribe: (callback: MutableRefObject<RenderCallback>, priority: number, store: Store) => () => void
 }
 
 export type RootState = {
@@ -308,7 +309,7 @@ const createStore = (
         render: 'auto',
         maxDelta: 1 / 10,
         priority: 0,
-        subscribe: (ref: React.MutableRefObject<RenderCallback>, priority: number, store: Store) => {
+        subscribe: (ref: MutableRefObject<RenderCallback>, priority: number, store: Store) => {
           const state = get()
           const internal = state.internal
           // If this subscription was given a priority, it takes rendering into its own hands

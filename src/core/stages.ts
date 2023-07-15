@@ -1,5 +1,5 @@
-import { MutableRefObject } from 'react'
-import { RootState, Store } from './store'
+import { MutableRefObject } from '../solid/useHelper';
+import { RootState, Store } from './store';
 
 export interface UpdateCallback {
   (state: RootState, delta: number, frame?: XRFrame): void

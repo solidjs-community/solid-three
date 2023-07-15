@@ -1,35 +1,33 @@
-/** @jsxImportSource solid-js */
 import * as THREE from 'three'
 import create, { UseBoundStore } from './zustand'
 
-import * as ReactThreeFiber from '../three-types'
+import { createResizeObserver } from '@solid-primitives/resize-observer'
+import { JSX } from 'solid-js'
+import { insert } from 'solid-js/web'
+import { OffscreenCanvas } from 'three'
+import { StoreApi } from 'zustand/vanilla'
+import { ComputeFunction, EventManager } from '../core/events'
+import { addAfterEffect, addEffect, addTail, createLoop } from '../core/loop'
+import { Instance, Root, extend } from '../core/renderer'
+import { Lifecycle, Stage, Stages } from '../core/stages'
 import {
-  Renderer,
-  createStore,
-  isRenderer,
-  RootState,
-  Size,
   Dpr,
+  Frameloop,
   Performance,
   PrivateKeys,
-  privateKeys,
+  Renderer,
+  RootState,
+  Size,
   Subscription,
-  FrameloopLegacy,
-  Frameloop,
+  createStore,
+  isRenderer
 } from '../core/store'
-import { extend, Root, Instance } from '../core/renderer'
-import { createLoop, addEffect, addAfterEffect, addTail } from '../core/loop'
-import { EventManager, ComputeFunction } from '../core/events'
-import { is, dispose, calculateDpr, EquConfig, getRootState, Camera, updateCamera, applyProps } from '../core/utils'
-import { useIsomorphicLayoutEffect } from './hooks'
-import { Stage, Lifecycle, Stages } from '../core/stages'
-import { OffscreenCanvas } from 'three'
-import { context } from './context'
-import { JSX, children } from 'solid-js'
-import { insert } from 'solid-js/web'
+import { Camera, EquConfig, applyProps, calculateDpr, dispose, getRootState, is } from '../core/utils'
+import * as ReactThreeFiber from '../three-types'
 import { ParentContext } from './components'
-import { StoreApi } from 'zustand/vanilla'
-import { createResizeObserver } from '@solid-primitives/resize-observer'
+import { context } from './context'
+import { useIsomorphicLayoutEffect } from './hooks'
+import { MutableRefObject } from './useHelper'
 type Store = UseBoundStore<RootState, StoreApi<RootState>>
 type SolidThreeRoot = Root<Store>
 
@@ -350,12 +348,6 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
-      // reconciler.updateContainer(
-      //   <Provider store={store} children={children} onCreated={onCreated} rootElement={canvas} />,
-      //   fiber,
-      //   null,
-      //   () => undefined,
-      // )
       let state = store.getState()
 
       createResizeObserver(
@@ -368,7 +360,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       insert(canvas.parentElement!, () => (
         <Provider store={store} rootElement={canvas} onCreated={onCreated}>
           <ParentContext.Provider value={() => state.scene as unknown as Instance}>
-            {[state.gl.domElement, children(() => props.children)]}
+            {[state.gl.domElement, props.children]}
           </ParentContext.Provider>
         </Provider>
       ))
@@ -393,7 +385,7 @@ function Provider<TElement extends Element>(props: {
   store: Store
   children: JSX.Element
   rootElement: TElement
-  parent?: React.MutableRefObject<TElement | undefined>
+  parent?: MutableRefObject<TElement | undefined>
 }) {
   useIsomorphicLayoutEffect(() => {
     const state = props.store.getState()
@@ -571,21 +563,10 @@ export type InjectState = Partial<
 
 export * from './hooks'
 export {
-  context,
-  render,
-  createRoot,
-  unmountComponentAtNode,
+  // act,
+  roots as _roots, addAfterEffect, addEffect, addTail, advance,
   // createPortal,
   // reconciler,
-  applyProps,
-  dispose,
-  invalidate,
-  advance,
-  extend,
-  addEffect,
-  addAfterEffect,
-  addTail,
-  getRootState,
-  // act,
-  roots as _roots,
+  applyProps, context, createRoot, dispose, extend, getRootState, invalidate, render, unmountComponentAtNode
 }
+

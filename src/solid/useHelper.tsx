@@ -1,8 +1,8 @@
-import { useFrame, useThree, useUpdate } from './hooks'
+import { createEffect, onCleanup } from 'solid-js'
 import { Object3D } from 'three'
 import { Falsey } from 'utility-types'
-import { createEffect, onCleanup } from 'solid-js'
-import { Instance, Stages } from '../core'
+import { Stages } from '../core'
+import { useThree, useUpdate } from './hooks'
 
 export function createRef<T>() {
   let ref: T
@@ -25,8 +25,10 @@ type Helper = Object3D & {
 type Constructor = new (...args: any[]) => any
 type Rest<T> = T extends [infer _, ...infer R] ? R : never
 
+export type MutableRefObject<T> = { current: T} 
+
 export function useHelper<T extends Constructor>(
-  object3D: React.MutableRefObject<Object3D | null | undefined> | Falsey | undefined,
+  object3D: MutableRefObject<Object3D | null | undefined> | Falsey | undefined,
   helperConstructor: T,
   ...args: Rest<ConstructorParameters<T>>
 ) {
