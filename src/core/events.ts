@@ -134,6 +134,20 @@ export function removeInteractivity(store: Store, object: THREE.Object3D) {
 export function createEvents(store: Store) {
   const temp = new THREE.Vector3()
 
+  /** Sets up defaultRaycaster */
+  function prepareRay(event: DomEvent) {
+    const state = store.getState();
+    const { raycaster, mouse, camera, size } = state;
+    // https://github.com/pmndrs/react-three-fiber/pull/782
+    // Events trigger outside of canvas when moved
+    const { offsetX, offsetY } =
+      /* raycaster.computeOffsets?.(event, state) ??  */event;
+    
+    const { width, height } = size;
+    mouse.set((offsetX / width) * 2 - 1, -(offsetY / height) * 2 + 1);
+    raycaster.setFromCamera(mouse, camera);
+  }
+
   /** Calculates delta */
   function calculateDistance(event: DomEvent) {
     const { internal } = store.getState()
@@ -377,7 +391,7 @@ export function createEvents(store: Store) {
     return (event: DomEvent) => {
       const { onPointerMissed, internal } = store.getState()
 
-      //prepareRay(event)
+      prepareRay(event)
       internal.lastEvent.current = event
 
       // Get fresh intersects
