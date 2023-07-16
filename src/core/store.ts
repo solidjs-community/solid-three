@@ -381,8 +381,8 @@ const createThreeStore = (
     }
   })
 
+  // TODO:  This currently does not deep-track like the original r3f does.
   // Invalidate on any change
-
   createEffect(
     on(
       () => rootState,
