@@ -1,4 +1,4 @@
-import { Accessor, createContext, createEffect, on } from 'solid-js'
+import { Accessor, batch, createContext, createEffect, on } from 'solid-js'
 import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
@@ -188,8 +188,7 @@ const createThreeStore = (
   }
 
   let performanceTimeout: ReturnType<typeof setTimeout> | undefined = undefined
-  const setPerformanceCurrent = (current: number) =>
-    set((state) => ({ performance: { ...state.performance, current } }))
+  const setPerformanceCurrent = (current: number) => set('performance', 'current', current)
 
   const pointer = new THREE.Vector2()
 
@@ -255,18 +254,16 @@ const createThreeStore = (
       getCurrentViewport,
     },
 
-    setEvents: (events: Partial<EventManager<any>>) =>
-      set((state) => ({ ...state, events: { ...state.events, ...events } })),
+    setEvents: (events: Partial<EventManager<any>>) => set('events', events),
     setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => {
       const camera = get().camera
       const size = { width, height, top: top || 0, left: left || 0, updateStyle }
-      set((state) => ({ size, viewport: { ...state.viewport, ...getCurrentViewport(camera, defaultTarget, size) } }))
+      set('viewport', getCurrentViewport(camera, defaultTarget, size))
     },
-    setDpr: (dpr: Dpr) =>
-      set((state) => {
-        const resolved = calculateDpr(dpr)
-        return { viewport: { ...state.viewport, dpr: resolved, initialDpr: state.viewport.initialDpr || resolved } }
-      }),
+    setDpr: (dpr: Dpr) => {
+      const resolved = calculateDpr(dpr)
+      return set('viewport', { dpr: resolved, initialDpr: state.viewport.initialDpr || resolved })
+    },
     setFrameloop: (frameloop: Frameloop) => {
       const state = get()
       const mode: FrameloopLegacy =
@@ -288,7 +285,10 @@ const createThreeStore = (
         clock.start()
         clock.elapsedTime = 0
       }
-      set(() => ({ frameloop: mode, internal: { ...state.internal, render, maxDelta } }))
+      batch(() => {
+        set('frameloop', mode)
+        set('internal', { render, maxDelta })
+      })
     },
     previousRoot: undefined,
     internal: {
@@ -317,8 +317,7 @@ const createThreeStore = (
         // because there could be multiple render subscriptions
         set('internal', 'priority', internal.priority + (priority > 0 ? 1 : 0))
         // We use the render flag and deprecate priority
-        if (internal.priority && state.internal.render === 'auto')
-          set(() => ({ internal: { ...state.internal, render: 'manual' } }))
+        if (internal.priority && state.internal.render === 'auto') set('internal', 'render', 'manual')
 
         set(
           'internal',
@@ -339,8 +338,8 @@ const createThreeStore = (
             // Decrease manual flag if this subscription had a priority
             set('internal', 'priority', internal.priority - (priority > 0 ? 1 : 0))
             // We use the render flag and deprecate priority
-            if (!internal.priority && state.internal.render === 'manual')
-              set(() => ({ internal: { ...state.internal, render: 'auto' } }))
+            if (!internal.priority && state.internal.render === 'manual') set('internal', 'render', 'auto')
+
             // Remove subscriber from list
             set(
               'internal',
@@ -378,7 +377,7 @@ const createThreeStore = (
         if (camera !== oldCamera) {
           oldCamera = camera
           // Update viewport
-          set((state) => ({ viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) } }))
+          set('viewport', state.viewport.getCurrentViewport(camera))
         }
       },
     ),
