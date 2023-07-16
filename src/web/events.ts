@@ -1,5 +1,5 @@
 import { DomEvent, EventManager, Events, createEvents } from '../core/events'
-import { RootState, RootStore } from '../core/store'
+import { RootState } from '../core/store'
 
 const DOM_EVENTS = {
   onClick: ['click', false],
@@ -15,7 +15,7 @@ const DOM_EVENTS = {
 } as const
 
 /** Default R3F event manager for web */
-export function createPointerEvents(store: RootStore): EventManager<HTMLElement> {
+export function createPointerEvents(store: RootState): EventManager<HTMLElement> {
   const { handlePointer } = createEvents(store)
 
   return {

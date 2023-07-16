@@ -23,14 +23,12 @@ specifiers:
   vite: 4.1.1
   vite-plugin-inspect: 0.7.14
   vite-plugin-solid: 2.5.0
-  zustand: ^3.7.2
 
 dependencies:
   '@solid-primitives/resize-observer': 2.0.18_solid-js@1.7.8
   '@types/three': 0.154.0
   three:0.130.0: link:@types/three:0.130.0
   three:0.139.0: link:@types/three:0.139.0
-  zustand: 3.7.2
 
 devDependencies:
   '@types/node': 18.16.19
@@ -2953,16 +2951,6 @@ packages:
     resolution: {integrity: sha512-r3vXyErRCYJ7wg28yvBY5VSoAF8ZvlcW9/BwUzEtUsjvX/DKs24dIkuwjtuprwJJHsbyUbLApepYTR1BN4uHrg==}
     engines: {node: '>= 6'}
     dev: true
-
-  /zustand/3.7.2:
-    resolution: {integrity: sha512-PIJDIZKtokhof+9+60cpockVOq05sJzHCriyvaLBmEJixseQ1a5Kdov6fWZfWOu5SK9c+FhH1jU0tntLxRJYMA==}
-    engines: {node: '>=12.7.0'}
-    peerDependencies:
-      react: '>=16.8'
-    peerDependenciesMeta:
-      react:
-        optional: true
-    dev: false
 
   /zwitch/2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}

@@ -27,8 +27,7 @@ import { ParentContext } from './components'
 import { context } from './context'
 import { useIsomorphicLayoutEffect } from './hooks'
 import { MutableRefObject } from './useHelper'
-type Store = RootState
-type SolidThreeRoot = Root<Store>
+type SolidThreeRoot = Root<RootState>
 
 const roots = new Map<Element, SolidThreeRoot>()
 const { invalidate, advance } = createLoop(roots)
@@ -90,7 +89,7 @@ export type RenderProps<TCanvas extends Element> = {
     manual?: boolean
   }
   /** An R3F event manager to manage elements' pointer events */
-  events?: (store: Store) => EventManager<HTMLElement>
+  events?: (store: RootState) => EventManager<HTMLElement>
   /** Callback after the canvas has rendered (but not yet committed) */
   onCreated?: (state: RootState) => void
   /** Response for pointer clicks that have missed any target */
@@ -147,7 +146,7 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
 
 export type ReconcilerRoot<TCanvas extends Element> = {
   configure: (config?: RenderProps<TCanvas>) => ReconcilerRoot<TCanvas>
-  render: (props: { children: JSX.Element }) => Store
+  render: (props: { children: JSX.Element }) => RootState
   unmount: () => void
 }
 
@@ -369,7 +368,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
   }
 }
 
-function render<TCanvas extends Element>(children: JSX.Element, canvas: TCanvas, config: RenderProps<TCanvas>): Store {
+function render<TCanvas extends Element>(children: JSX.Element, canvas: TCanvas, config: RenderProps<TCanvas>): RootState {
   console.warn('R3F.render is no longer supported in React 18. Use createRoot instead!')
   const root = createRoot(canvas)
   root.configure(config)
@@ -378,7 +377,7 @@ function render<TCanvas extends Element>(children: JSX.Element, canvas: TCanvas,
 
 function Provider<TElement extends Element>(props: {
   onCreated?: (state: RootState) => void
-  store: Store
+  store: RootState
   children: JSX.Element
   rootElement: TElement
   parent?: MutableRefObject<TElement | undefined>
