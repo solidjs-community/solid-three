@@ -1,9 +1,7 @@
 export * from '../web/Canvas'
 export * from './components'
+export { context } from './context'
 export * from './hooks'
 export * from './renderer'
-export * from './useHelper'
-export { context, createRoot }
-
-import { context } from './context'
-import { createRoot } from './renderer'
+export { createRoot } from './renderer'
+export { useHelper } from './utils'

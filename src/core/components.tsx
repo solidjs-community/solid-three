@@ -13,8 +13,7 @@ import {
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
-import { useHelper } from './useHelper'
-import { getRootState, prepare } from './utils'
+import { getRootState, prepare, useHelper } from './utils'
 
 import { produce } from 'solid-js/store'
 import type { Instance, ThreeElement } from '../three-types'
@@ -125,14 +124,7 @@ export function useInstance(getInstance: () => Instance, props: any) {
 
   createEffect(() => {
     if (props.helper) {
-      useHelper(
-        {
-          get current() {
-            return getInstance() as any
-          },
-        },
-        props.helper,
-      )
+      useHelper(getInstance, props.helper)
     }
   })
 }

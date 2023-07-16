@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 
-import { createEffect, onCleanup } from 'solid-js'
+import { Accessor, createEffect, onCleanup } from 'solid-js'
 import { Falsey } from 'utility-types'
 import type { AttachType, Instance, LocalState } from '../three-types'
 import { useThree, useUpdate } from './hooks'
@@ -185,20 +185,6 @@ export function updateCamera(camera: Camera & { manual?: boolean }, size: Size) 
   }
 }
 
-export function createRef<T>() {
-  let ref: T
-  const refFn = (el: T) => (ref = el)
-  Object.defineProperty(refFn, 'current', {
-    get() {
-      return ref
-    },
-    set(val) {
-      ref = val
-    },
-  })
-
-  return refFn as unknown as { current: T | null }
-}
 type Helper = THREE.Object3D & {
   update: () => void
 }
@@ -206,25 +192,23 @@ type Helper = THREE.Object3D & {
 type Constructor = new (...args: any[]) => any
 type Rest<T> = T extends [infer _, ...infer R] ? R : never
 
-export type MutableRefObject<T> = { current: T }
-
 export function useHelper<T extends Constructor>(
-  object3D: MutableRefObject<THREE.Object3D | null | undefined> | Falsey | undefined,
+  object3D: Accessor<Instance | THREE.Object3D | null | undefined> | Falsey | undefined,
   helperConstructor: T,
-  ...args: Rest<ConstructorParameters<T>>
+  // ...args: Rest<ConstructorParameters<T>>
 ) {
-  const helper = createRef<Helper>()
+  let helper: Helper
   const store = useThree()
 
   createEffect(() => {
     if (object3D) {
-      if (helperConstructor && object3D?.current) {
-        helper.current = new (helperConstructor as any)(object3D.current, ...args)
-        if (helper.current) {
-          store.scene.add(helper.current)
+      if (helperConstructor && object3D()) {
+        helper = new (helperConstructor as any)(object3D() /* , ...args */)
+        if (helper) {
+          store.scene.add(helper)
           onCleanup(() => {
-            if (helper.current) {
-              store.scene.remove(helper.current)
+            if (helper) {
+              store.scene.remove(helper)
             }
           })
         }
@@ -234,16 +218,16 @@ export function useHelper<T extends Constructor>(
     /**
      * Dispose of the helper if no object 3D is passed
      */
-    if (!object3D || (!object3D.current && helper.current)) {
-      store.scene.remove(helper.current!)
+    if (!object3D || (!object3D() && helper)) {
+      store.scene.remove(helper!)
     }
   })
 
   useUpdate(() => {
-    if (helper?.current?.update) {
-      helper.current.update()
+    if (helper?.update) {
+      helper.update()
     }
   }, Stages.Update)
 
-  return helper
+  return () => helper
 }
