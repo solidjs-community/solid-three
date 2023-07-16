@@ -17,84 +17,19 @@ import { prepare } from '../core/utils'
 import { useThree } from './hooks'
 import { useHelper } from './useHelper'
 
-import type { EventHandlers } from '../core'
-import type { Instance } from '../three-types'
+import type { Instance, ThreeElement } from '../three-types'
 
 export const ParentContext = createContext<() => Instance>()
 
 export type Constructor<Instance = any> = { new (...args: any[]): Instance }
 
-type MainProps<T> = Omit<ConvenienceProps<T>, 'children' | 'attach' | 'args'>
-
-type ConvenienceProps<T> = {
-  [K in keyof T]?: SetArgumentType<T, K> | SetScalarArgumentType<T, K>
+export type ThreeComponent<Source extends Constructor> = Component<ThreeElement<Source>>
+type ThreeComponentProxy<Source> = {
+  [K in keyof Source]: Source[K] extends Constructor ? ThreeComponent<Source[K]> : undefined
 }
-
-type SetArgumentType<T, K extends keyof T> = T[K] extends {
-  set: (...args: infer Arguments) => any
-}
-  ? Arguments extends [any]
-    ? Arguments[0] | T[K]
-    : Arguments | Readonly<Arguments> | T[K] | Readonly<T[K]>
-  : T[K] | T[K]
-
-type SetScalarArgumentType<T, K extends keyof T> = T[K] extends {
-  setScalar: (scalar: infer Argument) => any
-}
-  ? Argument | T[K]
-  : T[K]
-
-type AttachProp = {
-  /** Attach the object to the parent property specified here. */
-  attach?: string
-}
-
-export type Ref<T> = T | ((value: T) => void)
-
-type RefProp<T> = { ref?: Ref<T> | Instance | { current: T } }
-
-/**
- * Our wrapper components allow the user to pass an already instantiated object, or it will create a new
- * instance of the class it wraps around.
- */
-type ObjectProp<T> = {
-  /** If you already have an instance of the class you want to wrap, you can pass it here. */
-  object?: T | { dispose?: () => void }
-}
-
-/**
- * Our wrapper components allow the user to pass an already instantiated object, or it will create a new
- * instance of the class it wraps around.
- */
-type EventHandlerProps<T> = EventHandlers
-
-/** Some extra props we will be accepting on our wrapper component. */
-type ConstructorArgsProps<TConstructor extends Constructor> = {
-  /** Arguments passed to the wrapped THREE class' constructor. */
-  // args?: TConstructor extends new (...args: infer V) => any ? V : never;
-  args?: ConstructorParameters<TConstructor>
-}
-
-export type ThreeComponentProps<Klass extends Constructor<any>, Instance = InstanceType<Klass>> = MainProps<Instance> &
-  RefProp<Instance> &
-  AttachProp &
-  ConstructorArgsProps<Klass> &
-  EventHandlerProps<Klass> &
-  ObjectProp<Instance> & {
-    children?: JSXElement
-    helper?: Constructor<any>
-  }
-
-export type ThreeComponent<
-  Klass extends Constructor,
-  KlassInstance = InstanceType<Klass>,
-  // > = (props: PropsWithChildren<ThreeComponentProps<Klass, Instance>>) => Instance
-> = Component<ThreeComponentProps<Klass, KlassInstance>>
 
 let DEBUG = false
-export const makeThreeComponent = <Klass extends Constructor, KlassInstance = InstanceType<Klass>>(
-  klass: Klass,
-): ThreeComponent<Klass, KlassInstance> => {
+export const makeThreeComponent = <Klass extends Constructor>(klass: Klass): ThreeComponent<Klass> => {
   let Component = (props: any) => {
     const getParent = useContext(ParentContext)
     const store = useThree()
@@ -292,11 +227,7 @@ export const applyProps = (object: { [key: string]: any }, props: { [key: string
   }
 }
 
-type ThreeComponentProxy<Source> = {
-  [K in keyof Source]: Source[K] extends Constructor ? ThreeComponent<Source[K]> : undefined
-}
-
-const cache = {} as Record<string, ThreeComponent<any, any>>
+const cache = {} as Record<string, ThreeComponent<any>>
 
 /**
  * The Trinity Reactor. For every class exposed by THREE, this object contains a

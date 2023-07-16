@@ -70,9 +70,7 @@ export type RenderProps<TCanvas extends Element> = {
   camera?: (
     | Camera
     | Partial<
-        Object3DNode<THREE.Camera, typeof THREE.Camera> &
-          Object3DNode<THREE.PerspectiveCamera, typeof THREE.PerspectiveCamera> &
-          Object3DNode<THREE.OrthographicCamera, typeof THREE.OrthographicCamera>
+        Object3DNode<THREE.Camera> & Object3DNode<THREE.PerspectiveCamera> & Object3DNode<THREE.OrthographicCamera>
       >
   ) & {
     /** Flags the camera as manual, putting projection into your own hands */

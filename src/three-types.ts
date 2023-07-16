@@ -1,7 +1,10 @@
 import { JSX } from 'solid-js/jsx-runtime'
 import * as THREE from 'three'
+import { Mutable } from 'utility-types'
 import { RootState } from './core'
 import { EventHandlers } from './core/events'
+
+type ConstructorRepresentation = new (...args: any[]) => any
 
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
@@ -31,14 +34,12 @@ export type BaseInstance = Omit<THREE.Object3D, 'children' | 'attach' | 'add' | 
 }
 export type Instance = BaseInstance & { [key: string]: any }
 
-export type InstanceProps = {
-  [key: string]: unknown
-} & {
-  args?: any[]
-  object?: object
+export interface InstanceProps<T = any, P = any> {
+  args?: Args<P>
+  object?: T
   visible?: boolean
   dispose?: null
-  attach?: AttachType
+  attach?: AttachType<T>
 }
 
 export interface Catalogue {
@@ -58,10 +59,10 @@ export type AttachType<O = any> = string | AttachFnType<O>
  */
 type Args<T> = T extends new (...args: any) => any ? ConstructorParameters<T> : T
 
-interface MathRepresentation {
+export interface MathRepresentation {
   set(...args: number[]): any
 }
-interface VectorRepresentation extends MathRepresentation {
+export interface VectorRepresentation extends MathRepresentation {
   setScalar(s: number): any
 }
 
@@ -84,21 +85,36 @@ export type Layers = MathType<THREE.Layers>
 export type Quaternion = MathType<THREE.Quaternion>
 export type Euler = MathType<THREE.Euler>
 
-export interface NodeProps<T, P> {
+type WithMathProps<P> = { [K in keyof P]: P[K] extends MathRepresentation | THREE.Euler ? MathType<P[K]> : P[K] }
+
+interface RaycastableRepresentation {
+  raycast(raycaster: THREE.Raycaster, intersects: THREE.Intersection[]): void
+}
+type EventProps<P> = P extends RaycastableRepresentation ? Partial<EventHandlers> : {}
+
+export interface NodeProps<T> {
   attach?: AttachType
   /** Constructor arguments */
-  args?: Args<P>
+  args?: Args<T>
   children?: JSX.Element
   ref?: () => T
   key?: string
   onUpdate?: (self: T) => void
 }
 
-export type ExtendedColors<T> = { [K in keyof T]: T[K] extends THREE.Color | undefined ? Color : T[K] }
-export type Node<T, P> = ExtendedColors<Overwrite<Partial<T>, NodeProps<T, P>>>
+export type ElementProps<T extends ConstructorRepresentation, P = InstanceType<T>> = Partial<
+  Overwrite<WithMathProps<P>, NodeProps<P> & EventProps<P>>
+>
 
-export type Object3DNode<T, P> = Overwrite<
-  Node<T, P>,
+export type ThreeElement<T extends ConstructorRepresentation> = Mutable<
+  Overwrite<ElementProps<T>, Omit<InstanceProps<InstanceType<T>, T>, 'object'>>
+>
+
+export type ExtendedColors<T> = { [K in keyof T]: T[K] extends THREE.Color | undefined ? Color : T[K] }
+export type Node<T> = ExtendedColors<Overwrite<Partial<T>, NodeProps<T>>>
+
+export type Object3DNode<T> = Overwrite<
+  Node<T>,
   {
     position?: Vector3
     up?: Vector3
