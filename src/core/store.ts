@@ -1,4 +1,4 @@
-import { createEffect, on } from "solid-js"
+import { Accessor, createEffect, on } from "solid-js"
 import { SetStoreFunction, createStore, produce } from "solid-js/store"
 import * as THREE from 'three'
 import { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
@@ -191,6 +191,8 @@ const createThreeStore = (
 
   const set: SetStoreFunction<RootState> = (...args: any[]) => {setRootState(...args)};
 
+  const get : Accessor<RootState>= () => rootState;
+
   const [rootState, setRootState] = createStore<RootState>({
     set,
 
@@ -201,8 +203,8 @@ const createThreeStore = (
     events: { priority: 1, enabled: true, connected: false },
     xr: null as unknown as { connect: () => void; disconnect: () => void },
 
-    invalidate: (frames = 1) => invalidate(rootState, frames),
-    advance: (timestamp: number, runGlobalEffects?: boolean) => advance(timestamp, runGlobalEffects, rootState),
+    invalidate: (frames = 1) => invalidate(get(), frames),
+    advance: (timestamp: number, runGlobalEffects?: boolean) => advance(timestamp, runGlobalEffects, get()),
 
     legacy: false,
     linear: false,
@@ -223,15 +225,14 @@ const createThreeStore = (
       max: 1,
       debounce: 200,
       regress: () => {
-        const state = rootState
         // Clear timeout
         if (performanceTimeout) clearTimeout(performanceTimeout)
         // Set lower bound performance
-        if (state.performance.current !== state.performance.min) setPerformanceCurrent(state.performance.min)
+        if (get().performance.current !== get().performance.min) setPerformanceCurrent(get().performance.min)
         // Go back to upper bound performance after a while unless something regresses meanwhile
         performanceTimeout = setTimeout(
-          () => setPerformanceCurrent(rootState.performance.max),
-          state.performance.debounce,
+          () => setPerformanceCurrent(get().performance.max),
+          get().performance.debounce,
         )
       },
     },
@@ -253,7 +254,7 @@ const createThreeStore = (
     setEvents: (events: Partial<EventManager<any>>) =>
       set((state) => ({ ...state, events: { ...state.events, ...events } })),
     setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => {
-      const camera = rootState.camera
+      const camera = get().camera
       const size = { width, height, top: top || 0, left: left || 0, updateStyle }
       set((state) => ({ size, viewport: { ...state.viewport, ...getCurrentViewport(camera, defaultTarget, size) } }))
     },
@@ -263,7 +264,7 @@ const createThreeStore = (
         return { viewport: { ...state.viewport, dpr: resolved, initialDpr: state.viewport.initialDpr || resolved } }
       }),
     setFrameloop: (frameloop: Frameloop) => {
-      const state = rootState
+      const state = get()
       const mode: FrameloopLegacy =
         typeof frameloop === 'string'
           ? frameloop
@@ -305,7 +306,7 @@ const createThreeStore = (
       maxDelta: 1 / 10,
       priority: 0,
       subscribe: (ref: RenderCallback, priority: number, store: RootState) => {
-        const state = rootState
+        const state = get()
         const internal = state.internal
         // If this subscription was given a priority, it takes rendering into its own hands
         // For that reason we switch off automatic rendering and increase the manual flag
@@ -321,7 +322,7 @@ const createThreeStore = (
         // highest priority renders last (on top of the other frames)
         set('internal', 'subscribers', produce((subscribers) => internal.subscribers.sort((a, b) => a.priority - b.priority)))
         return () => {
-          const state = rootState
+          const state = get()
           const internal = state.internal
           if (internal?.subscribers) {
             // Decrease manual flag if this subscription had a priority
@@ -345,25 +346,26 @@ const createThreeStore = (
   createEffect(
     on(() => rootState, 
     () => {
-    const { camera, size, viewport, gl, set } = rootState
+      const { camera, size, viewport, gl, set } = rootState
 
-    // Resize camera and renderer on changes to size and pixelratio
-    if (size !== oldSize || viewport.dpr !== oldDpr) {
-      oldSize = size
-      oldDpr = viewport.dpr
-      // Update camera & renderer
-      updateCamera(camera, size)
-      gl.setPixelRatio(viewport.dpr)
-      gl.setSize(size.width, size.height, size.updateStyle)
-    }
+      // Resize camera and renderer on changes to size and pixelratio
+      if (size !== oldSize || viewport.dpr !== oldDpr) {
+        oldSize = size
+        oldDpr = viewport.dpr
+        // Update camera & renderer
+        updateCamera(camera, size)
+        gl.setPixelRatio(viewport.dpr)
+        gl.setSize(size.width, size.height, size.updateStyle)
+      }
 
-    // Update viewport once the camera changes
-    if (camera !== oldCamera) {
-      oldCamera = camera
-      // Update viewport
-      set((state) => ({ viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) } }))
+      // Update viewport once the camera changes
+      if (camera !== oldCamera) {
+        oldCamera = camera
+        // Update viewport
+        set((state) => ({ viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) } }))
+      }
     }
-  }))
+  ))
 
   // Invalidate on any change
 
