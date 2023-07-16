@@ -60,7 +60,7 @@
     "preset": "scripts/jest/node"
   },
   "dependencies": {
-    "@solid-primitives/resize-observer": "^2.0.18",
+    "@solid-primitives/resize-observer": "^2.0.18"
   },
   "packageManager": "pnpm@7.26.0"
 }
