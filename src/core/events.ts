@@ -155,11 +155,10 @@ export function createEvents(store: RootState) {
   }
 
   function intersect(event: DomEvent, filter?: (objects: THREE.Object3D[]) => THREE.Object3D[]) {
-    const state = store
     const duplicates = new Set<string>()
     const intersections: Intersection[] = []
     // Allow callers to eliminate event objects
-    const eventsObjects = filter ? filter(state.internal.interaction) : state.internal.interaction
+    const eventsObjects = filter ? filter(store.internal.interaction) : store.internal.interaction
     // Reset all raycaster cameras to undefined
     for (let i = 0; i < eventsObjects.length; i++) {
       const state = getRootState(eventsObjects[i])
@@ -168,9 +167,9 @@ export function createEvents(store: RootState) {
       }
     }
 
-    if (!state.previousRoot) {
+    if (!store.previousRoot) {
       // Make sure root-level pointer and ray are set up
-      state.events.compute?.(event, state)
+      store.events.compute?.(event, store)
     }
 
     function handleRaycast(obj: THREE.Object3D<THREE.Event>) {
@@ -210,7 +209,7 @@ export function createEvents(store: RootState) {
 
     // https://github.com/mrdoob/three.js/issues/16031
     // Allow custom userland intersect sort order, this likely only makes sense on the root filter
-    if (state.events.filter) hits = state.events.filter(hits, state)
+    if (store.events.filter) hits = store.events.filter(hits, store)
 
     // Bubble up the events, find the event source (eventObject)
     for (const hit of hits) {
@@ -224,8 +223,8 @@ export function createEvents(store: RootState) {
     }
 
     // If the interaction is captured, make all capturing targets part of the intersect.
-    if ('pointerId' in event && state.internal.capturedMap.has(event.pointerId)) {
-      for (let captureData of state.internal.capturedMap.get(event.pointerId)!.values()) {
+    if ('pointerId' in event && store.internal.capturedMap.has(event.pointerId)) {
+      for (let captureData of store.internal.capturedMap.get(event.pointerId)!.values()) {
         if (!duplicates.has(makeId(captureData.intersection))) intersections.push(captureData.intersection)
       }
     }

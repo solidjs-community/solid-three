@@ -115,7 +115,6 @@ const createRendererInstance = <TElement extends Element>(gl: GLProps, canvas: T
 }
 
 const createStages = (stages: Stage[] | undefined, store: RootState) => {
-  const state = store
   let subscribers: Subscription[]
   let subscription: Subscription
 
@@ -124,7 +123,7 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
   if (!_stages.includes(Stages.Update)) throw 'The Stages.Update stage is required for R3F.'
   if (!_stages.includes(Stages.Render)) throw 'The Stages.Render stage is required for R3F.'
 
-  state.set(({ internal }) => ({ internal: { ...internal, stages: _stages } }))
+  store.set(({ internal }) => ({ internal: { ...internal, stages: _stages } }))
 
   // Add useFrame loop to update stage
   const frameCallback = (state: RootState, delta: number, frame?: XRFrame | undefined) => {
@@ -216,15 +215,13 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
         stages,
       } = props
 
-      let state = store
-
       // Set up renderer (one time only!)
-      let gl = state.gl
-      if (!state.gl) state.set({ gl: (gl = createRendererInstance(glConfig, canvas)) })
+      let gl = store.gl
+      if (!store.gl) store.set({ gl: (gl = createRendererInstance(glConfig, canvas)) })
 
       // Set up raycaster (one time only!)
-      let raycaster = state.raycaster
-      if (!raycaster) state.set({ raycaster: (raycaster = new THREE.Raycaster()) })
+      let raycaster = store.raycaster
+      if (!raycaster) store.set({ raycaster: (raycaster = new THREE.Raycaster()) })
 
       // Set raycaster options
       const { params, ...options } = raycastOptions || {}
@@ -233,7 +230,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
         applyProps(raycaster as any, { params: { ...raycaster.params, ...params } })
 
       // Create default camera (one time only!)
-      if (!state.camera) {
+      if (!store.camera) {
         const isCamera = cameraOptions instanceof THREE.Camera
         const camera = isCamera
           ? (cameraOptions as Camera)
@@ -246,25 +243,23 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
           // Always look at center by default
           if (!cameraOptions?.rotation) camera.lookAt(0, 0, 0)
         }
-        state.set({ camera })
+        store.set({ camera })
       }
 
       // Set up XR (one time only!)
-      if (!state.xr) {
+      if (!store.xr) {
         // Handle frame behavior in WebXR
         const handleXRFrame: XRFrameRequestCallback = (timestamp: number, frame?: XRFrame) => {
-          const state = store
-          if (state.frameloop === 'never') return
-          advance(timestamp, true, state, frame)
+          if (store.frameloop === 'never') return
+          advance(timestamp, true, store, frame)
         }
 
         // Toggle render switching on session
         const handleSessionChange = () => {
-          const state = store
-          state.gl.xr.enabled = state.gl.xr.isPresenting
+          store.gl.xr.enabled = store.gl.xr.isPresenting
 
-          state.gl.xr.setAnimationLoop(state.gl.xr.isPresenting ? handleXRFrame : null)
-          if (!state.gl.xr.isPresenting) invalidate(state)
+          store.gl.xr.setAnimationLoop(store.gl.xr.isPresenting ? handleXRFrame : null)
+          if (!store.gl.xr.isPresenting) invalidate(store)
         }
 
         // WebXR session manager
@@ -283,7 +278,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
 
         // Subscribe to WebXR session events
         if (gl.xr) xr.connect()
-        state.set({ xr })
+        store.set({ xr })
       }
 
       // Set shadowmap
@@ -306,32 +301,32 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       if (gl.toneMapping !== toneMapping) gl.toneMapping = toneMapping
 
       // Update color management state
-      if (state.legacy !== legacy) state.set(() => ({ legacy }))
-      if (state.linear !== linear) state.set(() => ({ linear }))
-      if (state.flat !== flat) state.set(() => ({ flat }))
+      if (store.legacy !== legacy) store.set(() => ({ legacy }))
+      if (store.linear !== linear) store.set(() => ({ linear }))
+      if (store.flat !== flat) store.set(() => ({ flat }))
 
       // Set gl props
       if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
         applyProps(gl as any, glConfig as any)
       // Store events internally
-      if (events && !state.events.handlers) state.set({ events: {...state.events, ...events(store)} })
+      if (events && !store.events.handlers) store.set({ events: {...store.events, ...events(store)} })
       // Check pixelratio
-      if (dpr && state.viewport.dpr !== calculateDpr(dpr)) state.setDpr(dpr)
+      if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
       // Check size, allow it to take on container bounds initially
       const size = computeInitialSize(canvas, propsSize)
-      if (!is.equ(size, state.size, shallowLoose)) {
-        state.setSize(size.width, size.height, size.updateStyle, size.top, size.left)
+      if (!is.equ(size, store.size, shallowLoose)) {
+        store.setSize(size.width, size.height, size.updateStyle, size.top, size.left)
       }
       // Check frameloop
-      if (state.frameloop !== frameloop) state.setFrameloop(frameloop)
+      if (store.frameloop !== frameloop) store.setFrameloop(frameloop)
       // Check pointer missed
-      if (!state.onPointerMissed) state.set({ onPointerMissed })
+      if (!store.onPointerMissed) store.set({ onPointerMissed })
       // Check performance
-      if (performance && !is.equ(performance, state.performance, shallowLoose))
-        state.set((state) => ({ performance: { ...state.performance, ...performance } }))
+      if (performance && !is.equ(performance, store.performance, shallowLoose))
+        store.set((state) => ({ performance: { ...state.performance, ...performance } }))
 
       // Create update stages. Only do this once on init
-      if (state.internal.stages.length === 0) createStages(stages, store)
+      if (store.internal.stages.length === 0) createStages(stages, store)
 
       // Set locals
       onCreated = onCreatedCallback
@@ -343,8 +338,6 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
-      let state = store
-
       createResizeObserver(
         () => canvas.parentElement!,
         ({ width, height }) => {
@@ -354,8 +347,8 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
 
       insert(canvas.parentElement!, () => (
         <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-          <ParentContext.Provider value={() => state.scene as unknown as Instance}>
-            {[state.gl.domElement, props.children]}
+          <ParentContext.Provider value={() => store.scene as unknown as Instance}>
+            {[store.gl.domElement, props.children]}
           </ParentContext.Provider>
         </Provider>
       ))
