@@ -1,5 +1,7 @@
+import { createEffect, onCleanup } from 'solid-js'
 import { Object3D } from 'three'
 import { Falsey } from 'utility-types'
+
 import { Stages } from '../core'
 import { useThree, useUpdate } from './hooks'
 
@@ -31,31 +33,31 @@ export function useHelper<T extends Constructor>(
   helperConstructor: T,
   ...args: Rest<ConstructorParameters<T>>
 ) {
-  let helper = createRef<Helper>()
+  const helper = createRef<Helper>()
+  const store = useThree()
 
-  const scene = useThree((state) => state.scene)
-  // createEffect(() => {
-  //   if (object3D) {
-  //     if (helperConstructor && object3D?.current) {
-  //       helper.current = new (helperConstructor as any)(object3D.current, ...args)
-  //       if (helper.current) {
-  //         scene().add(helper.current)
-  //         onCleanup(() => {
-  //           if (helper.current) {
-  //             scene().remove(helper.current)
-  //           }
-  //         })
-  //       }
-  //     }
-  //   }
+  createEffect(() => {
+    if (object3D) {
+      if (helperConstructor && object3D?.current) {
+        helper.current = new (helperConstructor as any)(object3D.current, ...args)
+        if (helper.current) {
+          store.scene.add(helper.current)
+          onCleanup(() => {
+            if (helper.current) {
+              store.scene.remove(helper.current)
+            }
+          })
+        }
+      }
+    }
 
-  //   /**
-  //    * Dispose of the helper if no object 3D is passed
-  //    */
-  //   if (!object3D || (!object3D.current && helper.current)) {
-  //     scene().remove(helper.current!)
-  //   }
-  // })
+    /**
+     * Dispose of the helper if no object 3D is passed
+     */
+    if (!object3D || (!object3D.current && helper.current)) {
+      store.scene.remove(helper.current!)
+    }
+  })
 
   useUpdate(() => {
     if (helper?.current?.update) {
