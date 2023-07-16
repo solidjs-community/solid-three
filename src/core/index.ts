@@ -1,6 +1,6 @@
 export * from '../web/Canvas'
-export * from './components'
 export * from './hooks'
+export * from './proxy'
 export * from './renderer'
 export { createRoot } from './renderer'
 export { useHelper } from './utils'

@@ -7,7 +7,7 @@ import { OffscreenCanvas } from 'three'
 import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
 import { calculateDpr, dispose, is } from '../core/utils'
-import { ParentContext, applyProps } from './components'
+import { ParentContext, applyProps } from './proxy'
 import { context, createStore, isRenderer } from './store'
 
 import type { ComputeFunction, EventManager } from '../core/events'
