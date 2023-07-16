@@ -97,7 +97,7 @@ export interface NodeProps<T> {
   /** Constructor arguments */
   args?: Args<T>
   children?: JSX.Element
-  ref?: () => T
+  ref?: (() => T) | T
   key?: string
   onUpdate?: (self: T) => void
 }
