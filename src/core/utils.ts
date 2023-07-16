@@ -1,10 +1,11 @@
-import * as THREE from 'three'
-
 import { Accessor, createEffect, onCleanup } from 'solid-js'
+import * as THREE from 'three'
 import { Falsey } from 'utility-types'
-import type { AttachType, Instance, LocalState } from '../three-types'
+
 import { useThree, useUpdate } from './hooks'
 import { Stages } from './stages'
+
+import type { AttachType, Instance, LocalState } from '../three-types'
 import type { Dpr, RootState, Size } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera

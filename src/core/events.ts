@@ -2,8 +2,8 @@ import * as THREE from 'three'
 
 import { getRootState } from './utils'
 
-import type { RootState } from '../solid/store'
 import type { Instance } from '../three-types'
+import type { RootState } from './store'
 import type { Camera } from './utils'
 
 export interface Intersection extends THREE.Intersection {

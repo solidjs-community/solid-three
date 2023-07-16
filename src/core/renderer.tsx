@@ -1,5 +1,5 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { Accessor, JSX } from 'solid-js'
+import type { Accessor, JSX } from 'solid-js'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 import { OffscreenCanvas } from 'three'
