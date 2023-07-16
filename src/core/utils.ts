@@ -1,6 +1,6 @@
 import * as THREE from 'three'
+import { AttachType, Instance, InstanceProps, LocalState } from '../three-types'
 import { EventHandlers } from './events'
-import { AttachType, Instance, InstanceProps, LocalState } from './renderer'
 import { Dpr, RootState, Size } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
