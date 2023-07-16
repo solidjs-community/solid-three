@@ -370,10 +370,7 @@ function Provider<TElement extends Element>(props: {
   props.store.set((state) => ({ internal: { ...state.internal, active: true } }))
   // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
 
-  // NOTE:  Without untrack we get a `RangeError: Maximum Call Stack Size Exceeded`-error
-  //        In the original r3f-code it is an IsomorphicLayoutEffect with empty dependency-array
-  //        But using onMount did not create the wanted results.
-  if (props.onCreated) props.onCreated!(props.store)
+  if (props.onCreated) props.onCreated(props.store)
 
   // Connect events to the targets parent, this is done to ensure events are registered on
   // a shared target, and not on the canvas itself
