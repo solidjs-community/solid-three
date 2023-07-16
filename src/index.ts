@@ -1,7 +1,7 @@
 export { createEvents } from './core/events'
 export { addAfterEffect, addEffect, addTail } from './core/loop'
 export { FixedStage, Stage, Stages } from './core/stages'
-export { applyProps, dispose, getRootState } from './core/utils'
+export { dispose, getRootState } from './core/utils'
 
 export type { ComputeFunction, EventManager, Events, Intersection, ThreeEvent } from './core/events'
 export type { Camera, ObjectMap } from './core/utils'

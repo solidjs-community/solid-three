@@ -6,8 +6,8 @@ import { OffscreenCanvas } from 'three'
 
 import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import { applyProps, calculateDpr, dispose, is } from '../core/utils'
-import { ParentContext } from './components'
+import { calculateDpr, dispose, is } from '../core/utils'
+import { ParentContext, applyProps } from './components'
 import { context } from './context'
 import { createStore, isRenderer } from './store'
 

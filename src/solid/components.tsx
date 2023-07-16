@@ -10,13 +10,13 @@ import {
   untrack,
   useContext,
 } from 'solid-js'
-import { produce } from 'solid-js/store'
 import * as THREE from 'three'
 
-import { prepare } from '../core/utils'
+import { getRootState, prepare } from '../core/utils'
 import { useThree } from './hooks'
 import { useHelper } from './useHelper'
 
+import { produce } from 'solid-js/store'
 import type { Instance, ThreeElement } from '../three-types'
 
 export const ParentContext = createContext<() => Instance>()
@@ -155,8 +155,8 @@ export function Primitive<T extends Instance>(props: { object: T; children?: JSX
 /**
  * Convenience method for setting (potentially nested) properties on an object.
  */
-export const applyProps = (object: { [key: string]: any }, props: { [key: string]: any }) => {
-  const store = useThree()
+export const applyProps = (object: Instance, props: { [key: string]: any }) => {
+  const rootState = getRootState(object as any as THREE.Object3D)
 
   for (const key in props) {
     /* If the key contains a hyphen, we're setting a sub property. */
@@ -198,9 +198,8 @@ export const applyProps = (object: { [key: string]: any }, props: { [key: string
       createRenderEffect(() => (object[key] = props[key]))
     }
 
+    if (!rootState) return
     if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
-      const rootState = store
-
       createRenderEffect(() => {
         object.__r3f.handlers[key] = props[key]
         object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
