@@ -1,6 +1,8 @@
+import devtools from 'solid-devtools/vite';
 import { defineConfig } from "vite";
 import inspect from "vite-plugin-inspect";
 import solidPlugin from "vite-plugin-solid";
+
 export default defineConfig(async (mode) => ({
   build:
     process.env.BUILD_MODE === "lib"
@@ -26,6 +28,7 @@ export default defineConfig(async (mode) => ({
         }
       : {},
   plugins: [
+    devtools(),
     // mdx({
     //   transformMDX: (code) => {
     //     return code.replace(/<\!--[a-zA-Z\.\s]+-->/g, ` `);
