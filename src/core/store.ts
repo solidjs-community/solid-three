@@ -258,7 +258,10 @@ const createThreeStore = (
     setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => {
       const camera = get().camera
       const size = { width, height, top: top || 0, left: left || 0, updateStyle }
-      set('viewport', getCurrentViewport(camera, defaultTarget, size))
+      batch(() => {
+        set('viewport', getCurrentViewport(camera, defaultTarget, size))
+        set('size', size)
+      })
     },
     setDpr: (dpr: Dpr) => {
       const resolved = calculateDpr(dpr)
