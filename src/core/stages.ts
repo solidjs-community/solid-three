@@ -32,7 +32,7 @@ export class Stage {
     const initialTime = performance.now()
 
     for (let i = 0; i < subs.length; i++) {
-      subs[i].ref(subs[i].store.getState(), delta, frame)
+      subs[i].ref(subs[i].store, delta, frame)
     }
 
     this._frameTime = performance.now() - initialTime

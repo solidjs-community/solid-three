@@ -1,21 +1,22 @@
 /** @jsxImportSource solid-js */
 import {
   Component,
+  createContext,
   createEffect,
   createMemo,
   createRenderEffect,
   JSXElement,
   onCleanup,
   splitProps,
-  useContext,
+  untrack,
+  useContext
 } from 'solid-js'
+import { produce } from 'solid-js/store'
 import * as THREE from 'three'
-import { prepare } from '../core/utils'
-import { createContext } from 'solid-js'
-import { useHelper } from './useHelper'
 import { EventHandlers, Instance } from '../core'
-import { useStore } from './hooks'
-import { Object3D } from 'three'
+import { prepare } from '../core/utils'
+import { useThree } from './hooks'
+import { useHelper } from './useHelper'
 
 export const ParentContext = createContext<() => Instance>()
 
@@ -94,7 +95,7 @@ export const makeThreeComponent = <Klass extends Constructor, KlassInstance = In
 ): ThreeComponent<Klass, KlassInstance> => {
   let Component = (props: any) => {
     const getParent = useContext(ParentContext)
-    const store = useStore()
+    const store = useThree()
 
     /* Create instance */
     const getInstance = createMemo(() => {
@@ -119,7 +120,7 @@ export const makeThreeComponent = <Klass extends Constructor, KlassInstance = In
 
 export function useInstance(getInstance: () => Instance, props: any) {
   const getParent = useContext(ParentContext)
-  const store = useStore()
+  const store = useThree()
   const [local, instanceProps] = splitProps(props, ['ref', 'args', 'object', 'attach', 'children'])
   createRenderEffect(() => {
     /* Assign ref */
@@ -196,11 +197,11 @@ export function useInstance(getInstance: () => Instance, props: any) {
         props.helper,
       )
     }
-  })
+  }) 
 }
 
 export function Primitive<T extends Instance>(props: { object: T; children?: JSXElement }) {
-  const store = useStore()
+  const store = useThree()
 
   /* Prepare instance */
   const instance = createMemo(() => {
@@ -217,8 +218,9 @@ export function Primitive<T extends Instance>(props: { object: T; children?: JSX
 /**
  * Convenience method for setting (potentially nested) properties on an object.
  */
-const applyProps = (object: { [key: string]: any }, props: { [key: string]: any }) => {
-  const store = useStore()
+export const applyProps = (object: { [key: string]: any }, props: { [key: string]: any }) => {
+  const store = useThree()
+
   for (const key in props) {
     /* If the key contains a hyphen, we're setting a sub property. */
     if (key.indexOf('-') > -1) {
@@ -260,18 +262,20 @@ const applyProps = (object: { [key: string]: any }, props: { [key: string]: any 
     }
 
     if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
-      const rootState = store.getState()
+      const rootState = store
+
       createRenderEffect(() => {
         object.__r3f.handlers[key] = props[key]
         object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
       })
       if (rootState.internal && object.raycast) {
-        // Pre-emptively remove the instance from the interaction manager
         const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
-        if (index > -1) rootState.internal.interaction.splice(index, 1)
-        // Add the instance to the interaction manager only when it has handlers
-        // if (localState.eventCount)
-        rootState.internal.interaction.push(object as unknown as THREE.Object3D)
+        if (object.__r3f.eventCount && index === -1){
+          untrack(() => rootState.set("internal", "interaction", (arr => [...arr, (object as unknown as THREE.Object3D)])))
+        }
+        if(!object.__r3f.eventCount && index !== -1){
+          rootState.set('internal', 'interaction', produce(arr => arr.splice(index, 1)))
+        }  
       }
 
       // Call the update lifecycle when it is being updated, but only when it is part of the scene

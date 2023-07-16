@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { EventHandlers } from './events'
 import { AttachType, Instance, InstanceProps, LocalState } from './renderer'
-import { Dpr, Store, RootState, Size } from './store'
+import { Dpr, RootState, Size, Store } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
@@ -30,7 +30,7 @@ export function calculateDpr(dpr: Dpr) {
  * Returns instance root state
  */
 export const getRootState = (obj: THREE.Object3D): RootState | undefined =>
-  (obj as unknown as Instance).__r3f?.root.getState()
+  (obj as unknown as Instance).__r3f?.root
 
 export type EquConfig = {
   /** Compare arrays by reference equality a === b (default), or by shallow equality */
@@ -289,11 +289,11 @@ export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
   })
 
   if (localState.parent && rootState.internal && instance.raycast && prevHandlers !== localState.eventCount) {
-    // Pre-emptively remove the instance from the interaction manager
+    /* // Pre-emptively remove the instance from the interaction manager
     const index = rootState.internal.interaction.indexOf(instance as unknown as THREE.Object3D)
-    if (index > -1) rootState.internal.interaction.splice(index, 1)
+    if (index > -1) rootState.set('internal', 'interaction', produce((arr) => arr.splice(index, 1)))
     // Add the instance to the interaction manager only when it has handlers
-    if (localState.eventCount) rootState.internal.interaction.push(instance as unknown as THREE.Object3D)
+    if (localState.eventCount) rootState.set('internal', 'interaction', produce(arr => arr.push(instance as unknown as THREE.Object3D))) */
   }
 
   // Call the update lifecycle when it is being updated, but only when it is part of the scene

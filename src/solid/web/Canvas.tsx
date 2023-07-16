@@ -1,10 +1,8 @@
 /** @jsxImportSource solid-js */
+import { ComponentProps, JSX, createComputed, mergeProps, onMount, splitProps } from 'solid-js'
 import * as THREE from 'three'
-import { extend, createRoot, unmountComponentAtNode, RenderProps } from '../index'
 import { createPointerEvents } from '../../web/events'
-import { DomEvent } from '../../core/events'
-import { createComputed, Ref, JSX, ComponentProps, mergeProps } from 'solid-js'
-import { createEffect, splitProps } from 'solid-js'
+import { RenderProps, createRoot, extend } from '../index'
 
 export interface Props extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, ComponentProps<'div'> {
   children: JSX.Element
@@ -46,7 +44,7 @@ export function Canvas(props: Props) {
     canvasRef: HTMLCanvasElement = null!,
     divRef: HTMLDivElement = null!
 
-  createEffect(() => {
+  onMount(() => {
     let size = canvasRef.parentElement?.getBoundingClientRect() ?? {
       width: 0,
       height: 0,
@@ -55,7 +53,6 @@ export function Canvas(props: Props) {
     }
 
     let root = createRoot<HTMLElement>(canvasRef)
-
     root.configure({
       ...threeProps,
       size,
@@ -79,6 +76,7 @@ export function Canvas(props: Props) {
         props.onCreated?.(state)
       },
     })
+    
 
     root.render(props)
   })

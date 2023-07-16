@@ -1,11 +1,9 @@
 import * as THREE from 'three'
-import create, { UseBoundStore } from './zustand'
 
 import { createResizeObserver } from '@solid-primitives/resize-observer'
 import { JSX } from 'solid-js'
 import { insert } from 'solid-js/web'
 import { OffscreenCanvas } from 'three'
-import { StoreApi } from 'zustand/vanilla'
 import { ComputeFunction, EventManager } from '../core/events'
 import { addAfterEffect, addEffect, addTail, createLoop } from '../core/loop'
 import { Instance, Root, extend } from '../core/renderer'
@@ -23,12 +21,13 @@ import {
   isRenderer
 } from '../core/store'
 import { Camera, EquConfig, applyProps, calculateDpr, dispose, getRootState, is } from '../core/utils'
+
 import * as ReactThreeFiber from '../three-types'
 import { ParentContext } from './components'
 import { context } from './context'
 import { useIsomorphicLayoutEffect } from './hooks'
 import { MutableRefObject } from './useHelper'
-type Store = UseBoundStore<RootState, StoreApi<RootState>>
+type Store = RootState
 type SolidThreeRoot = Root<Store>
 
 const roots = new Map<Element, SolidThreeRoot>()
@@ -116,8 +115,8 @@ const createRendererInstance = <TElement extends Element>(gl: GLProps, canvas: T
     })
 }
 
-const createStages = (stages: Stage[] | undefined, store: UseBoundStore<RootState, StoreApi<RootState>>) => {
-  const state = store.getState()
+const createStages = (stages: Stage[] | undefined, store: RootState) => {
+  const state = store
   let subscribers: Subscription[]
   let subscription: Subscription
 
@@ -133,7 +132,7 @@ const createStages = (stages: Stage[] | undefined, store: UseBoundStore<RootStat
       subscribers = state.internal.subscribers
       for (let i = 0; i < subscribers.length; i++) {
         subscription = subscribers[i]
-        subscription.ref(subscription.store.getState(), delta, frame)
+        subscription.ref(subscription.store, delta, frame)
       }
     }
   
@@ -189,7 +188,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
 
   // Create store
   const store =
-    prevStore || create<RootState, StoreApi<RootState>>(createStore(invalidate, advance) as StoreApi<RootState>)
+    prevStore || createStore(invalidate, advance)
   // Map it
   if (!prevRoot) roots.set(canvas, { store })
 
@@ -218,7 +217,7 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
         stages,
       } = props
 
-      let state = store.getState()
+      let state = store
 
       // Set up renderer (one time only!)
       let gl = state.gl
@@ -255,14 +254,14 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       if (!state.xr) {
         // Handle frame behavior in WebXR
         const handleXRFrame: XRFrameRequestCallback = (timestamp: number, frame?: XRFrame) => {
-          const state = store.getState()
+          const state = store
           if (state.frameloop === 'never') return
           advance(timestamp, true, state, frame)
         }
 
         // Toggle render switching on session
         const handleSessionChange = () => {
-          const state = store.getState()
+          const state = store
           state.gl.xr.enabled = state.gl.xr.isPresenting
 
           state.gl.xr.setAnimationLoop(state.gl.xr.isPresenting ? handleXRFrame : null)
@@ -272,12 +271,12 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
         // WebXR session manager
         const xr = {
           connect() {
-            const gl = store.getState().gl
+            const gl = store.gl
             gl.xr.addEventListener('sessionstart', handleSessionChange)
             gl.xr.addEventListener('sessionend', handleSessionChange)
           },
           disconnect() {
-            const gl = store.getState().gl
+            const gl = store.gl
             gl.xr.removeEventListener('sessionstart', handleSessionChange)
             gl.xr.removeEventListener('sessionend', handleSessionChange)
           },
@@ -345,12 +344,12 @@ function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TC
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
-      let state = store.getState()
+      let state = store
 
       createResizeObserver(
         () => canvas.parentElement!,
         ({ width, height }) => {
-          store.getState().setSize(width, height)
+          store.setSize(width, height)
         },
       )
 
@@ -385,14 +384,14 @@ function Provider<TElement extends Element>(props: {
   parent?: MutableRefObject<TElement | undefined>
 }) {
   useIsomorphicLayoutEffect(() => {
-    const state = props.store.getState()
+    const state = props.store
     // Flag the canvas active, rendering will now begin
     state.set((state) => ({ internal: { ...state.internal, active: true } }))
     // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
     if (props.onCreated) props.onCreated(state)
     // Connect events to the targets parent, this is done to ensure events are registered on
     // a shared target, and not on the canvas itself
-    if (!props.store.getState().events.connected) state.events.connect?.(props.rootElement)
+    if (!props.store.events.connected) state.events.connect?.(props.rootElement)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   })
   return <context.Provider value={props.store}>{props.children}</context.Provider>
@@ -400,7 +399,7 @@ function Provider<TElement extends Element>(props: {
 
 function unmountComponentAtNode<TElement extends Element>(canvas: TElement, callback?: (canvas: TElement) => void) {
   const root = roots.get(canvas)
-  const state = root?.store.getState()
+  const state = root?.store
   if (state) {
     state.internal.active = false
 
@@ -505,7 +504,7 @@ export type InjectState = Partial<
 
 //   const [usePortalStore] = React.useState(() => {
 //     // Create a mirrored store, based on the previous root with a few overrides ...
-//     const previousState = previousRoot.getState()
+//     const previousState = previousRoot
 //     const store = create<RootState>((set, get) => ({
 //       ...previousState,
 //       scene: container as THREE.Scene,
@@ -536,7 +535,7 @@ export type InjectState = Partial<
 //   }, [])
 
 //   React.useEffect(() => {
-//     usePortalStore.setState((injectState) => inject(previousRoot.getState(), injectState))
+//     usePortalStore.setState((injectState) => inject(previousRoot, injectState))
 //   }, [inject])
 
 //   return (

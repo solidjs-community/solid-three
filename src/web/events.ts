@@ -34,11 +34,11 @@ export function createPointerEvents(store: RootStore): EventManager<HTMLElement>
       {},
     ) as unknown as Events,
     update: () => {
-      const { events, internal } = store.getState()
+      const { events, internal } = store
       if (internal.lastEvent && events.handlers) events.handlers.onPointerMove(internal.lastEvent)
     },
     connect: (target: HTMLElement) => {
-      const { set, events } = store.getState()
+      const { set, events } = store
       events.disconnect?.()
       set((state) => ({ events: { ...state.events, connected: target } }))
       if (events.handlers) {
@@ -50,7 +50,7 @@ export function createPointerEvents(store: RootStore): EventManager<HTMLElement>
       }
     },
     disconnect: () => {
-      const { set, events } = store.getState()
+      const { set, events } = store
       if (events.connected) {
         if (events.handlers) {
           for (const name in events.handlers) {

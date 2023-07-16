@@ -1,7 +1,5 @@
-import { StoreApi } from 'zustand/vanilla'
-
 import { Accessor, createSignal, onCleanup } from 'solid-js'
-import type { Mutate, StateCreator, StoreMutatorIdentifier } from 'zustand/vanilla'
+import type { StateCreator, StoreApi } from 'zustand/vanilla'
 import createZustandStore from 'zustand/vanilla'
 
 type ExtractState<S> = S extends { getState: () => infer T } ? T : never
@@ -18,7 +16,7 @@ export function useStore<TState extends object, StateSlice>(
   selector: (state: TState) => StateSlice = api.getState as any,
   equalityFn?: (a: StateSlice, b: StateSlice) => boolean,
 ) {
-  const initialValue = selector(api.getState())
+  const initialValue = selector(api)
   const [state, setState] = createSignal(initialValue)
 
   const listener = (nextState: TState, previousState: TState) => {

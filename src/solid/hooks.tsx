@@ -1,5 +1,4 @@
 import {
-  Accessor,
   Resource,
   createEffect,
   createMemo,
@@ -7,14 +6,13 @@ import {
   createResource,
   onCleanup,
   untrack,
-  useContext,
+  useContext
 } from 'solid-js'
 import * as THREE from 'three'
 import { LoadingManager } from 'three'
 import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
-import type { EqualityChecker, StateSelector } from 'zustand'
 import { Stages, UpdateCallback } from '../core'
-import { RenderCallback, RootState, StageTypes } from '../core/store'
+import { RenderCallback, StageTypes } from '../core/store'
 import { ObjectMap, buildGraph } from '../core/utils'
 import { context } from './context'
 export interface Loader<T> extends THREE.Loader {
@@ -31,22 +29,17 @@ export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>
 export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent ? Truthy : Falsy
 export type BranchingReturn<T, Parent, Coerced> = ConditionalType<T, Parent, Coerced, T>
 
-export function useStore() {
-  const store = useContext(context)
-  if (!store) throw new Error('R3F: Hooks can only be used within the Canvas component!')
-  return store
-}
 
 /**
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
  * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#usethree
  */
-export function useThree<T = RootState>(
-  selector: StateSelector<RootState, T> = (state) => state as unknown as T,
-  equalityFn?: EqualityChecker<T>,
-): Accessor<T> {
-  return useStore()(selector, equalityFn) as any
+export function useThree() {
+  const store = useContext(context)
+  if (!store) throw new Error('R3F: Hooks can only be used within the Canvas component!')
+  return store
 }
+
 
 /**
  * Executes a callback before render in a shared frame loop.
@@ -54,8 +47,8 @@ export function useThree<T = RootState>(
  * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#useframe
  */
 // export function useFrame(callback: RenderCallback, renderPriority: number = 0): null {
-//   const store = useStore()
-//   const subscribe = store.getState().internal.subscribe
+//   const store = useThree()
+//   const subscribe = store.internal.subscribe
 //   // Memoize ref
 //   const ref = useMutableCallback(callback)
 //   // Subscribe on mount, unsubscribe on unmount
@@ -64,8 +57,8 @@ export function useThree<T = RootState>(
 // }
 
 export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
-  const store = useStore()
-  const subscribe = store.getState().internal.subscribe
+  const store = useThree()
+  const subscribe = store.internal.subscribe
   const cleanup = subscribe(
     (state, delta, frame) => untrack(() => callback(state, delta, frame)) ,
     renderPriority,
@@ -80,8 +73,8 @@ export function useFrame(callback: RenderCallback, renderPriority: number = 0): 
  * Uses the stage instance to indetify which stage to target in the lifecycle.
  */
 export function useUpdate(callback: UpdateCallback, stage: StageTypes = Stages.Update) {
-  const store = useStore()
-  const stages = store.getState().internal.stages
+  const store = useThree()
+  const stages = store.internal.stages
   // Throw an error if a stage does not exist in the lifecycle
   if (!stages.includes(stage)) throw new Error(`An invoked stage does not exist in the lifecycle.`)
   // Subscribe on mount, unsubscribe on unmount
