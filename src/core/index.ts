@@ -1,6 +1,5 @@
 export * from '../web/Canvas'
 export * from './components'
-export { context } from './context'
 export * from './hooks'
 export * from './renderer'
 export { createRoot } from './renderer'
