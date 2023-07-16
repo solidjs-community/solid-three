@@ -111,7 +111,7 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
   if (!_stages.includes(Stages.Update)) throw 'The Stages.Update stage is required for R3F.'
   if (!_stages.includes(Stages.Render)) throw 'The Stages.Render stage is required for R3F.'
 
-  store.set(({ internal }) => ({ internal: { ...internal, stages: _stages } }))
+  store.set('internal', 'stages', _stages)
 
   // Add useFrame loop to update stage
   const frameCallback = (state: RootState, delta: number, frame?: XRFrame | undefined) => {
@@ -204,11 +204,11 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
 
       // Set up renderer (one time only!)
       let gl = store.gl
-      if (!store.gl) store.set({ gl: (gl = createRendererInstance(glConfig, canvas)) })
+      if (!store.gl) store.set('gl', (gl = createRendererInstance(glConfig, canvas)))
 
       // Set up raycaster (one time only!)
       let raycaster = store.raycaster
-      if (!raycaster) store.set({ raycaster: (raycaster = new THREE.Raycaster()) })
+      if (!raycaster) store.set('raycaster', (raycaster = new THREE.Raycaster()))
 
       // Set raycaster options
       const { params, ...options } = raycastOptions || {}
@@ -230,7 +230,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
           // Always look at center by default
           if (!cameraOptions?.rotation) camera.lookAt(0, 0, 0)
         }
-        store.set({ camera })
+        store.set('camera', camera)
       }
 
       // Set up XR (one time only!)
@@ -265,7 +265,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
 
         // Subscribe to WebXR session events
         if (gl.xr) xr.connect()
-        store.set({ xr })
+        store.set('xr', xr)
       }
 
       // Set shadowmap
@@ -288,15 +288,15 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
       if (gl.toneMapping !== toneMapping) gl.toneMapping = toneMapping
 
       // Update color management state
-      if (store.legacy !== legacy) store.set(() => ({ legacy }))
-      if (store.linear !== linear) store.set(() => ({ linear }))
-      if (store.flat !== flat) store.set(() => ({ flat }))
+      if (store.legacy !== legacy) store.set('legacy', legacy)
+      if (store.linear !== linear) store.set('linear', linear)
+      if (store.flat !== flat) store.set('flat', flat)
 
       // Set gl props
       if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
         applyProps(gl as any, glConfig as any)
       // Store events internally
-      if (events && !store.events.handlers) store.set({ events: { ...store.events, ...events(store) } })
+      if (events && !store.events.handlers) store.set('events', events(store))
       // Check pixelratio
       if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
       // Check size, allow it to take on container bounds initially
@@ -307,10 +307,9 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
       // Check frameloop
       if (store.frameloop !== frameloop) store.setFrameloop(frameloop)
       // Check pointer missed
-      if (!store.onPointerMissed) store.set({ onPointerMissed })
+      if (!store.onPointerMissed) store.set('onPointerMissed', onPointerMissed)
       // Check performance
-      if (performance && !is.equ(performance, store.performance, shallowLoose))
-        store.set((state) => ({ performance: { ...state.performance, ...performance } }))
+      if (performance && !is.equ(performance, store.performance, shallowLoose)) store.set('performance', performance)
 
       // Create update stages. Only do this once on init
       if (store.internal.stages.length === 0) createStages(stages, store)
@@ -367,7 +366,7 @@ function Provider<TElement extends Element>(props: {
   parent?: Accessor<TElement | undefined>
 }) {
   // Flag the canvas active, rendering will now begin
-  props.store.set((state) => ({ internal: { ...state.internal, active: true } }))
+  props.store.set('internal', 'active', true)
   // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
 
   if (props.onCreated) props.onCreated(props.store)
