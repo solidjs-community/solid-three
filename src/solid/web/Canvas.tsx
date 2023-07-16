@@ -1,9 +1,11 @@
-/** @jsxImportSource solid-js */
 import { ComponentProps, JSX, createComputed, mergeProps, onMount, splitProps } from 'solid-js'
 import * as THREE from 'three'
-import { DomEvent } from '../../core'
+
 import { createPointerEvents } from '../../web/events'
-import { RenderProps, createRoot, extend } from '../index'
+import { extend } from '../index'
+
+import type { DomEvent } from '../../core'
+import { RenderProps, createRoot } from '../index'
 
 export interface Props extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, ComponentProps<'div'> {
   children: JSX.Element

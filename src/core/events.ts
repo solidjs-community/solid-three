@@ -1,7 +1,10 @@
 import * as THREE from 'three'
-import type { Instance } from './renderer'
+
+import { getRootState } from './utils'
+
+import type { Instance } from '../three-types'
 import type { RootState } from './store'
-import { Camera, getRootState } from './utils'
+import type { Camera } from "./utils"
 
 export interface Intersection extends THREE.Intersection {
   /** The event source (the object which registered the handler) */

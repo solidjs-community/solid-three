@@ -1,6 +1,7 @@
 import { batch } from 'solid-js'
-import { Root } from '../three-types'
-import { RootState } from './store'
+
+import type { Root } from '../three-types'
+import type { RootState } from './store'
 
 type GlobalRenderCallback = (timeStamp: number) => void
 type SubItem = { callback: GlobalRenderCallback }

@@ -4,10 +4,15 @@ import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 import { OffscreenCanvas } from 'three'
 
-import { ComputeFunction, EventManager } from '../core/events'
 import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import {
+import { createStore, isRenderer } from '../core/store'
+import { applyProps, calculateDpr, dispose, is } from '../core/utils'
+import { ParentContext } from './components'
+import { context } from './context'
+
+import type { ComputeFunction, EventManager } from '../core/events'
+import type {
   Dpr,
   Frameloop,
   Performance,
@@ -16,14 +21,9 @@ import {
   RootState,
   Size,
   Subscription,
-  createStore,
-  isRenderer
 } from '../core/store'
-import { Camera, EquConfig, applyProps, calculateDpr, dispose, is } from '../core/utils'
-
-import { Catalogue, Instance, Object3DNode, Root } from '../three-types'
-import { ParentContext } from './components'
-import { context } from './context'
+import type { Camera, EquConfig } from "../core/utils"
+import type { Catalogue, Instance, Object3DNode, Root } from '../three-types'
 
 type SolidThreeRoot = Root<RootState>
 

@@ -1,7 +1,8 @@
 import * as THREE from 'three'
-import { AttachType, Instance, InstanceProps, LocalState } from '../three-types'
-import { EventHandlers } from './events'
-import { Dpr, RootState, Size } from './store'
+
+import type { AttachType, Instance, InstanceProps, LocalState } from '../three-types'
+import type { EventHandlers } from './events'
+import type { Dpr, RootState, Size } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
@@ -197,8 +198,7 @@ export function diffProps(
 export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
   // Filter equals, events and reserved props
   const localState = (instance.__r3f ?? {}) as LocalState
-  const root = localState.root
-  const rootState = root?.getState?.() ?? {}
+  const rootState = localState.root ?? {}
   const { memoized, changes } = isDiffSet(data) ? data : diffProps(instance, data)
   const prevHandlers = localState.eventCount
 
@@ -303,7 +303,7 @@ export function applyProps(instance: Instance, data: InstanceProps | DiffSet) {
 }
 
 export function invalidateInstance(instance: Instance) {
-  const state = instance.__r3f?.root?.getState?.()
+  const state = instance.__r3f?.root
   if (state && state.internal.frames === 0) state.invalidate()
 }
 

@@ -1,4 +1,4 @@
-import { RootState } from './store';
+import type { RootState } from './store';
 
 export interface UpdateCallback {
   (state: RootState, delta: number, frame?: XRFrame): void

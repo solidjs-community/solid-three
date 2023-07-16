@@ -1,4 +1,3 @@
-/** @jsxImportSource solid-js */
 import {
   Component,
   createContext,
@@ -13,10 +12,13 @@ import {
 } from 'solid-js'
 import { produce } from 'solid-js/store'
 import * as THREE from 'three'
-import { EventHandlers, Instance } from '../core'
+
 import { prepare } from '../core/utils'
 import { useThree } from './hooks'
 import { useHelper } from './useHelper'
+
+import type { EventHandlers } from '../core'
+import type { Instance } from '../three-types'
 
 export const ParentContext = createContext<() => Instance>()
 
