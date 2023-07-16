@@ -6,7 +6,7 @@ import {
   createResource,
   onCleanup,
   untrack,
-  useContext
+  useContext,
 } from 'solid-js'
 import * as THREE from 'three'
 import { LoadingManager } from 'three'
@@ -34,7 +34,6 @@ export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>
 export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent ? Truthy : Falsy
 export type BranchingReturn<T, Parent, Coerced> = ConditionalType<T, Parent, Coerced, T>
 
-
 /**
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
  * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#usethree
@@ -44,7 +43,6 @@ export function useThree() {
   if (!store) throw new Error('R3F: Hooks can only be used within the Canvas component!')
   return store
 }
-
 
 /**
  * Executes a callback before render in a shared frame loop.
@@ -56,7 +54,7 @@ export function useFrame(callback: RenderCallback, renderPriority: number = 0): 
   const store = useThree()
   const subscribe = store.internal.subscribe
   const cleanup = subscribe(
-    (state, delta, frame) => untrack(() => callback(state, delta, frame)) ,
+    (state, delta, frame) => untrack(() => callback(state, delta, frame)),
     renderPriority,
     store,
   )
@@ -74,10 +72,7 @@ export function useUpdate(callback: UpdateCallback, stage: StageTypes = Stages.U
   // Throw an error if a stage does not exist in the lifecycle
   if (!stages.includes(stage)) throw new Error(`An invoked stage does not exist in the lifecycle.`)
   // Subscribe on mount, unsubscribe on unmount
-  const cleanup = stage.add(
-     (state, delta, frame) => untrack(() => callback(state, delta, frame)) ,
-    store,
-  )
+  const cleanup = stage.add((state, delta, frame) => untrack(() => callback(state, delta, frame)), store)
   onCleanup(cleanup)
 }
 

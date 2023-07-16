@@ -79,7 +79,6 @@ export function Canvas(props: Props) {
         props.onCreated?.(state)
       },
     })
-    
 
     root.render(props)
   })

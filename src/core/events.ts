@@ -4,7 +4,7 @@ import { getRootState } from './utils'
 
 import type { Instance } from '../three-types'
 import type { RootState } from './store'
-import type { Camera } from "./utils"
+import type { Camera } from './utils'
 
 export interface Intersection extends THREE.Intersection {
   /** The event source (the object which registered the handler) */
@@ -125,8 +125,8 @@ function releaseInternalPointerCapture(
 export function removeInteractivity(store: RootState, object: THREE.Object3D) {
   const { internal, set } = store
   // Removes every trace of an object from the data store
-  set('internal', "interaction", arr => arr.filter((o) => o !== object))
-  set('internal', "initialHits", arr => arr.filter((o) => o !== object))
+  set('internal', 'interaction', (arr) => arr.filter((o) => o !== object))
+  set('internal', 'initialHits', (arr) => arr.filter((o) => o !== object))
   internal.hovered.forEach((value, key) => {
     if (value.eventObject === object || value.object === object) {
       // Clear out intersects, they are outdated by now
@@ -151,8 +151,7 @@ export function createEvents(store: RootState) {
   function filterPointerEvents(objects: THREE.Object3D[]) {
     return objects.filter((obj) =>
       ['Move', 'Over', 'Enter', 'Out', 'Leave'].some(
-        (name) =>
-          (obj as unknown as Instance).__r3f?.handlers[('onPointer' + name) as keyof EventHandlers],
+        (name) => (obj as unknown as Instance).__r3f?.handlers[('onPointer' + name) as keyof EventHandlers],
       ),
     )
   }
@@ -219,8 +218,7 @@ export function createEvents(store: RootState) {
       let eventObject: THREE.Object3D | null = hit.object
       // Bubble event up
       while (eventObject) {
-        if ((eventObject as unknown as Instance).__r3f?.eventCount)
-          intersections.push({ ...hit, eventObject })
+        if ((eventObject as unknown as Instance).__r3f?.eventCount) intersections.push({ ...hit, eventObject })
         eventObject = eventObject.parent
       }
     }
@@ -402,7 +400,7 @@ export function createEvents(store: RootState) {
       const { onPointerMissed, internal, set } = store
 
       // prepareRay(event)
-      set("internal","lastEvent", event)
+      set('internal', 'lastEvent', event)
 
       // Get fresh intersects
       const isPointerMove = name === 'onPointerMove'
@@ -415,8 +413,11 @@ export function createEvents(store: RootState) {
       // Save initial coordinates on pointer-down
       if (name === 'onPointerDown') {
         set('internal', 'initialClick', [event.offsetX, event.offsetY])
-        set('internal', 'initialHits',  hits.map((hit) => hit.eventObject))
-       
+        set(
+          'internal',
+          'initialHits',
+          hits.map((hit) => hit.eventObject),
+        )
       }
 
       // If a click yields no results, pass it back to the user as a miss
@@ -429,7 +430,6 @@ export function createEvents(store: RootState) {
       }
       // Take care of unhover
       if (isPointerMove) cancelPointer(hits)
-
 
       function onIntersect(data: ThreeEvent<DomEvent>) {
         const eventObject = data.eventObject

@@ -1,12 +1,12 @@
-import { Accessor, createEffect, on } from "solid-js"
-import { SetStoreFunction, createStore, produce } from "solid-js/store"
+import { Accessor, createEffect, on } from 'solid-js'
+import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
 import { FixedStage, Stage } from './stages'
 import { calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
 
 import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
-import type { Camera } from "./utils"
+import type { Camera } from './utils'
 
 // Keys that shouldn't be copied between R3F stores
 export const privateKeys = [
@@ -162,7 +162,6 @@ const createThreeStore = (
   invalidate: (state?: RootState, frames?: number) => void,
   advance: (timestamp: number, runGlobalEffects?: boolean, state?: RootState, frame?: XRFrame) => void,
 ): RootState => {
-
   const position = new THREE.Vector3()
   const defaultTarget = new THREE.Vector3()
   const tempTarget = new THREE.Vector3()
@@ -192,9 +191,11 @@ const createThreeStore = (
 
   const pointer = new THREE.Vector2()
 
-  const set: SetStoreFunction<RootState> = (...args: any[]) => {setRootState(...args)};
+  const set: SetStoreFunction<RootState> = (...args: any[]) => {
+    setRootState(...args)
+  }
 
-  const get : Accessor<RootState>= () => rootState;
+  const get: Accessor<RootState> = () => rootState
 
   const [rootState, setRootState] = createStore<RootState>({
     set,
@@ -233,10 +234,7 @@ const createThreeStore = (
         // Set lower bound performance
         if (get().performance.current !== get().performance.min) setPerformanceCurrent(get().performance.min)
         // Go back to upper bound performance after a while unless something regresses meanwhile
-        performanceTimeout = setTimeout(
-          () => setPerformanceCurrent(get().performance.max),
-          get().performance.debounce,
-        )
+        performanceTimeout = setTimeout(() => setPerformanceCurrent(get().performance.max), get().performance.debounce)
       },
     },
 
@@ -274,8 +272,7 @@ const createThreeStore = (
           : frameloop?.mode === 'auto'
           ? 'always'
           : frameloop?.mode ?? state.frameloop
-      const render =
-        typeof frameloop === 'string' ? state.internal.render : frameloop?.render ?? state.internal.render
+      const render = typeof frameloop === 'string' ? state.internal.render : frameloop?.render ?? state.internal.render
       const maxDelta =
         typeof frameloop === 'string' ? state.internal.maxDelta : frameloop?.maxDelta ?? state.internal.maxDelta
 
@@ -320,21 +317,33 @@ const createThreeStore = (
         if (internal.priority && state.internal.render === 'auto')
           set(() => ({ internal: { ...state.internal, render: 'manual' } }))
 
-        set('internal', 'subscribers', produce(arr => arr.push({ ref, priority, store })))
+        set(
+          'internal',
+          'subscribers',
+          produce((arr) => arr.push({ ref, priority, store })),
+        )
         // Register subscriber and sort layers from lowest to highest, meaning,
         // highest priority renders last (on top of the other frames)
-        set('internal', 'subscribers', produce((subscribers) => internal.subscribers.sort((a, b) => a.priority - b.priority)))
+        set(
+          'internal',
+          'subscribers',
+          produce((subscribers) => internal.subscribers.sort((a, b) => a.priority - b.priority)),
+        )
         return () => {
           const state = get()
           const internal = state.internal
           if (internal?.subscribers) {
             // Decrease manual flag if this subscription had a priority
-            set('internal', 'priority',internal.priority - (priority > 0 ? 1 : 0) )
+            set('internal', 'priority', internal.priority - (priority > 0 ? 1 : 0))
             // We use the render flag and deprecate priority
             if (!internal.priority && state.internal.render === 'manual')
               set(() => ({ internal: { ...state.internal, render: 'auto' } }))
             // Remove subscriber from list
-            set('internal', 'subscribers', internal.subscribers.filter((s) => s.ref !== ref))
+            set(
+              'internal',
+              'subscribers',
+              internal.subscribers.filter((s) => s.ref !== ref),
+            )
           }
         }
       },
@@ -347,36 +356,42 @@ const createThreeStore = (
   let oldDpr = state.viewport.dpr
   let oldCamera = state.camera
   createEffect(
-    on(() => rootState, 
-    () => {
-      const { camera, size, viewport, gl, set } = rootState
+    on(
+      () => rootState,
+      () => {
+        const { camera, size, viewport, gl, set } = rootState
 
-      // Resize camera and renderer on changes to size and pixelratio
-      if (size !== oldSize || viewport.dpr !== oldDpr) {
-        oldSize = size
-        oldDpr = viewport.dpr
-        // Update camera & renderer
-        updateCamera(camera, size)
-        gl.setPixelRatio(viewport.dpr)
-        gl.setSize(size.width, size.height, size.updateStyle)
-      }
+        // Resize camera and renderer on changes to size and pixelratio
+        if (size !== oldSize || viewport.dpr !== oldDpr) {
+          oldSize = size
+          oldDpr = viewport.dpr
+          // Update camera & renderer
+          updateCamera(camera, size)
+          gl.setPixelRatio(viewport.dpr)
+          gl.setSize(size.width, size.height, size.updateStyle)
+        }
 
-      // Update viewport once the camera changes
-      if (camera !== oldCamera) {
-        oldCamera = camera
-        // Update viewport
-        set((state) => ({ viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) } }))
-      }
-    }
-  ))
+        // Update viewport once the camera changes
+        if (camera !== oldCamera) {
+          oldCamera = camera
+          // Update viewport
+          set((state) => ({ viewport: { ...state.viewport, ...state.viewport.getCurrentViewport(camera) } }))
+        }
+      },
+    ),
+  )
 
   // Invalidate on any change
 
-  createEffect(on(() => rootState, () => invalidate(state)))
+  createEffect(
+    on(
+      () => rootState,
+      () => invalidate(state),
+    ),
+  )
 
   // Return root state
   return rootState
 }
 
 export { createThreeStore as createStore }
-

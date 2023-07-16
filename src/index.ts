@@ -13,4 +13,3 @@ export { createPointerEvents as events } from './web/events'
 
 export type { ThreeTypes }
 import * as ThreeTypes from './three-types'
-

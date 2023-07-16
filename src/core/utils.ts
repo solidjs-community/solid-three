@@ -30,8 +30,7 @@ export function calculateDpr(dpr: Dpr) {
 /**
  * Returns instance root state
  */
-export const getRootState = (obj: THREE.Object3D): RootState | undefined =>
-  (obj as unknown as Instance).__r3f?.root
+export const getRootState = (obj: THREE.Object3D): RootState | undefined => (obj as unknown as Instance).__r3f?.root
 
 export type EquConfig = {
   /** Compare arrays by reference equality a === b (default), or by shallow equality */

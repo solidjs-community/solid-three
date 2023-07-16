@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { RootState } from './core'
 import { EventHandlers } from './core/events'
 
-
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
 export type LocalState = {
@@ -41,7 +40,6 @@ export type InstanceProps = {
   dispose?: null
   attach?: AttachType
 }
-
 
 export interface Catalogue {
   [name: string]: {

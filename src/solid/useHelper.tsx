@@ -26,7 +26,7 @@ type Helper = Object3D & {
 type Constructor = new (...args: any[]) => any
 type Rest<T> = T extends [infer _, ...infer R] ? R : never
 
-export type MutableRefObject<T> = { current: T} 
+export type MutableRefObject<T> = { current: T }
 
 export function useHelper<T extends Constructor>(
   object3D: MutableRefObject<Object3D | null | undefined> | Falsey | undefined,

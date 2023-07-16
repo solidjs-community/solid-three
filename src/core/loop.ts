@@ -54,13 +54,11 @@ function update(timestamp: number, state: RootState, frame?: XRFrame) {
     stage.frame(delta, frame)
   }
 
-  state.set('internal', 'frames',  Math.max(0, state.internal.frames - 1))
+  state.set('internal', 'frames', Math.max(0, state.internal.frames - 1))
   return state.frameloop === 'always' ? 1 : state.internal.frames
 }
 
-export function createLoop<TStore extends RootState = RootState, TCanvas = Element>(
-  roots: Map<TCanvas, Root<TStore>>,
-) {
+export function createLoop<TStore extends RootState = RootState, TCanvas = Element>(roots: Map<TCanvas, Root<TStore>>) {
   let running = false
   let repeat: number
   let frame: number
@@ -71,14 +69,14 @@ export function createLoop<TStore extends RootState = RootState, TCanvas = Eleme
       frame = requestAnimationFrame(loop)
       running = true
       repeat = 0
-  
+
       // Run effects
       if (globalEffects.size) run(globalEffects, timestamp)
-  
+
       // Render all roots
       roots.forEach((root) => {
         state = root.store
-  
+
         // If the frameloop is invalidated, do not run another frame
         if (
           state.internal.active &&
@@ -88,15 +86,15 @@ export function createLoop<TStore extends RootState = RootState, TCanvas = Eleme
           repeat += update(timestamp, state)
         }
       })
-  
+
       // Run after-effects
       if (globalAfterEffects.size) run(globalAfterEffects, timestamp)
-  
+
       // Stop the loop if nothing invalidates it
       if (repeat === 0) {
         // Tail call effects, they are called when rendering stops
         if (globalTailEffects.size) run(globalTailEffects, timestamp)
-  
+
         // Flag end of operation
         running = false
         return cancelAnimationFrame(frame)
@@ -108,7 +106,7 @@ export function createLoop<TStore extends RootState = RootState, TCanvas = Eleme
     if (!state) return roots.forEach((root) => invalidate(root.store), frames)
     if (state.gl.xr?.isPresenting || !state.internal.active || state.frameloop === 'never') return
     // Increase frames, do not go higher than 60
-    state.set('internal', 'frames',  Math.min(60, state.internal.frames + frames))
+    state.set('internal', 'frames', Math.min(60, state.internal.frames + frames))
     // If the render-loop isn't active, start it
     if (!running) {
       running = true

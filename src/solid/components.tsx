@@ -8,7 +8,7 @@ import {
   onCleanup,
   splitProps,
   untrack,
-  useContext
+  useContext,
 } from 'solid-js'
 import { produce } from 'solid-js/store'
 import * as THREE from 'three'
@@ -199,7 +199,7 @@ export function useInstance(getInstance: () => Instance, props: any) {
         props.helper,
       )
     }
-  }) 
+  })
 }
 
 export function Primitive<T extends Instance>(props: { object: T; children?: JSXElement }) {
@@ -272,12 +272,18 @@ export const applyProps = (object: { [key: string]: any }, props: { [key: string
       })
       if (rootState.internal && object.raycast) {
         const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
-        if (object.__r3f.eventCount && index === -1){
-          untrack(() => rootState.set("internal", "interaction", (arr => [...arr, (object as unknown as THREE.Object3D)])))
+        if (object.__r3f.eventCount && index === -1) {
+          untrack(() =>
+            rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D]),
+          )
         }
-        if(!object.__r3f.eventCount && index !== -1){
-          rootState.set('internal', 'interaction', produce(arr => arr.splice(index, 1)))
-        }  
+        if (!object.__r3f.eventCount && index !== -1) {
+          rootState.set(
+            'internal',
+            'interaction',
+            produce((arr) => arr.splice(index, 1)),
+          )
+        }
       }
 
       // Call the update lifecycle when it is being updated, but only when it is part of the scene

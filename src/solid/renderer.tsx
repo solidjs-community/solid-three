@@ -12,17 +12,8 @@ import { ParentContext } from './components'
 import { context } from './context'
 
 import type { ComputeFunction, EventManager } from '../core/events'
-import type {
-  Dpr,
-  Frameloop,
-  Performance,
-  PrivateKeys,
-  Renderer,
-  RootState,
-  Size,
-  Subscription,
-} from '../core/store'
-import type { Camera, EquConfig } from "../core/utils"
+import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size, Subscription } from '../core/store'
+import type { Camera, EquConfig } from '../core/utils'
 import type { Catalogue, Instance, Object3DNode, Root } from '../three-types'
 
 type SolidThreeRoot = Root<RootState>
@@ -126,19 +117,19 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
 
   // Add useFrame loop to update stage
   const frameCallback = (state: RootState, delta: number, frame?: XRFrame | undefined) => {
-      subscribers = state.internal.subscribers
-      for (let i = 0; i < subscribers.length; i++) {
-        subscription = subscribers[i]
-        subscription.ref(subscription.store, delta, frame)
-      }
+    subscribers = state.internal.subscribers
+    for (let i = 0; i < subscribers.length; i++) {
+      subscription = subscribers[i]
+      subscription.ref(subscription.store, delta, frame)
     }
-  
+  }
+
   Stages.Update.add(frameCallback, store)
 
   // Add render callback to render stage
-  const renderCallback =  (state: RootState) => {
-      if (state.internal.render === 'auto' && state.gl.render) state.gl.render(state.scene, state.camera)
-    }
+  const renderCallback = (state: RootState) => {
+    if (state.internal.render === 'auto' && state.gl.render) state.gl.render(state.scene, state.camera)
+  }
   Stages.Render.add(renderCallback, store)
 }
 
@@ -184,8 +175,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
         console.error
 
   // Create store
-  const store =
-    prevStore || createStore(invalidate, advance)
+  const store = prevStore || createStore(invalidate, advance)
   // Map it
   if (!prevRoot) roots.set(canvas, { store })
 
@@ -308,7 +298,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
       if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
         applyProps(gl as any, glConfig as any)
       // Store events internally
-      if (events && !store.events.handlers) store.set({ events: {...store.events, ...events(store)} })
+      if (events && !store.events.handlers) store.set({ events: { ...store.events, ...events(store) } })
       // Check pixelratio
       if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
       // Check size, allow it to take on container bounds initially
@@ -360,7 +350,11 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
   }
 }
 
-export function render<TCanvas extends Element>(children: JSX.Element, canvas: TCanvas, config: RenderProps<TCanvas>): RootState {
+export function render<TCanvas extends Element>(
+  children: JSX.Element,
+  canvas: TCanvas,
+  config: RenderProps<TCanvas>,
+): RootState {
   console.warn('R3F.render is no longer supported in React 18. Use createRoot instead!')
   const root = createRoot(canvas)
   root.configure(config)
@@ -377,12 +371,12 @@ function Provider<TElement extends Element>(props: {
   // Flag the canvas active, rendering will now begin
   props.store.set((state) => ({ internal: { ...state.internal, active: true } }))
   // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
-  
+
   // NOTE:  Without untrack we get a `RangeError: Maximum Call Stack Size Exceeded`-error
   //        In the original r3f-code it is an IsomorphicLayoutEffect with empty dependency-array
   //        But using onMount did not create the wanted results.
   if (props.onCreated) props.onCreated!(props.store)
-  
+
   // Connect events to the targets parent, this is done to ensure events are registered on
   // a shared target, and not on the canvas itself
   if (!props.store.events.connected) props.store.events.connect?.(props.rootElement)
@@ -390,7 +384,10 @@ function Provider<TElement extends Element>(props: {
   return <context.Provider value={props.store}>{props.children}</context.Provider>
 }
 
-export function unmountComponentAtNode<TElement extends Element>(canvas: TElement, callback?: (canvas: TElement) => void) {
+export function unmountComponentAtNode<TElement extends Element>(
+  canvas: TElement,
+  callback?: (canvas: TElement) => void,
+) {
   const root = roots.get(canvas)
   const state = root?.store
   if (state) {
@@ -550,4 +547,3 @@ export type InjectState = Partial<
 
 let catalogue: Catalogue = {}
 export const extend = (objects: object): void => void (catalogue = { ...catalogue, ...objects })
-
