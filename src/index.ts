@@ -7,7 +7,7 @@ export type { ComputeFunction, EventManager, Events, Intersection, ThreeEvent } 
 export type { Camera, ObjectMap } from './core/utils'
 export type { Dpr, Performance, RenderCallback, RootState, Size, Subscription, Viewport } from './solid/store'
 
-export * from './solid'
+export * from './core'
 
 export { createPointerEvents as events } from './web/events'
 

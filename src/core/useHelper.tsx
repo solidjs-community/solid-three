@@ -2,8 +2,8 @@ import { createEffect, onCleanup } from 'solid-js'
 import { Object3D } from 'three'
 import { Falsey } from 'utility-types'
 
-import { Stages } from '../core'
 import { useThree, useUpdate } from './hooks'
+import { Stages } from './stages'
 
 export function createRef<T>() {
   let ref: T

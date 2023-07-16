@@ -12,9 +12,9 @@ import {
 } from 'solid-js'
 import * as THREE from 'three'
 
-import { getRootState, prepare } from '../core/utils'
 import { useThree } from './hooks'
 import { useHelper } from './useHelper'
+import { getRootState, prepare } from './utils'
 
 import { produce } from 'solid-js/store'
 import type { Instance, ThreeElement } from '../three-types'

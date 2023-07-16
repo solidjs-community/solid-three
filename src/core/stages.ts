@@ -1,4 +1,4 @@
-import type { RootState } from '../solid/store'
+import type { RootState } from './store'
 
 export interface UpdateCallback {
   (state: RootState, delta: number, frame?: XRFrame): void

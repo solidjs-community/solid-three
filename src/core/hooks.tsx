@@ -12,12 +12,12 @@ import * as THREE from 'three'
 import { LoadingManager } from 'three'
 import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
 
-import { Stages } from '../core'
 import { buildGraph } from '../core/utils'
 import { context } from './context'
+import { Stages } from './stages'
 
-import type { UpdateCallback } from '../core'
 import type { ObjectMap } from '../core/utils'
+import type { UpdateCallback } from './stages'
 import type { RenderCallback, StageTypes } from './store'
 
 export interface Loader<T> extends THREE.Loader {

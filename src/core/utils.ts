@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
-import type { Dpr, RootState, Size } from '../solid/store'
 import type { AttachType, Instance, LocalState } from '../three-types'
+import type { Dpr, RootState, Size } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
