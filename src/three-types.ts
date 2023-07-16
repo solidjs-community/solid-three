@@ -20,28 +20,28 @@ export type LocalState = {
   memoizedProps: { [key: string]: any }
 }
 
-export interface InstanceProps<T = any, P = any> {
-  args?: Args<P>
-  object?: T
+// This type clamps down on a couple of assumptions that we can make regarding native types, which
+// could anything from scene objects, THREE.Objects, JSM, user-defined classes and non-scene objects.
+// What they all need to have in common is defined here ...
+export type BaseInstance = Omit<THREE.Object3D, 'children' | 'attach' | 'add' | 'remove' | 'raycast'> & {
+  __r3f: LocalState
+  children: Instance[]
+  remove: (...object: Instance[]) => Instance
+  add: (...object: Instance[]) => Instance
+  raycast?: (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => void
+}
+export type Instance = BaseInstance & { [key: string]: any }
+
+export type InstanceProps = {
+  [key: string]: unknown
+} & {
+  args?: any[]
+  object?: object
   visible?: boolean
   dispose?: null
-  attach?: AttachType<T>
+  attach?: AttachType
 }
 
-export interface Instance<O = any> {
-  root: RootState
-  type: string
-  parent: Instance | null
-  children: Instance[]
-  props: InstanceProps<O> & Record<string, unknown>
-  object: O & { __r3f?: Instance<O> }
-  eventCount: number
-  handlers: Partial<EventHandlers>
-  attach?: AttachType<O>
-  previousAttach?: any
-  isHidden: boolean
-  autoRemovedBeforeAppend?: boolean
-}
 
 export interface Catalogue {
   [name: string]: {
