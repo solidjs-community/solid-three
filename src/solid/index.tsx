@@ -373,18 +373,21 @@ function Provider<TElement extends Element>(props: {
   store: RootState
   children: JSX.Element
   rootElement: TElement
-  parent?: MutableRefObject<TElement | undefined>
+  parent?: Accessor<TElement | undefined>
 }) {
   useIsomorphicLayoutEffect(() => {
-    const state = props.store
     // Flag the canvas active, rendering will now begin
-    state.set((state) => ({ internal: { ...state.internal, active: true } }))
+     props.store.set((state) => ({ internal: { ...state.internal, active: true } }))
     // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
-    if (props.onCreated) props.onCreated(state)
+    
+    // NOTE:  Without untrack we get a `RangeError: Maximum Call Stack Size Exceeded`-error
+    //        In the original r3f-code it is an IsomorphicLayoutEffect with empty dependency-array
+    //        But using onMount did not create the wanted results.
+    if (props.onCreated) untrack(() => {props.onCreated!(props.store)})
+    
     // Connect events to the targets parent, this is done to ensure events are registered on
     // a shared target, and not on the canvas itself
-    if (!props.store.events.connected) state.events.connect?.(props.rootElement)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!props.store.events.connected) props.store.events.connect?.(props.rootElement)
   })
   return <context.Provider value={props.store}>{props.children}</context.Provider>
 }
