@@ -360,31 +360,26 @@ const createThreeStore = (
   let oldSize = state.size
   let oldDpr = state.viewport.dpr
   let oldCamera = state.camera
-  createEffect(
-    on(
-      () => rootState,
-      () => {
-        const { camera, size, viewport, gl, set } = rootState
+  createEffect(() => {
+    const { camera, size, viewport, gl, set } = rootState
 
-        // Resize camera and renderer on changes to size and pixelratio
-        if (size !== oldSize || viewport.dpr !== oldDpr) {
-          oldSize = size
-          oldDpr = viewport.dpr
-          // Update camera & renderer
-          updateCamera(camera, size)
-          gl.setPixelRatio(viewport.dpr)
-          gl.setSize(size.width, size.height, size.updateStyle)
-        }
+    // Resize camera and renderer on changes to size and pixelratio
+    if (size !== oldSize || viewport.dpr !== oldDpr) {
+      oldSize = size
+      oldDpr = viewport.dpr
+      // Update camera & renderer
+      updateCamera(camera, size)
+      gl.setPixelRatio(viewport.dpr)
+      gl.setSize(size.width, size.height, size.updateStyle)
+    }
 
-        // Update viewport once the camera changes
-        if (camera !== oldCamera) {
-          oldCamera = camera
-          // Update viewport
-          set('viewport', state.viewport.getCurrentViewport(camera))
-        }
-      },
-    ),
-  )
+    // Update viewport once the camera changes
+    if (camera !== oldCamera) {
+      oldCamera = camera
+      // Update viewport
+      set('viewport', state.viewport.getCurrentViewport(camera))
+    }
+  })
 
   // Invalidate on any change
 
