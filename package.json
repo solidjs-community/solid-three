@@ -61,9 +61,6 @@
   },
   "dependencies": {
     "@solid-primitives/resize-observer": "^2.0.18",
-    "@types/three": "0.154.0",
-    "three:0.130.0": "link:@types/three:0.130.0",
-    "three:0.139.0": "link:@types/three:0.139.0"
   },
   "packageManager": "pnpm@7.26.0"
 }
