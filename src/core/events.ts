@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { Instance } from './renderer'
-import type { RootState, Store } from './store'
+import type { RootState } from './store'
 import { Camera, getRootState } from './utils'
 
 export interface Intersection extends THREE.Intersection {
@@ -119,7 +119,7 @@ function releaseInternalPointerCapture(
   }
 }
 
-export function removeInteractivity(store: Store, object: THREE.Object3D) {
+export function removeInteractivity(store: RootState, object: THREE.Object3D) {
   const { internal, set } = store
   // Removes every trace of an object from the data store
   set('internal', "interaction", arr => arr.filter((o) => o !== object))

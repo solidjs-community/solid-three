@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { EventHandlers } from './events'
 import { AttachType, Instance, InstanceProps, LocalState } from './renderer'
-import { Dpr, RootState, Size, Store } from './store'
+import { Dpr, RootState, Size } from './store'
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
@@ -101,7 +101,7 @@ export function prepare<T = THREE.Object3D>(object: T, state?: Partial<LocalStat
   if (state?.primitive || !instance.__r3f) {
     instance.__r3f = {
       type: '',
-      root: null as unknown as Store,
+      root: null as unknown as RootState,
       previousAttach: null,
       memoizedProps: {},
       eventCount: 0,

@@ -1,4 +1,4 @@
-import { Accessor, createEffect, on } from "solid-js"
+import { createEffect, on } from "solid-js"
 import { SetStoreFunction, createStore, produce } from "solid-js/store"
 import * as THREE from 'three'
 import { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
@@ -24,7 +24,7 @@ export type PrivateKeys = typeof privateKeys[number]
 export type Subscription = {
   ref: RenderCallback
   priority: number
-  store: Store
+  store: RootState
 }
 
 export type Dpr = number | [min: number, max: number]
@@ -85,14 +85,12 @@ export type InternalState = {
   render: 'auto' | 'manual'
   /** The max delta time between two frames. */
   maxDelta: number
-  subscribe: (callback: RenderCallback, priority: number, store: Store) => () => void
+  subscribe: (callback: RenderCallback, priority: number, store: RootState) => () => void
 }
 
 export type RootState = {
   /** Set current state */
   set: SetStoreFunction<RootState>
-  /** Get current state */
-  get: Accessor<RootState>
   /** The instance of the renderer */
   gl: THREE.WebGLRenderer
   /** Default camera */
@@ -152,25 +150,23 @@ export type RootState = {
   /** When the canvas was clicked but nothing was hit */
   onPointerMissed?: (event: MouseEvent) => void
   /** If this state model is layerd (via createPortal) then this contains the previous layer */
-  previousRoot?: Store
+  previousRoot?: RootState
   /** Internals */
   internal: InternalState
 }
 
-export type Store = RootState
-
 const createThreeStore = (
   invalidate: (state?: RootState, frames?: number) => void,
   advance: (timestamp: number, runGlobalEffects?: boolean, state?: RootState, frame?: XRFrame) => void,
-): Store => {
+): RootState => {
 
   const position = new THREE.Vector3()
   const defaultTarget = new THREE.Vector3()
   const tempTarget = new THREE.Vector3()
   function getCurrentViewport(
-    camera: Camera = get().camera,
+    camera: Camera = rootState.camera,
     target: THREE.Vector3 | Parameters<THREE.Vector3['set']> = defaultTarget,
-    size: Size = get().size,
+    size: Size = rootState.size,
   ): Omit<Viewport, 'dpr' | 'initialDpr'> {
     const { width, height, top, left } = size
     const aspect = width / height
@@ -193,13 +189,10 @@ const createThreeStore = (
 
   const pointer = new THREE.Vector2()
 
-
-  const get = () => rootState;
-  const set: SetStoreFunction<RootState> = (...args: any) => {setRootState(...args)};
+  const set: SetStoreFunction<RootState> = (...args: any[]) => {setRootState(...args)};
 
   const [rootState, setRootState] = createStore<RootState>({
     set,
-    get,
 
     // Mock objects that have to be configured
     gl: null as unknown as THREE.WebGLRenderer,
@@ -208,8 +201,8 @@ const createThreeStore = (
     events: { priority: 1, enabled: true, connected: false },
     xr: null as unknown as { connect: () => void; disconnect: () => void },
 
-    invalidate: (frames = 1) => invalidate(get(), frames),
-    advance: (timestamp: number, runGlobalEffects?: boolean) => advance(timestamp, runGlobalEffects, get()),
+    invalidate: (frames = 1) => invalidate(rootState, frames),
+    advance: (timestamp: number, runGlobalEffects?: boolean) => advance(timestamp, runGlobalEffects, rootState),
 
     legacy: false,
     linear: false,
@@ -230,14 +223,14 @@ const createThreeStore = (
       max: 1,
       debounce: 200,
       regress: () => {
-        const state = get()
+        const state = rootState
         // Clear timeout
         if (performanceTimeout) clearTimeout(performanceTimeout)
         // Set lower bound performance
         if (state.performance.current !== state.performance.min) setPerformanceCurrent(state.performance.min)
         // Go back to upper bound performance after a while unless something regresses meanwhile
         performanceTimeout = setTimeout(
-          () => setPerformanceCurrent(get().performance.max),
+          () => setPerformanceCurrent(rootState.performance.max),
           state.performance.debounce,
         )
       },
@@ -260,7 +253,7 @@ const createThreeStore = (
     setEvents: (events: Partial<EventManager<any>>) =>
       set((state) => ({ ...state, events: { ...state.events, ...events } })),
     setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => {
-      const camera = get().camera
+      const camera = rootState.camera
       const size = { width, height, top: top || 0, left: left || 0, updateStyle }
       set((state) => ({ size, viewport: { ...state.viewport, ...getCurrentViewport(camera, defaultTarget, size) } }))
     },
@@ -270,7 +263,7 @@ const createThreeStore = (
         return { viewport: { ...state.viewport, dpr: resolved, initialDpr: state.viewport.initialDpr || resolved } }
       }),
     setFrameloop: (frameloop: Frameloop) => {
-      const state = get()
+      const state = rootState
       const mode: FrameloopLegacy =
         typeof frameloop === 'string'
           ? frameloop
@@ -311,8 +304,8 @@ const createThreeStore = (
       render: 'auto',
       maxDelta: 1 / 10,
       priority: 0,
-      subscribe: (ref: RenderCallback, priority: number, store: Store) => {
-        const state = get()
+      subscribe: (ref: RenderCallback, priority: number, store: RootState) => {
+        const state = rootState
         const internal = state.internal
         // If this subscription was given a priority, it takes rendering into its own hands
         // For that reason we switch off automatic rendering and increase the manual flag
@@ -328,7 +321,7 @@ const createThreeStore = (
         // highest priority renders last (on top of the other frames)
         set('internal', 'subscribers', produce((subscribers) => internal.subscribers.sort((a, b) => a.priority - b.priority)))
         return () => {
-          const state = get()
+          const state = rootState
           const internal = state.internal
           if (internal?.subscribers) {
             // Decrease manual flag if this subscription had a priority

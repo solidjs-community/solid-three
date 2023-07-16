@@ -1,6 +1,6 @@
 import { batch } from 'solid-js'
 import { Root } from './renderer'
-import { RootState, Store } from './store'
+import { RootState } from './store'
 
 type GlobalRenderCallback = (timeStamp: number) => void
 type SubItem = { callback: GlobalRenderCallback }
@@ -57,7 +57,7 @@ function update(timestamp: number, state: RootState, frame?: XRFrame) {
   return state.frameloop === 'always' ? 1 : state.internal.frames
 }
 
-export function createLoop<TStore extends RootState = Store, TCanvas = Element>(
+export function createLoop<TStore extends RootState = RootState, TCanvas = Element>(
   roots: Map<TCanvas, Root<TStore>>,
 ) {
   let running = false

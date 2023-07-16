@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { EventHandlers } from './events'
-import { Store } from './store'
+import { RootState } from './store'
 
-export type Root<TStore = Store, T = {}> = T & { store: TStore }
+export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
 export type LocalState = {
   type: string
-  root: Store
+  root: RootState
   // objects and parent are used when children are added with `attach` instead of being added to the Object3D scene graph
   objects: Instance[]
   parent: Instance | null

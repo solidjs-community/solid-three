@@ -1,10 +1,10 @@
-import { RootState, Store } from './store';
+import { RootState } from './store';
 
 export interface UpdateCallback {
   (state: RootState, delta: number, frame?: XRFrame): void
 }
 
-export type UpdateSubscription = { ref: UpdateCallback; store: Store }
+export type UpdateSubscription = { ref: UpdateCallback; store: RootState }
 
 export type FixedStageOptions = { fixedStep?: number; maxSubsteps?: number }
 export type FixedStageProps = { fixedStep: number; maxSubsteps: number; accumulator: number; alpha: number }
@@ -44,7 +44,7 @@ export class Stage {
    * @param store - The store to be used with the callback execution.
    * @returns A function to remove the subscription.
    */
-  add(ref: UpdateCallback, store: Store) {
+  add(ref: UpdateCallback, store: RootState) {
     this.subscribers.push({ ref, store })
 
     return () => {
