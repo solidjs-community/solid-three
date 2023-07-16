@@ -1,5 +1,5 @@
 import { batch } from 'solid-js'
-import { Root } from './renderer'
+import { Root } from '../three-types'
 import { RootState } from './store'
 
 type GlobalRenderCallback = (timeStamp: number) => void
