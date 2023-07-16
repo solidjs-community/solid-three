@@ -330,7 +330,7 @@ const createThreeStore = (
         set(
           'internal',
           'subscribers',
-          produce((subscribers) => internal.subscribers.sort((a, b) => a.priority - b.priority)),
+          produce((subscribers) => subscribers.sort((a, b) => a.priority - b.priority)),
         )
         return () => {
           const state = get()
