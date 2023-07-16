@@ -5,6 +5,7 @@ import {
   createMemo,
   createRenderEffect,
   JSXElement,
+  mapArray,
   onCleanup,
   splitProps,
   untrack,
@@ -63,10 +64,8 @@ export function useInstance(getInstance: () => Instance, props: any) {
     if (props.ref instanceof Function) local.ref(getInstance())
   })
 
-  createRenderEffect(() => {
-    /* Apply props */
-    applyProps(getInstance(), instanceProps)
-  })
+  /* Apply the props to THREE-instance */
+  createRenderEffect(() => applyProps(getInstance(), instanceProps))
 
   /* Connect to parent */
   createRenderEffect(() => {
@@ -144,79 +143,77 @@ export function Primitive<T extends Instance>(props: { object: T; children?: JSX
   return <ParentContext.Provider value={instance}>{props.children}</ParentContext.Provider>
 }
 
-/**
- * Convenience method for setting (potentially nested) properties on an object.
- */
-export const applyProps = (object: Instance, props: { [key: string]: any }) => {
+export const applyProp = (object: Instance, props: { [key: string]: any }, key: string) => {
   const rootState = getRootState(object as any as THREE.Object3D)
+  /* If the key contains a hyphen, we're setting a sub property. */
+  if (key.indexOf('-') > -1) {
+    const [property, ...rest] = key.split('-')
+    applyProps(object[property], { [rest.join('-')]: props[key] })
+    return
+  }
 
-  for (const key in props) {
-    /* If the key contains a hyphen, we're setting a sub property. */
-    if (key.indexOf('-') > -1) {
-      const [property, ...rest] = key.split('-')
-      createRenderEffect(() => {
-        applyProps(object[property], { [rest.join('-')]: props[key] })
-      })
-      continue
-    }
+  /* If the property exposes a `setScalar` function, we'll use that */
+  if (object[key]?.setScalar && typeof props[key] === 'number') {
+    object[key].setScalar(props[key])
+    return
+  }
 
-    /* If the property exposes a `setScalar` function, we'll use that */
-    if (object[key]?.setScalar && typeof props[key] === 'number') {
-      createRenderEffect(() => object[key].setScalar(props[key]))
-      continue
-    }
+  /* If the property exposes a `copy` function and the value is of the same type,
+     we'll use that. (Vectors, Eulers, Quaternions, ...) */
+  if (object[key]?.copy && object[key].constructor === props[key]?.constructor) {
+    object[key].copy(props[key])
+    return
+  }
 
-    /* If the property exposes a `copy` function and the value is of the same type,
-       we'll use that. (Vectors, Eulers, Quaternions, ...) */
-    if (object[key]?.copy && object[key].constructor === props[key]?.constructor) {
-      createRenderEffect(() => object[key].copy(props[key]))
-      continue
-    }
+  /* If the property exposes a `set` function, we'll use that. */
+  if (object[key]?.set) {
+    Array.isArray(props[key]) ? object[key].set(...props[key]) : object[key].set(props[key])
+    return
+  }
 
-    /* If the property exposes a `set` function, we'll use that. */
-    if (object[key]?.set) {
-      Array.isArray(props[key])
-        ? createRenderEffect(() => object[key].set(...props[key]))
-        : createRenderEffect(() => {
-            DEBUG && console.log('three', 'set', object, key, props[key])
-            object[key].set(props[key])
-          })
-      continue
-    }
+  /* If we got here, we couldn't do anything special, so let's just check if the
+     target property exists and assign it directly. */
+  if (key in object) {
+    object[key] = props[key]
+  }
 
-    /* If we got here, we couldn't do anything special, so let's just check if the
-       target property exists and assign it directly. */
-    if (key in object) {
-      createRenderEffect(() => (object[key] = props[key]))
-    }
+  if (!rootState) return
+  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
+    object.__r3f.handlers[key] = props[key]
+    object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
 
-    if (!rootState) return
-    if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
-      createRenderEffect(() => {
-        object.__r3f.handlers[key] = props[key]
-        object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
-      })
-      if (rootState.internal && object.raycast) {
-        const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
-        if (object.__r3f.eventCount && index === -1) {
-          untrack(() =>
-            rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D]),
-          )
-        }
-        if (!object.__r3f.eventCount && index !== -1) {
-          rootState.set(
-            'internal',
-            'interaction',
-            produce((arr) => arr.splice(index, 1)),
-          )
-        }
+    if (rootState.internal && object.raycast) {
+      const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
+      if (object.__r3f.eventCount && index === -1) {
+        untrack(() => rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D]))
       }
-
-      // Call the update lifecycle when it is being updated, but only when it is part of the scene
-      // if (changes.length && instance.parent) updateInstance(instance);
+      if (!object.__r3f.eventCount && index !== -1) {
+        rootState.set(
+          'internal',
+          'interaction',
+          produce((arr) => arr.splice(index, 1)),
+        )
+      }
     }
   }
 }
+
+/**
+ * Convenience method for setting (potentially nested) properties on an object.
+ */
+export const applyProps = (object: Instance, props: { [key: string]: any }) =>
+  createRenderEffect(
+    mapArray(
+      () => Object.keys(props),
+      (key) => {
+        /* We wrap it in an effect only if a prop is a getter or a function */
+        const descriptors = Object.getOwnPropertyDescriptor(props, key)
+        const isDynamic = descriptors?.get || typeof descriptors?.value === 'function'
+        const update = () => applyProp(object, props, key)
+        isDynamic ? createRenderEffect(update) : update()
+      },
+    ),
+  )
 
 const cache = {} as Record<string, ThreeComponent<any>>
 
