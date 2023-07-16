@@ -13,8 +13,8 @@ import { LoadingManager } from 'three'
 import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
 
 import { buildGraph } from '../core/utils'
-import { context } from './context'
 import { Stages } from './stages'
+import { context } from './store'
 
 import type { ObjectMap } from '../core/utils'
 import type { UpdateCallback } from './stages'

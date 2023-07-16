@@ -1,4 +1,4 @@
-import { Accessor, createEffect, on } from 'solid-js'
+import { Accessor, createContext, createEffect, on } from 'solid-js'
 import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
@@ -157,6 +157,8 @@ export type RootState = {
   /** Internals */
   internal: InternalState
 }
+
+export const context = createContext<RootState | null>(null)
 
 const createThreeStore = (
   invalidate: (state?: RootState, frames?: number) => void,

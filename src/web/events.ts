@@ -1,5 +1,5 @@
 import { DomEvent, EventManager, Events, createEvents } from '../core/events'
-import { RootState } from '../solid/store'
+import { RootState } from '../core/store'
 
 const DOM_EVENTS = {
   onClick: ['click', false],
