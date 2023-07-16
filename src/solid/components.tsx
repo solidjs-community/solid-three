@@ -29,7 +29,7 @@ type ThreeComponentProxy<Source> = {
 }
 
 let DEBUG = false
-export const makeThreeComponent = <Klass extends Constructor>(klass: Klass): ThreeComponent<Klass> => {
+export const makeThreeComponent = <TSource extends Constructor>(source: TSource): ThreeComponent<TSource> => {
   let Component = (props: any) => {
     const getParent = useContext(ParentContext)
     const store = useThree()
@@ -37,8 +37,8 @@ export const makeThreeComponent = <Klass extends Constructor>(klass: Klass): Thr
     /* Create instance */
     const getInstance = createMemo(() => {
       try {
-        DEBUG && console.log('three', 'createInstance', klass, props.args, getParent)
-        let el = prepare(new klass(...(props.args ?? []))) as Instance
+        DEBUG && console.log('three', 'createInstance', source, props.args, getParent)
+        const el = prepare(new source(...(props.args ?? []))) as Instance
         el.__r3f.root = store
         return el
       } catch (e) {
@@ -228,11 +228,6 @@ export const applyProps = (object: Instance, props: { [key: string]: any }) => {
 
 const cache = {} as Record<string, ThreeComponent<any>>
 
-/**
- * The Trinity Reactor. For every class exposed by THREE, this object contains a
- * Trinity component that wraps the class (see `makeComponent`.)
- */
-
 export function makeThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
 ): ThreeComponentProxy<Source> {
@@ -255,4 +250,8 @@ export function makeThreeComponentProxy<Source extends Record<string, any>>(
   })
 }
 
-export const defaultProxy = /*#__PURE__*/ makeThreeComponentProxy(THREE)
+/**
+ * The `solid-three` reactor. For every class exposed by `THREE`, this object contains a
+ * `solid-three` component that wraps the class.
+ */
+export const T = /*#__PURE__*/ makeThreeComponentProxy(THREE)
