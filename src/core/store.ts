@@ -265,7 +265,7 @@ const createThreeStore = (
     },
     setDpr: (dpr: Dpr) => {
       const resolved = calculateDpr(dpr)
-      return set('viewport', { dpr: resolved, initialDpr: state.viewport.initialDpr || resolved })
+      return set('viewport', { dpr: resolved, initialDpr: rootState.viewport.initialDpr || resolved })
     },
     setFrameloop: (frameloop: Frameloop) => {
       const state = get()
@@ -355,11 +355,9 @@ const createThreeStore = (
     },
   })
 
-  const state = rootState
-
-  let oldSize = state.size
-  let oldDpr = state.viewport.dpr
-  let oldCamera = state.camera
+  let oldSize = rootState.size
+  let oldDpr = rootState.viewport.dpr
+  let oldCamera = rootState.camera
   createEffect(() => {
     const { camera, size, viewport, gl, set } = rootState
 
@@ -377,7 +375,7 @@ const createThreeStore = (
     if (camera !== oldCamera) {
       oldCamera = camera
       // Update viewport
-      set('viewport', state.viewport.getCurrentViewport(camera))
+      set('viewport', rootState.viewport.getCurrentViewport(camera))
     }
   })
 
@@ -386,7 +384,7 @@ const createThreeStore = (
   createEffect(
     on(
       () => rootState,
-      () => invalidate(state),
+      () => invalidate(rootState),
     ),
   )
 
