@@ -194,6 +194,7 @@ const createThreeStore = (
   const pointer = new THREE.Vector2()
 
   const set: SetStoreFunction<RootState> = (...args: any[]) => {
+    //@ts-expect-error
     setRootState(...args)
   }
 
