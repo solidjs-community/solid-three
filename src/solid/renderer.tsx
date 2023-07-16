@@ -6,15 +6,15 @@ import { OffscreenCanvas } from 'three'
 
 import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import { createStore, isRenderer } from '../core/store'
 import { applyProps, calculateDpr, dispose, is } from '../core/utils'
 import { ParentContext } from './components'
 import { context } from './context'
+import { createStore, isRenderer } from './store'
 
 import type { ComputeFunction, EventManager } from '../core/events'
-import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size, Subscription } from '../core/store'
 import type { Camera, EquConfig } from '../core/utils'
 import type { Catalogue, Instance, Object3DNode, Root } from '../three-types'
+import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size, Subscription } from './store'
 
 type SolidThreeRoot = Root<RootState>
 

@@ -17,8 +17,8 @@ import { buildGraph } from '../core/utils'
 import { context } from './context'
 
 import type { UpdateCallback } from '../core'
-import type { RenderCallback, StageTypes } from '../core/store'
 import type { ObjectMap } from '../core/utils'
+import type { RenderCallback, StageTypes } from './store'
 
 export interface Loader<T> extends THREE.Loader {
   load(

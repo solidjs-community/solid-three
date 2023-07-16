@@ -2,11 +2,11 @@ import { Accessor, createEffect, on } from 'solid-js'
 import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
-import { FixedStage, Stage } from './stages'
-import { calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
+import { FixedStage, Stage } from '../core/stages'
+import { calculateDpr, isOrthographicCamera, prepare, updateCamera } from '../core/utils'
 
-import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
-import type { Camera } from './utils'
+import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from '../core/events'
+import type { Camera } from '../core/utils'
 
 // Keys that shouldn't be copied between R3F stores
 export const privateKeys = [
@@ -22,7 +22,7 @@ export const privateKeys = [
   'viewport',
 ] as const
 
-export type PrivateKeys = typeof privateKeys[number]
+export type PrivateKeys = (typeof privateKeys)[number]
 
 export type Subscription = {
   ref: RenderCallback

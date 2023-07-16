@@ -4,8 +4,8 @@ export { FixedStage, Stage, Stages } from './core/stages'
 export { applyProps, dispose, getRootState } from './core/utils'
 
 export type { ComputeFunction, EventManager, Events, Intersection, ThreeEvent } from './core/events'
-export type { Dpr, Performance, RenderCallback, RootState, Size, Subscription, Viewport } from './core/store'
 export type { Camera, ObjectMap } from './core/utils'
+export type { Dpr, Performance, RenderCallback, RootState, Size, Subscription, Viewport } from './solid/store'
 
 export * from './solid'
 
