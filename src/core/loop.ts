@@ -12,9 +12,9 @@ function createSubs(callback: GlobalRenderCallback, subs: Set<SubItem>): () => v
   return () => void subs.delete(sub)
 }
 
-let globalEffects: Set<SubItem> = new Set()
-let globalAfterEffects: Set<SubItem> = new Set()
-let globalTailEffects: Set<SubItem> = new Set()
+const globalEffects = new Set<SubItem>()
+const globalAfterEffects = new Set<SubItem>()
+const globalTailEffects = new Set<SubItem>()
 
 /**
  * Adds a global render callback which is called each frame.
@@ -36,6 +36,19 @@ export const addTail = (callback: GlobalRenderCallback) => createSubs(callback, 
 
 function run(effects: Set<SubItem>, timestamp: number) {
   effects.forEach(({ callback }) => callback(timestamp))
+}
+
+export type GlobalEffectType = 'before' | 'after' | 'tail'
+
+export function flushGlobalEffects(type: GlobalEffectType, timestamp: number): void {
+  switch (type) {
+    case 'before':
+      return run(globalEffects, timestamp)
+    case 'after':
+      return run(globalAfterEffects, timestamp)
+    case 'tail':
+      return run(globalTailEffects, timestamp)
+  }
 }
 
 function update(timestamp: number, state: RootState, frame?: XRFrame) {
@@ -71,7 +84,7 @@ export function createLoop<TStore extends RootState = RootState, TCanvas = Eleme
       repeat = 0
 
       // Run effects
-      if (globalEffects.size) run(globalEffects, timestamp)
+      flushGlobalEffects('before', timestamp)
 
       // Render all roots
       roots.forEach((root) => {
@@ -88,12 +101,12 @@ export function createLoop<TStore extends RootState = RootState, TCanvas = Eleme
       })
 
       // Run after-effects
-      if (globalAfterEffects.size) run(globalAfterEffects, timestamp)
+      flushGlobalEffects('after', timestamp)
 
       // Stop the loop if nothing invalidates it
       if (repeat === 0) {
         // Tail call effects, they are called when rendering stops
-        if (globalTailEffects.size) run(globalTailEffects, timestamp)
+        flushGlobalEffects('tail', timestamp)
 
         // Flag end of operation
         running = false
