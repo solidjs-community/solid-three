@@ -1,18 +1,20 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import type { Accessor, JSX } from 'solid-js'
+import { createEffect, type Accessor, type JSX } from 'solid-js'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 import { OffscreenCanvas } from 'three'
 
 import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import { calculateDpr, dispose, is } from '../core/utils'
+import { calculateDpr, dispose, is, updateCamera } from '../core/utils'
 import { ParentContext, applyProps } from './proxy'
-import { context, createStore, isRenderer } from './store'
+import { context, createThreeStore, isRenderer, privateKeys } from './store'
 
+import { createStore } from 'solid-js/store'
 import type { ComputeFunction, EventManager } from '../core/events'
 import type { Camera, EquConfig } from '../core/utils'
 import type { Catalogue, Instance, Object3DNode, Root } from '../three-types'
+import { useThree } from './hooks'
 import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size, Subscription } from './store'
 
 type SolidThreeRoot = Root<RootState>
@@ -162,7 +164,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
   if (prevRoot) console.warn('R3F.createRoot should only be called once!')
 
   // Create store
-  const store = prevStore || createStore(invalidate, advance)
+  const store = prevStore || createThreeStore(invalidate, advance)
   // Map it
   if (!prevRoot) roots.set(canvas, { store })
 
@@ -404,129 +406,105 @@ export type InjectState = Partial<
   }
 >
 
-// function createPortal(children: JSX.Element, container: THREE.Object3D, state?: InjectState): JSX.Element {
-//   return <Portal key={container.uuid} children={children} container={container} state={state} />
-// }
+export function createPortal(children: JSX.Element, container: THREE.Object3D, state?: InjectState): JSX.Element {
+  return <Portal key={container.uuid} children={children} container={container} state={state} />
+}
 
-// function Portal({
-//   state = {},
-//   children,
-//   container,
-// }: {
-//   children: JSX.Element
-//   state?: InjectState
-//   container: THREE.Object3D
-// }) {
-//   /** This has to be a component because it would not be able to call useThree/useStore otherwise since
-//    *  if this is our environment, then we are not in r3f's renderer but in react-dom, it would trigger
-//    *  the "R3F hooks can only be used within the Canvas component!" warning:
-//    *  <Canvas>
-//    *    {createPortal(...)} */
+interface PortalProps {
+  children: JSX.Element
+  state?: InjectState
+  container: THREE.Object3D
+}
 
-//   const { events, size, ...rest } = state
-//   const previousRoot = useStore()
-//   const [raycaster] = React.useState(() => new THREE.Raycaster())
-//   const [pointer] = React.useState(() => new THREE.Vector2())
+function Portal({ state = {}, children, container }: PortalProps) {
+  /** This has to be a component because it would not be able to call useThree/useStore otherwise since
+   *  if this is our environment, then we are not in r3f's renderer but in react-dom, it would trigger
+   *  the "R3F hooks can only be used within the Canvas component!" warning:
+   *  <Canvas>
+   *    {createPortal(...)} */
 
-//   const inject = React.useCallback(
-//     (rootState: RootState, injectState: RootState) => {
-//       const intersect: Partial<RootState> = { ...rootState } // all prev state props
+  const { events, size, ...rest } = state
+  const previousRoot = useThree()
+  const raycaster = new THREE.Raycaster()
+  const pointer = new THREE.Vector2()
 
-//       // Only the fields of "rootState" that do not differ from injectState
-//       // Some props should be off-limits
-//       // Otherwise filter out the props that are different and let the inject layer take precedence
-//       Object.keys(rootState).forEach((key) => {
-//         if (
-//           // Some props should be off-limits
-//           privateKeys.includes(key as PrivateKeys) ||
-//           // Otherwise filter out the props that are different and let the inject layer take precedence
-//           rootState[key as keyof RootState] !== injectState[key as keyof RootState]
-//         ) {
-//           delete intersect[key as keyof RootState]
-//         }
-//       })
+  const inject = (rootState: RootState, injectState: RootState) => {
+    const intersect: Partial<RootState> = { ...rootState } // all prev state props
 
-//       let viewport = undefined
-//       if (injectState && size) {
-//         const camera = injectState.camera
-//         // Calculate the override viewport, if present
-//         viewport = rootState.viewport.getCurrentViewport(camera, new THREE.Vector3(), size)
-//         // Update the portal camera, if it differs from the previous layer
-//         if (camera !== rootState.camera) updateCamera(camera, size)
-//       }
+    // Only the fields of "rootState" that do not differ from injectState
+    // Some props should be off-limits
+    // Otherwise filter out the props that are different and let the inject layer take precedence
+    Object.keys(rootState).forEach((key) => {
+      if (
+        // Some props should be off-limits
+        privateKeys.includes(key as PrivateKeys) ||
+        // Otherwise filter out the props that are different and let the inject layer take precedence
+        rootState[key as keyof RootState] !== injectState[key as keyof RootState]
+      ) {
+        delete intersect[key as keyof RootState]
+      }
+    })
 
-//       return {
-//         // The intersect consists of the previous root state
-//         ...intersect,
-//         // Portals have their own scene, which forms the root, a raycaster and a pointer
-//         scene: container as THREE.Scene,
-//         raycaster,
-//         pointer,
-//         mouse: pointer,
-//         // Their previous root is the layer before it
-//         previousRoot,
-//         // Events, size and viewport can be overridden by the inject layer
-//         events: { ...rootState.events, ...injectState?.events, ...events },
-//         size: { ...rootState.size, ...size },
-//         viewport: { ...rootState.viewport, ...viewport },
-//         ...rest,
-//       } as RootState
-//     },
-//     [state],
-//   )
+    let viewport
+    if (injectState && size) {
+      const camera = injectState.camera
+      // Calculate the override viewport, if present
+      viewport = rootState.viewport.getCurrentViewport(camera, new THREE.Vector3(), size)
+      // Update the portal camera, if it differs from the previous layer
+      if (camera !== rootState.camera) updateCamera(camera, size)
+    }
 
-//   const [usePortalStore] = React.useState(() => {
-//     // Create a mirrored store, based on the previous root with a few overrides ...
-//     const previousState = previousRoot
-//     const store = create<RootState>((set, get) => ({
-//       ...previousState,
-//       scene: container as THREE.Scene,
-//       raycaster,
-//       pointer,
-//       mouse: pointer,
-//       previousRoot,
-//       events: { ...previousState.events, ...events },
-//       size: { ...previousState.size, ...size },
-//       ...rest,
-//       // Set and get refer to this root-state
-//       set,
-//       get,
-//       // Layers are allowed to override events
-//       setEvents: (events: Partial<EventManager<any>>) =>
-//         set((state) => ({ ...state, events: { ...state.events, ...events } })),
-//     }))
-//     return store
-//   })
+    return {
+      // The intersect consists of the previous root state
+      ...intersect,
+      // Portals have their own scene, which forms the root, a raycaster and a pointer
+      scene: container as THREE.Scene,
+      raycaster,
+      pointer,
+      mouse: pointer,
+      // Their previous root is the layer before it
+      previousRoot,
+      // Events, size and viewport can be overridden by the inject layer
+      events: { ...rootState.events, ...injectState?.events, ...events },
+      size: { ...rootState.size, ...size },
+      viewport: { ...rootState.viewport, ...viewport },
+      ...rest,
+    } as RootState
+  }
 
-//   React.useEffect(() => {
-//     // Subscribe to previous root-state and copy changes over to the mirrored portal-state
-//     const unsub = previousRoot.subscribe((prev) => usePortalStore.setState((state) => inject(prev, state)))
-//     return () => {
-//       unsub()
-//       usePortalStore.destroy()
-//     }
-//   }, [])
+  // Create a mirrored store, based on the previous root with a few overrides ...
+  const previousState = previousRoot
 
-//   React.useEffect(() => {
-//     usePortalStore.setState((injectState) => inject(previousRoot, injectState))
-//   }, [inject])
+  const set = (...args) => setPortalStore(...args)
 
-//   return (
-//     <>
-//       {reconciler.createPortal(
-//         <context.Provider value={usePortalStore}>{children}</context.Provider>,
-//         usePortalStore,
-//         null,
-//       )}
-//     </>
-//   )
-// }
+  const [portalStore, setPortalStore] = createStore<RootState>({
+    ...previousState,
+    scene: container as THREE.Scene,
+    raycaster,
+    pointer,
+    mouse: pointer,
+    previousRoot,
+    events: { ...previousState.events, ...events },
+    size: { ...previousState.size, ...size },
+    ...rest,
+    // Set and get refer to this root-state
+    set,
+    // Layers are allowed to override events
+    setEvents: (events: Partial<EventManager<any>>) =>
+      set((state) => ({ ...state, events: { ...state.events, ...events } })),
+  })
 
-// reconciler.injectIntoDevTools({
-//   bundleType: process.env.NODE_ENV === 'production' ? 0 : 1,
-//   rendererPackageName: '@react-three/fiber',
-//   version: React.version,
-// })
+  createEffect(() => {
+    // Subscribe to previous root-state and copy changes over to the mirrored portal-state
+    portalStore.set((state) => inject(previousRoot, state))
+  })
+
+  return (
+    <>
+      {/* {reconciler.createPortal(<context.Provider value={portalStore}>{children}</context.Provider>, portalStore, null)} */}
+    </>
+  )
+}
 
 let catalogue: Catalogue = {}
 export const extend = (objects: object): void => void (catalogue = { ...catalogue, ...objects })

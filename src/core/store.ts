@@ -392,4 +392,4 @@ const createThreeStore = (
   return rootState
 }
 
-export { createThreeStore as createStore }
+export { createThreeStore }
