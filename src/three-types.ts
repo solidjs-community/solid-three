@@ -1,10 +1,10 @@
 import { JSX } from 'solid-js/jsx-runtime'
 import * as THREE from 'three'
 import { Mutable } from 'utility-types'
-import { RootState } from './core'
 import { EventHandlers } from './core/events'
+import { RootState } from './core/store'
 
-type ConstructorRepresentation = new (...args: any[]) => any
+export type ConstructorRepresentation = new (...args: any[]) => any
 
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
@@ -43,9 +43,7 @@ export interface InstanceProps<T = any, P = any> {
 }
 
 export interface Catalogue {
-  [name: string]: {
-    new (...args: any): Instance
-  }
+  [name: string]: ConstructorRepresentation
 }
 
 export type NonFunctionKeys<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T]
