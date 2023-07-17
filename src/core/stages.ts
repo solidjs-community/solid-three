@@ -1,13 +1,7 @@
-import type { RootState } from './store'
+import type { RootState, Subscription } from './store'
 
-export interface UpdateCallback {
-  (state: RootState, delta: number, frame?: XRFrame): void
-}
-
-export type UpdateSubscription = { ref: UpdateCallback; store: RootState }
-
-export type FixedStageOptions = { fixedStep?: number; maxSubsteps?: number }
-export type FixedStageProps = { fixedStep: number; maxSubsteps: number; accumulator: number; alpha: number }
+// TODO: Remove deprecated fields in `Subscription`
+export type UpdateSubscription = Omit<Subscription, 'priority'>
 
 /**
  * Class representing a stage that updates every frame.
@@ -44,7 +38,7 @@ export class Stage {
    * @param store - The store to be used with the callback execution.
    * @returns A function to remove the subscription.
    */
-  add(ref: UpdateCallback, store: RootState) {
+  add(ref: UpdateSubscription['ref'], store: RootState) {
     this.subscribers.push({ ref, store })
 
     return () => {
@@ -149,12 +143,12 @@ export class FixedStage extends Stage {
   }
 }
 
-const Early = new Stage()
-const Fixed = new FixedStage()
-const Update = new Stage()
-const Late = new Stage()
-const Render = new Stage()
-const After = new Stage()
+const Early = /*#__PURE__*/ new Stage()
+const Fixed = /*#__PURE__*/ new FixedStage()
+const Update = /*#__PURE__*/ new Stage()
+const Late = /*#__PURE__*/ new Stage()
+const Render = /*#__PURE__*/ new Stage()
+const After = /*#__PURE__*/ new Stage()
 
 export const Stages = { Early, Fixed, Update, Late, Render, After }
 export const Lifecycle = [Early, Fixed, Update, Late, Render, After]

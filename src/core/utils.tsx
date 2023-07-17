@@ -1,12 +1,14 @@
-import { Accessor, createEffect, createRenderEffect, onCleanup } from 'solid-js'
+import { Accessor, createEffect, createRenderEffect, mapArray, onCleanup, untrack } from 'solid-js'
 import * as THREE from 'three'
 import { Falsey } from 'utility-types'
 
 import { useThree, useUpdate } from './hooks'
 import { Stages } from './stages'
+import { catalogue } from './proxy'
 
-import type { AttachType, Instance, LocalState } from '../three-types'
+import type { AttachType, Instance, LocalState } from './proxy'
 import type { Dpr, Renderer, RootState, Size } from './store'
+import { produce } from 'solid-js/store'
 
 /**
  * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
@@ -25,7 +27,11 @@ export type ColorManagementRepresentation = { enabled: boolean | never } | { leg
  */
 export const getColorManagement = (): ColorManagementRepresentation | null => (catalogue as any).ColorManagement ?? null
 
-export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
+export type NonFunctionKeys<P> = { [K in keyof P]-?: P[K] extends Function ? never : K }[keyof P]
+export type Overwrite<P, O> = Omit<P, NonFunctionKeys<O>> & O
+export type Properties<T> = Pick<T, NonFunctionKeys<T>>
+
+export type Camera = (THREE.OrthographicCamera | THREE.PerspectiveCamera) & { manual?: boolean }
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
   def && (def as THREE.OrthographicCamera).isOrthographicCamera
 
@@ -38,18 +44,17 @@ export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCame
  *
  * @see https://github.com/facebook/react/issues/14927
  */
-
 export const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' && (window.document?.createElement || window.navigator?.product === 'ReactNative')
     ? createRenderEffect
     : createEffect
 
-export type ObjectMap = {
+export interface ObjectMap {
   nodes: { [name: string]: THREE.Object3D }
   materials: { [name: string]: THREE.Material }
 }
 
-export function calculateDpr(dpr: Dpr) {
+export function calculateDpr(dpr: Dpr): number {
   // Err on the side of progress by assuming 2x dpr if we can't detect it
   // This will happen in workers where window is defined but dpr isn't.
   const target = typeof window !== 'undefined' ? window.devicePixelRatio ?? 2 : 1
@@ -61,7 +66,7 @@ export function calculateDpr(dpr: Dpr) {
  */
 export const getRootState = (obj: THREE.Object3D): RootState | undefined => (obj as unknown as Instance).__r3f?.root
 
-export type EquConfig = {
+export interface EquConfig {
   /** Compare arrays by reference equality a === b (default), or by shallow equality */
   arrays?: 'reference' | 'shallow'
   /** Compare objects by reference equality a === b (default), or by shallow equality */
@@ -92,11 +97,21 @@ export const is = {
     if ((isArr || isObj) && a === b) return true
     // Last resort, go through keys
     let i
+    // Check if a has all the keys of b
     for (i in a) if (!(i in b)) return false
-    for (i in strict ? b : a) if (a[i] !== b[i]) return false
+    // Check if values between keys match
+    if (isObj && arrays === 'shallow' && objects === 'shallow') {
+      for (i in strict ? b : a) if (!is.equ(a[i], b[i], { strict, objects: 'reference' })) return false
+    } else {
+      for (i in strict ? b : a) if (a[i] !== b[i]) return false
+    }
+    // If i is undefined
     if (is.und(i)) {
+      // If both arrays are empty we consider them equal
       if (isArr && a.length === 0 && b.length === 0) return true
+      // If both objects are empty we consider them equal
       if (isObj && Object.keys(a).length === 0 && Object.keys(b).length === 0) return true
+      // Otherwise match them by value
       if (a !== b) return false
     }
     return true
@@ -104,7 +119,7 @@ export const is = {
 }
 
 // Collects nodes and materials from a THREE.Object3D
-export function buildGraph(object: THREE.Object3D) {
+export function buildGraph(object: THREE.Object3D): ObjectMap {
   const data: ObjectMap = { nodes: {}, materials: {} }
   if (object) {
     object.traverse((obj: any) => {
@@ -121,12 +136,25 @@ export interface Disposable {
 }
 
 // Disposes an object and all its properties
-export function dispose<TObj extends Disposable>(obj: TObj) {
-  if (obj.dispose && obj.type !== 'Scene') obj.dispose()
+export function dispose<T extends Disposable>(obj: T): void {
+  if (obj.type !== 'Scene') obj.dispose?.()
   for (const p in obj) {
-    ;(p as any).dispose?.()
-    delete obj[p]
+    const prop = obj[p] as Disposable | undefined
+    if (prop?.type !== 'Scene') prop?.dispose?.()
   }
+}
+
+export const INTERNAL_PROPS = ['children', 'ref']
+
+// Gets only instance props from reconciler fibers
+export function getInstanceProps<T = any>(queue: any): Instance['props'] {
+  const props: Instance['props'] = {}
+
+  for (const key in queue) {
+    if (!INTERNAL_PROPS.includes(key)) props[key] = queue[key]
+  }
+
+  return props
 }
 
 // Each object in the scene carries a small LocalState descriptor
@@ -188,7 +216,91 @@ export function detach(parent: Instance, child: Instance, type: AttachType) {
   delete child.__r3f?.previousAttach
 }
 
-export function invalidateInstance(instance: Instance) {
+export const RESERVED_PROPS = [
+  ...INTERNAL_PROPS,
+  // Instance props
+  'args',
+  'dispose',
+  'attach',
+  'object',
+  // Behavior flags
+  'dispose',
+]
+
+export const DEFAULTS = new Map()
+
+export const applyProp = (object: Instance, props: { [key: string]: any }, key: string) => {
+  const rootState = getRootState(object as any as THREE.Object3D)
+  /* If the key contains a hyphen, we're setting a sub property. */
+  if (key.indexOf('-') > -1) {
+    const [property, ...rest] = key.split('-')
+    applyProps(object[property], { [rest.join('-')]: props[key] })
+    return
+  }
+
+  /* If the property exposes a `setScalar` function, we'll use that */
+  if (object[key]?.setScalar && typeof props[key] === 'number') {
+    object[key].setScalar(props[key])
+    return
+  }
+
+  /* If the property exposes a `copy` function and the value is of the same type,
+     we'll use that. (Vectors, Eulers, Quaternions, ...) */
+  if (object[key]?.copy && object[key].constructor === props[key]?.constructor) {
+    object[key].copy(props[key])
+    return
+  }
+
+  /* If the property exposes a `set` function, we'll use that. */
+  if (object[key]?.set) {
+    Array.isArray(props[key]) ? object[key].set(...props[key]) : object[key].set(props[key])
+    return
+  }
+
+  /* If we got here, we couldn't do anything special, so let's just check if the
+     target property exists and assign it directly. */
+  if (key in object) {
+    object[key] = props[key]
+  }
+
+  if (!rootState) return
+
+  /* If prop is an event-handler */
+  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
+    object.__r3f.handlers[key] = props[key]
+    object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
+
+    if (rootState.internal && object.raycast) {
+      const index = untrack(() => rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D))
+      if (object.__r3f.eventCount && index === -1) {
+        rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D])
+      } else if (!object.__r3f.eventCount && index !== -1) {
+        rootState.set(
+          'internal',
+          'interaction',
+          produce((arr) => arr.splice(index, 1)),
+        )
+      }
+    }
+  }
+}
+
+// This function prepares a set of changes to be applied to the instance
+export const applyProps = (object: Instance, props: { [key: string]: any }) =>
+  createRenderEffect(
+    mapArray(
+      () => Object.keys(props),
+      (key) => {
+        /* We wrap it in an effect only if a prop is a getter or a function */
+        const descriptors = Object.getOwnPropertyDescriptor(props, key)
+        const isDynamic = descriptors?.get || typeof descriptors?.value === 'function'
+        const update = () => applyProp(object, props, key)
+        isDynamic ? createRenderEffect(update) : update()
+      },
+    ),
+  )
+
+export function invalidateInstance(instance: Instance): void {
   const state = instance.__r3f?.root
   if (state && state.internal.frames === 0) state.invalidate()
 }
@@ -197,7 +309,7 @@ export function updateInstance(instance: Instance) {
   instance.onUpdate?.(instance)
 }
 
-export function updateCamera(camera: Camera & { manual?: boolean }, size: Size) {
+export function updateCamera(camera: Camera, size: Size): void {
   // https://github.com/pmndrs/react-three-fiber/issues/92
   // Do not mess with the camera if it belongs to the user
   if (!camera.manual) {
@@ -215,6 +327,17 @@ export function updateCamera(camera: Camera & { manual?: boolean }, size: Size) 
     camera.updateMatrixWorld()
   }
 }
+
+/**
+ * Get a handle to the current global scope in window and worker contexts if able
+ * https://github.com/pmndrs/react-three-fiber/pull/2493
+ */
+export const globalScope =
+  (typeof global !== 'undefined' && global) ||
+  (typeof self !== 'undefined' && self) ||
+  (typeof window !== 'undefined' && window)
+
+export const isObject3D = (object: any): object is THREE.Object3D => object?.isObject3D
 
 type Helper = THREE.Object3D & {
   update: () => void

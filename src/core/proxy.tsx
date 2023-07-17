@@ -5,19 +5,68 @@ import {
   createMemo,
   createRenderEffect,
   JSXElement,
-  mapArray,
   onCleanup,
   splitProps,
-  untrack,
   useContext,
 } from 'solid-js'
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
-import { getRootState, prepare, useHelper } from './utils'
+import { applyProps, prepare, useHelper } from './utils'
 
-import { produce } from 'solid-js/store'
-import type { Instance, ThreeElement } from '../three-types'
+import type { ThreeElement } from '../three-types'
+import { EventHandlers } from './events'
+import { RootState } from './store'
+
+export type AttachFnType<O = any> = (parent: any, self: O) => () => void
+export type AttachType<O = any> = string | AttachFnType<O>
+
+export type ConstructorRepresentation = new (...args: any[]) => any
+
+export type LocalState = {
+  type: string
+  root: RootState
+  // objects and parent are used when children are added with `attach` instead of being added to the Object3D scene graph
+  objects: Instance[]
+  parent: Instance | null
+  primitive?: boolean
+  eventCount: number
+  handlers: Partial<EventHandlers>
+  attach?: AttachType
+  previousAttach: any
+  memoizedProps: { [key: string]: any }
+}
+export interface Catalogue {
+  [name: string]: ConstructorRepresentation
+}
+
+/**
+ * If **T** contains a constructor, @see ConstructorParameters must be used, otherwise **T**.
+ */
+export type Args<T> = T extends new (...args: any) => any ? ConstructorParameters<T> : T
+
+// This type clamps down on a couple of assumptions that we can make regarding native types, which
+// could anything from scene objects, THREE.Objects, JSM, user-defined classes and non-scene objects.
+// What they all need to have in common is defined here ...
+export type BaseInstance = Omit<THREE.Object3D, 'children' | 'attach' | 'add' | 'remove' | 'raycast'> & {
+  __r3f: LocalState
+  children: Instance[]
+  remove: (...object: Instance[]) => Instance
+  add: (...object: Instance[]) => Instance
+  raycast?: (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => void
+}
+export type Instance = BaseInstance & { [key: string]: any }
+
+export interface InstanceProps<T = any, P = any> {
+  args?: Args<P>
+  object?: T
+  visible?: boolean
+  dispose?: null
+  attach?: AttachType<T>
+}
+
+export const catalogue: Catalogue = {}
+export const extend = (objects: Partial<Catalogue>): void => void Object.assign(catalogue, objects)
 
 export const ParentContext = createContext<() => Instance>()
 
@@ -124,79 +173,6 @@ export function Primitive<T extends Instance>(props: { object: T; children?: JSX
 
   return <ParentContext.Provider value={instance}>{props.children}</ParentContext.Provider>
 }
-
-/**
- * Convenience method for setting (potentially nested) properties on an object.
- */
-export const applyProp = (object: Instance, props: { [key: string]: any }, key: string) => {
-  const rootState = getRootState(object as any as THREE.Object3D)
-  /* If the key contains a hyphen, we're setting a sub property. */
-  if (key.indexOf('-') > -1) {
-    const [property, ...rest] = key.split('-')
-    applyProps(object[property], { [rest.join('-')]: props[key] })
-    return
-  }
-
-  /* If the property exposes a `setScalar` function, we'll use that */
-  if (object[key]?.setScalar && typeof props[key] === 'number') {
-    object[key].setScalar(props[key])
-    return
-  }
-
-  /* If the property exposes a `copy` function and the value is of the same type,
-     we'll use that. (Vectors, Eulers, Quaternions, ...) */
-  if (object[key]?.copy && object[key].constructor === props[key]?.constructor) {
-    object[key].copy(props[key])
-    return
-  }
-
-  /* If the property exposes a `set` function, we'll use that. */
-  if (object[key]?.set) {
-    Array.isArray(props[key]) ? object[key].set(...props[key]) : object[key].set(props[key])
-    return
-  }
-
-  /* If we got here, we couldn't do anything special, so let's just check if the
-     target property exists and assign it directly. */
-  if (key in object) {
-    object[key] = props[key]
-  }
-
-  if (!rootState) return
-
-  /* If prop is an event-handler */
-  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
-    object.__r3f.handlers[key] = props[key]
-    object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
-
-    if (rootState.internal && object.raycast) {
-      const index = untrack(() => rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D))
-      if (object.__r3f.eventCount && index === -1) {
-        rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D])
-      } else if (!object.__r3f.eventCount && index !== -1) {
-        rootState.set(
-          'internal',
-          'interaction',
-          produce((arr) => arr.splice(index, 1)),
-        )
-      }
-    }
-  }
-}
-
-export const applyProps = (object: Instance, props: { [key: string]: any }) =>
-  createRenderEffect(
-    mapArray(
-      () => Object.keys(props),
-      (key) => {
-        /* We wrap it in an effect only if a prop is a getter or a function */
-        const descriptors = Object.getOwnPropertyDescriptor(props, key)
-        const isDynamic = descriptors?.get || typeof descriptors?.value === 'function'
-        const update = () => applyProp(object, props, key)
-        isDynamic ? createRenderEffect(update) : update()
-      },
-    ),
-  )
 
 const cache = {} as Record<string, ThreeComponent<any>>
 

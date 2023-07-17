@@ -1,29 +1,12 @@
-import { Resource, createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
+import { createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
 import * as THREE from 'three'
-import { LoadingManager } from 'three'
-import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
 
 import { buildGraph } from '../core/utils'
 import { Stages } from './stages'
 import { context } from './store'
 
 import type { ObjectMap } from '../core/utils'
-import type { UpdateCallback } from './stages'
-import type { RenderCallback, StageTypes } from './store'
-
-export interface Loader<T> extends THREE.Loader {
-  load(
-    url: string,
-    onLoad?: (result: T) => void,
-    onProgress?: (event: ProgressEvent) => void,
-    onError?: (event: ErrorEvent) => void,
-  ): unknown
-}
-
-export type Extensions = (loader: THREE.Loader) => void
-export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>
-export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent ? Truthy : Falsy
-export type BranchingReturn<T, Parent, Coerced> = ConditionalType<T, Parent, Coerced, T>
+import type { RenderCallback, StageTypes, UpdateCallback } from './store'
 
 /**
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
@@ -75,8 +58,21 @@ export function useGraph(object: THREE.Object3D) {
   return createMemo(() => buildGraph(object))
 }
 
-function loadingFn<T>(extensions?: Extensions, onProgress?: (event: ProgressEvent<EventTarget>) => void) {
-  return function (Proto: new () => LoaderResult<T>, ...input: string[]) {
+export interface Loader<T> extends THREE.Loader {
+  load(
+    url: string | string[] | string[][],
+    onLoad?: (result: T, ...args: any[]) => void,
+    onProgress?: (event: ProgressEvent) => void,
+    onError?: (event: ErrorEvent) => void,
+  ): unknown
+}
+
+export type LoaderProto<T> = new (...args: any[]) => Loader<T>
+export type LoaderResult<T> = T extends { scene: THREE.Object3D } ? T & ObjectMap : T
+export type Extensions<T> = (loader: Loader<T>) => void
+
+function loadingFn<T>(extensions?: Extensions<T>, onProgress?: (event: ProgressEvent) => void) {
+  return function (Proto: LoaderProto<T>, ...input: string[]) {
     // Construct new loader and run extensions
     const loader = new Proto()
     if (extensions) extensions(loader)
@@ -84,13 +80,11 @@ function loadingFn<T>(extensions?: Extensions, onProgress?: (event: ProgressEven
     return Promise.all(
       input.map(
         (input) =>
-          new Promise((res, reject) =>
+          new Promise<LoaderResult<T>>((res, reject) =>
             loader.load(
               input,
-              (data: any) => {
-                if (data.scene) Object.assign(data, buildGraph(data.scene))
-                res(data)
-              },
+              (data: any) =>
+                res(data?.scene instanceof THREE.Object3D ? Object.assign(data, buildGraph(data.scene)) : data),
               onProgress,
               (error) => reject(new Error(`Could not load ${input}: ${error.message})`)),
             ),
@@ -100,31 +94,29 @@ function loadingFn<T>(extensions?: Extensions, onProgress?: (event: ProgressEven
   }
 }
 
-const cache = new Map()
+const loaderCache = new Map()
 
 /**
  * Synchronously loads and caches assets with a three loader.
  *
  */
-export function useLoader<T, U extends string | string[]>(
-  Proto: new (manager?: LoadingManager) => LoaderResult<T>,
+export function useLoader<T, U extends string | string[] | string[][]>(
+  Proto: LoaderProto<T>,
   input: U,
-  extensions?: Extensions,
-  onProgress?: (event: ProgressEvent<EventTarget>) => void,
-): U extends any[]
-  ? Resource<BranchingReturn<T, GLTF, GLTF & ObjectMap>[]>
-  : Resource<BranchingReturn<T, GLTF, GLTF & ObjectMap>> {
+  extensions?: Extensions<T>,
+  onProgress?: (event: ProgressEvent) => void,
+) {
+  // Use createResource to load async assets
   const keys = (Array.isArray(input) ? input : [input]) as string[]
 
   return createResource(
     () => [Proto, ...keys] as const,
     async ([Proto, ...keys]) => {
-      if (cache.has([Proto.name, ...keys].join('-'))) {
-        console.log('getting from cache', [Proto.name, ...keys].join('-'))
-        return cache.get([Proto.name, ...keys].join('-'))
+      if (loaderCache.has([Proto.name, ...keys].join('-'))) {
+        return loaderCache.get([Proto.name, ...keys].join('-'))
       }
       const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
-      cache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
+      loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
       if (Array.isArray(input)) return data
       return data[0]
     },
@@ -148,5 +140,5 @@ export function useLoader<T, U extends string | string[]>(
  */
 useLoader.clear = function <T, U extends string | string[]>(Proto: new () => LoaderResult<T>, input: U) {
   const keys = (Array.isArray(input) ? input : [input]) as string[]
-  return cache.delete([Proto.name, ...keys].join('-'))
+  return loaderCache.delete([Proto.name, ...keys].join('-'))
 }

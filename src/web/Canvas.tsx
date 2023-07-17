@@ -7,7 +7,7 @@ import { createPointerEvents } from './events'
 import type { DomEvent } from '../core/events'
 import type { RenderProps } from '../core/index'
 
-export interface Props extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, ComponentProps<'div'> {
+export interface CanvasProps extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, ComponentProps<'div'> {
   children: JSX.Element
   /** Canvas fallback content, similar to img's alt prop */
   fallback?: JSX.Element
@@ -15,22 +15,51 @@ export interface Props extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, Com
    * Options to pass to useMeasure.
    * @see https://github.com/pmndrs/react-use-measure#api
    */
-  // resize?: ResizeOptions
+  resize?: any //ResizeOptions
   /** The target where events are being subscribed to, default: the div that wraps canvas */
   eventSource?: HTMLElement
   /** The event prefix that is cast into canvas pointer x/y events, default: "offset" */
   eventPrefix?: 'offset' | 'client' | 'page' | 'layer' | 'screen'
+
+  style?: JSX.CSSProperties
 }
+
+export interface Props extends CanvasProps {}
 
 /**
  * A DOM canvas which accepts threejs elements as children.
  * @see https://docs.pmnd.rs/react-three-fiber/api/canvas
  */
 export function Canvas(props: Props) {
+  const [_, rest] = splitProps(props, [
+    'children',
+    'fallback',
+    'resize',
+    'style',
+    'gl',
+    'events',
+    'eventSource',
+    'eventPrefix',
+    'shadows',
+    'linear',
+    'flat',
+    'legacy',
+    'orthographic',
+    'frameloop',
+    'dpr',
+    'performance',
+    'raycaster',
+    'camera',
+    'onPointerMissed',
+    'onCreated',
+    'stages',
+    'scene',
+  ])
+
   // Create a known catalogue of Threejs-native elements
   // This will include the entire THREE namespace by default, users can extend
   // their own elements by using the createRoot API instead
-  createComputed(() => extend(THREE), [])
+  createComputed(() => extend(THREE as any), [])
 
   const [other, threeProps] = splitProps(
     mergeProps(
@@ -83,10 +112,26 @@ export function Canvas(props: Props) {
     root.render(props)
   })
 
+  // When the event source is not this div, we need to set pointer-events to none
+  // Or else the canvas will block events from reaching the event source
+  const pointerEvents = props.eventSource ? 'none' : 'auto'
+
   return (
-    <div ref={divRef} style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div
+      ref={divRef}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        'pointer-events': pointerEvents,
+        ...props.style,
+      }}
+      {...rest}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
-        <canvas ref={canvasRef} style={{ display: 'block' }} />
+        <canvas ref={canvasRef} style={{ display: 'block' }}>
+          {props.fallback}
+        </canvas>
       </div>
     </div>
   )

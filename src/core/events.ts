@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 
-import { getRootState } from './utils'
+import { Camera, getRootState } from './utils'
 
-import type { Instance } from '../three-types'
 import type { RootState } from './store'
-import type { Camera } from './utils'
+import type { Instance } from './proxy'
+import type { Properties } from './utils'
 
 export interface Intersection extends THREE.Intersection {
   /** The event source (the object which registered the handler) */
@@ -34,10 +34,10 @@ export interface IntersectionEvent<TSourceEvent> extends Intersection {
   stopped: boolean
 }
 
-export type ThreeEvent<TEvent> = IntersectionEvent<TEvent>
+export type ThreeEvent<TEvent> = IntersectionEvent<TEvent> & Properties<TEvent>
 export type DomEvent = PointerEvent | MouseEvent | WheelEvent
 
-export type Events = {
+export interface Events {
   onClick: EventListener
   onContextMenu: EventListener
   onDoubleClick: EventListener
@@ -50,7 +50,7 @@ export type Events = {
   onLostPointerCapture: EventListener
 }
 
-export type EventHandlers = {
+export interface EventHandlers {
   onClick?: (event: ThreeEvent<MouseEvent>) => void
   onContextMenu?: (event: ThreeEvent<MouseEvent>) => void
   onDoubleClick?: (event: ThreeEvent<MouseEvent>) => void
@@ -122,8 +122,8 @@ function releaseInternalPointerCapture(
   }
 }
 
-export function removeInteractivity(store: RootState, object: THREE.Object3D) {
-  const { internal, set } = store
+export function removeInteractivity(state: RootState, object: THREE.Object3D) {
+  const { internal, set } = state
   // Removes every trace of an object from the data store
   set('internal', 'interaction', (arr) => arr.filter((o) => o !== object))
   set('internal', 'initialHits', (arr) => arr.filter((o) => o !== object))
@@ -138,10 +138,10 @@ export function removeInteractivity(store: RootState, object: THREE.Object3D) {
   })
 }
 
-export function createEvents(store: RootState) {
+export function createEvents(state: RootState) {
   /** Calculates delta */
   function calculateDistance(event: DomEvent) {
-    const { internal } = store
+    const { internal } = state
     const dx = event.offsetX - internal.initialClick[0]
     const dy = event.offsetY - internal.initialClick[1]
     return Math.round(Math.sqrt(dx * dx + dy * dy))
@@ -160,7 +160,7 @@ export function createEvents(store: RootState) {
     const duplicates = new Set<string>()
     const intersections: Intersection[] = []
     // Allow callers to eliminate event objects
-    const eventsObjects = filter ? filter(store.internal.interaction) : store.internal.interaction
+    const eventsObjects = filter ? filter(state.internal.interaction) : state.internal.interaction
     // Reset all raycaster cameras to undefined
     for (let i = 0; i < eventsObjects.length; i++) {
       const state = getRootState(eventsObjects[i])
@@ -169,9 +169,9 @@ export function createEvents(store: RootState) {
       }
     }
 
-    if (!store.previousRoot) {
+    if (!state.previousRoot) {
       // Make sure root-level pointer and ray are set up
-      store.events.compute?.(event, store)
+      state.events.compute?.(event, state)
     }
 
     function handleRaycast(obj: THREE.Object3D<THREE.Event>) {
@@ -211,7 +211,7 @@ export function createEvents(store: RootState) {
 
     // https://github.com/mrdoob/three.js/issues/16031
     // Allow custom userland intersect sort order, this likely only makes sense on the root filter
-    if (store.events.filter) hits = store.events.filter(hits, store)
+    if (state.events.filter) hits = state.events.filter(hits, state)
 
     // Bubble up the events, find the event source (eventObject)
     for (const hit of hits) {
@@ -224,8 +224,8 @@ export function createEvents(store: RootState) {
     }
 
     // If the interaction is captured, make all capturing targets part of the intersect.
-    if ('pointerId' in event && store.internal.capturedMap.has(event.pointerId)) {
-      for (let captureData of store.internal.capturedMap.get(event.pointerId)!.values()) {
+    if ('pointerId' in event && state.internal.capturedMap.has(event.pointerId)) {
+      for (let captureData of state.internal.capturedMap.get(event.pointerId)!.values()) {
         if (!duplicates.has(makeId(captureData.intersection))) intersections.push(captureData.intersection)
       }
     }
@@ -336,7 +336,7 @@ export function createEvents(store: RootState) {
   }
 
   function cancelPointer(intersections: Intersection[]) {
-    const { internal } = store
+    const { internal } = state
     for (const hoveredObj of internal.hovered.values()) {
       // When no objects were hit or the the hovered object wasn't found underneath the cursor
       // we call onPointerOut and delete the object from the hovered-elements map
@@ -378,7 +378,7 @@ export function createEvents(store: RootState) {
         return () => cancelPointer([])
       case 'onLostPointerCapture':
         return (event: DomEvent) => {
-          const { internal } = store
+          const { internal } = state
           if ('pointerId' in event && internal.capturedMap.has(event.pointerId)) {
             // If the object event interface had onLostPointerCapture, we'd call it here on every
             // object that's getting removed. We call it on the next frame because onLostPointerCapture
@@ -397,7 +397,7 @@ export function createEvents(store: RootState) {
 
     // Any other pointer goes here ...
     return function handleEvent(event: DomEvent) {
-      const { onPointerMissed, internal, set } = store
+      const { onPointerMissed, internal, set } = state
 
       // prepareRay(event)
       set('internal', 'lastEvent', event)

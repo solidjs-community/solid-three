@@ -1,6 +1,41 @@
-export * from '../web/Canvas'
+export type {
+  Intersection,
+  ThreeEvent,
+  DomEvent,
+  Events,
+  EventHandlers,
+  FilterFunction,
+  ComputeFunction,
+  EventManager,
+} from './events'
+export { createEvents } from './events'
 export * from './hooks'
-export * from './proxy'
-export * from './renderer'
-export { createRoot } from './renderer'
-export { useHelper } from './utils'
+export type { GlobalRenderCallback, GlobalEffectType } from './loop'
+export { flushGlobalEffects, addEffect, addAfterEffect, addTail, invalidate, advance } from './loop'
+export type { AttachFnType, AttachType, ConstructorRepresentation, Catalogue, InstanceProps, Instance } from './proxy'
+export { extend, T } from './proxy'
+export type { ReconcilerRoot, GLProps, CameraProps, RenderProps, InjectState } from './renderer'
+export { _roots as roots, render, createRoot, unmountComponentAtNode, createPortal } from './renderer'
+export type { UpdateSubscription } from './stages'
+export { Stage, FixedStage, Stages } from './stages'
+export type {
+  Subscription,
+  Dpr,
+  Size,
+  Viewport,
+  RenderCallback,
+  UpdateCallback,
+  LegacyAlways,
+  FrameloopMode,
+  FrameloopRender,
+  FrameloopLegacy,
+  Frameloop,
+  Performance,
+  Renderer,
+  StageTypes,
+  XRManager,
+  RootState,
+} from './store'
+export { context } from './store'
+export type { ObjectMap, Camera, Disposable } from './utils'
+export { applyProps, getRootState, dispose } from './utils'

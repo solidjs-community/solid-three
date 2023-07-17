@@ -31,8 +31,13 @@ export type Subscription = {
 }
 
 export type Dpr = number | [min: number, max: number]
-export type Size = { width: number; height: number; top: number; left: number; updateStyle?: boolean }
-export type Viewport = Size & {
+export interface Size {
+  width: number
+  height: number
+  top: number
+  left: number
+}
+export interface Viewport extends Size {
   /** The initial pixel ratio */
   initialDpr: number
   /** Current pixel ratio */
@@ -46,14 +51,15 @@ export type Viewport = Size & {
 }
 
 export type RenderCallback = (state: RootState, delta: number, frame?: XRFrame) => void
+export type UpdateCallback = RenderCallback
 
-type LegacyAlways = 'always'
+export type LegacyAlways = 'always'
 export type FrameloopMode = LegacyAlways | 'auto' | 'demand' | 'never'
-type FrameloopRender = 'auto' | 'manual'
+export type FrameloopRender = 'auto' | 'manual'
 export type FrameloopLegacy = 'always' | 'demand' | 'never'
 export type Frameloop = FrameloopLegacy | { mode?: FrameloopMode; render?: FrameloopRender; maxDelta?: number }
 
-export type Performance = {
+export interface Performance {
   /** Current performance normal, between min and max */
   current: number
   /** How low the performance can go, between 0 and max */
@@ -66,12 +72,14 @@ export type Performance = {
   regress: () => void
 }
 
-export type Renderer = { render: (scene: THREE.Scene, camera: THREE.Camera) => any }
+export interface Renderer {
+  render: (scene: THREE.Scene, camera: THREE.Camera) => any
+}
 export const isRenderer = (def: any) => !!def?.render
 
 export type StageTypes = Stage | FixedStage
 
-export type InternalState = {
+export interface InternalState {
   interaction: THREE.Object3D[]
   hovered: Map<string, ThreeEvent<DomEvent>>
   subscribers: Subscription[]
@@ -91,13 +99,18 @@ export type InternalState = {
   subscribe: (callback: RenderCallback, priority: number, store: RootState) => () => void
 }
 
-export type RootState = {
+export interface XRManager {
+  connect: () => void
+  disconnect: () => void
+}
+
+export interface RootState {
   /** Set current state */
   set: SetStoreFunction<RootState>
   /** The instance of the renderer */
   gl: THREE.WebGLRenderer
   /** Default camera */
-  camera: Camera & { manual?: boolean }
+  camera: Camera
   /** Default scene */
   scene: THREE.Scene
   /** Default raycaster */
@@ -107,16 +120,16 @@ export type RootState = {
   /** Event layer interface, contains the event handler and the node they're connected to */
   events: EventManager<any>
   /** XR interface */
-  xr: { connect: () => void; disconnect: () => void }
+  xr: XRManager
   /** Currently used controls */
   controls: THREE.EventDispatcher | null
   /** Normalized event coordinates */
   pointer: THREE.Vector2
   /** @deprecated Normalized event coordinates, use "pointer" instead! */
   mouse: THREE.Vector2
-  /* Whether to enable r139's THREE.ColorManagement.legacyMode */
+  /* Whether to enable r139's THREE.ColorManagement */
   legacy: boolean
-  /** Shortcut to gl.outputEncoding = LinearEncoding */
+  /** Shortcut to gl.outputColorSpace = THREE.LinearSRGBColorSpace */
   linear: boolean
   /** Shortcut to gl.toneMapping = NoTonemapping */
   flat: boolean
@@ -145,7 +158,7 @@ export type RootState = {
    *
    * @todo before releasing next major version (v9), re-order arguments here to width, height, top, left, updateStyle
    */
-  setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => void
+  setSize: (width: number, height: number, top?: number, left?: number) => void
   /** Shortcut to manual setting the pixel ratio */
   setDpr: (dpr: Dpr) => void
   /** Shortcut to setting frameloop flags */
@@ -158,7 +171,7 @@ export type RootState = {
   internal: InternalState
 }
 
-export const context = createContext<RootState | null>(null)
+export const context = createContext<RootState>(null!)
 
 const createThreeStore = (
   invalidate: (state?: RootState, frames?: number) => void,
@@ -192,11 +205,8 @@ const createThreeStore = (
 
   const pointer = new THREE.Vector2()
 
-  const set: SetStoreFunction<RootState> = (...args: any[]) => {
-    //@ts-expect-error
-    setRootState(...args)
-  }
-
+  //@ts-expect-error
+  const set: SetStoreFunction<RootState> = (...args: any[]) => setRootState(...args)
   const get: Accessor<RootState> = () => rootState
 
   const [rootState, setRootState] = createStore<RootState>({
@@ -240,7 +250,7 @@ const createThreeStore = (
       },
     },
 
-    size: { width: 0, height: 0, top: 0, left: 0, updateStyle: false },
+    size: { width: 0, height: 0, top: 0, left: 0 },
     viewport: {
       initialDpr: 0,
       dpr: 0,
@@ -255,9 +265,9 @@ const createThreeStore = (
     },
 
     setEvents: (events: Partial<EventManager<any>>) => set('events', events),
-    setSize: (width: number, height: number, updateStyle?: boolean, top?: number, left?: number) => {
+    setSize: (width: number, height: number, top: number = 0, left: number = 0) => {
       const camera = get().camera
-      const size = { width, height, top: top || 0, left: left || 0, updateStyle }
+      const size = { width, height, top: top, left: left }
       batch(() => {
         set('viewport', getCurrentViewport(camera, defaultTarget, size))
         set('size', size)
@@ -265,7 +275,8 @@ const createThreeStore = (
     },
     setDpr: (dpr: Dpr) => {
       const resolved = calculateDpr(dpr)
-      return set('viewport', { dpr: resolved, initialDpr: rootState.viewport.initialDpr || resolved })
+      const state = get()
+      return set('viewport', { dpr: resolved, initialDpr: state.viewport.initialDpr || resolved })
     },
     setFrameloop: (frameloop: Frameloop) => {
       const state = get()
@@ -321,7 +332,6 @@ const createThreeStore = (
         set('internal', 'priority', internal.priority + (priority > 0 ? 1 : 0))
         // We use the render flag and deprecate priority
         if (internal.priority && state.internal.render === 'auto') set('internal', 'render', 'manual')
-
         set(
           'internal',
           'subscribers',
@@ -342,7 +352,6 @@ const createThreeStore = (
             set('internal', 'priority', internal.priority - (priority > 0 ? 1 : 0))
             // We use the render flag and deprecate priority
             if (!internal.priority && state.internal.render === 'manual') set('internal', 'render', 'auto')
-
             // Remove subscriber from list
             set(
               'internal',
@@ -360,7 +369,7 @@ const createThreeStore = (
     // Update camera & renderer
     updateCamera(rootState.camera, rootState.size)
     rootState.gl.setPixelRatio(rootState.viewport.dpr)
-    rootState.gl.setSize(rootState.size.width, rootState.size.height, rootState.size.updateStyle)
+    rootState.gl.setSize(rootState.size.width, rootState.size.height)
   })
 
   createEffect(() => {

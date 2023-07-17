@@ -1,47 +1,61 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createEffect, type Accessor, type JSX } from 'solid-js'
+import { createEffect, createMemo, type JSX } from 'solid-js'
+import { createStore } from 'solid-js/store'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
-import { OffscreenCanvas } from 'three'
 
-import { createLoop } from '../core/loop'
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import { calculateDpr, dispose, is, updateCamera } from '../core/utils'
-import { ParentContext, applyProps } from './proxy'
-import { context, createThreeStore, isRenderer, privateKeys } from './store'
+import { applyProps, calculateDpr, dispose, getColorManagement, is, updateCamera } from '../core/utils'
+import { useThree } from './hooks'
+import { advance, invalidate } from './loop'
+import { Instance, ParentContext } from './proxy'
+import { context, createThreeStore, isRenderer } from './store'
 
-import { createStore } from 'solid-js/store'
 import type { ComputeFunction, EventManager } from '../core/events'
 import type { Camera, EquConfig } from '../core/utils'
-import type { Catalogue, Instance, Object3DNode, Root } from '../three-types'
-import { useThree } from './hooks'
-import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size, Subscription } from './store'
+import type { Root, ThreeElement } from '../three-types'
+import type { Dpr, Frameloop, Performance, Renderer, RootState, Size, Subscription } from './store'
 
-type SolidThreeRoot = Root<RootState>
+// TODO: fix type resolve
+declare var OffscreenCanvas: any
+type OffscreenCanvas = any
 
-export const roots = new Map<Element, SolidThreeRoot>()
-export const { invalidate, advance } = createLoop(roots)
+type Canvas = HTMLCanvasElement | OffscreenCanvas
+
+export const _roots = new Map<Canvas, Root>()
 
 const shallowLoose = { objects: 'shallow', strict: false } as EquConfig
 
 type Properties<T> = Pick<T, { [K in keyof T]: T[K] extends (_: any) => any ? never : K }[keyof T]>
 
-type GLProps =
+export type GLProps =
   | Renderer
-  | ((canvas: HTMLCanvasElement) => Renderer)
+  | ((canvas: Canvas) => Renderer)
   | Partial<Properties<THREE.WebGLRenderer> | THREE.WebGLRendererParameters>
-  | undefined
 
-export type RenderProps<TCanvas extends Element> = {
+export type CameraProps = (
+  | Camera
+  | Partial<
+      ThreeElement<typeof THREE.Camera> &
+        ThreeElement<typeof THREE.PerspectiveCamera> &
+        ThreeElement<typeof THREE.OrthographicCamera>
+    >
+) & {
+  /** Flags the camera as manual, putting projection into your own hands */
+  manual?: boolean
+}
+
+export interface RenderProps<TCanvas extends Canvas> {
   /** A threejs renderer instance or props that go into the default renderer */
   gl?: GLProps
   /** Dimensions to fit the renderer to. Will measure canvas dimensions if omitted */
   size?: Size
   /**
-   * Enables PCFsoft shadows. Can accept `gl.shadowMap` options for fine-tuning.
+   * Enables shadows (by default PCFsoft). Can accept `gl.shadowMap` options for fine-tuning,
+   * but also strings: 'basic' | 'percentage' | 'soft' | 'variance'.
    * @see https://threejs.org/docs/#api/en/renderers/WebGLRenderer.shadowMap
    */
-  shadows?: boolean | Partial<THREE.WebGLShadowMap>
+  shadows?: boolean | 'basic' | 'percentage' | 'soft' | 'variance' | Partial<THREE.WebGLShadowMap>
   /**
    * Disables three r139 color management.
    * @see https://threejs.org/docs/#manual/en/introduction/Color-management
@@ -67,16 +81,10 @@ export type RenderProps<TCanvas extends Element> = {
   dpr?: Dpr
   /** Props that go into the default raycaster */
   raycaster?: Partial<THREE.Raycaster>
+  /** A `THREE.Scene` instance or props that go into the default scene */
+  scene?: THREE.Scene | Partial<THREE.Scene>
   /** A `THREE.Camera` instance or props that go into the default camera */
-  camera?: (
-    | Camera
-    | Partial<
-        Object3DNode<THREE.Camera> & Object3DNode<THREE.PerspectiveCamera> & Object3DNode<THREE.OrthographicCamera>
-      >
-  ) & {
-    /** Flags the camera as manual, putting projection into your own hands */
-    manual?: boolean
-  }
+  camera?: CameraProps
   /** An R3F event manager to manage elements' pointer events */
   events?: (store: RootState) => EventManager<HTMLElement>
   /** Callback after the canvas has rendered (but not yet committed) */
@@ -88,19 +96,20 @@ export type RenderProps<TCanvas extends Element> = {
   render?: 'auto' | 'manual'
 }
 
-const createRendererInstance = <TElement extends Element>(gl: GLProps, canvas: TElement): THREE.WebGLRenderer => {
-  const customRenderer = (
-    typeof gl === 'function' ? gl(canvas as unknown as HTMLCanvasElement) : gl
-  ) as THREE.WebGLRenderer
+const createRendererInstance = <TCanvas extends Canvas>(
+  gl: GLProps | undefined,
+  canvas: TCanvas,
+): THREE.WebGLRenderer => {
+  const customRenderer = (typeof gl === 'function' ? gl(canvas) : gl) as THREE.WebGLRenderer
   if (isRenderer(customRenderer)) return customRenderer
-  else
-    return new THREE.WebGLRenderer({
-      powerPreference: 'high-performance',
-      canvas: canvas,
-      antialias: true,
-      alpha: true,
-      ...gl,
-    })
+
+  return new THREE.WebGLRenderer({
+    powerPreference: 'high-performance',
+    canvas: canvas as HTMLCanvasElement,
+    antialias: true,
+    alpha: true,
+    ...gl,
+  })
 }
 
 const createStages = (stages: Stage[] | undefined, store: RootState) => {
@@ -122,7 +131,6 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
       subscription.ref(subscription.store, delta, frame)
     }
   }
-
   Stages.Update.add(frameCallback, store)
 
   // Add render callback to render stage
@@ -132,33 +140,31 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
   Stages.Render.add(renderCallback, store)
 }
 
-export type ReconcilerRoot<TCanvas extends Element> = {
+export interface ReconcilerRoot<TCanvas extends Canvas> {
   configure: (config?: RenderProps<TCanvas>) => ReconcilerRoot<TCanvas>
   render: (props: { children: JSX.Element }) => RootState
   unmount: () => void
 }
 
-function isCanvas(maybeCanvas: unknown): maybeCanvas is HTMLCanvasElement {
-  return maybeCanvas instanceof HTMLCanvasElement
-}
-
-function computeInitialSize(canvas: HTMLCanvasElement | OffscreenCanvas, defaultSize?: Size): Size {
-  if (defaultSize) {
-    return defaultSize
-  }
-
-  if (isCanvas(canvas) && canvas.parentElement) {
+function computeInitialSize(canvas: Canvas, size?: Size): Size {
+  if (!size && canvas instanceof HTMLCanvasElement && canvas.parentElement) {
     const { width, height, top, left } = canvas.parentElement.getBoundingClientRect()
-
     return { width, height, top, left }
+  } else if (!size && typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) {
+    return {
+      width: canvas.width,
+      height: canvas.height,
+      top: 0,
+      left: 0,
+    }
   }
 
-  return { width: 0, height: 0, top: 0, left: 0 }
+  return { width: 0, height: 0, top: 0, left: 0, ...size }
 }
 
-export function createRoot<TCanvas extends Element>(canvas: TCanvas): ReconcilerRoot<TCanvas> {
+export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerRoot<TCanvas> {
   // Check against mistaken use of createRoot
-  const prevRoot = roots.get(canvas)
+  const prevRoot = _roots.get(canvas)
   const prevStore = prevRoot?.store
 
   if (prevRoot) console.warn('R3F.createRoot should only be called once!')
@@ -166,17 +172,19 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
   // Create store
   const store = prevStore || createThreeStore(invalidate, advance)
   // Map it
-  if (!prevRoot) roots.set(canvas, { store })
+  if (!prevRoot) _roots.set(canvas, { store })
 
   // Locals
   let onCreated: ((state: RootState) => void) | undefined
   let configured = false
+  let lastCamera: RenderProps<TCanvas>['camera']
 
   return {
-    configure(props: RenderProps<TCanvas> = {}) {
+    configure(props: RenderProps<TCanvas> = {}): ReconcilerRoot<TCanvas> {
       let {
         gl: glConfig,
         size: propsSize,
+        scene: sceneOptions,
         events,
         onCreated: onCreatedCallback,
         shadows = false,
@@ -207,8 +215,9 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
       if (!is.equ(params, raycaster.params, shallowLoose))
         applyProps(raycaster as any, { params: { ...raycaster.params, ...params } })
 
-      // Create default camera (one time only!)
+      // Create default camera, don't overwrite any user-set state
       if (!store.camera) {
+        lastCamera = cameraOptions
         const isCamera = cameraOptions instanceof THREE.Camera
         const camera = isCamera
           ? (cameraOptions as Camera)
@@ -219,10 +228,26 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
           camera.position.z = 5
           if (cameraOptions) applyProps(camera as any, cameraOptions as any)
           // Always look at center by default
-          if (!cameraOptions?.rotation) camera.lookAt(0, 0, 0)
+          if (!store.camera && !cameraOptions?.rotation) camera.lookAt(0, 0, 0)
         }
         store.set('camera', camera)
       }
+
+      // Set up scene (one time only!)
+      /* if (!state.scene) {
+        let scene: THREE.Scene
+
+        if (sceneOptions instanceof THREE.Scene) {
+          scene = sceneOptions
+          prepare(scene, store, '', {})
+        } else {
+          scene = new THREE.Scene()
+          prepare(scene, store, '', {})
+          if (sceneOptions) applyProps(scene as any, sceneOptions as any)
+        }
+
+        state.set({ scene })
+      } */
 
       // Set up XR (one time only!)
       if (!store.xr) {
@@ -261,22 +286,45 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
 
       // Set shadowmap
       if (gl.shadowMap) {
-        const isBoolean = is.boo(shadows)
-        if ((isBoolean && gl.shadowMap.enabled !== shadows) || !is.equ(shadows, gl.shadowMap, shallowLoose)) {
-          const old = gl.shadowMap.enabled
-          gl.shadowMap.enabled = !!shadows
-          if (!isBoolean) Object.assign(gl.shadowMap, shadows)
-          else gl.shadowMap.type = THREE.PCFSoftShadowMap
-          if (old !== gl.shadowMap.enabled) gl.shadowMap.needsUpdate = true
+        const oldEnabled = gl.shadowMap.enabled
+        const oldType = gl.shadowMap.type
+        gl.shadowMap.enabled = !!shadows
+
+        if (is.boo(shadows)) {
+          gl.shadowMap.type = THREE.PCFSoftShadowMap
+        } else if (is.str(shadows)) {
+          const types = {
+            basic: THREE.BasicShadowMap,
+            percentage: THREE.PCFShadowMap,
+            soft: THREE.PCFSoftShadowMap,
+            variance: THREE.VSMShadowMap,
+          }
+          gl.shadowMap.type = types[shadows] ?? THREE.PCFSoftShadowMap
+        } else if (is.obj(shadows)) {
+          Object.assign(gl.shadowMap, shadows)
         }
+
+        if (oldEnabled !== gl.shadowMap.enabled || oldType !== gl.shadowMap.type) gl.shadowMap.needsUpdate = true
       }
 
-      // Set color management
-      ;(THREE as any).ColorManagement.legacyMode = legacy
-      const outputEncoding = linear ? THREE.LinearEncoding : THREE.sRGBEncoding
-      const toneMapping = flat ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping
-      if (gl.outputEncoding !== outputEncoding) gl.outputEncoding = outputEncoding
-      if (gl.toneMapping !== toneMapping) gl.toneMapping = toneMapping
+      // Safely set color management if available.
+      // Avoid accessing THREE.ColorManagement to play nice with older versions
+      const ColorManagement = getColorManagement()
+      if (ColorManagement) {
+        if ('enabled' in ColorManagement) ColorManagement.enabled = !legacy
+        else if ('legacyMode' in ColorManagement) ColorManagement.legacyMode = legacy
+      }
+
+      // Set color space and tonemapping preferences
+      const LinearEncoding = 3000
+      const sRGBEncoding = 3001
+      applyProps(
+        gl as any,
+        {
+          outputEncoding: linear ? LinearEncoding : sRGBEncoding,
+          toneMapping: flat ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping,
+        } as Partial<Properties<THREE.WebGLRenderer>>,
+      )
 
       // Update color management state
       if (store.legacy !== legacy) store.set('legacy', legacy)
@@ -288,13 +336,14 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
         applyProps(gl as any, glConfig as any)
       // Store events internally
       if (events && !store.events.handlers) store.set('events', events(store))
-      // Check pixelratio
-      if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
+
       // Check size, allow it to take on container bounds initially
       const size = computeInitialSize(canvas, propsSize)
       if (!is.equ(size, store.size, shallowLoose)) {
-        store.setSize(size.width, size.height, size.updateStyle, size.top, size.left)
+        store.setSize(size.width, size.height, size.top, size.left)
       }
+      // Check pixelratio
+      if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
       // Check frameloop
       if (store.frameloop !== frameloop) store.setFrameloop(frameloop)
       // Check pointer missed
@@ -315,6 +364,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
+      // TODO:  this code will break when used in a worker.
       createResizeObserver(
         () => canvas.parentElement!,
         ({ width, height }) => {
@@ -338,7 +388,7 @@ export function createRoot<TCanvas extends Element>(canvas: TCanvas): Reconciler
   }
 }
 
-export function render<TCanvas extends Element>(
+export function render<TCanvas extends Canvas>(
   children: JSX.Element,
   canvas: TCanvas,
   config: RenderProps<TCanvas>,
@@ -349,43 +399,40 @@ export function render<TCanvas extends Element>(
   return root.render({ children })
 }
 
-function Provider<TElement extends Element>(props: {
+interface ProviderProps<TCanvas extends Canvas> {
   onCreated?: (state: RootState) => void
   store: RootState
   children: JSX.Element
-  rootElement: TElement
-  parent?: Accessor<TElement | undefined>
-}) {
+  rootElement: TCanvas
+}
+
+function Provider<TCanvas extends Canvas>(props: ProviderProps<TCanvas>): JSX.Element {
   // Flag the canvas active, rendering will now begin
   props.store.set('internal', 'active', true)
   // Notifiy that init is completed, the scene graph exists, but nothing has yet rendered
-
   if (props.onCreated) props.onCreated(props.store)
-
   // Connect events to the targets parent, this is done to ensure events are registered on
   // a shared target, and not on the canvas itself
   if (!props.store.events.connected) props.store.events.connect?.(props.rootElement)
-
   return <context.Provider value={props.store}>{props.children}</context.Provider>
 }
 
-export function unmountComponentAtNode<TElement extends Element>(
-  canvas: TElement,
-  callback?: (canvas: TElement) => void,
-) {
-  const root = roots.get(canvas)
+export function unmountComponentAtNode<TCanvas extends Canvas>(
+  canvas: TCanvas,
+  callback?: (canvas: TCanvas) => void,
+): void {
+  const root = _roots.get(canvas)
   const state = root?.store
   if (state) {
     state.internal.active = false
-
     setTimeout(() => {
       try {
         state.events.disconnect?.()
         state.gl?.renderLists?.dispose?.()
         state.gl?.forceContextLoss?.()
         if (state.gl?.xr) state.xr.disconnect()
-        dispose(state)
-        roots.delete(canvas)
+        dispose(state.scene)
+        _roots.delete(canvas)
         if (callback) callback(canvas)
       } catch (e) {
         /* ... */
@@ -395,19 +442,18 @@ export function unmountComponentAtNode<TElement extends Element>(
 }
 
 export type InjectState = Partial<
-  Omit<RootState, PrivateKeys> & {
+  Omit<RootState, 'events'> & {
     events?: {
       enabled?: boolean
       priority?: number
       compute?: ComputeFunction
       connected?: any
     }
-    size?: Size
   }
 >
 
 export function createPortal(children: JSX.Element, container: THREE.Object3D, state?: InjectState): JSX.Element {
-  return <Portal key={container.uuid} children={children} container={container} state={state} />
+  return <Portal children={children} container={container} state={state} />
 }
 
 interface PortalProps {
@@ -422,31 +468,14 @@ function Portal({ state = {}, children, container }: PortalProps) {
    *  the "R3F hooks can only be used within the Canvas component!" warning:
    *  <Canvas>
    *    {createPortal(...)} */
-
   const { events, size, ...rest } = state
   const previousRoot = useThree()
   const raycaster = new THREE.Raycaster()
   const pointer = new THREE.Vector2()
 
   const inject = (rootState: RootState, injectState: RootState) => {
-    const intersect: Partial<RootState> = { ...rootState } // all prev state props
-
-    // Only the fields of "rootState" that do not differ from injectState
-    // Some props should be off-limits
-    // Otherwise filter out the props that are different and let the inject layer take precedence
-    Object.keys(rootState).forEach((key) => {
-      if (
-        // Some props should be off-limits
-        privateKeys.includes(key as PrivateKeys) ||
-        // Otherwise filter out the props that are different and let the inject layer take precedence
-        rootState[key as keyof RootState] !== injectState[key as keyof RootState]
-      ) {
-        delete intersect[key as keyof RootState]
-      }
-    })
-
     let viewport
-    if (injectState && size) {
+    if (injectState.camera && size) {
       const camera = injectState.camera
       // Calculate the override viewport, if present
       viewport = rootState.viewport.getCurrentViewport(camera, new THREE.Vector3(), size)
@@ -456,7 +485,8 @@ function Portal({ state = {}, children, container }: PortalProps) {
 
     return {
       // The intersect consists of the previous root state
-      ...intersect,
+      ...rootState,
+      set: injectState.set,
       // Portals have their own scene, which forms the root, a raycaster and a pointer
       scene: container as THREE.Scene,
       raycaster,
@@ -465,46 +495,31 @@ function Portal({ state = {}, children, container }: PortalProps) {
       // Their previous root is the layer before it
       previousRoot,
       // Events, size and viewport can be overridden by the inject layer
-      events: { ...rootState.events, ...injectState?.events, ...events },
+      events: { ...rootState.events, ...injectState.events, ...events },
       size: { ...rootState.size, ...size },
       viewport: { ...rootState.viewport, ...viewport },
-      ...rest,
+      // Layers are allowed to override events
+      setEvents: (events: Partial<EventManager<any>>) =>
+        injectState.set((state) => ({ ...state, events: { ...state.events, ...events } })),
     } as RootState
   }
 
-  // Create a mirrored store, based on the previous root with a few overrides ...
-  const previousState = previousRoot
-
-  const set = (...args) => setPortalStore(...args)
-
-  const [portalStore, setPortalStore] = createStore<RootState>({
-    ...previousState,
-    scene: container as THREE.Scene,
-    raycaster,
-    pointer,
-    mouse: pointer,
-    previousRoot,
-    events: { ...previousState.events, ...events },
-    size: { ...previousState.size, ...size },
-    ...rest,
-    // Set and get refer to this root-state
-    set,
-    // Layers are allowed to override events
-    setEvents: (events: Partial<EventManager<any>>) =>
-      set((state) => ({ ...state, events: { ...state.events, ...events } })),
-  })
-
-  createEffect(() => {
-    // Subscribe to previous root-state and copy changes over to the mirrored portal-state
-    portalStore.set((state) => inject(previousRoot, state))
+  const usePortalStore = createMemo(() => {
+    //@ts-ignore
+    const set = (...args) => setStore(...args)
+    const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
+    const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
+    createEffect(() => onMutate(previousRoot))
+    return store
   })
 
   return (
     <>
-      {/* {reconciler.createPortal(<context.Provider value={portalStore}>{children}</context.Provider>, portalStore, null)} */}
+      {/* {reconciler.createPortal(
+        <context.Provider value={usePortalStore}>{children}</context.Provider>,
+        usePortalStore,
+        null,
+      )} */}
     </>
   )
 }
-
-let catalogue: Catalogue = {}
-export const extend = (objects: object): void => void (catalogue = { ...catalogue, ...objects })

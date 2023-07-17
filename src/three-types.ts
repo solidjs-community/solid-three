@@ -1,61 +1,15 @@
 import { JSX } from 'solid-js/jsx-runtime'
 import * as THREE from 'three'
 import { Mutable } from 'utility-types'
+import { AttachType, InstanceProps } from './core'
 import { EventHandlers } from './core/events'
 import { RootState } from './core/store'
-
-export type ConstructorRepresentation = new (...args: any[]) => any
+import { Args, ConstructorRepresentation } from './core/proxy'
 
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
-export type LocalState = {
-  type: string
-  root: RootState
-  // objects and parent are used when children are added with `attach` instead of being added to the Object3D scene graph
-  objects: Instance[]
-  parent: Instance | null
-  primitive?: boolean
-  eventCount: number
-  handlers: Partial<EventHandlers>
-  attach?: AttachType
-  previousAttach: any
-  memoizedProps: { [key: string]: any }
-}
-
-// This type clamps down on a couple of assumptions that we can make regarding native types, which
-// could anything from scene objects, THREE.Objects, JSM, user-defined classes and non-scene objects.
-// What they all need to have in common is defined here ...
-export type BaseInstance = Omit<THREE.Object3D, 'children' | 'attach' | 'add' | 'remove' | 'raycast'> & {
-  __r3f: LocalState
-  children: Instance[]
-  remove: (...object: Instance[]) => Instance
-  add: (...object: Instance[]) => Instance
-  raycast?: (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => void
-}
-export type Instance = BaseInstance & { [key: string]: any }
-
-export interface InstanceProps<T = any, P = any> {
-  args?: Args<P>
-  object?: T
-  visible?: boolean
-  dispose?: null
-  attach?: AttachType<T>
-}
-
-export interface Catalogue {
-  [name: string]: ConstructorRepresentation
-}
-
 export type NonFunctionKeys<T> = { [K in keyof T]: T[K] extends Function ? never : K }[keyof T]
 export type Overwrite<T, O> = Omit<T, NonFunctionKeys<O>> & O
-
-export type AttachFnType<O = any> = (parent: any, self: O) => () => void
-export type AttachType<O = any> = string | AttachFnType<O>
-
-/**
- * If **T** contains a constructor, @see ConstructorParameters must be used, otherwise **T**.
- */
-type Args<T> = T extends new (...args: any) => any ? ConstructorParameters<T> : T
 
 export interface MathRepresentation {
   set(...args: number[]): any
