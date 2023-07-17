@@ -355,28 +355,17 @@ const createThreeStore = (
     },
   })
 
-  let oldSize = rootState.size
-  let oldDpr = rootState.viewport.dpr
-  let oldCamera = rootState.camera
   createEffect(() => {
-    const { camera, size, viewport, gl, set } = rootState
-
     // Resize camera and renderer on changes to size and pixelratio
-    if (size !== oldSize || viewport.dpr !== oldDpr) {
-      oldSize = size
-      oldDpr = viewport.dpr
-      // Update camera & renderer
-      updateCamera(camera, size)
-      gl.setPixelRatio(viewport.dpr)
-      gl.setSize(size.width, size.height, size.updateStyle)
-    }
+    // Update camera & renderer
+    updateCamera(rootState.camera, rootState.size)
+    rootState.gl.setPixelRatio(rootState.viewport.dpr)
+    rootState.gl.setSize(rootState.size.width, rootState.size.height, rootState.size.updateStyle)
+  })
 
+  createEffect(() => {
     // Update viewport once the camera changes
-    if (camera !== oldCamera) {
-      oldCamera = camera
-      // Update viewport
-      set('viewport', rootState.viewport.getCurrentViewport(camera))
-    }
+    rootState.set('viewport', rootState.viewport.getCurrentViewport(rootState.camera))
   })
 
   // TODO:  This currently does not deep-track like the original r3f does.
