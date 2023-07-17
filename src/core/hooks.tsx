@@ -1,13 +1,4 @@
-import {
-  Resource,
-  createEffect,
-  createMemo,
-  createRenderEffect,
-  createResource,
-  onCleanup,
-  untrack,
-  useContext,
-} from 'solid-js'
+import { Resource, createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
 import * as THREE from 'three'
 import { LoadingManager } from 'three'
 import { GLTF } from 'three/examples/jsm/loaders/GLTFLoader'
@@ -175,18 +166,3 @@ useLoader.clear = function <T, U extends string | string[]>(Proto: new () => Loa
   const keys = (Array.isArray(input) ? input : [input]) as string[]
   return cache.delete([Proto.name, ...keys].join('-'))
 }
-
-/**
- * An SSR-friendly useLayoutEffect.
- *
- * React currently throws a warning when using useLayoutEffect on the server.
- * To get around it, we can conditionally useEffect on the server (no-op) and
- * useLayoutEffect elsewhere.
- *
- * @see https://github.com/facebook/react/issues/14927
- */
-
-export const useIsomorphicLayoutEffect =
-  typeof window !== 'undefined' && (window.document?.createElement || window.navigator?.product === 'ReactNative')
-    ? createRenderEffect
-    : createEffect

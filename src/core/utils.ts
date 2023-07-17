@@ -1,4 +1,4 @@
-import { Accessor, createEffect, onCleanup } from 'solid-js'
+import { Accessor, createEffect, createRenderEffect, onCleanup } from 'solid-js'
 import * as THREE from 'three'
 import { Falsey } from 'utility-types'
 
@@ -6,21 +6,43 @@ import { useThree, useUpdate } from './hooks'
 import { Stages } from './stages'
 
 import type { AttachType, Instance, LocalState } from '../three-types'
-import type { Dpr, RootState, Size } from './store'
+import type { Dpr, Renderer, RootState, Size } from './store'
+
+/**
+ * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
+ */
+export const hasColorSpace = <
+  T extends Renderer | THREE.Texture | object,
+  P = T extends Renderer ? { outputColorSpace: string } : { colorSpace: string },
+>(
+  object: T,
+): object is T & P => 'colorSpace' in object || 'outputColorSpace' in object
+
+export type ColorManagementRepresentation = { enabled: boolean | never } | { legacyMode: boolean | never }
+
+/**
+ * The current THREE.ColorManagement instance, if present.
+ */
+export const getColorManagement = (): ColorManagementRepresentation | null => (catalogue as any).ColorManagement ?? null
 
 export type Camera = THREE.OrthographicCamera | THREE.PerspectiveCamera
 export const isOrthographicCamera = (def: Camera): def is THREE.OrthographicCamera =>
   def && (def as THREE.OrthographicCamera).isOrthographicCamera
 
-export const DEFAULT = '__default'
+/**
+ * An SSR-friendly useLayoutEffect.
+ *
+ * React currently throws a warning when using useLayoutEffect on the server.
+ * To get around it, we can conditionally useEffect on the server (no-op) and
+ * useLayoutEffect elsewhere.
+ *
+ * @see https://github.com/facebook/react/issues/14927
+ */
 
-export type DiffSet = {
-  memoized: { [key: string]: any }
-  changes: [key: string, value: unknown, isEvent: boolean, keys: string[]][]
-}
-
-export const isDiffSet = (def: any): def is DiffSet => def && !!(def as DiffSet).memoized && !!(def as DiffSet).changes
-export type ClassConstructor = { new (): void }
+export const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' && (window.document?.createElement || window.navigator?.product === 'ReactNative')
+    ? createRenderEffect
+    : createEffect
 
 export type ObjectMap = {
   nodes: { [name: string]: THREE.Object3D }
@@ -28,7 +50,10 @@ export type ObjectMap = {
 }
 
 export function calculateDpr(dpr: Dpr) {
-  return Array.isArray(dpr) ? Math.min(Math.max(dpr[0], window.devicePixelRatio), dpr[1]) : dpr
+  // Err on the side of progress by assuming 2x dpr if we can't detect it
+  // This will happen in workers where window is defined but dpr isn't.
+  const target = typeof window !== 'undefined' ? window.devicePixelRatio ?? 2 : 1
+  return Array.isArray(dpr) ? Math.min(Math.max(dpr[0], target), dpr[1]) : dpr
 }
 
 /**
@@ -90,8 +115,13 @@ export function buildGraph(object: THREE.Object3D) {
   return data
 }
 
+export interface Disposable {
+  type?: string
+  dispose?: () => void
+}
+
 // Disposes an object and all its properties
-export function dispose<TObj extends { dispose?: () => void; type?: string; [key: string]: any }>(obj: TObj) {
+export function dispose<TObj extends Disposable>(obj: TObj) {
   if (obj.dispose && obj.type !== 'Scene') obj.dispose()
   for (const p in obj) {
     ;(p as any).dispose?.()
@@ -191,7 +221,7 @@ type Helper = THREE.Object3D & {
 }
 
 type Constructor = new (...args: any[]) => any
-type Rest<T> = T extends [infer _, ...infer R] ? R : never
+// type Rest<T> = T extends [infer _, ...infer R] ? R : never
 
 export function useHelper<T extends Constructor>(
   object3D: Accessor<Instance | THREE.Object3D | null | undefined> | Falsey | undefined,
