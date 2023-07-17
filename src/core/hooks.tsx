@@ -105,8 +105,6 @@ const cache = new Map()
 /**
  * Synchronously loads and caches assets with a three loader.
  *
- * Note: this hook's caller must be wrapped with `React.Suspense`
- * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#useloader
  */
 export function useLoader<T, U extends string | string[]>(
   Proto: new (manager?: LoadingManager) => LoaderResult<T>,
@@ -116,33 +114,19 @@ export function useLoader<T, U extends string | string[]>(
 ): U extends any[]
   ? Resource<BranchingReturn<T, GLTF, GLTF & ObjectMap>[]>
   : Resource<BranchingReturn<T, GLTF, GLTF & ObjectMap>> {
-  // Use suspense to load async assets
   const keys = (Array.isArray(input) ? input : [input]) as string[]
-  // const results = suspend(loadingFn<T>(extensions, onProgress), [Proto, ...keys], { equal: is.equ })
-  // // Return the object/s
-  // return (Array.isArray(input) ? results : results[0]) as U extends any[]
-  //   ? BranchingReturn<T, GLTF, GLTF & ObjectMap>[]
-  //   : BranchingReturn<T, GLTF, GLTF & ObjectMap>
 
   return createResource(
     () => [Proto, ...keys] as const,
-    ([Proto, ...keys]) => {
+    async ([Proto, ...keys]) => {
       if (cache.has([Proto.name, ...keys].join('-'))) {
         console.log('getting from cache', [Proto.name, ...keys].join('-'))
         return cache.get([Proto.name, ...keys].join('-'))
-      } else {
       }
-      const prom = (async () => {
-        let data = await loadingFn(extensions, () => {})(Proto as any, ...(keys as any))
-        cache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
-        if (Array.isArray(input)) {
-          return data
-        } else {
-          return data[0]
-        }
-      })()
-      cache.set([Proto.name, ...keys].join('-'), prom)
-      return prom
+      const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
+      cache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
+      if (Array.isArray(input)) return data
+      return data[0]
     },
   )[0]
 }
