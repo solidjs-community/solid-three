@@ -1,10 +1,16 @@
+import path from 'path'
 import devtools from 'solid-devtools/vite'
 import { defineConfig } from 'vite'
+import dts from 'vite-plugin-dts'
 import inspect from 'vite-plugin-inspect'
 import solidPlugin from 'vite-plugin-solid'
-import dts from 'vite-plugin-dts'
 
 export default defineConfig(async (mode) => ({
+  resolve: {
+    alias: {
+      '@src': path.resolve(__dirname, './src'),
+    },
+  },
   build:
     process.env.BUILD_MODE === 'lib'
       ? {
