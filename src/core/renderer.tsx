@@ -1,5 +1,5 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createEffect, createMemo, type JSX } from 'solid-js'
+import { createEffect, createMemo, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
@@ -467,25 +467,23 @@ interface PortalProps {
   container: THREE.Object3D
 }
 
-function Portal({ state = {}, children, container }: PortalProps) {
-  /** This has to be a component because it would not be able to call useThree/useStore otherwise since
-   *  if this is our environment, then we are not in r3f's renderer but in react-dom, it would trigger
-   *  the "R3F hooks can only be used within the Canvas component!" warning:
-   *  <Canvas>
-   *    {createPortal(...)} */
-  const { events, size, ...rest } = state
+export function Portal(props: PortalProps) {
+  const [state, rest] = splitProps(props.state || {}, ['events', 'size'])
   const previousRoot = useThree()
   const raycaster = new THREE.Raycaster()
   const pointer = new THREE.Vector2()
 
+  const store = useThree()
+  const scene = prepare(props.container || store.scene, store, '', {})
+
   const inject = (rootState: RootState, injectState: RootState) => {
     let viewport
-    if (injectState.camera && size) {
+    if (injectState.camera && state.size) {
       const camera = injectState.camera
       // Calculate the override viewport, if present
-      viewport = rootState.viewport.getCurrentViewport(camera, new THREE.Vector3(), size)
+      viewport = rootState.viewport.getCurrentViewport(camera, new THREE.Vector3(), state.size)
       // Update the portal camera, if it differs from the previous layer
-      if (camera !== rootState.camera) updateCamera(camera, size)
+      if (camera !== rootState.camera) updateCamera(camera, state.size)
     }
 
     return {
@@ -493,15 +491,15 @@ function Portal({ state = {}, children, container }: PortalProps) {
       ...rootState,
       set: injectState.set,
       // Portals have their own scene, which forms the root, a raycaster and a pointer
-      scene: container as THREE.Scene,
+      scene: props.container as THREE.Scene,
       raycaster,
       pointer,
       mouse: pointer,
       // Their previous root is the layer before it
       previousRoot,
       // Events, size and viewport can be overridden by the inject layer
-      events: { ...rootState.events, ...injectState.events, ...events },
-      size: { ...rootState.size, ...size },
+      events: { ...rootState.events, ...injectState.events, ...state.events },
+      size: { ...rootState.size, ...state.size },
       viewport: { ...rootState.viewport, ...viewport },
       // Layers are allowed to override events
       setEvents: (events: Partial<EventManager<any>>) =>
@@ -519,12 +517,8 @@ function Portal({ state = {}, children, container }: PortalProps) {
   })
 
   return (
-    <>
-      {/* {reconciler.createPortal(
-        <context.Provider value={usePortalStore}>{children}</context.Provider>,
-        usePortalStore,
-        null,
-      )} */}
-    </>
+    <context.Provider value={usePortalStore()}>
+      <ParentContext.Provider value={() => scene}>{props.children}</ParentContext.Provider>
+    </context.Provider>
   )
 }

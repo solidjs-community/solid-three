@@ -15,7 +15,7 @@ export { flushGlobalEffects, addEffect, addAfterEffect, addTail, invalidate, adv
 export type { AttachFnType, AttachType, ConstructorRepresentation, Catalogue, InstanceProps, Instance } from './proxy'
 export { extend, T, Primitive } from './proxy'
 export type { ReconcilerRoot, GLProps, CameraProps, RenderProps, InjectState } from './renderer'
-export { _roots, render, createRoot, unmountComponentAtNode, createPortal } from './renderer'
+export { _roots, render, createRoot, unmountComponentAtNode, createPortal, Portal } from './renderer'
 export type { UpdateSubscription } from './stages'
 export { Stage, FixedStage, Stages } from './stages'
 export type {
