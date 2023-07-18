@@ -1,14 +1,14 @@
-import { Accessor, createEffect, createRenderEffect, mapArray, onCleanup, splitProps, untrack } from 'solid-js'
+import { Accessor, createEffect, createRenderEffect, mapArray, on, onCleanup, splitProps } from 'solid-js'
 import * as THREE from 'three'
 import { Falsey } from 'utility-types'
 
 import { useThree, useUpdate } from './hooks'
-import { Stages } from './stages'
 import { catalogue } from './proxy'
+import { Stages } from './stages'
 
+import { produce } from 'solid-js/store'
 import type { Instance } from './proxy'
 import type { Dpr, Renderer, RootState, Size } from './store'
-import { produce } from 'solid-js/store'
 
 /**
  * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
@@ -243,50 +243,50 @@ export const RESERVED_PROPS = [
 
 export const DEFAULTS = new Map()
 
-export const applyProp = (object: Instance['object'], props: { [key: string]: any }, key: string) => {
+export const applyProp = (object: Instance['object'], key: string, value: any) => {
   const rootState = (object as Instance<THREE.Object3D>['object']).__r3f?.root
 
   /* If the key contains a hyphen, we're setting a sub property. */
   if (key.indexOf('-') > -1) {
     const [property, ...rest] = key.split('-')
-    applyProps(object[property], { [rest.join('-')]: props[key] })
+    applyProps(object[property], { [rest.join('-')]: value })
     return
   }
 
   /* If the property exposes a `setScalar` function, we'll use that */
-  if (object[key]?.setScalar && typeof props[key] === 'number') {
-    object[key].setScalar(props[key])
+  if (object[key]?.setScalar && typeof value === 'number') {
+    object[key].setScalar(value)
     return
   }
 
   /* If the property exposes a `copy` function and the value is of the same type,
      we'll use that. (Vectors, Eulers, Quaternions, ...) */
-  if (object[key]?.copy && object[key].constructor === props[key]?.constructor) {
-    object[key].copy(props[key])
+  if (object[key]?.copy && object[key].constructor === value?.constructor) {
+    object[key].copy(value)
     return
   }
 
   /* If the property exposes a `set` function, we'll use that. */
   if (object[key]?.set) {
-    Array.isArray(props[key]) ? object[key].set(...props[key]) : object[key].set(props[key])
+    Array.isArray(value) ? object[key].set(...value) : object[key].set(value)
     return
   }
 
   /* If we got here, we couldn't do anything special, so let's just check if the
      target property exists and assign it directly. */
   if (key in object) {
-    object[key] = props[key]
+    object[key] = value
   }
 
   if (!rootState) return
 
   /* If prop is an event-handler */
   if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key) && object.__r3f) {
-    object.__r3f.handlers[key] = props[key]
+    object.__r3f.handlers[key] = value
     object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
 
     if (rootState.internal) {
-      const index = untrack(() => rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D))
+      const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
       if (object.__r3f.eventCount && index === -1) {
         rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D])
       } else if (!object.__r3f.eventCount && index !== -1) {
@@ -309,8 +309,8 @@ export const applyProps = (object: Instance['object'], props: { [key: string]: a
         /* We wrap it in an effect only if a prop is a getter or a function */
         const descriptors = Object.getOwnPropertyDescriptor(props, key)
         const isDynamic = descriptors?.get || typeof descriptors?.value === 'function'
-        const update = () => applyProp(object, props, key)
-        isDynamic ? createRenderEffect(update) : update()
+        const update = (value: any) => applyProp(object, key, value)
+        isDynamic ? createRenderEffect(on(() => props[key], update)) : update(props[key])
       },
     ),
   )
