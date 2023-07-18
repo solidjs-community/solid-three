@@ -1,0 +1,4 @@
+[submodule "react-three-fiber"]
+	path = react-three-fiber
+	url = https://github.com/pmndrs/react-three-fiber.git
+  branch = v9
