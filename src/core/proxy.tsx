@@ -146,7 +146,7 @@ export function useInstance<T extends THREE.Object3D | THREE.Material>(getInstan
   /* Automatically dispose */
   createRenderEffect(() => {
     const object = getInstance().object
-    if ('dispose' in object) onCleanup(() => object.dispose())
+    onCleanup(() => object?.dispose?.())
   })
 
   createEffect(() => props.helper && useHelper(getInstance, props.helper))
