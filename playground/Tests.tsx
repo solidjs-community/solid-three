@@ -1,6 +1,8 @@
-import { Primitive, T, useFrame, useLoader } from '@src'
+import { Primitive, T, createPortal, useFrame, useLoader } from '@src'
 import { For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
 import { Portal } from 'solid-js/web'
+import { Portal as ThreePortal } from '@src'
+
 import * as THREE from 'three'
 import { Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
@@ -213,4 +215,70 @@ export default {
       </T.Line>
     )
   },
+  RenderTarget: () => {
+    // interpolated from https://codesandbox.io/s/r3f-render-target-qgcrx?file=/src/index.js:272-1652
+    function SpinningThing() {
+      let mesh: THREE.Mesh
+      onMount(() => {
+        useFrame(() => (mesh.rotation.x = mesh.rotation.y = mesh.rotation.z += 0.01))
+      })
+      return (
+        <T.Mesh name="torus" ref={mesh!}>
+          <T.TorusKnotGeometry />
+          <T.MeshNormalMaterial attach="material" />
+        </T.Mesh>
+      )
+    }
+
+    function Cube() {
+      let camera: THREE.PerspectiveCamera
+      let material: THREE.MeshStandardMaterial
+
+      const scene = new THREE.Scene()
+      scene.name = 'NEW-SCENE'
+      const target = new THREE.WebGLRenderTarget(1024, 1024, {
+        // format: THREE.RGBFormat,
+        stencilBuffer: false,
+      })
+
+      useFrame((state) => {
+        camera.position.z = 5 + Math.sin(state.clock.getElapsedTime() * 1.5) * 2
+        state.gl.setRenderTarget(target)
+        state.gl.render(scene, camera)
+        state.gl.setRenderTarget(null)
+      })
+
+      return (
+        <>
+          <T.PerspectiveCamera ref={camera!} position={[0, 0, 3]} />
+          <ThreePortal container={scene}>
+            <SpinningThing />
+          </ThreePortal>
+          <T.Mesh position={[1, 1, 1]}>
+            <T.BoxGeometry />
+            <T.MeshStandardMaterial ref={material!} attach="material" map={target.texture} />
+          </T.Mesh>
+        </>
+      )
+    }
+    return (
+      <>
+        <T.AmbientLight />
+        <T.SpotLight position={[10, 10, 10]} />
+        <T.PointLight position={[-10, -10, -10]} color="red" />
+        <Cube />
+      </>
+    )
+  },
 }
+
+/* ReactDOM.render(
+  <Canvas colorManagement>
+    <ambientLight />
+    <spotLight position={[10, 10, 10]} />
+    <pointLight position={[-10, -10, -10]} color="red" />
+    <Cube />
+    <OrbitControls />
+  </Canvas>,
+  document.getElementById('root')
+) */
