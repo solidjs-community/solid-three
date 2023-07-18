@@ -4,17 +4,17 @@ import { createStore } from 'solid-js/store'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 
-import { Lifecycle, Stage, Stages } from './stages'
-import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 import { useThree } from './hooks'
 import { advance, invalidate } from './loop'
 import { Instance, ParentContext } from './proxy'
+import { Lifecycle, Stage, Stages } from './stages'
 import { context, createThreeStore, isRenderer } from './store'
+import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 
-import type { ComputeFunction, EventManager } from './events'
-import type { Camera, EquConfig } from './utils'
 import type { Root, ThreeElement } from '../three-types'
+import type { ComputeFunction, EventManager } from './events'
 import type { Dpr, Frameloop, Performance, Renderer, RootState, Size, Subscription } from './store'
+import type { Camera, EquConfig } from './utils'
 
 // TODO: fix type resolve
 declare var OffscreenCanvas: any
@@ -477,7 +477,6 @@ export function Portal(props: PortalProps) {
   const scene = prepare(props.container || store.scene, store, '', {})
 
   const inject = (rootState: RootState, injectState: RootState) => {
-    console.log('inject')
     let viewport
     if (injectState.camera && state.size) {
       const camera = injectState.camera
