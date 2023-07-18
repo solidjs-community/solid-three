@@ -243,7 +243,7 @@ export const RESERVED_PROPS = [
 
 export const DEFAULTS = new Map()
 
-export const applyProp = (object: Instance['object'], prop: string, value: any) => {
+export const applyProp = (object: Instance['object'], prop: string, value: any, needsUpdate: boolean) => {
   const rootState = (object as Instance<THREE.Object3D>['object']).__r3f?.root
   /* If the key contains a hyphen, we're setting a sub property. */
   if (prop.indexOf('-') > -1) {
@@ -251,6 +251,7 @@ export const applyProp = (object: Instance['object'], prop: string, value: any) 
     applyProps(object[property], { [rest.join('-')]: value })
     return
   }
+  if (needsUpdate && ((!object[prop] && value) || (object[prop] && !value))) object.needsUpdate = true
   /* If prop is an event-handler */
   if (rootState && /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(prop) && object.__r3f) {
     object.__r3f.handlers[prop] = value
@@ -339,6 +340,19 @@ export const applyProp = (object: Instance['object'], prop: string, value: any) 
   }
 }
 
+const NEEDS_UPDATE = [
+  'map',
+  'envMap',
+  'bumpMap',
+  'normalMap',
+  'transparent',
+  'morphTargets',
+  'skinning',
+  'alphaTest',
+  'useVertexColors',
+  'flatShading',
+]
+
 // This function prepares a set of changes to be applied to the instance
 export const applyProps = (object: Instance['object'], props: { [key: string]: any }) =>
   createRenderEffect(
@@ -347,8 +361,9 @@ export const applyProps = (object: Instance['object'], props: { [key: string]: a
       (key) => {
         /* We wrap it in an effect only if a prop is a getter or a function */
         const descriptors = Object.getOwnPropertyDescriptor(props, key)
-        const isDynamic = descriptors?.get || typeof descriptors?.value === 'function'
-        const update = (value: any) => applyProp(object, key, value)
+        const isDynamic = !!(descriptors?.get || typeof descriptors?.value === 'function')
+        const needsUpdate = NEEDS_UPDATE.includes(key)
+        const update = (value: any) => applyProp(object, key, value, needsUpdate)
         isDynamic ? createRenderEffect(on(() => props[key], update)) : update(props[key])
       },
     ),
