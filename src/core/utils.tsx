@@ -7,7 +7,7 @@ import { catalogue } from './proxy'
 import { Stages } from './stages'
 
 import { produce } from 'solid-js/store'
-import type { Instance } from './proxy'
+import type { ConstructorRepresentation, Instance } from './proxy'
 import type { Dpr, Renderer, RootState, Size } from './store'
 
 /**
@@ -243,48 +243,20 @@ export const RESERVED_PROPS = [
 
 export const DEFAULTS = new Map()
 
-export const applyProp = (object: Instance['object'], key: string, value: any) => {
+export const applyProp = (object: Instance['object'], prop: string, value: any) => {
   const rootState = (object as Instance<THREE.Object3D>['object']).__r3f?.root
-
   /* If the key contains a hyphen, we're setting a sub property. */
-  if (key.indexOf('-') > -1) {
-    const [property, ...rest] = key.split('-')
+  if (prop.indexOf('-') > -1) {
+    const [property, ...rest] = prop.split('-')
     applyProps(object[property], { [rest.join('-')]: value })
     return
   }
-
-  /* If the property exposes a `setScalar` function, we'll use that */
-  if (object[key]?.setScalar && typeof value === 'number') {
-    object[key].setScalar(value)
-    return
-  }
-
-  /* If the property exposes a `copy` function and the value is of the same type,
-     we'll use that. (Vectors, Eulers, Quaternions, ...) */
-  if (object[key]?.copy && object[key].constructor === value?.constructor) {
-    object[key].copy(value)
-    return
-  }
-
-  /* If the property exposes a `set` function, we'll use that. */
-  if (object[key]?.set) {
-    Array.isArray(value) ? object[key].set(...value) : object[key].set(value)
-    return
-  }
-
-  /* If we got here, we couldn't do anything special, so let's just check if the
-     target property exists and assign it directly. */
-  if (key in object) {
-    object[key] = value
-  }
-
-  if (!rootState) return
-
   /* If prop is an event-handler */
-  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key) && object.__r3f) {
-    object.__r3f.handlers[key] = value
+  if (rootState && /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(prop) && object.__r3f) {
+    object.__r3f.handlers[prop] = value
     object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
 
+    // Deal with pointer events, including removing them if undefined
     if (rootState.internal) {
       const index = rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D)
       if (object.__r3f.eventCount && index === -1) {
@@ -296,6 +268,73 @@ export const applyProp = (object: Instance['object'], key: string, value: any) =
           produce((arr) => arr.splice(index, 1)),
         )
       }
+    }
+  }
+
+  // Ignore setting undefined props
+  if (value === undefined) return
+
+  let { root, key, target } = resolve(object, prop)
+
+  // Alias (output)encoding => (output)colorSpace (since r152)
+  // https://github.com/pmndrs/react-three-fiber/pull/2829
+  if (hasColorSpace(root)) {
+    const sRGBEncoding = 3001
+    const SRGBColorSpace = 'srgb'
+    const LinearSRGBColorSpace = 'srgb-linear'
+
+    if (key === 'encoding') {
+      key = 'colorSpace'
+      value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+    } else if (key === 'outputEncoding') {
+      key = 'outputColorSpace'
+      value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+    }
+  }
+
+  // Copy if properties match signatures
+  if (target?.copy && target?.constructor === (value as ConstructorRepresentation)?.constructor) {
+    target.copy(value)
+  }
+  // Layers have no copy function, we must therefore copy the mask property
+  else if (target instanceof THREE.Layers && value instanceof THREE.Layers) {
+    target.mask = value.mask
+  }
+  // Set array types
+  else if (target?.set && Array.isArray(value)) {
+    if (target.fromArray) target.fromArray(value)
+    else target.set(...value)
+  }
+  // Set literal types, ignore undefined
+  // https://github.com/pmndrs/react-three-fiber/issues/274
+  else if (target?.set && typeof value !== 'object') {
+    const isColor = target instanceof THREE.Color
+    // Allow setting array scalars
+    if (!isColor && target.setScalar && typeof value === 'number') target.setScalar(value)
+    // Otherwise just set ...
+    else if (value !== undefined) target.set(value)
+
+    // For versions of three which don't support THREE.ColorManagement,
+    // Auto-convert sRGB colors
+    // https://github.com/pmndrs/react-three-fiber/issues/344
+    if (!getColorManagement() && !rootState?.linear && isColor) target.convertSRGBToLinear()
+  }
+  // Else, just overwrite the value
+  else {
+    root[key] = value
+
+    // Auto-convert sRGB textures, for now ...
+    // https://github.com/pmndrs/react-three-fiber/issues/344
+    if (
+      rootState &&
+      root[key] instanceof THREE.Texture &&
+      // sRGB textures must be RGBA8 since r137 https://github.com/mrdoob/three.js/pull/23129
+      root[key].format === THREE.RGBAFormat &&
+      root[key].type === THREE.UnsignedByteType
+    ) {
+      const texture = root[key] as THREE.Texture
+      if (hasColorSpace(texture) && hasColorSpace(rootState.gl)) texture.colorSpace = rootState.gl.outputColorSpace
+      else texture.encoding = rootState.gl.outputEncoding
     }
   }
 }
