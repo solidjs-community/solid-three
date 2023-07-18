@@ -5,6 +5,7 @@ export type GlobalRenderCallback = (timestamp: number) => void
 interface SubItem {
   callback: GlobalRenderCallback
 }
+
 function createSubs(callback: GlobalRenderCallback, subs: Set<SubItem>): () => void {
   const sub = { callback }
   subs.add(sub)
@@ -89,6 +90,7 @@ export function loop(timestamp: number): void {
   // Render all roots
   for (const root of _roots.values()) {
     state = root.store
+
     // If the frameloop is invalidated, do not run another frame
     if (
       state.internal.active &&

@@ -5,7 +5,7 @@ import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 
 import { Lifecycle, Stage, Stages } from '../core/stages'
-import { applyProps, calculateDpr, dispose, getColorManagement, is, updateCamera } from '../core/utils'
+import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from '../core/utils'
 import { useThree } from './hooks'
 import { advance, invalidate } from './loop'
 import { Instance, ParentContext } from './proxy'
@@ -135,13 +135,18 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
 
   // Add render callback to render stage
   const renderCallback = (state: RootState) => {
-    if (state.internal.render === 'auto' && state.gl.render) state.gl.render(state.scene, state.camera)
+    if (state.internal.render === 'auto' && state.gl.render) {
+      state.gl.render(state.scene, state.camera)
+    }
   }
   Stages.Render.add(renderCallback, store)
 }
 
 export interface ReconcilerRoot<TCanvas extends Canvas> {
   configure: (config?: RenderProps<TCanvas>) => ReconcilerRoot<TCanvas>
+  // NOTE:  solid-three has to pass the element to render as { children: JSX.Element }
+  //        otherwise we would have to do .render(props.children) inside Canvas
+  //        which would cause the children to be resolved too early.
   render: (props: { children: JSX.Element }) => RootState
   unmount: () => void
 }
@@ -211,9 +216,9 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       // Set raycaster options
       const { params, ...options } = raycastOptions || {}
-      if (!is.equ(options, raycaster, shallowLoose)) applyProps(raycaster as any, { ...options })
+      if (!is.equ(options, raycaster, shallowLoose)) applyProps(raycaster, { ...options })
       if (!is.equ(params, raycaster.params, shallowLoose))
-        applyProps(raycaster as any, { params: { ...raycaster.params, ...params } })
+        applyProps(raycaster, { params: { ...raycaster.params, ...params } })
 
       // Create default camera, don't overwrite any user-set state
       if (!store.camera) {
@@ -226,7 +231,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
           : new THREE.PerspectiveCamera(75, 0, 0.1, 1000)
         if (!isCamera) {
           camera.position.z = 5
-          if (cameraOptions) applyProps(camera as any, cameraOptions as any)
+          if (cameraOptions) applyProps(camera, cameraOptions as any)
           // Always look at center by default
           if (!store.camera && !cameraOptions?.rotation) camera.lookAt(0, 0, 0)
         }
@@ -234,7 +239,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       }
 
       // Set up scene (one time only!)
-      /* if (!state.scene) {
+      if (!store.scene) {
         let scene: THREE.Scene
 
         if (sceneOptions instanceof THREE.Scene) {
@@ -246,8 +251,8 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
           if (sceneOptions) applyProps(scene as any, sceneOptions as any)
         }
 
-        state.set({ scene })
-      } */
+        store.set('scene', scene)
+      }
 
       // Set up XR (one time only!)
       if (!store.xr) {
@@ -333,7 +338,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       // Set gl props
       if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
-        applyProps(gl as any, glConfig as any)
+        applyProps(gl, glConfig as any)
       // Store events internally
       if (events && !store.events.handlers) store.set('events', events(store))
 
@@ -374,7 +379,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       insert(canvas.parentElement!, () => (
         <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-          <ParentContext.Provider value={() => store.scene as unknown as Instance}>
+          <ParentContext.Provider value={() => (store.scene as Instance<THREE.Scene>['object']).__r3f!}>
             {[store.gl.domElement, props.children]}
           </ParentContext.Provider>
         </Provider>

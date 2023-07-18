@@ -7,6 +7,7 @@ import { calculateDpr, isOrthographicCamera, prepare, updateCamera } from './uti
 
 import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
 import type { Camera } from './utils'
+import { Instance } from './proxy'
 
 // Keys that shouldn't be copied between R3F stores
 export const privateKeys = [
@@ -153,11 +154,7 @@ export interface RootState {
   advance: (timestamp: number, runGlobalEffects?: boolean) => void
   /** Shortcut to setting the event layer */
   setEvents: (events: Partial<EventManager<any>>) => void
-  /**
-   * Shortcut to manual sizing
-   *
-   * @todo before releasing next major version (v9), re-order arguments here to width, height, top, left, updateStyle
-   */
+  /** Shortcut to manual sizing */
   setSize: (width: number, height: number, top?: number, left?: number) => void
   /** Shortcut to manual setting the pixel ratio */
   setDpr: (dpr: Dpr) => void
@@ -217,7 +214,8 @@ const createThreeStore = (
     camera: null as unknown as Camera,
     raycaster: null as unknown as THREE.Raycaster,
     events: { priority: 1, enabled: true, connected: false },
-    xr: null as unknown as { connect: () => void; disconnect: () => void },
+    scene: null as unknown as THREE.Scene,
+    xr: null as unknown as XRManager,
 
     invalidate: (frames = 1) => invalidate(get(), frames),
     advance: (timestamp: number, runGlobalEffects?: boolean) => advance(timestamp, runGlobalEffects, get()),
@@ -225,7 +223,6 @@ const createThreeStore = (
     legacy: false,
     linear: false,
     flat: false,
-    scene: prepare<THREE.Scene>(new THREE.Scene()),
 
     controls: null,
     clock: new THREE.Clock(),
@@ -241,12 +238,13 @@ const createThreeStore = (
       max: 1,
       debounce: 200,
       regress: () => {
+        const state = get()
         // Clear timeout
         if (performanceTimeout) clearTimeout(performanceTimeout)
         // Set lower bound performance
-        if (get().performance.current !== get().performance.min) setPerformanceCurrent(get().performance.min)
+        if (state.performance.current !== state.performance.min) setPerformanceCurrent(state.performance.min)
         // Go back to upper bound performance after a while unless something regresses meanwhile
-        performanceTimeout = setTimeout(() => setPerformanceCurrent(get().performance.max), get().performance.debounce)
+        performanceTimeout = setTimeout(() => setPerformanceCurrent(get().performance.max), state.performance.debounce)
       },
     },
 

@@ -1,4 +1,5 @@
 import {
+  Accessor,
   Component,
   createContext,
   createEffect,
@@ -23,39 +24,11 @@ export type AttachType<O = any> = string | AttachFnType<O>
 
 export type ConstructorRepresentation = new (...args: any[]) => any
 
-export type LocalState = {
-  type: string
-  root: RootState
-  // objects and parent are used when children are added with `attach` instead of being added to the Object3D scene graph
-  objects: Instance[]
-  parent: Instance | null
-  primitive?: boolean
-  eventCount: number
-  handlers: Partial<EventHandlers>
-  attach?: AttachType
-  previousAttach: any
-  memoizedProps: { [key: string]: any }
-}
 export interface Catalogue {
   [name: string]: ConstructorRepresentation
 }
 
-/**
- * If **T** contains a constructor, @see ConstructorParameters must be used, otherwise **T**.
- */
-export type Args<T> = T extends new (...args: any) => any ? ConstructorParameters<T> : T
-
-// This type clamps down on a couple of assumptions that we can make regarding native types, which
-// could anything from scene objects, THREE.Objects, JSM, user-defined classes and non-scene objects.
-// What they all need to have in common is defined here ...
-export type BaseInstance = Omit<THREE.Object3D, 'children' | 'attach' | 'add' | 'remove' | 'raycast'> & {
-  __r3f: LocalState
-  children: Instance[]
-  remove: (...object: Instance[]) => Instance
-  add: (...object: Instance[]) => Instance
-  raycast?: (raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) => void
-}
-export type Instance = BaseInstance & { [key: string]: any }
+export type Args<T> = T extends ConstructorRepresentation ? ConstructorParameters<T> : any[]
 
 export interface InstanceProps<T = any, P = any> {
   args?: Args<P>
@@ -63,6 +36,21 @@ export interface InstanceProps<T = any, P = any> {
   visible?: boolean
   dispose?: null
   attach?: AttachType<T>
+}
+
+export interface Instance<O = any> {
+  root: RootState
+  type: string
+  parent: Instance | null
+  children: Instance[]
+  props: InstanceProps<O> & Record<string, unknown>
+  object: O & { __r3f?: Instance<O> }
+  eventCount: number
+  handlers: Partial<EventHandlers>
+  attach?: AttachType<O>
+  previousAttach?: any
+  isHidden: boolean
+  autoRemovedBeforeAppend?: boolean
 }
 
 export const catalogue: Catalogue = {}
@@ -84,8 +72,8 @@ export const makeThreeComponent = <TSource extends Constructor>(source: TSource)
     /* Create instance */
     const getInstance = createMemo(() => {
       try {
-        const el = prepare(new source(...(props.args ?? []))) as Instance
-        el.__r3f.root = store
+        const el = prepare(new source(...(props.args ?? [])), store, '', {}) as Instance
+        el.root = store
         return el
       } catch (e) {
         console.error(e)
@@ -101,46 +89,48 @@ export const makeThreeComponent = <TSource extends Constructor>(source: TSource)
   return Component
 }
 
-export function useInstance(getInstance: () => Instance, props: any) {
+export function useInstance<T extends THREE.Object3D | THREE.Material>(getInstance: () => Instance<T>, props: any) {
   const getParent = useContext(ParentContext)
   const [local, instanceProps] = splitProps(props, ['ref', 'args', 'object', 'attach', 'children'])
 
   /* Assign ref */
-  createRenderEffect(() => props.ref instanceof Function && local.ref(getInstance()))
+  createRenderEffect(() => props.ref instanceof Function && local.ref(getInstance().object))
 
   /* Apply the props to THREE-instance */
-  createRenderEffect(() => applyProps(getInstance(), instanceProps))
+  createRenderEffect(() => applyProps(getInstance().object, instanceProps))
 
   /* Connect to parent */
   createRenderEffect(() => {
     const child = getInstance()
     const parent = getParent!()
-    if (child instanceof THREE.Object3D && parent instanceof THREE.Object3D) {
-      parent.add(child)
-      onCleanup(() => parent.remove(child))
+
+    if (child.object instanceof THREE.Object3D && parent.object instanceof THREE.Object3D) {
+      parent.object.add(child.object)
+      onCleanup(() => parent.object.remove(child.object as THREE.Object3D))
     }
-    child.__r3f.parent = parent
-    if (!parent.__r3f.objects.includes(child)) parent.__r3f.objects.push(child)
+    child.parent = parent
+
+    if (!parent.children.includes(child)) parent.children.push(child)
 
     onCleanup(() => {
-      const index = parent.__r3f.objects.indexOf(child)
+      const index = parent.children.indexOf(child)
       if (index > -1) {
-        parent.__r3f.objects.splice(index, 1)
+        parent.children.splice(index, 1)
       }
     })
   })
 
   /* Attach */
   createRenderEffect(() => {
-    const child = getInstance()
+    const child = getInstance().object
+    const parent = getParent!().object
+
     let attach: string | undefined = local.attach
     if (!attach) {
       if (child instanceof THREE.Material) attach = 'material'
       else if (child instanceof THREE.BufferGeometry) attach = 'geometry'
       else if (child instanceof THREE.Fog) attach = 'fog'
     }
-
-    const parent = getParent!()
 
     /* If the instance has an "attach" property, attach it to the parent */
     if (attach) {
@@ -154,18 +144,21 @@ export function useInstance(getInstance: () => Instance, props: any) {
   })
 
   /* Automatically dispose */
-  if ('dispose' in getInstance()) onCleanup(() => getInstance().dispose?.())
+  createRenderEffect(() => {
+    const object = getInstance().object
+    if ('dispose' in object) onCleanup(() => object.dispose())
+  })
 
   createEffect(() => props.helper && useHelper(getInstance, props.helper))
 }
 
-export function Primitive<T extends Instance>(props: { object: T; children?: JSXElement }) {
+export function Primitive(props: { object: any; children?: JSXElement }) {
   const store = useThree()
 
   /* Prepare instance */
   const instance = createMemo(() => {
-    const obj = prepare(props.object)
-    obj.__r3f.root = store
+    const obj = prepare(props.object, store, '', props)
+    obj.root = store
     return obj
   })
 

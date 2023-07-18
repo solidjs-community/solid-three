@@ -1,4 +1,4 @@
-import { Accessor, createEffect, createRenderEffect, mapArray, onCleanup, untrack } from 'solid-js'
+import { Accessor, createEffect, createRenderEffect, mapArray, onCleanup, splitProps, untrack } from 'solid-js'
 import * as THREE from 'three'
 import { Falsey } from 'utility-types'
 
@@ -6,7 +6,7 @@ import { useThree, useUpdate } from './hooks'
 import { Stages } from './stages'
 import { catalogue } from './proxy'
 
-import type { AttachType, Instance, LocalState } from './proxy'
+import type { Instance } from './proxy'
 import type { Dpr, Renderer, RootState, Size } from './store'
 import { produce } from 'solid-js/store'
 
@@ -64,7 +64,7 @@ export function calculateDpr(dpr: Dpr): number {
 /**
  * Returns instance root state
  */
-export const getRootState = (obj: THREE.Object3D): RootState | undefined => (obj as unknown as Instance).__r3f?.root
+export const getRootState = (obj: Instance['object']): RootState | undefined => obj.__r3f?.root
 
 export interface EquConfig {
   /** Compare arrays by reference equality a === b (default), or by shallow equality */
@@ -146,74 +146,88 @@ export function dispose<T extends Disposable>(obj: T): void {
 
 export const INTERNAL_PROPS = ['children', 'ref']
 
-// Gets only instance props from reconciler fibers
-export function getInstanceProps<T = any>(queue: any): Instance['props'] {
-  const props: Instance['props'] = {}
-
-  for (const key in queue) {
-    if (!INTERNAL_PROPS.includes(key)) props[key] = queue[key]
-  }
-
+// Gets only instance props from proxy-component
+export function getInstanceProps<T = any>(queue: any): Instance<T>['props'] {
+  // SOLID-THREE-NOTE:  solid-three has to use splitProps so getters are not resolved
+  const [_, props] = splitProps(queue, INTERNAL_PROPS)
   return props
 }
 
 // Each object in the scene carries a small LocalState descriptor
-export function prepare<T = THREE.Object3D>(object: T, state?: Partial<LocalState>) {
-  const instance = object as unknown as Instance
-  if (state?.primitive || !instance.__r3f) {
-    instance.__r3f = {
-      type: '',
-      root: null as unknown as RootState,
-      previousAttach: null,
-      memoizedProps: {},
+export function prepare<T = any>(target: T, root: RootState, type: string, props: Instance<T>['props']): Instance<T> {
+  const object = target as unknown as Instance['object']
+
+  // Create instance descriptor
+  let instance = object?.__r3f
+  if (!instance) {
+    instance = {
+      root,
+      type,
+      parent: null,
+      children: [],
+      props: getInstanceProps(props),
+      object,
       eventCount: 0,
       handlers: {},
-      objects: [],
-      parent: null,
-      ...state,
+      isHidden: false,
+    }
+    if (object) {
+      object.__r3f = instance
+      if (type) applyProps(object, instance.props)
     }
   }
-  return object
+
+  return instance
 }
 
-function resolve(instance: Instance, key: string) {
-  let target = instance
-  if (key.includes('-')) {
-    const entries = key.split('-')
-    const last = entries.pop() as string
-    target = entries.reduce((acc, key) => acc[key], instance)
-    return { target, key: last }
-  } else return { target, key }
+export function resolve(root: any, key: string): { root: any; key: string; target: any } {
+  let target = root[key]
+  if (!key.includes('-')) return { root, key, target }
+
+  // Resolve pierced target
+  const chain = key.split('-')
+  target = chain.reduce((acc, key) => acc[key], root)
+  key = chain.pop()!
+
+  // Switch root if atomic
+  if (!target?.set) root = chain.reduce((acc, key) => acc[key], root)
+
+  return { root, key, target }
 }
 
 // Checks if a dash-cased string ends with an integer
 const INDEX_REGEX = /-\d+$/
 
-export function attach(parent: Instance, child: Instance, type: AttachType) {
-  if (is.str(type)) {
+export function attach(parent: Instance, child: Instance): void {
+  if (is.str(child.props.attach)) {
     // If attaching into an array (foo-0), create one
-    if (INDEX_REGEX.test(type)) {
-      const root = type.replace(INDEX_REGEX, '')
-      const { target, key } = resolve(parent, root)
-      if (!Array.isArray(target[key])) target[key] = []
+    if (INDEX_REGEX.test(child.props.attach)) {
+      const index = child.props.attach.replace(INDEX_REGEX, '')
+      const { root, key } = resolve(parent.object, index)
+      if (!Array.isArray(root[key])) root[key] = []
     }
 
-    const { target, key } = resolve(parent, type)
-    child.__r3f.previousAttach = target[key]
-    target[key] = child
-  } else child.__r3f.previousAttach = type(parent, child)
+    const { root, key } = resolve(parent.object, child.props.attach)
+    child.previousAttach = root[key]
+    root[key] = child.object
+  } else if (is.fun(child.props.attach)) {
+    child.previousAttach = child.props.attach(parent.object, child.object)
+  }
 }
 
-export function detach(parent: Instance, child: Instance, type: AttachType) {
-  if (is.str(type)) {
-    const { target, key } = resolve(parent, type)
-    const previous = child.__r3f.previousAttach
+export function detach(parent: Instance, child: Instance): void {
+  if (is.str(child.props.attach)) {
+    const { root, key } = resolve(parent.object, child.props.attach)
+    const previous = child.previousAttach
     // When the previous value was undefined, it means the value was never set to begin with
-    if (previous === undefined) delete target[key]
+    if (previous === undefined) delete root[key]
     // Otherwise set the previous value
-    else target[key] = previous
-  } else child.__r3f?.previousAttach?.(parent, child)
-  delete child.__r3f?.previousAttach
+    else root[key] = previous
+  } else {
+    child.previousAttach?.(parent.object, child.object)
+  }
+
+  delete child.previousAttach
 }
 
 export const RESERVED_PROPS = [
@@ -229,8 +243,9 @@ export const RESERVED_PROPS = [
 
 export const DEFAULTS = new Map()
 
-export const applyProp = (object: Instance, props: { [key: string]: any }, key: string) => {
-  const rootState = getRootState(object as any as THREE.Object3D)
+export const applyProp = (object: Instance['object'], props: { [key: string]: any }, key: string) => {
+  const rootState = (object as Instance<THREE.Object3D>['object']).__r3f?.root
+
   /* If the key contains a hyphen, we're setting a sub property. */
   if (key.indexOf('-') > -1) {
     const [property, ...rest] = key.split('-')
@@ -266,11 +281,11 @@ export const applyProp = (object: Instance, props: { [key: string]: any }, key: 
   if (!rootState) return
 
   /* If prop is an event-handler */
-  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key)) {
+  if (/^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(key) && object.__r3f) {
     object.__r3f.handlers[key] = props[key]
     object.__r3f.eventCount = Object.keys(object.__r3f.handlers).length
 
-    if (rootState.internal && object.raycast) {
+    if (rootState.internal) {
       const index = untrack(() => rootState.internal.interaction.indexOf(object as unknown as THREE.Object3D))
       if (object.__r3f.eventCount && index === -1) {
         rootState.set('internal', 'interaction', (arr) => [...arr, object as unknown as THREE.Object3D])
@@ -286,7 +301,7 @@ export const applyProp = (object: Instance, props: { [key: string]: any }, key: 
 }
 
 // This function prepares a set of changes to be applied to the instance
-export const applyProps = (object: Instance, props: { [key: string]: any }) =>
+export const applyProps = (object: Instance['object'], props: { [key: string]: any }) =>
   createRenderEffect(
     mapArray(
       () => Object.keys(props),
@@ -301,12 +316,8 @@ export const applyProps = (object: Instance, props: { [key: string]: any }) =>
   )
 
 export function invalidateInstance(instance: Instance): void {
-  const state = instance.__r3f?.root
+  const state = instance.root
   if (state && state.internal.frames === 0) state.invalidate()
-}
-
-export function updateInstance(instance: Instance) {
-  instance.onUpdate?.(instance)
 }
 
 export function updateCamera(camera: Camera, size: Size): void {
@@ -347,7 +358,7 @@ type Constructor = new (...args: any[]) => any
 // type Rest<T> = T extends [infer _, ...infer R] ? R : never
 
 export function useHelper<T extends Constructor>(
-  object3D: Accessor<Instance | THREE.Object3D | null | undefined> | Falsey | undefined,
+  object3D: Accessor<Instance> | Falsey | undefined,
   helperConstructor: T,
   // ...args: Rest<ConstructorParameters<T>>
 ) {
