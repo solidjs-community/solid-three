@@ -1,0 +1,10 @@
+.options {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+}
+.option {
+  position: absolute;
+}

@@ -9,3 +9,20 @@ body {
   height: 100%;
   width: 100;
 }
+
+* {
+  font-family: sans-serif;
+}
+
+input,
+button {
+  background: rgb(234, 234, 234);
+  border-radius: 20px;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+button:hover {
+  color: blue;
+  background: lightgrey;
+}
