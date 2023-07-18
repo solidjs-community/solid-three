@@ -1,5 +1,5 @@
+import { T } from '@solid-three/fiber'
 import { JSX } from 'solid-js'
-import { T } from '../../src'
 
 export function Sphere(props: Partial<Parameters<typeof T.Mesh>[0]> & { children?: JSX.Element; color?: string }) {
   return (

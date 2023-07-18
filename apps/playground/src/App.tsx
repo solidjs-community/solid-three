@@ -1,5 +1,5 @@
+import { Canvas, T } from '@solid-three/fiber'
 import { For, createSignal } from 'solid-js'
-import { Canvas, T } from '../src'
 import Tests from './Tests'
 
 import { Dynamic } from 'solid-js/web'

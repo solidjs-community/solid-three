@@ -1,6 +1,6 @@
 {
   "extends": "@vinxi/tsconfig/solid-library.json",
-  "include": ["packages/fiber/src"],
+  "include": ["src"],
   "compilerOptions": {
     "outDir": "./types",
     "target": "esnext",

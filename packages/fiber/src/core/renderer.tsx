@@ -4,15 +4,15 @@ import { createStore } from 'solid-js/store'
 import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 
-import { Lifecycle, Stage, Stages } from '../core/stages'
-import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from '../core/utils'
+import { Lifecycle, Stage, Stages } from './stages'
+import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 import { useThree } from './hooks'
 import { advance, invalidate } from './loop'
 import { Instance, ParentContext } from './proxy'
 import { context, createThreeStore, isRenderer } from './store'
 
-import type { ComputeFunction, EventManager } from '../core/events'
-import type { Camera, EquConfig } from '../core/utils'
+import type { ComputeFunction, EventManager } from './events'
+import type { Camera, EquConfig } from './utils'
 import type { Root, ThreeElement } from '../three-types'
 import type { Dpr, Frameloop, Performance, Renderer, RootState, Size, Subscription } from './store'
 
@@ -477,6 +477,7 @@ export function Portal(props: PortalProps) {
   const scene = prepare(props.container || store.scene, store, '', {})
 
   const inject = (rootState: RootState, injectState: RootState) => {
+    console.log('inject')
     let viewport
     if (injectState.camera && state.size) {
       const camera = injectState.camera
@@ -507,6 +508,8 @@ export function Portal(props: PortalProps) {
     } as RootState
   }
 
+  // SOLID-THREE-NOTE:  I am unsure if this will work in solid since the original code
+  //                    relied on subscribing aka deep-tracking rootState
   const usePortalStore = createMemo(() => {
     //@ts-ignore
     const set = (...args) => setStore(...args)

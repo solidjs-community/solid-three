@@ -1,13 +1,13 @@
-import { Primitive, T, createPortal, useFrame, useLoader } from '@src'
+import { Primitive, T, Portal as ThreePortal, useFrame, useLoader } from '@solid-three/fiber'
 import { For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
 import { Portal } from 'solid-js/web'
-import { Portal as ThreePortal } from '@src'
-
 import * as THREE from 'three'
 import { Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+
 import { Box } from './components/Box'
 import { Sphere } from './components/Sphere'
+import Rays from './examples/Rays'
 
 const Slot = (props: { children: JSX.Element }) => (
   <Portal>
@@ -237,7 +237,6 @@ export default {
       const scene = new THREE.Scene()
       scene.name = 'NEW-SCENE'
       const target = new THREE.WebGLRenderTarget(1024, 1024, {
-        // format: THREE.RGBFormat,
         stencilBuffer: false,
       })
 
@@ -270,15 +269,5 @@ export default {
       </>
     )
   },
+  Rays,
 }
-
-/* ReactDOM.render(
-  <Canvas colorManagement>
-    <ambientLight />
-    <spotLight position={[10, 10, 10]} />
-    <pointLight position={[-10, -10, -10]} color="red" />
-    <Cube />
-    <OrbitControls />
-  </Canvas>,
-  document.getElementById('root')
-) */

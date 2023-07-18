@@ -1,0 +1,54 @@
+{
+  "name": "@solid-three/playground",
+  "version": "0.9.0",
+  "description": "SolidJS bindings for ThreeJS",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/solidjs-community/solid-three.git"
+  },
+  "types": "./types/index.d.ts",
+  "sideEffects": false,
+  "license": "MIT",
+  "files": [
+    "dist/**",
+    "types/**",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "vitest",
+    "build:lib": "BUILD_MODE=lib vite build",
+    "build": "vite build",
+    "types": "tsc --emitDeclarationOnly --declarationDir types",
+    "dev": "vite",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs.js"
+    }
+  },
+  "devDependencies": {
+    "@solid-three/fiber": "workspace:^0.9.0",
+    "@types/node": "^18.11.18",
+    "@types/three": "^0.149.0",
+    "@vinxi/tsconfig": "0.0.3",
+    "solid-app-router": "^0.1.14",
+    "three": "0.149.0",
+    "typescript": "^4.9.4",
+    "utility-types": "^3.10.0",
+    "vite": "4.1.1",
+    "vite-plugin-solid": "2.5.0"
+  },
+  "dependencies": {
+    "solid-three": "workspace:*",
+    "solid-devtools": "^0.27.3",
+    "solid-js": "*",
+    "three": "*"
+  },
+  "jest": {
+    "preset": "scripts/jest/node"
+  },
+  "packageManager": "pnpm@7.26.0"
+}

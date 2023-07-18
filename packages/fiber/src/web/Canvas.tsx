@@ -25,7 +25,6 @@ export interface CanvasProps extends Omit<RenderProps<HTMLCanvasElement>, 'size'
 }
 
 export interface Props extends CanvasProps {}
-
 /**
  * A DOM canvas which accepts threejs elements as children.
  * @see https://docs.pmnd.rs/react-three-fiber/api/canvas

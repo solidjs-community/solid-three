@@ -1,12 +1,12 @@
 import { createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
 import * as THREE from 'three'
 
-import { buildGraph } from '../core/utils'
 import { Stages } from './stages'
 import { context } from './store'
+import { buildGraph } from './utils'
 
-import type { ObjectMap } from '../core/utils'
 import type { RenderCallback, StageTypes, UpdateCallback } from './store'
+import type { ObjectMap } from './utils'
 
 /**
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
