@@ -1,10 +1,10 @@
 import { JSX } from 'solid-js/jsx-runtime'
 import * as THREE from 'three'
-import { Mutable } from 'utility-types'
 import { AttachType, InstanceProps } from './core'
 import { EventHandlers } from './core/events'
-import { RootState } from './core/store'
 import { Args, ConstructorRepresentation } from './core/proxy'
+import { RootState } from './core/store'
+import { Mutable } from './utils/utility-types'
 
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 
