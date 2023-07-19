@@ -2,6 +2,6 @@
 	path = reference/react-three-fiber
 	url = https://github.com/pmndrs/react-three-fiber.git
   branch = v9
-[submodule "reference/drei"]
-	path = reference/drei
-	url = https://github.com/pmndrs/drei.git
+[submodule "solid-drei"]
+	path = packages/drei
+	url = https://github.com/bigmistqke/drei.git
