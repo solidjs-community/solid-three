@@ -67,7 +67,7 @@ type ThreeComponentProxy<Source> = {
   [K in keyof Source]: Source[K] extends Constructor ? ThreeComponent<Source[K]> : undefined
 }
 
-export const makeThreeComponent = <TSource extends Constructor>(source: TSource): ThreeComponent<TSource> => {
+export const createThreeComponent = <TSource extends Constructor>(source: TSource): ThreeComponent<TSource> => {
   const Component = (props: any) => {
     const store = useThree()
 
@@ -189,7 +189,7 @@ export function Primitive(props: { object: any; children?: JSXElement }) {
 
 const cache = {} as Record<string, ThreeComponent<any>>
 
-export function makeThreeComponentProxy<Source extends Record<string, any>>(
+export function createThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
 ): ThreeComponentProxy<Source> {
   return new Proxy<ThreeComponentProxy<Source>>({} as ThreeComponentProxy<Source>, {
@@ -203,7 +203,7 @@ export function makeThreeComponentProxy<Source extends Record<string, any>>(
         if (!constructor) return undefined
 
         /* Otherwise, create and memoize a component for that constructor. */
-        cache[name] = makeThreeComponent(constructor)
+        cache[name] = createThreeComponent(constructor)
       }
 
       return cache[name]
@@ -215,4 +215,4 @@ export function makeThreeComponentProxy<Source extends Record<string, any>>(
  * The `solid-three` reactor. For every class exposed by `THREE`, this object contains a
  * `solid-three` component that wraps the class.
  */
-export const T = /*#__PURE__*/ makeThreeComponentProxy(THREE)
+export const T = /*#__PURE__*/ createThreeComponentProxy(THREE)
