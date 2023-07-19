@@ -5,3 +5,4 @@
 [submodule "solid-drei"]
 	path = packages/drei
 	url = https://github.com/bigmistqke/drei.git
+  branch = solid-drei
