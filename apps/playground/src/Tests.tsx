@@ -179,6 +179,7 @@ export default {
       useFrame(() => {
         mesh!.rotation.y += 0.01
       })
+      const rotation = Math.random() * 100
       return (
         <Box
           name={props.name}
@@ -190,6 +191,7 @@ export default {
             if (shouldStopPropagation()) e.stopPropagation()
             setHovered(false)
           }}
+          rotation={[rotation, rotation, 0]}
           ref={mesh}
           position={props.position}
           color={hovered() ? 'green' : 'red'}>
@@ -211,7 +213,7 @@ export default {
         </CenterSlot>
         <HoverBox name="box-1">
           <HoverBox position={[0, 0, 2]} name="box-2">
-            <HoverBox position={[0, 2, 0]} name="box-3" />
+            <HoverBox position={[0, 0, 2]} name="box-3"></HoverBox>
           </HoverBox>
         </HoverBox>
       </>

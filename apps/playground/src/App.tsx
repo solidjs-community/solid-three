@@ -6,7 +6,7 @@ import { Dynamic } from 'solid-js/web'
 import styles from './App.module.css'
 
 export function App() {
-  const [selection, setSelection] = createSignal(Object.keys(Tests)[0])
+  const [selection, setSelection] = createSignal('Parenting') //Object.keys(Tests)[0])
   return (
     <>
       <div class={styles.options}>
@@ -16,7 +16,10 @@ export function App() {
               style={{
                 color: test === selection() ? 'blue' : undefined,
               }}
-              onClick={() => setSelection(test)}>
+              onClick={() => {
+                console.clear()
+                setSelection(test)
+              }}>
               {test}
             </button>
           )}
@@ -30,9 +33,16 @@ export function App() {
           antialias: true,
         }}
         shadows>
+        <Test />
         <Dynamic component={Tests[selection()]} />
         <T.SpotLight position={[0, 5, 10]} intensity={1} />
       </Canvas>
     </>
   )
+}
+
+const Test = () => {
+  const mesh = <T.Mesh />
+  console.log('mesh is ', mesh)
+  return <></>
 }
