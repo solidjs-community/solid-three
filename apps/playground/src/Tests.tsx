@@ -8,7 +8,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { createStore } from 'solid-js/store'
 import { Box } from './components/Box'
 import { Sphere } from './components/Sphere'
-import Rays from './examples/Rays'
 
 const CenterSlot = (props: { children: JSX.Element }) => (
   <Portal>
@@ -59,12 +58,12 @@ export default {
 
     return (
       <>
-        <RightSlot>{type() || 'none'}</RightSlot>
-        <LeftSlot>
+        <LeftSlot>{type() || 'none'}</LeftSlot>
+        <RightSlot>
           <For each={Object.entries(list)}>
             {([type, done]) => <div style={{ 'text-decoration': done ? 'line-through' : undefined }}>{type}</div>}
           </For>
-        </LeftSlot>
+        </RightSlot>
         <Box
           onPointerEnter={(e) => {
             setType('onPointerEnter')
@@ -172,7 +171,9 @@ export default {
     )
   },
   Parenting: () => {
-    const HoverBox = (props: { children?: JSX.Element; position?: [number, number, number] }) => {
+    const [shouldStopPropagation, setShouldStopPropagation] = createSignal(true)
+
+    const HoverBox = (props: { name: string; children?: JSX.Element; position?: [number, number, number] }) => {
       let mesh: Mesh | undefined
       const [hovered, setHovered] = createSignal(false)
       useFrame(() => {
@@ -180,12 +181,13 @@ export default {
       })
       return (
         <Box
+          name={props.name}
           onPointerEnter={(e) => {
-            e.stopPropagation()
+            if (shouldStopPropagation()) e.stopPropagation()
             setHovered(true)
           }}
           onPointerLeave={(e) => {
-            e.stopPropagation()
+            if (shouldStopPropagation()) e.stopPropagation()
             setHovered(false)
           }}
           ref={mesh}
@@ -196,9 +198,23 @@ export default {
       )
     }
     return (
-      <HoverBox>
-        <HoverBox position={[0, 0, 2]} />
-      </HoverBox>
+      <>
+        <CenterSlot>
+          <div style={{ display: 'flex', 'align-items': 'center' }}>
+            <label for="stopPropagation">stopPropagation</label>
+            <input
+              id="stopPropagation"
+              type="checkbox"
+              checked={shouldStopPropagation()}
+              onInput={(e) => setShouldStopPropagation(e.currentTarget.checked)}></input>
+          </div>
+        </CenterSlot>
+        <HoverBox name="box-1">
+          <HoverBox position={[0, 0, 2]} name="box-2">
+            <HoverBox position={[0, 2, 0]} name="box-3" />
+          </HoverBox>
+        </HoverBox>
+      </>
     )
   },
   For: () => {
@@ -334,5 +350,8 @@ export default {
       </>
     )
   },
-  Rays,
+  Noop: () => {
+    const box = <Box position={[0, 0, 0]} />
+    return <CenterSlot>there should be no box</CenterSlot>
+  },
 }
