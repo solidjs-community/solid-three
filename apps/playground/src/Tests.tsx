@@ -1,5 +1,5 @@
 import { Primitive, T, Portal as ThreePortal, useFrame, useLoader } from '@solid-three/fiber'
-import { For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
+import { Accessor, For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import * as THREE from 'three'
 import { Mesh } from 'three'
@@ -355,5 +355,35 @@ export default {
   Noop: () => {
     const box = <Box position={[0, 0, 0]} />
     return <CenterSlot>there should be no box</CenterSlot>
+  },
+  Reference: () => {
+    const mesh = (
+      <T.Mesh>
+        <T.BoxGeometry />
+        <T.MeshStandardMaterial />
+      </T.Mesh>
+    )
+    useFrame(() => ((mesh as any as Accessor<THREE.Mesh>)().rotation.x += 0.1))
+    return mesh
+  },
+  ReferenceComplex: () => {
+    const [visible, setVisible] = createSignal(false)
+    const interval = setInterval(() => setVisible((visible) => !visible), 1000)
+    onCleanup(() => clearInterval(interval))
+
+    const mesh = (
+      <T.Mesh>
+        <T.BoxGeometry />
+        <T.MeshStandardMaterial />
+      </T.Mesh>
+    )
+
+    useFrame(() => ((mesh as any as Accessor<THREE.Mesh>)().rotation.x += 0.1))
+
+    return (
+      <T.Group>
+        <Show when={visible()}>{mesh}</Show>
+      </T.Group>
+    )
   },
 }
