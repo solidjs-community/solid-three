@@ -1,6 +1,6 @@
 import { Accessor, createEffect, createRenderEffect, mapArray, on, onCleanup, splitProps } from 'solid-js'
 import * as THREE from 'three'
-import { Falsey } from 'utility-types'
+import { Falsey } from '../utils/utility-types'
 
 import { useThree, useUpdate } from './hooks'
 import { catalogue } from './proxy'
