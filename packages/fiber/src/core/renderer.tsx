@@ -1,17 +1,18 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
 import { createEffect, createMemo, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import { insert } from 'solid-js/web'
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
 import { advance, invalidate } from './loop'
-import { Instance, ParentContext } from './proxy'
+import { parentChildren } from './proxy'
 import { Lifecycle, Stage, Stages } from './stages'
 import { context, createThreeStore, isRenderer } from './store'
 import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 
+import { insert } from 'solid-js/web'
 import type { Root, ThreeElement } from '../three-types'
+import { withContext } from '../utils/withContext'
 import type { ComputeFunction, EventManager } from './events'
 import type { Dpr, Frameloop, Performance, Renderer, RootState, Size, Subscription } from './store'
 import type { Camera, EquConfig } from './utils'
@@ -144,7 +145,7 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
 
 export interface ReconcilerRoot<TCanvas extends Canvas> {
   configure: (config?: RenderProps<TCanvas>) => ReconcilerRoot<TCanvas>
-  // NOTE:  solid-three has to pass the element to render as { children: JSX.Element }
+  // s3f    solid-three has to pass the element to render as { children: JSX.Element }
   //        otherwise we would have to do .render(props.children) inside Canvas
   //        which would cause the children to be resolved too early.
   render: (props: { children: JSX.Element }) => RootState
@@ -365,11 +366,11 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       return this
     },
-    render(props: { children: JSX.Element }) {
+    render(props) {
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
-      // TODO:  this code will break when used in a worker.
+      // s3f:  this code will break when used in a worker.
       createResizeObserver(
         () => canvas.parentElement!,
         ({ width, height }) => {
@@ -377,11 +378,18 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
         },
       )
 
+      // s3f    children of <Canvas/> are being attached to the Instance<typeof store.scene>
+      const memo = createMemo(withContext(() => props.children, context, store))
+      parentChildren(() => store.scene.__r3f, {
+        get children() {
+          return memo()
+        },
+      })
+
+      // s3f:  this code will break when used in a worker.
       insert(canvas.parentElement!, () => (
         <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-          <ParentContext.Provider value={() => (store.scene as Instance<THREE.Scene>['object']).__r3f!}>
-            {[store.gl.domElement, props.children]}
-          </ParentContext.Provider>
+          {[store.gl.domElement]}
         </Provider>
       ))
 
@@ -518,9 +526,13 @@ export function Portal(props: PortalProps) {
     return store
   })
 
-  return (
-    <context.Provider value={usePortalStore()}>
-      <ParentContext.Provider value={() => scene}>{props.children}</ParentContext.Provider>
-    </context.Provider>
-  )
+  const memo = createMemo(withContext(() => props.children, context, usePortalStore()))
+
+  parentChildren(() => scene, {
+    get children() {
+      return memo()
+    },
+  })
+
+  return <></>
 }

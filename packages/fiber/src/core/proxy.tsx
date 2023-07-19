@@ -1,14 +1,16 @@
 import {
   Accessor,
+  children,
   Component,
   createContext,
   createEffect,
   createMemo,
   createRenderEffect,
+  JSX,
   JSXElement,
+  mapArray,
   onCleanup,
   splitProps,
-  useContext,
 } from 'solid-js'
 import * as THREE from 'three'
 
@@ -83,65 +85,83 @@ export const makeThreeComponent = <TSource extends Constructor>(source: TSource)
 
     useInstance(getInstance, props)
 
-    return <ParentContext.Provider value={getInstance}>{props.children}</ParentContext.Provider>
+    return getInstance as unknown as JSX.Element
   }
 
   return Component
 }
 
+/* <Show/> and <For/> return signals */
+function resolve<T>(child: Accessor<T> | T) {
+  return typeof child !== 'function' ? child : resolve((child as Accessor<T>)())
+}
+
+/* manages the relationship between parent and children */
+export const parentChildren = (getInstance: Accessor<Instance>, props: any) => {
+  const memo = children(() => {
+    const result = resolve(props.children)
+    return Array.isArray(result) ? result : [result]
+  })
+  const parent = getInstance()
+  createRenderEffect(
+    mapArray(memo as unknown as Accessor<(Instance | Accessor<Instance>)[]>, (_child) => {
+      const child = resolve(_child)
+
+      /* <Show/> will return undefined if it's hidden */
+      if (!child) return
+
+      /* Connect children */
+      if (
+        child.object instanceof THREE.Object3D &&
+        parent.object instanceof THREE.Object3D &&
+        !parent.object.children.includes(child.object)
+      ) {
+        parent.object.add(child.object)
+        onCleanup(() => parent.object.remove(child.object as THREE.Object3D))
+      }
+
+      child.parent = parent
+      if (!parent.children.includes(child)) parent.children.push(child)
+
+      onCleanup(() => {
+        const index = parent.children.indexOf(child)
+        if (index > -1) {
+          parent.children.splice(index, 1)
+        }
+      })
+
+      /* Attach children */
+      let attach: string | undefined = props.attach
+      if (!attach) {
+        if (child.object instanceof THREE.Material) attach = 'material'
+        else if (child.object instanceof THREE.BufferGeometry) attach = 'geometry'
+        else if (child.object instanceof THREE.Fog) attach = 'fog'
+      }
+
+      /* If the instance has an "attach" property, attach it to the parent */
+      if (attach) {
+        if (attach in parent.object) {
+          parent.object[attach] = child.object
+          onCleanup(() => void (parent.object[attach!] = undefined))
+        } else {
+          console.error(`Property "${attach}" does not exist on parent "${parent.constructor.name}"`)
+        }
+      }
+    }),
+  )
+}
+
 export function useInstance<T extends THREE.Object3D | THREE.Material>(getInstance: () => Instance<T>, props: any) {
-  const getParent = useContext(ParentContext)
   const [local, instanceProps] = splitProps(props, ['ref', 'args', 'object', 'attach', 'children'])
+
+  /* Manage children */
+  parentChildren(getInstance, local)
 
   /* Assign ref */
   createRenderEffect(() => props.ref instanceof Function && local.ref(getInstance().object))
 
   /* Apply the props to THREE-instance */
   createRenderEffect(() => applyProps(getInstance().object, instanceProps))
-
-  /* Connect to parent */
-  createRenderEffect(() => {
-    const child = getInstance()
-    const parent = getParent!()
-
-    if (child.object instanceof THREE.Object3D && parent.object instanceof THREE.Object3D) {
-      parent.object.add(child.object)
-      onCleanup(() => parent.object.remove(child.object as THREE.Object3D))
-    }
-    child.parent = parent
-
-    if (!parent.children.includes(child)) parent.children.push(child)
-
-    onCleanup(() => {
-      const index = parent.children.indexOf(child)
-      if (index > -1) {
-        parent.children.splice(index, 1)
-      }
-    })
-  })
-
-  /* Attach */
-  createRenderEffect(() => {
-    const child = getInstance().object
-    const parent = getParent!().object
-
-    let attach: string | undefined = local.attach
-    if (!attach) {
-      if (child instanceof THREE.Material) attach = 'material'
-      else if (child instanceof THREE.BufferGeometry) attach = 'geometry'
-      else if (child instanceof THREE.Fog) attach = 'fog'
-    }
-
-    /* If the instance has an "attach" property, attach it to the parent */
-    if (attach) {
-      if (attach in parent) {
-        parent[attach] = child
-        onCleanup(() => void (parent[attach!] = undefined))
-      } else {
-        console.error(`Property "${attach}" does not exist on parent "${parent.constructor.name}"`)
-      }
-    }
-  })
 
   /* Automatically dispose */
   createRenderEffect(() => {
@@ -164,7 +184,7 @@ export function Primitive(props: { object: any; children?: JSXElement }) {
 
   useInstance(instance, props)
 
-  return <ParentContext.Provider value={instance}>{props.children}</ParentContext.Provider>
+  return instance
 }
 
 const cache = {} as Record<string, ThreeComponent<any>>
