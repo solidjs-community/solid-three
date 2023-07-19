@@ -22,6 +22,9 @@ button {
   padding: 5px 10px;
   cursor: pointer;
 }
+button {
+  user-select: none;
+}
 button:hover {
   color: blue;
   background: lightgrey;

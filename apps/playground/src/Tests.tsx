@@ -5,34 +5,99 @@ import * as THREE from 'three'
 import { Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
+import { createStore } from 'solid-js/store'
 import { Box } from './components/Box'
 import { Sphere } from './components/Sphere'
 import Rays from './examples/Rays'
 
-const Slot = (props: { children: JSX.Element }) => (
+const CenterSlot = (props: { children: JSX.Element }) => (
   <Portal>
-    <div style={{ position: 'fixed', bottom: '10px', left: '50%', transform: 'translateX(-50%)' }}>
+    <div
+      style={{ 'user-select': 'none', position: 'fixed', bottom: '10px', left: '50%', transform: 'translateX(-50%)' }}>
+      {props.children}
+    </div>
+  </Portal>
+)
+const LeftSlot = (props: { children: JSX.Element }) => (
+  <Portal>
+    <div style={{ position: 'fixed', bottom: '10px', left: '10px', 'font-size': '10pt' }}>{props.children}</div>
+  </Portal>
+)
+const RightSlot = (props: { children: JSX.Element }) => (
+  <Portal>
+    <div style={{ position: 'fixed', 'text-align': 'right', bottom: '10px', right: '10px', 'font-size': '10pt' }}>
       {props.children}
     </div>
   </Portal>
 )
 
 export default {
-  Hover: () => {
+  EventSystem: () => {
     let mesh: Mesh | undefined
-    const [hovered, setHovered] = createSignal(false)
+    const [color, setColor] = createSignal('red')
+    const [type, _setType] = createSignal<string>()
     useFrame(() => {
       mesh!.rotation.y += 0.01
     })
 
+    const [list, setList] = createStore({
+      onPointerEnter: false,
+      onPointerLeave: false,
+      onPointerMove: false,
+      onPointerDown: false,
+      onPointerUp: false,
+      onDoubleClick: false,
+      onPointerOut: false,
+      onWheel: false,
+      onContextMenu: false,
+    })
+
+    const setType = (type: keyof typeof list) => {
+      setList(type, true)
+      _setType(type)
+    }
+
     return (
       <>
-        <Slot>{hovered() ? 'hovered' : 'not hovered'}</Slot>
+        <RightSlot>{type() || 'none'}</RightSlot>
+        <LeftSlot>
+          <For each={Object.entries(list)}>
+            {([type, done]) => <div style={{ 'text-decoration': done ? 'line-through' : undefined }}>{type}</div>}
+          </For>
+        </LeftSlot>
         <Box
-          onPointerEnter={(e) => setHovered(true)}
-          onPointerLeave={(e) => setHovered(false)}
+          onPointerEnter={(e) => {
+            setType('onPointerEnter')
+            setColor('green')
+          }}
+          onPointerLeave={(e) => {
+            setType('onPointerLeave')
+            setColor('red')
+          }}
+          onPointerMove={(e) => setType('onPointerMove')}
+          onPointerDown={(e) => {
+            setType('onPointerDown')
+            setColor('yellow')
+          }}
+          onPointerUp={(e) => {
+            setType('onPointerUp')
+            setColor('orange')
+          }}
+          onDoubleClick={(e) => {
+            setType('onDoubleClick')
+            setColor('purple')
+          }}
+          onPointerOut={(e) => setType('onPointerOut')}
+          onWheel={(e) => {
+            setType('onWheel')
+            setColor('blue')
+          }}
+          onContextMenu={(e) => {
+            setType('onContextMenu')
+            setColor('pink')
+          }}
           ref={mesh}
-          color={hovered() ? 'green' : 'red'}
+          color={color()}
         />
       </>
     )
@@ -43,7 +108,7 @@ export default {
     onCleanup(() => clearInterval(interval))
     return (
       <>
-        <Slot>{visible() ? 'visible' : 'hidden'}</Slot>
+        <CenterSlot>{visible() ? 'visible' : 'hidden'}</CenterSlot>
         <Show when={visible()}>
           <Box />
         </Show>
@@ -57,7 +122,7 @@ export default {
     onCleanup(() => clearInterval(interval))
     return (
       <>
-        <Slot>{shape()}</Slot>
+        <CenterSlot>{shape()}</CenterSlot>
         <Switch>
           <Match when={shape() === 'cube'}>
             <Box />
@@ -73,7 +138,7 @@ export default {
     const gltf = useLoader(GLTFLoader, '/assets/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf')
     return (
       <>
-        <Slot>{gltf.state}</Slot>
+        <CenterSlot>{gltf.state}</CenterSlot>
         <T.Group scale={[2, 2, 2]}>
           <Primitive object={gltf()?.scene} />
         </T.Group>
@@ -84,7 +149,7 @@ export default {
     const colorMap = useLoader(THREE.TextureLoader, 'assets/img/stone.jpg')
     return (
       <>
-        <Slot>{colorMap.state}</Slot>
+        <CenterSlot>{colorMap.state}</CenterSlot>
         <T.Mesh>
           <T.SphereGeometry />
           <T.MeshStandardMaterial roughness={0} map={colorMap?.() ?? new THREE.Texture()} />
@@ -98,7 +163,7 @@ export default {
     onCleanup(() => clearInterval(interval))
     return (
       <>
-        <Slot>{transparent() ? 'transparent' : 'not transparent'}</Slot>
+        <CenterSlot>{transparent() ? 'transparent' : 'not transparent'}</CenterSlot>
         <T.Mesh>
           <T.SphereGeometry />
           <T.MeshStandardMaterial transparent={transparent()} opacity={0.5} />
@@ -140,9 +205,9 @@ export default {
     const [amount, setAmount] = createSignal(2)
     return (
       <>
-        <Slot>
+        <CenterSlot>
           <input type="number" value={amount()} onInput={(e) => setAmount(+e.currentTarget.value)}></input>
-        </Slot>
+        </CenterSlot>
         <For each={new Array(amount())}>
           {(_, x) => (
             <For each={new Array(amount())}>
