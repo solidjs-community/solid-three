@@ -33,16 +33,9 @@ export function App() {
           antialias: true,
         }}
         shadows>
-        <Test />
         <Dynamic component={Tests[selection()]} />
         <T.SpotLight position={[0, 5, 10]} intensity={1} />
       </Canvas>
     </>
   )
-}
-
-const Test = () => {
-  const mesh = <T.Mesh />
-  console.log('mesh is ', mesh)
-  return <></>
 }

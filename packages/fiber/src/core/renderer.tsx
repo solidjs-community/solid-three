@@ -380,7 +380,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       // s3f    children of <Canvas/> are being attached to the Instance<typeof store.scene>
       const memo = createMemo(withContext(() => props.children, context, store))
-      parentChildren(() => store.scene.__r3f, {
+      parentChildren(() => store.scene, {
         get children() {
           return memo()
         },
@@ -528,7 +528,7 @@ export function Portal(props: PortalProps) {
 
   const memo = createMemo(withContext(() => props.children, context, usePortalStore()))
 
-  parentChildren(() => scene, {
+  parentChildren(() => scene.object, {
     get children() {
       return memo()
     },
