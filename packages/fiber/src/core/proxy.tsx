@@ -168,7 +168,7 @@ export function useObject(getObject: () => Instance['object'], props: any) {
   // createEffect(() => props.helper && useHelper(getInstance, props.helper))
 }
 
-export function Primitive(props: { object: any; children?: JSXElement }) {
+export function Primitive<T>(props: T & { object: T; children?: JSXElement; ref: T | ((value: T) => void) }) {
   const store = useThree()
 
   /* Prepare instance */
