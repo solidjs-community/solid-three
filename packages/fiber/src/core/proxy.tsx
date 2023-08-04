@@ -25,10 +25,6 @@ export type AttachType<O = any> = string | AttachFnType<O>
 
 export type ConstructorRepresentation = new (...args: any[]) => any
 
-export interface Catalogue {
-  [name: string]: ConstructorRepresentation
-}
-
 export type Args<T> = T extends ConstructorRepresentation ? ConstructorParameters<T> : any[]
 
 export interface InstanceProps<T = any, P = any> {
@@ -54,8 +50,9 @@ export interface Instance<O = any> {
   autoRemovedBeforeAppend?: boolean
 }
 
-export const catalogue: Catalogue = {}
-export const extend = (objects: Partial<Catalogue>): void => void Object.assign(catalogue, objects)
+export const catalogue: SolidThree.IntrinsicElements = {}
+export const extend = (objects: Record<string, ConstructorRepresentation>): void =>
+  void Object.assign(catalogue, objects)
 
 export const ParentContext = createContext<() => Instance>()
 
@@ -185,15 +182,26 @@ export function Primitive<T>(props: T & { object: T; children?: JSXElement; ref:
 
 const cache = {} as Record<string, ThreeComponent<any>>
 
+declare global {
+  namespace SolidThree {
+    interface IntrinsicElements {}
+  }
+}
+
+export type SolidThreeElements = {
+  [TKey in keyof SolidThree.IntrinsicElements]: Component<SolidThree.IntrinsicElements[TKey]>
+}
+
 export function createThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
 ): ThreeComponentProxy<Source> {
+  Object.assign(catalogue, source)
   return new Proxy<ThreeComponentProxy<Source>>({} as ThreeComponentProxy<Source>, {
     get: (_, name: string) => {
       /* Create and memoize a wrapper component for the specified property. */
       if (!cache[name]) {
         /* Try and find a constructor within the THREE namespace. */
-        const constructor = source[name as keyof Source]
+        const constructor = source[name as keyof Source] ?? catalogue[name]
 
         /* If nothing could be found, bail. */
         if (!constructor) return undefined
