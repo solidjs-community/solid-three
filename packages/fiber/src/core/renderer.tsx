@@ -1,5 +1,5 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createEffect, createMemo, splitProps, type JSX } from 'solid-js'
+import { createEffect, createMemo, onCleanup, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import * as THREE from 'three'
 
@@ -132,7 +132,12 @@ const createStages = (stages: Stage[] | undefined, store: RootState) => {
       subscription.ref(subscription.store, delta, frame)
     }
   }
-  Stages.Update.add(frameCallback, store)
+  const dispose = Stages.Update.add(frameCallback, store)
+
+  onCleanup(() => {
+    console.log('CLEANUP STAGES!!!')
+    dispose()
+  })
 
   // Add render callback to render stage
   const renderCallback = (state: RootState) => {
@@ -379,19 +384,16 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       )
 
       // s3f    children of <Canvas/> are being attached to the Instance<typeof store.scene>
-      const memo = createMemo(withContext(() => props.children, context, store))
       parentChildren(() => store.scene, {
-        get children() {
-          return memo()
-        },
+        children: (
+          <Provider store={store} rootElement={canvas} onCreated={onCreated}>
+            {props.children}
+          </Provider>
+        ),
       })
 
       // s3f:  this code will break when used in a worker.
-      insert(canvas.parentElement!, () => (
-        <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-          {[store.gl.domElement]}
-        </Provider>
-      ))
+      insert(canvas.parentElement!, store.gl.domElement)
 
       return store
     },
