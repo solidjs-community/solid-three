@@ -6,7 +6,7 @@ import { useThree } from './hooks'
 import { catalogue } from './proxy'
 
 import { produce } from 'solid-js/store'
-import type { ConstructorRepresentation, Instance } from './proxy'
+import type { AttachType, ConstructorRepresentation, Instance } from './proxy'
 import type { Dpr, Renderer, RootState, Size } from './store'
 
 /**
@@ -197,26 +197,26 @@ export function resolve(root: any, key: string): { root: any; key: string; targe
 // Checks if a dash-cased string ends with an integer
 const INDEX_REGEX = /-\d+$/
 
-export function attach(parent: Instance, child: Instance): void {
-  if (is.str(child.props.attach)) {
+export function attach(parent: Instance, child: Instance, type: AttachType): void {
+  if (is.str(type)) {
     // If attaching into an array (foo-0), create one
-    if (INDEX_REGEX.test(child.props.attach)) {
-      const index = child.props.attach.replace(INDEX_REGEX, '')
+    if (INDEX_REGEX.test(type)) {
+      const index = type.replace(INDEX_REGEX, '')
       const { root, key } = resolve(parent.object, index)
       if (!Array.isArray(root[key])) root[key] = []
     }
 
-    const { root, key } = resolve(parent.object, child.props.attach)
+    const { root, key } = resolve(parent.object, type)
     child.previousAttach = root[key]
     root[key] = child.object
-  } else if (is.fun(child.props.attach)) {
-    child.previousAttach = child.props.attach(parent.object, child.object)
+  } else if (is.fun(type)) {
+    child.previousAttach = type(parent.object, child.object)
   }
 }
 
-export function detach(parent: Instance, child: Instance): void {
-  if (is.str(child.props.attach)) {
-    const { root, key } = resolve(parent.object, child.props.attach)
+export function detach(parent: Instance, child: Instance, type: AttachType): void {
+  if (is.str(type)) {
+    const { root, key } = resolve(parent.object, type)
     const previous = child.previousAttach
     // When the previous value was undefined, it means the value was never set to begin with
     if (previous === undefined) delete root[key]
@@ -274,20 +274,20 @@ export const applyProp = (object: Instance['object'], prop: string, value: any, 
   // Ignore setting undefined props
   if (value === undefined) return
 
-  let { root, key, target } = resolve(object, prop)
+  let target = object[prop]
 
   // Alias (output)encoding => (output)colorSpace (since r152)
   // https://github.com/pmndrs/react-three-fiber/pull/2829
-  if (hasColorSpace(root)) {
+  if (hasColorSpace(object)) {
     const sRGBEncoding = 3001
     const SRGBColorSpace = 'srgb'
     const LinearSRGBColorSpace = 'srgb-linear'
 
-    if (key === 'encoding') {
-      key = 'colorSpace'
+    if (prop === 'encoding') {
+      prop = 'colorSpace'
       value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
-    } else if (key === 'outputEncoding') {
-      key = 'outputColorSpace'
+    } else if (prop === 'outputEncoding') {
+      prop = 'outputColorSpace'
       value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
     }
   }
@@ -321,18 +321,18 @@ export const applyProp = (object: Instance['object'], prop: string, value: any, 
   }
   // Else, just overwrite the value
   else {
-    root[key] = value
+    object[prop] = value
 
     // Auto-convert sRGB textures, for now ...
     // https://github.com/pmndrs/react-three-fiber/issues/344
     if (
       rootState &&
-      root[key] instanceof THREE.Texture &&
+      object[prop] instanceof THREE.Texture &&
       // sRGB textures must be RGBA8 since r137 https://github.com/mrdoob/three.js/pull/23129
-      root[key].format === THREE.RGBAFormat &&
-      root[key].type === THREE.UnsignedByteType
+      object[prop].format === THREE.RGBAFormat &&
+      object[prop].type === THREE.UnsignedByteType
     ) {
-      const texture = root[key] as THREE.Texture
+      const texture = object[prop] as THREE.Texture
       if (hasColorSpace(texture) && hasColorSpace(rootState.gl)) texture.colorSpace = rootState.gl.outputColorSpace
       else texture.encoding = rootState.gl.outputEncoding
     }

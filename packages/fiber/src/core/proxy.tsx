@@ -14,7 +14,7 @@ import {
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
-import { applyProps, prepare } from './utils'
+import { applyProps, attach, detach, prepare } from './utils'
 
 import type { ThreeElement } from '../three-types'
 import { EventHandlers } from './events'
@@ -88,31 +88,21 @@ export const createThreeComponent = <TSource extends Constructor>(source: TSourc
 }
 
 /* <Show/> and <For/> return signals */
-function resolve<T>(child: Accessor<T> | T) {
-  return typeof child !== 'function' ? child : resolve((child as Accessor<T>)())
-}
-
-function attachChild(parent: any, child: any, attach: string) {
-  if (attach.indexOf('-') > -1) {
-    const [property, ...rest] = attach.split('-')
-    attachChild(parent[property], child, rest.join('-'))
-    return
-  }
-  parent[attach] = child
-  onCleanup(() => void (parent[attach!] = undefined))
+function resolveChild<T>(child: Accessor<T> | T) {
+  return typeof child !== 'function' ? child : resolveChild((child as Accessor<T>)())
 }
 
 /* manages the relationship between parent and children */
 export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['object']>, props: any) => {
   const memo = children(() => {
-    const result = resolve(props.children)
+    const result = resolveChild(props.children)
     return Array.isArray(result) ? result : [result]
   })
   const parent = getObject()
   createRenderEffect(
     mapArray(memo as unknown as Accessor<(Instance | Accessor<Instance>)[]>, (_child) => {
       createRenderEffect(() => {
-        const child = resolve(_child)
+        const child = resolveChild(_child)
 
         /* <Show/> will return undefined if it's hidden */
         if (!child?.__r3f || !parent.__r3f) return
@@ -134,25 +124,19 @@ export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['obj
           onCleanup(() => parent.remove(child as THREE.Object3D))
           return
         }
-        console.log('child is:', child)
 
         /* Attach children */
-        let attach = child.__r3f.props.attach
-        if (!attach) {
-          if (child instanceof THREE.Material) attach = 'material'
-          else if (child instanceof THREE.BufferGeometry) attach = 'geometry'
-          else if (child instanceof THREE.Fog) attach = 'fog'
+        let type = child.__r3f.props.attach
+        if (!type) {
+          if (child instanceof THREE.Material) type = 'material'
+          else if (child instanceof THREE.BufferGeometry) type = 'geometry'
+          else if (child instanceof THREE.Fog) type = 'fog'
         }
 
-        if (attach) {
-          /* If the instance has an "attach" property, attach it to the parent */
-
-          attachChild(parent, child, attach)
-
-          /* if (attach in parent) {
-          } else {
-            console.error(`Property "${attach}" does not exist on parent "${parent.constructor.name}"`)
-          } */
+        /* If the instance has an "attach" property, attach it to the parent */
+        if (type) {
+          attach(parent.__r3f, child.__r3f, type)
+          onCleanup(() => detach(parent.__r3f!, child.__r3f, type))
         }
       })
     }),
