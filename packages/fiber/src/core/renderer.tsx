@@ -92,8 +92,6 @@ export interface RenderProps<TCanvas extends Canvas> {
   onCreated?: (state: RootState) => void
   /** Response for pointer clicks that have missed any target */
   onPointerMissed?: (event: MouseEvent) => void
-  /** Create a custom lifecycle of stages */
-  stages?: Stage[]
   render?: 'auto' | 'manual'
 }
 

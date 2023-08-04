@@ -2,7 +2,6 @@ import { Accessor, batch, createContext, createEffect, on } from 'solid-js'
 import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
-import { FixedStage, Stage } from './stages'
 import { calculateDpr, isOrthographicCamera, updateCamera } from './utils'
 
 import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
@@ -77,8 +76,6 @@ export interface Renderer {
 }
 export const isRenderer = (def: any) => !!def?.render
 
-export type StageTypes = Stage | FixedStage
-
 export interface InternalState {
   interaction: THREE.Object3D[]
   hovered: Map<string, ThreeEvent<DomEvent>>
@@ -90,8 +87,6 @@ export interface InternalState {
   active: boolean
   priority: number
   frames: number
-  /** The ordered stages defining the lifecycle. */
-  stages: StageTypes[]
   /** Render function flags */
   render: 'auto' | 'manual'
   /** The max delta time between two frames. */
