@@ -1,4 +1,4 @@
-import { ComponentProps, JSX, createComputed, mergeProps, onMount, splitProps } from 'solid-js'
+import { ComponentProps, JSX, createComputed, onMount, splitProps } from 'solid-js'
 import * as THREE from 'three'
 
 import { createRoot, extend } from '../core/index'
@@ -6,6 +6,7 @@ import { createPointerEvents } from './events'
 
 import type { DomEvent } from '../core/events'
 import type { RenderProps } from '../core/index'
+import { processProps } from '../utils/processProps'
 
 export interface CanvasProps extends Omit<RenderProps<HTMLCanvasElement>, 'size'>, ComponentProps<'div'> {
   children: JSX.Element
@@ -60,16 +61,13 @@ export function Canvas(props: Props) {
   // their own elements by using the createRoot API instead
   createComputed(() => extend(THREE as any), [])
 
-  const [other, threeProps] = splitProps(
-    mergeProps(
-      {
-        events: createPointerEvents,
-      },
-      props,
-    ),
+  const [, threeProps] = processProps(
+    props,
+    {
+      events: createPointerEvents,
+    },
     ['children'],
   )
-
   // const [containerRef, containerRect] = useMeasure({ scroll: true, debounce: { scroll: 50, resize: 0 }, ...resize })
   let containerRef: HTMLDivElement = null!,
     canvasRef: HTMLCanvasElement = null!,
