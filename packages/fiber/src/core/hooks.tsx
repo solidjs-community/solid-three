@@ -1,7 +1,6 @@
 import { createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
 import * as THREE from 'three'
-import { Stages } from './stages'
-import type { RenderCallback, StageTypes, UpdateCallback } from './store'
+import type { RenderCallback } from './store'
 import { context } from './store'
 import type { ObjectMap } from './utils'
 import { buildGraph } from './utils'
@@ -45,21 +44,6 @@ export function useFrame(callback: RenderCallback, renderPriority: number = 0): 
     renderPriority,
     store,
   )
-
-  onCleanup(cleanup)
-}
-
-/**
- * Executes a callback in a given update stage.
- * Uses the stage instance to indetify which stage to target in the lifecycle.
- */
-export function useUpdate(callback: UpdateCallback, stage: StageTypes = Stages.Update) {
-  const store = useThree()
-  const stages = store.internal.stages
-  // Throw an error if a stage does not exist in the lifecycle
-  if (!stages.includes(stage)) throw new Error(`An invoked stage does not exist in the lifecycle.`)
-  // Subscribe on mount, unsubscribe on unmount
-  const cleanup = stage.add((state, delta, frame) => untrack(() => callback(state, delta, frame)), store)
   onCleanup(cleanup)
 }
 
@@ -71,8 +55,11 @@ export function useGraph(object: THREE.Object3D) {
   return createMemo(() => buildGraph(object))
 }
 
-function loadingFn<T>(extensions?: Extensions<T>, onProgress?: (event: ProgressEvent) => void) {
-  return function (Proto: LoaderProto<T>, ...input: string[]) {
+function loadingFn<L extends LoaderProto<any>>(
+  extensions?: Extensions<L>,
+  onProgress?: (event: ProgressEvent<EventTarget>) => void,
+) {
+  return function (Proto: L, ...input: string[]) {
     // Construct new loader and run extensions
     const loader = new Proto()
     if (extensions) extensions(loader)
@@ -80,11 +67,13 @@ function loadingFn<T>(extensions?: Extensions<T>, onProgress?: (event: ProgressE
     return Promise.all(
       input.map(
         (input) =>
-          new Promise<LoaderResult<T>>((res, reject) =>
+          new Promise((res, reject) =>
             loader.load(
               input,
-              (data: any) =>
-                res(data?.scene instanceof THREE.Object3D ? Object.assign(data, buildGraph(data.scene)) : data),
+              (data: any) => {
+                if (data.scene) Object.assign(data, buildGraph(data.scene))
+                res(data)
+              },
               onProgress,
               (error) => reject(new Error(`Could not load ${input}: ${error.message})`)),
             ),

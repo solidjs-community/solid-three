@@ -2,9 +2,8 @@ import { Accessor, createEffect, createRenderEffect, mapArray, on, onCleanup, sp
 import * as THREE from 'three'
 import { Falsey } from '../utils/utility-types'
 
-import { useThree, useUpdate } from './hooks'
+import { useThree } from './hooks'
 import { catalogue } from './proxy'
-import { Stages } from './stages'
 
 import { produce } from 'solid-js/store'
 import type { ConstructorRepresentation, Instance } from './proxy'
@@ -441,12 +440,6 @@ export function useHelper<T extends Constructor>(
       store.scene.remove(helper!)
     }
   })
-
-  useUpdate(() => {
-    if (helper?.update) {
-      helper.update()
-    }
-  }, Stages.Update)
 
   return () => helper
 }

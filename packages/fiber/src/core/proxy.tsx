@@ -101,45 +101,47 @@ export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['obj
   const parent = getObject()
   createRenderEffect(
     mapArray(memo as unknown as Accessor<(Instance | Accessor<Instance>)[]>, (_child) => {
-      const child = resolve(_child)
+      createRenderEffect(() => {
+        const child = resolve(_child)
 
-      /* <Show/> will return undefined if it's hidden */
-      if (!child?.__r3f || !parent.__r3f) return
+        /* <Show/> will return undefined if it's hidden */
+        if (!child?.__r3f || !parent.__r3f) return
 
-      /* Connect children */
-      if (child instanceof THREE.Object3D && parent instanceof THREE.Object3D && !parent.children.includes(child)) {
-        parent.add(child)
-        onCleanup(() => parent.remove(child as THREE.Object3D))
-      }
+        /* Connect children */
+        if (child instanceof THREE.Object3D && parent instanceof THREE.Object3D && !parent.children.includes(child)) {
+          parent.add(child)
+          onCleanup(() => parent.remove(child as THREE.Object3D))
+        }
 
-      child.__r3f.parent = parent.__r3f
-      if (!parent.__r3f.children.includes(child.__r3f)) parent.__r3f.children.push(child.__r3f)
+        child.__r3f.parent = parent.__r3f
+        if (!parent.__r3f.children.includes(child.__r3f)) parent.__r3f.children.push(child.__r3f)
 
-      onCleanup(() => {
-        if (!child.__r3f || !parent.__r3f) return
-        const index = parent.__r3f.children.indexOf(child.__r3f)
-        if (index > -1) {
-          parent.__r3f.children.splice(index, 1)
+        onCleanup(() => {
+          if (!child.__r3f || !parent.__r3f) return
+          const index = parent.__r3f.children.indexOf(child.__r3f)
+          if (index > -1) {
+            parent.__r3f.children.splice(index, 1)
+          }
+        })
+
+        /* Attach children */
+        let attach: string | undefined = props.attach
+        if (!attach) {
+          if (child instanceof THREE.Material) attach = 'material'
+          else if (child instanceof THREE.BufferGeometry) attach = 'geometry'
+          else if (child instanceof THREE.Fog) attach = 'fog'
+        }
+
+        /* If the instance has an "attach" property, attach it to the parent */
+        if (attach) {
+          if (attach in parent) {
+            parent[attach] = child
+            onCleanup(() => void (parent[attach!] = undefined))
+          } else {
+            console.error(`Property "${attach}" does not exist on parent "${parent.constructor.name}"`)
+          }
         }
       })
-
-      /* Attach children */
-      let attach: string | undefined = props.attach
-      if (!attach) {
-        if (child instanceof THREE.Material) attach = 'material'
-        else if (child instanceof THREE.BufferGeometry) attach = 'geometry'
-        else if (child instanceof THREE.Fog) attach = 'fog'
-      }
-
-      /* If the instance has an "attach" property, attach it to the parent */
-      if (attach) {
-        if (attach in parent) {
-          parent[attach] = child
-          onCleanup(() => void (parent[attach!] = undefined))
-        } else {
-          console.error(`Property "${attach}" does not exist on parent "${parent.constructor.name}"`)
-        }
-      }
     }),
   )
 }
@@ -177,7 +179,7 @@ export function Primitive<T>(props: T & { object: T; children?: JSXElement; ref:
 
   useObject(getObject, props)
 
-  return getObject
+  return getObject as unknown as JSX.Element
 }
 
 const cache = {} as Record<string, ThreeComponent<any>>

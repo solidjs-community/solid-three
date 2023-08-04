@@ -3,11 +3,10 @@ import { SetStoreFunction, createStore, produce } from 'solid-js/store'
 import * as THREE from 'three'
 
 import { FixedStage, Stage } from './stages'
-import { calculateDpr, isOrthographicCamera, prepare, updateCamera } from './utils'
+import { calculateDpr, isOrthographicCamera, updateCamera } from './utils'
 
 import type { DomEvent, EventManager, PointerCaptureTarget, ThreeEvent } from './events'
 import type { Camera } from './utils'
-import { Instance } from './proxy'
 
 // Keys that shouldn't be copied between R3F stores
 export const privateKeys = [
@@ -345,17 +344,13 @@ const createThreeStore = (
         return () => {
           const state = get()
           const internal = state.internal
-          if (internal?.subscribers) {
+          if (internal.subscribers) {
             // Decrease manual flag if this subscription had a priority
             set('internal', 'priority', internal.priority - (priority > 0 ? 1 : 0))
             // We use the render flag and deprecate priority
             if (!internal.priority && state.internal.render === 'manual') set('internal', 'render', 'auto')
             // Remove subscriber from list
-            set(
-              'internal',
-              'subscribers',
-              internal.subscribers.filter((s) => s.ref !== ref),
-            )
+            set('internal', 'subscribers', (subscribers) => subscribers.filter((s) => s.ref !== ref))
           }
         }
       },

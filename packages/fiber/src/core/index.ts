@@ -10,14 +10,21 @@ export type {
   ThreeEvent,
 } from './events'
 export * from './hooks'
-export { addAfterEffect, addEffect, addTail, advance, flushGlobalEffects, invalidate } from './loop'
+export { addAfterEffect, addEffect, addTail, flushGlobalEffects } from './loop'
 export type { GlobalEffectType, GlobalRenderCallback } from './loop'
 export { Primitive, T, extend } from './proxy'
 export type { AttachFnType, AttachType, ConstructorRepresentation, Instance, InstanceProps } from './proxy'
-export { Portal, _roots, createPortal, createRoot, render, unmountComponentAtNode } from './renderer'
+export {
+  Portal,
+  roots as _roots,
+  advance,
+  createPortal,
+  createRoot,
+  invalidate,
+  render,
+  unmountComponentAtNode,
+} from './renderer'
 export type { CameraProps, GLProps, InjectState, ReconcilerRoot, RenderProps } from './renderer'
-export { FixedStage, Stage, Stages } from './stages'
-export type { UpdateSubscription } from './stages'
 export { context } from './store'
 export type {
   Dpr,

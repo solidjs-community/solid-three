@@ -1,12 +1,11 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createEffect, createMemo, onCleanup, splitProps, type JSX } from 'solid-js'
+import { createEffect, createMemo, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
-import { advance, invalidate } from './loop'
+import { createLoop } from './loop'
 import { parentChildren } from './proxy'
-import { Lifecycle, Stage, Stages } from './stages'
 import { context, createThreeStore, isRenderer } from './store'
 import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 
@@ -14,7 +13,7 @@ import { insert } from 'solid-js/web'
 import type { Root, ThreeElement } from '../three-types'
 import { withContext } from '../utils/withContext'
 import type { ComputeFunction, EventManager } from './events'
-import type { Dpr, Frameloop, Performance, Renderer, RootState, Size, Subscription } from './store'
+import type { Dpr, Frameloop, Performance, Renderer, RootState, Size } from './store'
 import type { Camera, EquConfig } from './utils'
 
 // TODO: fix type resolve
@@ -23,7 +22,8 @@ type OffscreenCanvas = any
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
-export const _roots = new Map<Canvas, Root>()
+export const roots = new Map<Canvas, Root>()
+export const { advance, invalidate } = createLoop(roots)
 
 const shallowLoose = { objects: 'shallow', strict: false } as EquConfig
 
@@ -113,41 +113,6 @@ const createRendererInstance = <TCanvas extends Canvas>(
   })
 }
 
-const createStages = (stages: Stage[] | undefined, store: RootState) => {
-  let subscribers: Subscription[]
-  let subscription: Subscription
-
-  const _stages = stages ?? Lifecycle
-
-  if (!_stages.includes(Stages.Update)) throw 'The Stages.Update stage is required for R3F.'
-  if (!_stages.includes(Stages.Render)) throw 'The Stages.Render stage is required for R3F.'
-
-  store.set('internal', 'stages', _stages)
-
-  // Add useFrame loop to update stage
-  const frameCallback = (state: RootState, delta: number, frame?: XRFrame | undefined) => {
-    subscribers = state.internal.subscribers
-    for (let i = 0; i < subscribers.length; i++) {
-      subscription = subscribers[i]
-      subscription.ref(subscription.store, delta, frame)
-    }
-  }
-  const dispose = Stages.Update.add(frameCallback, store)
-
-  onCleanup(() => {
-    console.log('CLEANUP STAGES!!!')
-    dispose()
-  })
-
-  // Add render callback to render stage
-  const renderCallback = (state: RootState) => {
-    if (state.internal.render === 'auto' && state.gl.render) {
-      state.gl.render(state.scene, state.camera)
-    }
-  }
-  Stages.Render.add(renderCallback, store)
-}
-
 export interface ReconcilerRoot<TCanvas extends Canvas> {
   configure: (config?: RenderProps<TCanvas>) => ReconcilerRoot<TCanvas>
   // s3f    solid-three has to pass the element to render as { children: JSX.Element }
@@ -175,7 +140,7 @@ function computeInitialSize(canvas: Canvas, size?: Size): Size {
 
 export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerRoot<TCanvas> {
   // Check against mistaken use of createRoot
-  const prevRoot = _roots.get(canvas)
+  const prevRoot = roots.get(canvas)
   const prevStore = prevRoot?.store
 
   if (prevRoot) console.warn('R3F.createRoot should only be called once!')
@@ -183,7 +148,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
   // Create store
   const store = prevStore || createThreeStore(invalidate, advance)
   // Map it
-  if (!prevRoot) _roots.set(canvas, { store })
+  if (!prevRoot) roots.set(canvas, { store })
 
   // Locals
   let onCreated: ((state: RootState) => void) | undefined
@@ -227,7 +192,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
         applyProps(raycaster, { params: { ...raycaster.params, ...params } })
 
       // Create default camera, don't overwrite any user-set state
-      if (!store.camera) {
+      if (!store.camera || (store.camera === lastCamera && !is.equ(lastCamera, cameraOptions, shallowLoose))) {
         lastCamera = cameraOptions
         const isCamera = cameraOptions instanceof THREE.Camera
         const camera = isCamera
@@ -362,9 +327,6 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       // Check performance
       if (performance && !is.equ(performance, store.performance, shallowLoose)) store.set('performance', performance)
 
-      // Create update stages. Only do this once on init
-      if (store.internal.stages.length === 0) createStages(stages, store)
-
       // Set locals
       onCreated = onCreatedCallback
       configured = true
@@ -436,7 +398,7 @@ export function unmountComponentAtNode<TCanvas extends Canvas>(
   canvas: TCanvas,
   callback?: (canvas: TCanvas) => void,
 ): void {
-  const root = _roots.get(canvas)
+  const root = roots.get(canvas)
   const state = root?.store
   if (state) {
     state.internal.active = false
@@ -447,7 +409,7 @@ export function unmountComponentAtNode<TCanvas extends Canvas>(
         state.gl?.forceContextLoss?.()
         if (state.gl?.xr) state.xr.disconnect()
         dispose(state.scene)
-        _roots.delete(canvas)
+        roots.delete(canvas)
         if (callback) callback(canvas)
       } catch (e) {
         /* ... */
