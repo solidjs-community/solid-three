@@ -1,12 +1,22 @@
 import { createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
 import * as THREE from 'three'
-
 import { Stages } from './stages'
-import { context } from './store'
-import { buildGraph } from './utils'
-
 import type { RenderCallback, StageTypes, UpdateCallback } from './store'
+import { context } from './store'
 import type { ObjectMap } from './utils'
+import { buildGraph } from './utils'
+export interface Loader<T> extends THREE.Loader {
+  load(
+    url: string | string[] | string[][],
+    onLoad?: (result: T, ...args: any[]) => void,
+    onProgress?: (event: ProgressEvent) => void,
+    onError?: (event: ErrorEvent) => void,
+  ): unknown
+}
+
+export type LoaderProto<T> = new (...args: any[]) => Loader<T>
+export type LoaderResult<T> = T extends { scene: THREE.Object3D } ? T & ObjectMap : T
+export type Extensions<T> = (loader: Loader<T>) => void
 
 /**
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
@@ -14,7 +24,10 @@ import type { ObjectMap } from './utils'
  */
 export function useThree() {
   const store = useContext(context)
-  if (!store) throw new Error('R3F: Hooks can only be used within the Canvas component!')
+  if (!store) {
+    // console.error('R3F: Hooks can only be used within the Canvas component!')
+    throw new Error('R3F: Hooks can only be used within the Canvas component!')
+  }
   return store
 }
 
@@ -58,19 +71,6 @@ export function useGraph(object: THREE.Object3D) {
   return createMemo(() => buildGraph(object))
 }
 
-export interface Loader<T> extends THREE.Loader {
-  load(
-    url: string | string[] | string[][],
-    onLoad?: (result: T, ...args: any[]) => void,
-    onProgress?: (event: ProgressEvent) => void,
-    onError?: (event: ErrorEvent) => void,
-  ): unknown
-}
-
-export type LoaderProto<T> = new (...args: any[]) => Loader<T>
-export type LoaderResult<T> = T extends { scene: THREE.Object3D } ? T & ObjectMap : T
-export type Extensions<T> = (loader: Loader<T>) => void
-
 function loadingFn<T>(extensions?: Extensions<T>, onProgress?: (event: ProgressEvent) => void) {
   return function (Proto: LoaderProto<T>, ...input: string[]) {
     // Construct new loader and run extensions
@@ -107,20 +107,35 @@ export function useLoader<T, U extends string | string[] | string[][]>(
   onProgress?: (event: ProgressEvent) => void,
 ) {
   // Use createResource to load async assets
-  const keys = (Array.isArray(input) ? input : [input]) as string[]
 
-  return createResource(
-    () => [Proto, ...keys] as const,
-    async ([Proto, ...keys]) => {
-      if (loaderCache.has([Proto.name, ...keys].join('-'))) {
-        return loaderCache.get([Proto.name, ...keys].join('-'))
-      }
-      const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
-      loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
-      if (Array.isArray(input)) return data
-      return data[0]
-    },
-  )[0]
+  return Array.isArray(input)
+    ? input.map(
+        (input) =>
+          createResource(
+            () => [Proto, input] as const,
+            async ([Proto, ...keys]) => {
+              if (loaderCache.has([Proto.name, ...keys].join('-'))) {
+                return loaderCache.get([Proto.name, ...keys].join('-'))
+              }
+              const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
+              loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
+              if (Array.isArray(input)) return data
+              return data[0]
+            },
+          )[0],
+      )
+    : createResource(
+        () => [Proto, input] as const,
+        async ([Proto, ...keys]) => {
+          if (loaderCache.has([Proto.name, ...keys].join('-'))) {
+            return loaderCache.get([Proto.name, ...keys].join('-'))
+          }
+          const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
+          loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
+          if (Array.isArray(input)) return data
+          return data[0]
+        },
+      )[0]
 }
 
 // /**
