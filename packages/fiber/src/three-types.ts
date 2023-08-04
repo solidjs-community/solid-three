@@ -2,7 +2,7 @@ import { JSX } from 'solid-js/jsx-runtime'
 import * as THREE from 'three'
 import { AttachType, InstanceProps } from './core'
 import { EventHandlers } from './core/events'
-import { Args, ConstructorRepresentation } from './core/proxy'
+import { Args, ConstructorRepresentation, T } from './core/proxy'
 import { RootState } from './core/store'
 import { Mutable } from './utils/utility-types'
 
@@ -49,7 +49,7 @@ export interface NodeProps<T> {
   /** Constructor arguments */
   args?: Args<T>
   children?: JSX.Element
-  ref?: ((value: T) => void) | T
+  ref?: ((children: T) => void) | T
   key?: string
   onUpdate?: (self: T) => void
 }
@@ -79,3 +79,7 @@ export type Object3DNode<T> = Overwrite<
   }
 > &
   EventHandlers
+
+export type ThreeProps<TKey extends keyof typeof T> = (typeof T)[TKey] extends (...args: any[]) => any
+  ? Parameters<(typeof T)[TKey]>[0]
+  : undefined
