@@ -193,7 +193,7 @@ export type SolidThreeElements = {
 
 export function createThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
-): ThreeComponentProxy<Source> {
+): ThreeComponentProxy<Source> & SolidThreeElements {
   Object.assign(catalogue, source)
   return new Proxy<ThreeComponentProxy<Source>>({} as ThreeComponentProxy<Source>, {
     get: (_, name: string) => {
