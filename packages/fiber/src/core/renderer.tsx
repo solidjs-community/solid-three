@@ -11,7 +11,6 @@ import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, upd
 
 import { insert } from 'solid-js/web'
 import type { Root, ThreeElement } from '../three-types'
-import { withContext } from '../utils/withContext'
 import type { ComputeFunction, EventManager } from './events'
 import type { Dpr, Frameloop, Performance, Renderer, RootState, Size } from './store'
 import type { Camera, EquConfig } from './utils'
@@ -487,12 +486,8 @@ export function Portal(props: PortalProps) {
     return store
   })
 
-  const memo = createMemo(withContext(() => props.children, context, usePortalStore()))
-
   parentChildren(() => scene.object, {
-    get children() {
-      return memo()
-    },
+    children: <context.Provider value={usePortalStore()}>{props.children}</context.Provider>,
   })
 
   return <></>
