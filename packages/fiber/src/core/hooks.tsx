@@ -38,13 +38,16 @@ export function useThree() {
 
 export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
   const store = useThree()
-  const subscribe = store.internal.subscribe
-  const cleanup = subscribe(
-    (state, delta, frame) => untrack(() => callback(state, delta, frame)),
-    renderPriority,
-    store,
-  )
-  onCleanup(cleanup)
+  let cleanup: () => void
+  // s3f:   I added a queueMicroTask so that useFrame will run after possible references are set
+  queueMicrotask(() => {
+    cleanup = store.internal?.subscribe(
+      (state, delta, frame) => untrack(() => callback(state, delta, frame)),
+      renderPriority,
+      store,
+    )
+  })
+  onCleanup(() => cleanup?.())
 }
 
 /**
