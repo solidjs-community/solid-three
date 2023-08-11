@@ -72,14 +72,14 @@ export const createThreeComponent = <TSource extends Constructor>(source: TSourc
       try {
         const el = prepare(new source(...(props.args ?? [])), store, '', props) as Instance<THREE.Object3D>
         el.root = store
+        useObject(() => el.object, props)
+
         return el.object
       } catch (e) {
         console.error(e)
         throw new Error('')
       }
     })
-
-    useObject(getObject, props)
 
     return getObject as unknown as JSX.Element
   }
@@ -88,21 +88,25 @@ export const createThreeComponent = <TSource extends Constructor>(source: TSourc
 }
 
 /* <Show/> and <For/> return signals */
-function resolveChild<T>(child: Accessor<T> | T) {
-  return typeof child !== 'function' ? child : resolveChild((child as Accessor<T>)())
+export function resolveAccessor<T>(child: Accessor<T> | T, recursive = false): T {
+  return typeof child !== 'function'
+    ? child
+    : recursive
+    ? resolveAccessor((child as Accessor<T>)())
+    : (child as Accessor<T>)()
 }
 
 /* manages the relationship between parent and children */
 export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['object']>, props: any) => {
   const memo = children(() => {
-    const result = resolveChild(props.children)
+    const result = resolveAccessor(props.children)
     return Array.isArray(result) ? result : [result]
   })
   const parent = getObject()
   createRenderEffect(
-    mapArray(memo as unknown as Accessor<(Instance | Accessor<Instance>)[]>, (_child) => {
+    mapArray(memo as unknown as Accessor<(Instance['object'] | Accessor<Instance['object']>)[]>, (_child) => {
       createRenderEffect(() => {
-        const child = resolveChild(_child)
+        const child = resolveAccessor(_child)
 
         /* <Show/> will return undefined if it's hidden */
         if (!child?.__r3f || !parent.__r3f) return
@@ -164,17 +168,23 @@ export function useObject(getObject: () => Instance['object'], props: any) {
   // createEffect(() => props.helper && useHelper(getInstance, props.helper))
 }
 
-export function Primitive<T>(props: T & { object: T; children?: JSXElement; ref: T | ((value: T) => void) }) {
+export function Primitive<T>(
+  props: Omit<Partial<T>, 'object' | 'children' | 'ref'> & {
+    object: T
+    children?: JSXElement
+    ref?: T | ((value: T) => void)
+  },
+) {
   const store = useThree()
 
   /* Prepare instance */
   const getObject = createMemo(() => {
+    if (!props.object) return
     const obj = prepare(props.object, store, '', props)
     obj.root = store
+    useObject(() => obj.object, props)
     return obj.object
   })
-
-  useObject(getObject, props)
 
   return getObject as unknown as JSX.Element
 }
