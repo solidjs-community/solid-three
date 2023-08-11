@@ -38,7 +38,6 @@ export type {
   Renderer,
   RootState,
   Size,
-  StageTypes,
   Subscription,
   UpdateCallback,
   Viewport,

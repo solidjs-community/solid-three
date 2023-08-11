@@ -172,7 +172,6 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
         raycaster: raycastOptions,
         camera: cameraOptions,
         onPointerMissed,
-        stages,
       } = props
 
       // Set up renderer (one time only!)

@@ -52,7 +52,6 @@ export function Canvas(props: Props) {
     'camera',
     'onPointerMissed',
     'onCreated',
-    'stages',
     'scene',
   ])
 

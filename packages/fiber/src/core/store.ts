@@ -310,7 +310,6 @@ const createThreeStore = (
       // Updates
       active: false,
       frames: 0,
-      stages: [],
       render: 'auto',
       maxDelta: 1 / 10,
       priority: 0,
