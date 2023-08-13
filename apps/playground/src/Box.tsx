@@ -1,7 +1,6 @@
-import { JSX, createEffect, createSignal } from 'solid-js'
-import * as THREE from 'three'
+import { T, useFrame } from '@solid-three/fiber'
+import { JSX, createSignal } from 'solid-js'
 import { Mesh } from 'three'
-import { T, useFrame } from '../packages/fiber/src'
 
 export function Box(props: { position?: [number, number, number]; children?: JSX.Element }) {
   let mesh: Mesh | undefined

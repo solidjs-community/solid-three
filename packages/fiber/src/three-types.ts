@@ -37,12 +37,12 @@ export type Layers = MathType<THREE.Layers>
 export type Quaternion = MathType<THREE.Quaternion>
 export type Euler = MathType<THREE.Euler>
 
-type WithMathProps<P> = { [K in keyof P]: P[K] extends MathRepresentation | THREE.Euler ? MathType<P[K]> : P[K] }
+export type WithMathProps<P> = { [K in keyof P]: P[K] extends MathRepresentation | THREE.Euler ? MathType<P[K]> : P[K] }
 
 interface RaycastableRepresentation {
   raycast(raycaster: THREE.Raycaster, intersects: THREE.Intersection[]): void
 }
-type EventProps<P> = P extends RaycastableRepresentation ? Partial<EventHandlers> : {}
+export type EventProps<P> = P extends RaycastableRepresentation ? Partial<EventHandlers> : {}
 
 export interface NodeProps<T> {
   attach?: AttachType

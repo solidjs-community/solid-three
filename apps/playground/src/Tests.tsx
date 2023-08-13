@@ -1,10 +1,11 @@
-import { Primitive, T, Portal as ThreePortal, useFrame, useLoader } from '@solid-three/fiber'
+import { Primitive, T, Portal as ThreePortal, createThreeResource, useFrame, useLoader } from '@solid-three/fiber'
 import { Accessor, For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
 import { Portal } from 'solid-js/web'
 import * as THREE from 'three'
 import { Mesh } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
+import { CameraControls, PerspectiveCamera, Plane, useFBO, useGLTF } from '@solid-three/drei'
 import { createStore } from 'solid-js/store'
 import { Box } from './components/Box'
 import { Sphere } from './components/Sphere'
@@ -384,6 +385,81 @@ export default {
       <T.Group>
         <Show when={visible()}>{mesh}</Show>
       </T.Group>
+    )
+  },
+  Suspense(props) {
+    const Sibling = () => {
+      const [resource] = createThreeResource(
+        () => ['blue'],
+        async ([key]) => {
+          return new Promise<string>((resolve) => {
+            console.log('fetch from sibling')
+            setTimeout(() => {
+              resolve(key)
+            }, 2000)
+          })
+        },
+      )
+      return (
+        <T.Suspense fallback={<Box color="red" />}>
+          <Box color={resource()} />
+        </T.Suspense>
+      )
+    }
+    const Child = (props) => {
+      const resource = useGLTF(
+        'https://vazxmixjsiawhamofees.supabase.co/storage/v1/object/public/models/suzanne-high-poly/model.gltf',
+      )
+      return <Primitive object={resource()?.scene}>{props.children}</Primitive>
+    }
+
+    return (
+      <T.Suspense fallback={<Box color="yellow" />}>
+        <Child>
+          <Sibling />
+        </Child>
+      </T.Suspense>
+    )
+  },
+  CameraControl() {
+    /**
+     * we will render our scene in a render target and use it as a map.
+     */
+    const fbo = useFBO(400, 400)
+    let virtualCamera: CameraControls['camera']
+    let cameraControlRef: CameraControls | null
+    const virtualScene = new THREE.Scene()
+
+    useFrame(({ gl }) => {
+      if (virtualCamera) {
+        gl.setRenderTarget(fbo)
+        gl.render(virtualScene, virtualCamera)
+
+        gl.setRenderTarget(null)
+      }
+    })
+
+    return (
+      <>
+        <ThreePortal container={virtualScene}>
+          <Box>
+            <T.MeshBasicMaterial />
+          </Box>
+
+          <PerspectiveCamera name="FBO Camera" ref={virtualCamera!} position={[0, 0, 5]} />
+          <CameraControls ref={cameraControlRef!} camera={virtualCamera!} />
+
+          {/* @ts-ignore */}
+          {/* <T.Color attach="background" args={['hotpink']} /> */}
+        </ThreePortal>
+        <Plane
+          args={[4, 4, 4]}
+          onClick={() => {
+            cameraControlRef?.rotate(Math.PI / 4, 0, true)
+          }}>
+          <T.MeshBasicMaterial map={fbo.texture} />
+        </Plane>
+      </>
     )
   },
 }

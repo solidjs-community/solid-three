@@ -1,9 +1,28 @@
+import { OrbitControls } from '@solid-three/drei'
 import { Canvas, T } from '@solid-three/fiber'
+
 import { For, createSignal } from 'solid-js'
 import Tests from './Tests'
 
 import { Dynamic } from 'solid-js/web'
 import styles from './App.module.css'
+
+const Setup = (props) => {
+  return (
+    <Canvas
+      camera={{
+        position: [3, 3, 3],
+      }}
+      gl={{
+        antialias: true,
+      }}
+      shadows>
+      {props.children}
+      <OrbitControls />
+      <T.SpotLight position={[0, 5, 10]} intensity={1} />
+    </Canvas>
+  )
+}
 
 export function App() {
   const [selection, setSelection] = createSignal('Parenting') //Object.keys(Tests)[0])
@@ -17,7 +36,7 @@ export function App() {
                 color: test === selection() ? 'blue' : undefined,
               }}
               onClick={() => {
-                console.clear()
+                // console.clear()
                 setSelection(test)
               }}>
               {test}
@@ -25,17 +44,9 @@ export function App() {
           )}
         </For>
       </div>
-      <Canvas
-        camera={{
-          position: [3, 3, 3],
-        }}
-        gl={{
-          antialias: true,
-        }}
-        shadows>
+      <Setup>
         <Dynamic component={Tests[selection()]} />
-        <T.SpotLight position={[0, 5, 10]} intensity={1} />
-      </Canvas>
+      </Setup>
     </>
   )
 }

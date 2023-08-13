@@ -30,6 +30,7 @@
     }
   },
   "devDependencies": {
+    "@solid-three/drei": "workspace:0.0.0-semantic-release",
     "@solid-three/fiber": "workspace:^0.9.0",
     "@types/node": "^18.11.18",
     "@types/three": "^0.149.0",
@@ -42,9 +43,9 @@
     "vite-plugin-solid": "2.5.0"
   },
   "dependencies": {
-    "solid-three": "workspace:*",
     "solid-devtools": "^0.27.3",
     "solid-js": "*",
+    "solid-three": "workspace:*",
     "three": "*"
   },
   "jest": {
