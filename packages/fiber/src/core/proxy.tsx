@@ -13,9 +13,10 @@ import {
 } from 'solid-js'
 import * as THREE from 'three'
 
-import { useThree } from './hooks'
+import { ThreeSuspense, useSuspense, useThree } from './hooks'
 import { applyProps, attach, detach, prepare } from './utils'
 
+import { createLazyMemo } from '@solid-primitives/memo'
 import type { ThreeElement } from '../three-types'
 import { EventHandlers } from './events'
 import { RootState } from './store'
@@ -50,9 +51,13 @@ export interface Instance<O = any> {
   autoRemovedBeforeAppend?: boolean
 }
 
-export const catalogue: SolidThree.IntrinsicElements = {}
+export const constructors: Omit<SolidThree.IntrinsicElements, keyof typeof components> = {}
+export const components = {
+  Suspense: ThreeSuspense,
+  Primitive,
+}
 export const extend = (objects: Record<string, ConstructorRepresentation>): void =>
-  void Object.assign(catalogue, objects)
+  void Object.assign(constructors, objects)
 
 export const ParentContext = createContext<() => Instance>()
 
@@ -67,19 +72,23 @@ export const createThreeComponent = <TSource extends Constructor>(source: TSourc
   const Component = (props: any) => {
     const store = useThree()
 
-    /* Create instance */
-    const getObject = createMemo(() => {
+    const memoObject = createLazyMemo(() => {
       try {
-        const el = prepare(new source(...(props.args ?? [])), store, '', props) as Instance<THREE.Object3D>
-        el.root = store
-        useObject(() => el.object, props)
-
-        return el.object
+        const instance = prepare(new source(...(props.args ?? [])), store, '', props) as Instance<THREE.Object3D>
+        instance.root = store
+        manageProps(() => instance.object, props)
+        return instance.object
       } catch (e) {
         console.error(e)
         throw new Error('')
       }
     })
+
+    const getObject = createMemo<Instance<THREE.Object3D>['object'] | undefined>((prev) =>
+      shouldPreventCreation() ? prev : memoObject(),
+    )
+    const getChildren = children(() => props.children)
+    createRenderEffect(() => manageChildren(getObject, getChildren))
 
     return getObject as unknown as JSX.Element
   }
@@ -97,19 +106,19 @@ export function resolveAccessor<T>(child: Accessor<T> | T, recursive = false): T
 }
 
 /* manages the relationship between parent and children */
-export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['object']>, props: any) => {
-  const memo = children(() => {
-    const result = resolveAccessor(props.children)
+export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | undefined>, children: Accessor<any>) {
+  const memo = createMemo(() => {
+    const result = resolveAccessor(children, true)
     return Array.isArray(result) ? result : [result]
   })
-  const parent = getObject()
+
   createRenderEffect(
     mapArray(memo as unknown as Accessor<(Instance['object'] | Accessor<Instance['object']>)[]>, (_child) => {
       createRenderEffect(() => {
-        const child = resolveAccessor(_child)
+        const parent = getParent()
+        const child = resolveAccessor(_child, true)
 
-        /* <Show/> will return undefined if it's hidden */
-        if (!child?.__r3f || !parent.__r3f) return
+        if (!child?.__r3f || !parent?.__r3f) return
 
         child.__r3f.parent = parent.__r3f
         if (!parent.__r3f.children.includes(child.__r3f)) parent.__r3f.children.push(child.__r3f)
@@ -147,14 +156,11 @@ export const parentChildren = (getObject: Accessor<Instance<THREE.Object3D>['obj
   )
 }
 
-export function useObject(getObject: () => Instance['object'], props: any) {
+export function manageProps(getObject: () => Instance['object'], props: any) {
   const [local, instanceProps] = splitProps(props, ['ref', 'args', 'object', 'attach', 'children'])
 
-  /* Manage children */
-  parentChildren(getObject, local)
-
   /* Assign ref */
-  createRenderEffect(() => props.ref instanceof Function && local.ref(getObject()))
+  createRenderEffect(() => local.ref instanceof Function && local.ref(getObject()))
 
   /* Apply the props to THREE-instance */
   createRenderEffect(() => applyProps(getObject(), instanceProps))
@@ -164,8 +170,12 @@ export function useObject(getObject: () => Instance['object'], props: any) {
     const object = getObject()
     onCleanup(() => object?.dispose?.())
   })
+}
 
-  // createEffect(() => props.helper && useHelper(getInstance, props.helper))
+const shouldPreventCreation = () => {
+  const suspenseContext = useSuspense()
+  if (suspenseContext && !suspenseContext.resolved) return true
+  return false
 }
 
 export function Primitive<T>(
@@ -177,23 +187,32 @@ export function Primitive<T>(
 ) {
   const store = useThree()
 
-  /* Prepare instance */
-  const getObject = createMemo(() => {
-    if (!props.object) return
-    const obj = prepare(props.object, store, '', props)
-    obj.root = store
-    useObject(() => obj.object, props)
-    return obj.object
+  const memoObject = createLazyMemo<Instance<T>['object'] | undefined>((prev) => {
+    if (!props.object) return prev
+    /* Prepare instance */
+    const instance = prepare(props.object, store, '', props)
+    instance.root = store
+    manageProps(() => instance.object, props)
+    return instance.object
   })
+
+  const getObject = createMemo<Instance<T>['object'] | undefined>((prev) =>
+    shouldPreventCreation() ? prev : memoObject(),
+  )
+  const getChildren = children(() => props.children)
+  createRenderEffect(() => manageChildren(getObject, getChildren))
 
   return getObject as unknown as JSX.Element
 }
 
-const cache = {} as Record<string, ThreeComponent<any>>
+const cache = new Map<string, Component<any>>(Object.entries(components))
 
 declare global {
   namespace SolidThree {
-    interface IntrinsicElements {}
+    interface IntrinsicElements<T = any> {
+      Suspense: Parameters<typeof ThreeSuspense>[0]
+      Primitive: Parameters<typeof Primitive<T>>[0]
+    }
   }
 }
 
@@ -204,24 +223,27 @@ export type SolidThreeElements = {
 export function createThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
 ): ThreeComponentProxy<Source> & SolidThreeElements {
-  Object.assign(catalogue, source)
-  return new Proxy<ThreeComponentProxy<Source>>({} as ThreeComponentProxy<Source>, {
-    get: (_, name: string) => {
-      /* Create and memoize a wrapper component for the specified property. */
-      if (!cache[name]) {
-        /* Try and find a constructor within the THREE namespace. */
-        const constructor = source[name as keyof Source] ?? catalogue[name]
+  Object.assign(constructors, source)
+  return new Proxy<ThreeComponentProxy<Source> & SolidThreeElements>(
+    {} as ThreeComponentProxy<Source> & SolidThreeElements,
+    {
+      get: (_, name: string) => {
+        /* Create and memoize a wrapper component for the specified property. */
+        if (!cache.has(name)) {
+          /* Try and find a constructor within the THREE namespace. */
+          const constructor = source[name as keyof Source] ?? constructors[name]
 
-        /* If nothing could be found, bail. */
-        if (!constructor) return undefined
+          /* If nothing could be found, bail. */
+          if (!constructor) return undefined
 
-        /* Otherwise, create and memoize a component for that constructor. */
-        cache[name] = createThreeComponent(constructor)
-      }
+          /* Otherwise, create and memoize a component for that constructor. */
+          cache.set(name, createThreeComponent(constructor))
+        }
 
-      return cache[name]
+        return cache.get(name)
+      },
     },
-  })
+  )
 }
 
 /**

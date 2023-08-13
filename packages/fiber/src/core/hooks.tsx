@@ -1,17 +1,52 @@
-import { createMemo, createResource, onCleanup, untrack, useContext } from 'solid-js'
+import { createLazyMemo } from '@solid-primitives/memo'
+import {
+  Accessor,
+  InitializedResourceOptions,
+  InitializedResourceReturn,
+  JSX,
+  NoInfer,
+  Resource,
+  ResourceFetcher,
+  ResourceOptions,
+  ResourceReturn,
+  ResourceSource,
+  Suspense,
+  createContext,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+  untrack,
+  useContext,
+} from 'solid-js'
 import * as THREE from 'three'
+import { resolveAccessor } from './proxy'
 import type { RenderCallback } from './store'
 import { context } from './store'
 import type { ObjectMap } from './utils'
 import { buildGraph } from './utils'
-export interface Loader<T> extends THREE.Loader {
+
+export interface LoaderSingle<T> extends THREE.Loader {
   load(
-    url: string | string[] | string[][],
-    onLoad?: (result: T, ...args: any[]) => void,
+    url: string,
+    onLoad?: (result: T) => void,
     onProgress?: (event: ProgressEvent) => void,
     onError?: (event: ErrorEvent) => void,
   ): unknown
+  loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<T>
 }
+export interface LoaderMultiple<T> extends THREE.Loader {
+  load(
+    urls: string[],
+    onLoad?: (result: T) => void,
+    onProgress?: (event: ProgressEvent) => void,
+    onError?: (event: ErrorEvent) => void,
+  ): unknown
+  loadAsync(urls: string[], onProgress?: (event: ProgressEvent) => void): Promise<T>
+}
+
+export type Loader<T> = LoaderSingle<T> | LoaderMultiple<T>
 
 export type LoaderProto<T> = new (...args: any[]) => Loader<T>
 export type LoaderResult<T> = T extends { scene: THREE.Object3D } ? T & ObjectMap : T
@@ -30,6 +65,53 @@ export function useThree() {
   return store
 }
 
+export const suspenseContext = createContext<{
+  addResource: (value: Resource<any>) => void
+  resolved: boolean
+}>(null!)
+
+export function useSuspense() {
+  return useContext(suspenseContext)
+}
+
+export function ThreeSuspense(props: { children: JSX.Element; fallback?: JSX.Element }) {
+  const [resources, setResources] = createSignal<Resource<any>[]>([])
+
+  return (
+    <Suspense fallback={props.fallback}>
+      {(() => {
+        const resolved = createLazyMemo(() => {
+          let resolved = true
+          for (let resource of resources()) {
+            const result = resource()
+            if (!result) {
+              resolved = false
+              break
+            }
+          }
+          return resolved
+        })
+        return (
+          <suspenseContext.Provider
+            value={{
+              addResource: (resource) => {
+                setResources((resources) => {
+                  if (!resources.includes(resource)) return [...resources, resource]
+                  return resources
+                })
+              },
+              get resolved() {
+                return resolved()
+              },
+            }}>
+            {props.children}
+          </suspenseContext.Provider>
+        )
+      })()}
+    </Suspense>
+  )
+}
+
 /**
  * Executes a callback before render in a shared frame loop.
  * Can order effects with render priority or manually render with a positive priority.
@@ -39,15 +121,14 @@ export function useThree() {
 export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
   const store = useThree()
   let cleanup: () => void
-  // s3f:   I added a queueMicroTask so that useFrame will run after possible references are set
-  queueMicrotask(() => {
+  createEffect(() => {
     cleanup = store.internal?.subscribe(
       (state, delta, frame) => untrack(() => callback(state, delta, frame)),
       renderPriority,
       store,
     )
+    onCleanup(() => cleanup?.())
   })
-  onCleanup(() => cleanup?.())
 }
 
 /**
@@ -58,18 +139,22 @@ export function useGraph(object: THREE.Object3D) {
   return createMemo(() => buildGraph(object))
 }
 
-function loadingFn<L extends LoaderProto<any>>(
-  extensions?: Extensions<L>,
+function loadingFn<TSource extends any, TLoader extends LoaderProto<TSource>>(
+  extensions?: Extensions<TLoader>,
   onProgress?: (event: ProgressEvent<EventTarget>) => void,
 ) {
-  return function (Proto: L, ...input: string[]) {
+  return function (Proto: TLoader, ...inputs: string[]) {
     // Construct new loader and run extensions
     const loader = new Proto()
     if (extensions) extensions(loader)
     // Go through the urls and load them
-    return Promise.all(
-      input.map(
-        (input) =>
+    return Promise.all<TSource>(
+      inputs.map(async (input) => {
+        const cacheKey = Proto.name + input
+        if (loaderCache.has(cacheKey)) {
+          return loaderCache.get(cacheKey)
+        }
+        const result = await (() =>
           new Promise((res, reject) =>
             loader.load(
               input,
@@ -80,10 +165,46 @@ function loadingFn<L extends LoaderProto<any>>(
               onProgress,
               (error) => reject(new Error(`Could not load ${input}: ${error.message})`)),
             ),
-          ),
-      ),
+          ))()
+        loaderCache.set(cacheKey, result)
+        return result
+      }),
     )
   }
+}
+
+/**
+ * A custom resource that works together with `<T.Suspense/>`.
+ * Will prevent creation of THREE-elements
+ */
+export function createThreeResource<T, R = unknown>(
+  fetcher: ResourceFetcher<true, T, R>,
+  options: InitializedResourceOptions<NoInfer<T>, true>,
+): InitializedResourceReturn<T, R>
+export function createThreeResource<T, R = unknown>(
+  fetcher: ResourceFetcher<true, T, R>,
+  options?: ResourceOptions<NoInfer<T>, true>,
+): ResourceReturn<T, R>
+export function createThreeResource<T, S, R = unknown>(
+  source: ResourceSource<S>,
+  fetcher: ResourceFetcher<S, T, R>,
+  options: InitializedResourceOptions<NoInfer<T>, S>,
+): InitializedResourceReturn<T, R>
+export function createThreeResource<T, S, R = unknown>(
+  source: ResourceSource<S>,
+  fetcher: ResourceFetcher<S, T, R>,
+  options?: ResourceOptions<NoInfer<T>, S>,
+): ResourceReturn<T, R>
+export function createThreeResource(...args: any[]) {
+  const [_resource, ...rest] = createResource(...args)
+  const resource = () => {
+    const suspense = useSuspense()
+    if (suspense) {
+      suspense.addResource(_resource)
+    }
+    return _resource()
+  }
+  return [resource, ...rest]
 }
 
 const loaderCache = new Map()
@@ -94,53 +215,32 @@ const loaderCache = new Map()
  */
 export function useLoader<T, U extends string | string[] | string[][]>(
   Proto: LoaderProto<T>,
-  input: U,
+  input: U | Accessor<U>,
   extensions?: Extensions<T>,
   onProgress?: (event: ProgressEvent) => void,
 ) {
   // Use createResource to load async assets
-
-  return Array.isArray(input)
-    ? input.map(
-        (input) =>
-          createResource(
-            () => [Proto, input] as const,
-            async ([Proto, ...keys]) => {
-              if (loaderCache.has([Proto.name, ...keys].join('-'))) {
-                return loaderCache.get([Proto.name, ...keys].join('-'))
-              }
-              const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
-              loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
-              if (Array.isArray(input)) return data
-              return data[0]
-            },
-          )[0],
-      )
-    : createResource(
-        () => [Proto, input] as const,
-        async ([Proto, ...keys]) => {
-          if (loaderCache.has([Proto.name, ...keys].join('-'))) {
-            return loaderCache.get([Proto.name, ...keys].join('-'))
-          }
-          const data = await loadingFn(extensions, onProgress)(Proto as any, ...(keys as any))
-          loaderCache.set([Proto.name, ...keys].join('-'), Array.isArray(input) ? data : data[0])
-          if (Array.isArray(input)) return data
-          return data[0]
-        },
-      )[0]
+  return createThreeResource(
+    () => [Proto, resolveAccessor(input)] as const,
+    async ([Proto, _keys]) => {
+      const keys = (Array.isArray(_keys) ? _keys : [_keys]) as string[]
+      const results = await loadingFn(extensions, onProgress)(Proto as any, ...keys)
+      return Array.isArray(_keys) ? (results as T[]) : (results[0] as T)
+    },
+  )[0] as Resource<U extends any[] ? T[] : T>
 }
 
-// /**
-//  * Preloads an asset into cache as a side-effect.
-//  */
-// useLoader.preload = function <T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U,
-//   extensions?: Extensions,
-// ) {
-//   const keys = (Array.isArray(input) ? input : [input]) as string[]
-//   return preload(loadingFn<T>(extensions), [Proto, ...keys])
-// }
+/**
+ * Preloads an asset into cache as a side-effect.
+ */
+/* useLoader.preload = function <T, U extends string | string[]>(
+  Proto: new () => LoaderResult<T>,
+  input: U,
+  extensions?: Extensions,
+) {
+  const keys = (Array.isArray(input) ? input : [input]) as string[]
+  return preload(loadingFn<T>(extensions), [Proto, ...keys])
+} */
 
 /**
  * Removes a loaded asset from cache.

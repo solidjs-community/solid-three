@@ -12,7 +12,7 @@ export type {
 export * from './hooks'
 export { addAfterEffect, addEffect, addTail, flushGlobalEffects } from './loop'
 export type { GlobalEffectType, GlobalRenderCallback } from './loop'
-export { Primitive, T, extend } from './proxy'
+export { Primitive, T, createThreeComponent, extend } from './proxy'
 export type { AttachFnType, AttachType, ConstructorRepresentation, Instance, InstanceProps } from './proxy'
 export {
   Portal,

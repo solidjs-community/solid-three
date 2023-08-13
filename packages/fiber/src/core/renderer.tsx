@@ -1,11 +1,11 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createEffect, createMemo, splitProps, type JSX } from 'solid-js'
+import { createMemo, createRenderEffect, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
 import { createLoop } from './loop'
-import { parentChildren } from './proxy'
+import { manageChildren } from './proxy'
 import { context, createThreeStore, isRenderer } from './store'
 import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 
@@ -341,14 +341,17 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
         },
       )
 
+      const children = (
+        <Provider store={store} rootElement={canvas} onCreated={onCreated}>
+          {props.children}
+        </Provider>
+      )
+
       // s3f    children of <Canvas/> are being attached to the Instance<typeof store.scene>
-      parentChildren(() => store.scene, {
-        children: (
-          <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-            {props.children}
-          </Provider>
-        ),
-      })
+      manageChildren(
+        () => store.scene,
+        () => children,
+      )
 
       // s3f:  this code will break when used in a worker.
       insert(canvas.parentElement!, store.gl.domElement)
@@ -482,13 +485,16 @@ export function Portal(props: PortalProps) {
     const set = (...args) => setStore(...args)
     const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
     const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
-    createEffect(() => onMutate(previousRoot))
+    createRenderEffect(() => onMutate(previousRoot))
     return store
   })
 
-  parentChildren(() => scene.object, {
-    children: <context.Provider value={usePortalStore()}>{props.children}</context.Provider>,
-  })
+  const children = <context.Provider value={usePortalStore()}>{props.children}</context.Provider>
+
+  manageChildren(
+    () => scene.object,
+    () => children,
+  )
 
   return <></>
 }
