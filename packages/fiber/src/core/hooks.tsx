@@ -12,11 +12,11 @@ import {
   ResourceSource,
   Suspense,
   createContext,
-  createEffect,
   createMemo,
   createResource,
   createSignal,
   onCleanup,
+  onMount,
   untrack,
   useContext,
 } from 'solid-js'
@@ -121,7 +121,7 @@ export function ThreeSuspense(props: { children: JSX.Element; fallback?: JSX.Ele
 export function useFrame(callback: RenderCallback, renderPriority: number = 0): void {
   const store = useThree()
   let cleanup: () => void
-  createEffect(() => {
+  onMount(() => {
     cleanup = store.internal?.subscribe(
       (state, delta, frame) => untrack(() => callback(state, delta, frame)),
       renderPriority,
