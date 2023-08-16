@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Falsey } from '../utils/typeHelpers'
 
 import { useThree } from './hooks'
-import { constructors } from './proxy'
+import { intrinsicElements } from './proxy'
 
 import { produce } from 'solid-js/store'
 import type { AttachType, ConstructorRepresentation, Instance } from './proxy'
@@ -25,7 +25,7 @@ export type ColorManagementRepresentation = { enabled: boolean | never } | { leg
  * The current THREE.ColorManagement instance, if present.
  */
 export const getColorManagement = (): ColorManagementRepresentation | null =>
-  (constructors as any).ColorManagement ?? null
+  (intrinsicElements as any).ColorManagement ?? null
 
 export type NonFunctionKeys<P> = { [K in keyof P]-?: P[K] extends Function ? never : K }[keyof P]
 export type Overwrite<P, O> = Omit<P, NonFunctionKeys<O>> & O

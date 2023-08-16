@@ -51,13 +51,13 @@ export interface Instance<O = any> {
   autoRemovedBeforeAppend?: boolean
 }
 
-export const constructors: Omit<SolidThree.IntrinsicElements, keyof typeof components> = {}
-export const components = {
+export const intrinsicElements: SolidThree.IntrinsicElements = {}
+export const intrinsicComponents: SolidThree.IntrinsicComponents = {
   Suspense: ThreeSuspense,
   Primitive,
 }
 export const extend = (objects: Record<string, ConstructorRepresentation>): void =>
-  void Object.assign(constructors, objects)
+  void Object.assign(intrinsicElements, objects)
 
 export const ParentContext = createContext<() => Instance>()
 
@@ -205,7 +205,7 @@ export function Primitive<T>(
   return getObject as unknown as JSX.Element
 }
 
-const cache = new Map<string, Component<any>>(Object.entries(components))
+const cache = new Map<string, Component<any>>(Object.entries(intrinsicComponents))
 
 declare global {
   namespace SolidThree {
@@ -224,7 +224,7 @@ export type SolidThreeElements = SolidThree.IntrinsicComponents & {
 export function createThreeComponentProxy<Source extends Record<string, any>>(
   source: Source,
 ): ThreeComponentProxy<Source> & SolidThreeElements {
-  Object.assign(constructors, source)
+  Object.assign(intrinsicElements, source)
   return new Proxy<ThreeComponentProxy<Source> & SolidThreeElements>(
     {} as ThreeComponentProxy<Source> & SolidThreeElements,
     {
@@ -232,7 +232,7 @@ export function createThreeComponentProxy<Source extends Record<string, any>>(
         /* Create and memoize a wrapper component for the specified property. */
         if (!cache.has(name)) {
           /* Try and find a constructor within the THREE namespace. */
-          const constructor = source[name as keyof Source] ?? constructors[name]
+          const constructor = source[name as keyof Source] ?? intrinsicElements[name]
 
           /* If nothing could be found, bail. */
           if (!constructor) return undefined
