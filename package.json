@@ -11,6 +11,7 @@
   "scripts": {
     "build:fiber": "pnpm --filter @solid-three/fiber build",
     "watch:fiber": "pnpm --filter @solid-three/fiber watch",
+    "build:drei": "pnpm --filter @solid-three/drei build",
     "dev:playground": "pnpm --filter @solid-three/playground dev",
     "build:playground": "pnpm --filter @solid-three/playground build"
   },
