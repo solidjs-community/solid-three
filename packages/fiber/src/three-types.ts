@@ -4,7 +4,7 @@ import { AttachType, InstanceProps } from './core'
 import { EventHandlers } from './core/events'
 import { Args, ConstructorRepresentation, T } from './core/proxy'
 import { RootState } from './core/store'
-import { Mutable } from './utils/utility-types'
+import { Mutable } from './utils/typeHelpers'
 
 export type Root<TStore = RootState, T = {}> = T & { store: TStore }
 

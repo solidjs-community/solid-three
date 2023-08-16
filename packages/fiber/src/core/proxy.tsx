@@ -18,6 +18,7 @@ import { applyProps, attach, detach, prepare } from './utils'
 
 import { createLazyMemo } from '@solid-primitives/memo'
 import type { ThreeElement } from '../three-types'
+import { AllConstructorParameters } from '../utils/typeHelpers'
 import { EventHandlers } from './events'
 import { RootState } from './store'
 
@@ -26,8 +27,7 @@ export type AttachType<O = any> = string | AttachFnType<O>
 
 export type ConstructorRepresentation = new (...args: any[]) => any
 
-export type Args<T> = T extends ConstructorRepresentation ? ConstructorParameters<T> : any[]
-
+export type Args<T> = T extends ConstructorRepresentation ? AllConstructorParameters<T> : any[]
 export interface InstanceProps<T = any, P = any> {
   args?: Args<P>
   object?: T
