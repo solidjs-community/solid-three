@@ -209,14 +209,15 @@ const cache = new Map<string, Component<any>>(Object.entries(components))
 
 declare global {
   namespace SolidThree {
-    interface IntrinsicElements<T = any> {
-      Suspense: Parameters<typeof ThreeSuspense>[0]
-      Primitive: Parameters<typeof Primitive<T>>[0]
+    interface IntrinsicComponents {
+      Suspense: typeof ThreeSuspense
+      Primitive: typeof Primitive
     }
+    interface IntrinsicElements {}
   }
 }
 
-export type SolidThreeElements = {
+export type SolidThreeElements = SolidThree.IntrinsicComponents & {
   [TKey in keyof SolidThree.IntrinsicElements]: Component<SolidThree.IntrinsicElements[TKey]>
 }
 
