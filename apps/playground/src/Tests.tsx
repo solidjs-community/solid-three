@@ -442,21 +442,13 @@ export default {
     return (
       <>
         <ThreePortal container={virtualScene}>
-          <Box>
+          <Box onClick={() => cameraControlRef?.rotate(Math.PI / 4, 0, true)}>
             <T.MeshBasicMaterial />
           </Box>
-
           <PerspectiveCamera name="FBO Camera" ref={virtualCamera!} position={[0, 0, 5]} />
           <CameraControls ref={cameraControlRef!} camera={virtualCamera!} />
-
-          {/* @ts-ignore */}
-          {/* <T.Color attach="background" args={['hotpink']} /> */}
         </ThreePortal>
-        <Plane
-          args={[4, 4, 4]}
-          onClick={() => {
-            cameraControlRef?.rotate(Math.PI / 4, 0, true)
-          }}>
+        <Plane args={[4, 4, 4]}>
           <T.MeshBasicMaterial map={fbo.texture} />
         </Plane>
       </>
