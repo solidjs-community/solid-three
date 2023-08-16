@@ -1,18 +1,18 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createMemo, createRenderEffect, splitProps, type JSX } from 'solid-js'
+import { createMemo, createRenderEffect, onMount, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import * as THREE from 'three'
 
 import { useThree } from './hooks'
 import { createLoop } from './loop'
 import { manageChildren } from './proxy'
-import { context, createThreeStore, isRenderer } from './store'
+import { context, createThreeStore, isRenderer, privateKeys } from './store'
 import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, updateCamera } from './utils'
 
 import { insert } from 'solid-js/web'
 import type { Root, ThreeElement } from '../three-types'
 import type { ComputeFunction, EventManager } from './events'
-import type { Dpr, Frameloop, Performance, Renderer, RootState, Size } from './store'
+import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size } from './store'
 import type { Camera, EquConfig } from './utils'
 
 // TODO: fix type resolve
@@ -435,7 +435,7 @@ export function createPortal(children: JSX.Element, container: THREE.Object3D, s
 interface PortalProps {
   children: JSX.Element
   state?: InjectState
-  container: THREE.Object3D
+  container: THREE.Scene
 }
 
 export function Portal(props: PortalProps) {
@@ -445,9 +445,27 @@ export function Portal(props: PortalProps) {
   const pointer = new THREE.Vector2()
 
   const store = useThree()
-  const scene = prepare(props.container || store.scene, store, '', {})
+  const scene = createMemo(() => prepare(props.container || store.scene, store, '', {}))
 
   const inject = (rootState: RootState, injectState: RootState) => {
+    const intersect: Partial<RootState> = { ...rootState } // all prev state props
+
+    // Only the fields of "rootState" that do not differ from injectState
+    // Some props should be off-limits
+    // Otherwise filter out the props that are different and let the inject layer take precedence
+    Object.keys(rootState).forEach((key) => {
+      if (
+        // Some props should be off-limits
+        privateKeys.includes(key as PrivateKeys) ||
+        // Otherwise filter out the props that are different and let the inject layer take precedence
+        // Unless the inject layer props is undefined, then we keep the root layer
+        (rootState[key as keyof RootState] !== injectState[key as keyof RootState] &&
+          injectState[key as keyof RootState])
+      ) {
+        delete intersect[key as keyof RootState]
+      }
+    })
+
     let viewport
     if (injectState.camera && state.size) {
       const camera = injectState.camera
@@ -459,10 +477,13 @@ export function Portal(props: PortalProps) {
 
     return {
       // The intersect consists of the previous root state
-      ...rootState,
+      ...intersect,
       set: injectState.set,
       // Portals have their own scene, which forms the root, a raycaster and a pointer
-      scene: props.container as THREE.Scene,
+      // scene: props.container as THREE.Scene,
+      get scene() {
+        return scene().object
+      },
       raycaster,
       pointer,
       mouse: pointer,
@@ -478,23 +499,22 @@ export function Portal(props: PortalProps) {
     } as RootState
   }
 
-  // SOLID-THREE-NOTE:  I am unsure if this will work in solid since the original code
-  //                    relied on subscribing aka deep-tracking rootState
-  const usePortalStore = createMemo(() => {
-    //@ts-ignore
-    const set = (...args) => setStore(...args)
-    const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
-    const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
-    createRenderEffect(() => onMutate(previousRoot))
-    return store
+  // s3f    onMount is added so that Portal creation will be suspendend in case of Suspense
+  onMount(() => {
+    const usePortalStore = createMemo(() => {
+      const set = (...args: any[]) => setStore(...(args as [any]))
+      const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
+      const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
+      createRenderEffect(() => onMutate(previousRoot))
+      return store
+    })
+
+    const children = <context.Provider value={usePortalStore()}>{props.children}</context.Provider>
+    manageChildren(
+      () => scene().object,
+      () => children,
+    )
   })
-
-  const children = <context.Provider value={usePortalStore()}>{props.children}</context.Provider>
-
-  manageChildren(
-    () => scene.object,
-    () => children,
-  )
 
   return <></>
 }
