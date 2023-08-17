@@ -80,7 +80,7 @@ export function Canvas(props: Props) {
       left: 0,
     }
 
-    let root = createRoot<HTMLElement>(canvasRef)
+    let root = createRoot<HTMLCanvasElement>(canvasRef)
     root.configure({
       ...threeProps,
       size,

@@ -27,7 +27,7 @@ import { context } from './store'
 import type { ObjectMap } from './utils'
 import { buildGraph } from './utils'
 
-export interface LoaderSingle<T> extends THREE.Loader {
+export interface Loader<T> extends THREE.Loader {
   load(
     url: string,
     onLoad?: (result: T) => void,
@@ -36,17 +36,6 @@ export interface LoaderSingle<T> extends THREE.Loader {
   ): unknown
   loadAsync(url: string, onProgress?: (event: ProgressEvent) => void): Promise<T>
 }
-export interface LoaderMultiple<T> extends THREE.Loader {
-  load(
-    urls: string[],
-    onLoad?: (result: T) => void,
-    onProgress?: (event: ProgressEvent) => void,
-    onError?: (event: ErrorEvent) => void,
-  ): unknown
-  loadAsync(urls: string[], onProgress?: (event: ProgressEvent) => void): Promise<T>
-}
-
-export type Loader<T> = LoaderSingle<T> | LoaderMultiple<T>
 
 export type LoaderProto<T> = new (...args: any[]) => Loader<T>
 export type LoaderResult<T> = T extends { scene: THREE.Object3D } ? T & ObjectMap : T
@@ -146,6 +135,7 @@ function loadingFn<TSource extends any, TLoader extends LoaderProto<TSource>>(
   return function (Proto: TLoader, ...inputs: string[]) {
     // Construct new loader and run extensions
     const loader = new Proto()
+    //@ts-ignore s3f
     if (extensions) extensions(loader)
     // Go through the urls and load them
     return Promise.all<TSource>(
@@ -196,6 +186,7 @@ export function createThreeResource<T, S, R = unknown>(
   options?: ResourceOptions<NoInfer<T>, S>,
 ): ResourceReturn<T, R>
 export function createThreeResource(...args: any[]) {
+  // @ts-ignore s3f
   const [_resource, ...rest] = createResource(...args)
   const resource = () => {
     const suspense = useSuspense()
@@ -224,7 +215,8 @@ export function useLoader<T, U extends string | string[] | string[][]>(
     () => [Proto, resolveAccessor(input)] as const,
     async ([Proto, _keys]) => {
       const keys = (Array.isArray(_keys) ? _keys : [_keys]) as string[]
-      const results = await loadingFn(extensions, onProgress)(Proto as any, ...keys)
+      //@ts-ignore s3f
+      const results = await loadingFn(extensions, onProgress)(Proto, ...keys)
       return Array.isArray(_keys) ? (results as T[]) : (results[0] as T)
     },
   )[0] as Resource<U extends any[] ? T[] : T>

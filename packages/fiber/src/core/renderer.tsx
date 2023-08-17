@@ -16,8 +16,8 @@ import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Siz
 import type { Camera, EquConfig } from './utils'
 
 // TODO: fix type resolve
-declare var OffscreenCanvas: any
-type OffscreenCanvas = any
+// declare var OffscreenCanvas: any
+// type OffscreenCanvas = any
 
 type Canvas = HTMLCanvasElement | OffscreenCanvas
 
@@ -335,7 +335,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       // s3f:  this code will break when used in a worker.
       createResizeObserver(
-        () => canvas.parentElement!,
+        () => (canvas as HTMLCanvasElement).parentElement!,
         ({ width, height }) => {
           store.setSize(width, height)
         },
@@ -354,7 +354,7 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       )
 
       // s3f:  this code will break when used in a worker.
-      insert(canvas.parentElement!, store.gl.domElement)
+      insert((canvas as HTMLCanvasElement).parentElement!, store.gl.domElement)
 
       return store
     },

@@ -16,7 +16,7 @@ import {
 import * as THREE from 'three'
 
 import type { ThreeElement } from '../three-types'
-import { AllConstructorParameters } from '../utils/typeHelpers'
+import { AllConstructorParameters, MapToComponents } from '../utils/typeHelpers'
 import { when } from '../utils/when'
 import { EventHandlers } from './events'
 import { ThreeSuspense, useSuspense, useThree } from './hooks'
@@ -37,6 +37,7 @@ export interface InstanceProps<T = any, P = any> {
   attach?: AttachType<T>
 }
 
+// s3f: any way we can write this more generally?
 export interface Instance<O = THREE.Object3D> {
   root: RootState
   type: string
@@ -70,14 +71,13 @@ type ThreeComponentProxy<Source> = {
 }
 
 function createThreeObject<T, U>(props: U, create: (prev: T | undefined) => T) {
-  // s3f
-
   const [initialized, setInitialized] = createSignal(false)
 
   const lazyObject = createLazyMemo(create)
   const conditionalObject = createMemo<T | undefined>((prev) =>
     !initialized() || shouldPreventCreation() ? prev : lazyObject(),
   )
+  // @ts-ignore s3f
   manageProps(conditionalObject, props)
 
   setInitialized(true)
@@ -88,7 +88,7 @@ function createThreeObject<T, U>(props: U, create: (prev: T | undefined) => T) {
 export const createThreeComponent = <TSource extends Constructor>(source: TSource): ThreeComponent<TSource> => {
   const Component = (props: any) => {
     const store = useThree()
-    return createThreeObject(props, () => {
+    return createThreeObject(props, (prev) => {
       try {
         const instance = prepare(new source(...(props.args ?? [])), store, '', props) as Instance<THREE.Object3D>
         instance.root = store
@@ -113,7 +113,7 @@ export function resolveAccessor<T>(child: Accessor<T> | T, recursive = false): T
 }
 
 /* manages the relationship between parent and children */
-export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | undefined>, children: Accessor<any>) {
+export function manageChildren(getParent: Accessor<Instance<any>['object'] | undefined>, children: Accessor<any>) {
   const memo = createMemo(() => {
     const result = resolveAccessor(children, true)
     return Array.isArray(result) ? result : [result]
@@ -128,9 +128,11 @@ export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | un
         // s3f    This code is a bit fragile since neither child's or parent's `__r3f` are reactive values.
         if (!child?.__r3f || !parent?.__r3f) return
 
+        /* set parent/children property in __r3f-metadata */
         child.__r3f.parent = parent.__r3f
         if (!parent.__r3f.children.includes(child.__r3f)) parent.__r3f.children.push(child.__r3f)
 
+        /* cleanup parent/children property in __r3f-metadata */
         onCleanup(() => {
           if (!child.__r3f || !parent.__r3f) return
           const index = parent.__r3f.children.indexOf(child.__r3f)
@@ -147,7 +149,7 @@ export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | un
         }
 
         /* Attach children */
-        let type = child.__r3f.props.attach
+        let type = child!.__r3f.props.attach
         if (!type) {
           if (child instanceof THREE.Material) type = 'material'
           else if (child instanceof THREE.BufferGeometry) type = 'geometry'
@@ -156,7 +158,9 @@ export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | un
 
         /* If the instance has an "attach" property, attach it to the parent */
         if (type) {
+          // @ts-ignore s3f
           attach(parent.__r3f, child.__r3f, type)
+          // @ts-ignore s3f
           onCleanup(() => detach(parent.__r3f!, child.__r3f, type))
         }
       })
@@ -197,6 +201,7 @@ export function manageProps(getObject: () => Instance['object'] | undefined, pro
   createRenderEffect(() => when(getObject)((object) => local.ref instanceof Function && local.ref(object)))
 
   /* Automatically dispose */
+  // @ts-ignore s3f
   createRenderEffect(() => when(getObject)((object) => onCleanup(() => object.dispose?.())))
 }
 

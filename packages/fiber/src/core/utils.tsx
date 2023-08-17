@@ -250,6 +250,7 @@ export const applyProp = (object: Instance['object'], prop: string, value: any, 
     applyProps(object[property], { [rest.join('-')]: value })
     return
   }
+  // @ts-ignore s3f
   if (needsUpdate && ((!object[prop] && value) || (object[prop] && !value))) object.needsUpdate = true
   /* If prop is an event-handler */
   if (rootState && /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel)/.test(prop) && object.__r3f) {
@@ -354,7 +355,7 @@ const NEEDS_UPDATE = [
 
 // This function prepares a set of changes to be applied to the instance
 export const applyProps = (
-  object: Instance['object'] | Accessor<Instance['object'] | undefined>,
+  object: Instance<any>['object'] | Accessor<Instance<any>['object'] | undefined>,
   props: { [key: string]: any },
 ) =>
   createRenderEffect(
