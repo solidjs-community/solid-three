@@ -236,34 +236,27 @@ declare global {
   }
 }
 
-export type SolidThreeElements = SolidThree.IntrinsicComponents & {
-  [TKey in keyof SolidThree.IntrinsicElements]: Component<SolidThree.IntrinsicElements[TKey]>
-}
+export type SolidThreeElements = SolidThree.IntrinsicComponents & MapToComponents<SolidThree.IntrinsicElements>
 
-export function createThreeComponentProxy<Source extends Record<string, any>>(
-  source: Source,
-): ThreeComponentProxy<Source> & SolidThreeElements {
+export function createThreeComponentProxy<Source extends Record<string, any>>(source: Source) {
   Object.assign(intrinsicElements, source)
-  return new Proxy<ThreeComponentProxy<Source> & SolidThreeElements>(
-    {} as ThreeComponentProxy<Source> & SolidThreeElements,
-    {
-      get: (_, name: string) => {
-        /* Create and memoize a wrapper component for the specified property. */
-        if (!cache.has(name)) {
-          /* Try and find a constructor within the THREE namespace. */
-          const constructor = source[name as keyof Source] ?? intrinsicElements[name]
+  return new Proxy<ThreeComponentProxy<Source> & SolidThreeElements>({} as any, {
+    get: (_, name: string) => {
+      /* Create and memoize a wrapper component for the specified property. */
+      if (!cache.has(name)) {
+        /* Try and find a constructor within the THREE namespace. */
+        const constructor = source[name as keyof Source] ?? intrinsicElements[name]
 
-          /* If nothing could be found, bail. */
-          if (!constructor) return undefined
+        /* If nothing could be found, bail. */
+        if (!constructor) return undefined
 
-          /* Otherwise, create and memoize a component for that constructor. */
-          cache.set(name, createThreeComponent(constructor))
-        }
+        /* Otherwise, create and memoize a component for that constructor. */
+        cache.set(name, createThreeComponent(constructor))
+      }
 
-        return cache.get(name)
-      },
+      return cache.get(name)
     },
-  )
+  })
 }
 
 /**

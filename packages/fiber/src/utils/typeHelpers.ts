@@ -1,3 +1,5 @@
+import { Component } from 'solid-js'
+
 export type KeyOfOptionals<T> = keyof {
   [K in keyof T as T extends Record<K, T[K]> ? never : K]: T[K]
 }
@@ -119,3 +121,7 @@ export declare type Mutable<T> = {
   -readonly [P in keyof T]: T[P]
 }
 export declare type Falsey = false | '' | 0 | null | undefined
+
+export type MapToComponents<T> = {
+  [TKey in keyof T]: Component<T[TKey]>
+}
