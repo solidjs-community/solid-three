@@ -435,7 +435,7 @@ export function createPortal(children: JSX.Element, container: THREE.Object3D, s
 interface PortalProps {
   children: JSX.Element
   state?: InjectState
-  container: THREE.Scene
+  container: THREE.Object3D
 }
 
 export function Portal(props: PortalProps) {
