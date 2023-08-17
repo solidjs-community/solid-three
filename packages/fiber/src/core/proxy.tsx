@@ -1,3 +1,4 @@
+import { createLazyMemo } from '@solid-primitives/memo'
 import {
   Accessor,
   children,
@@ -5,6 +6,7 @@ import {
   createContext,
   createMemo,
   createRenderEffect,
+  createSignal,
   JSX,
   JSXElement,
   mapArray,
@@ -13,14 +15,13 @@ import {
 } from 'solid-js'
 import * as THREE from 'three'
 
-import { ThreeSuspense, useSuspense, useThree } from './hooks'
-import { applyProps, attach, detach, prepare } from './utils'
-
-import { createLazyMemo } from '@solid-primitives/memo'
 import type { ThreeElement } from '../three-types'
 import { AllConstructorParameters } from '../utils/typeHelpers'
+import { when } from '../utils/when'
 import { EventHandlers } from './events'
+import { ThreeSuspense, useSuspense, useThree } from './hooks'
 import { RootState } from './store'
+import { applyProps, attach, detach, prepare } from './utils'
 
 export type AttachFnType<O = any> = (parent: any, self: O) => () => void
 export type AttachType<O = any> = string | AttachFnType<O>
@@ -36,7 +37,7 @@ export interface InstanceProps<T = any, P = any> {
   attach?: AttachType<T>
 }
 
-export interface Instance<O = any> {
+export interface Instance<O = THREE.Object3D> {
   root: RootState
   type: string
   parent: Instance | null
@@ -68,29 +69,35 @@ type ThreeComponentProxy<Source> = {
   [K in keyof Source]: Source[K] extends Constructor ? ThreeComponent<Source[K]> : undefined
 }
 
+function createThreeObject<T, U>(props: U, create: (prev: T | undefined) => T) {
+  // s3f
+
+  const [initialized, setInitialized] = createSignal(false)
+
+  const lazyObject = createLazyMemo(create)
+  const conditionalObject = createMemo<T | undefined>((prev) =>
+    !initialized() || shouldPreventCreation() ? prev : lazyObject(),
+  )
+  manageProps(conditionalObject, props)
+
+  setInitialized(true)
+
+  return conditionalObject as unknown as JSX.Element
+}
+
 export const createThreeComponent = <TSource extends Constructor>(source: TSource): ThreeComponent<TSource> => {
   const Component = (props: any) => {
     const store = useThree()
-
-    const memoObject = createLazyMemo(() => {
+    return createThreeObject(props, () => {
       try {
         const instance = prepare(new source(...(props.args ?? [])), store, '', props) as Instance<THREE.Object3D>
         instance.root = store
-        manageProps(() => instance.object, props)
         return instance.object
       } catch (e) {
         console.error(e)
         throw new Error('')
       }
     })
-
-    const getObject = createMemo<Instance<THREE.Object3D>['object'] | undefined>((prev) =>
-      shouldPreventCreation() ? prev : memoObject(),
-    )
-    const getChildren = children(() => props.children)
-    createRenderEffect(() => manageChildren(getObject, getChildren))
-
-    return getObject as unknown as JSX.Element
   }
 
   return Component
@@ -118,6 +125,7 @@ export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | un
         const parent = getParent()
         const child = resolveAccessor(_child, true)
 
+        // s3f    This code is a bit fragile since neither child's or parent's `__r3f` are reactive values.
         if (!child?.__r3f || !parent?.__r3f) return
 
         child.__r3f.parent = parent.__r3f
@@ -156,20 +164,40 @@ export function manageChildren<T>(getParent: Accessor<Instance<T>['object'] | un
   )
 }
 
-export function manageProps(getObject: () => Instance['object'], props: any) {
+export function manageProps(getObject: () => Instance['object'] | undefined, props: any) {
   const [local, instanceProps] = splitProps(props, ['ref', 'args', 'object', 'attach', 'children'])
 
-  /* Assign ref */
-  createRenderEffect(() => local.ref instanceof Function && local.ref(getObject()))
+  // s3f    - `Initial` = false
+  //        - `manageChildren` w object === undefined
+  //            - `Initial` = false
+  //            - `manageChildren` w object === undefined
+  //                - ...
+  //            - `applyProps` w object === undefined
+  //            - `Initial` = true
+  //            -  create object
+  //            - `manageChildren` w object
+  //            - `applyProps` w object
+  //        - `applyProps` w object === undefined
+  //        - `Initial` = true
+  //        -  create object
+  //        - `manageChildren` w object
+  //        - `applyProps` w object
+
+  //        if during the initial `applyProps` or `manageChildren` we encounter a resource
+  //        T.Suspense is activated
+
+  /* Connect or assign children to THREE-instance */
+  const getChildren = children(() => props.children)
+  createRenderEffect(() => manageChildren(getObject, getChildren))
 
   /* Apply the props to THREE-instance */
-  createRenderEffect(() => applyProps(getObject(), instanceProps))
+  createRenderEffect(() => applyProps(getObject, instanceProps))
+
+  /* Assign ref */
+  createRenderEffect(() => when(getObject)((object) => local.ref instanceof Function && local.ref(object)))
 
   /* Automatically dispose */
-  createRenderEffect(() => {
-    const object = getObject()
-    onCleanup(() => object?.dispose?.())
-  })
+  createRenderEffect(() => when(getObject)((object) => onCleanup(() => object.dispose?.())))
 }
 
 const shouldPreventCreation = () => {
@@ -187,22 +215,13 @@ export function Primitive<T>(
 ) {
   const store = useThree()
 
-  const memoObject = createLazyMemo<Instance<T>['object'] | undefined>((prev) => {
+  return createThreeObject(props, (prev) => {
     if (!props.object) return prev
     /* Prepare instance */
     const instance = prepare(props.object, store, '', props)
     instance.root = store
-    manageProps(() => instance.object, props)
     return instance.object
-  })
-
-  const getObject = createMemo<Instance<T>['object'] | undefined>((prev) =>
-    shouldPreventCreation() ? prev : memoObject(),
-  )
-  const getChildren = children(() => props.children)
-  createRenderEffect(() => manageChildren(getObject, getChildren))
-
-  return getObject as unknown as JSX.Element
+  }) as unknown as JSX.Element
 }
 
 const cache = new Map<string, Component<any>>(Object.entries(intrinsicComponents))

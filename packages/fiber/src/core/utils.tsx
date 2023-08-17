@@ -173,11 +173,10 @@ export function prepare<T = any>(target: T, root: RootState, type: string, props
     }
     if (object) {
       object.__r3f = instance
-      if (type) applyProps(object, instance.props)
     }
   }
 
-  return instance
+  return instance as unknown as Instance<T>
 }
 
 export function resolve(root: any, key: string): { root: any; key: string; target: any } {
@@ -354,17 +353,28 @@ const NEEDS_UPDATE = [
 ]
 
 // This function prepares a set of changes to be applied to the instance
-export const applyProps = (object: Instance['object'], props: { [key: string]: any }) =>
+export const applyProps = (
+  object: Instance['object'] | Accessor<Instance['object'] | undefined>,
+  props: { [key: string]: any },
+) =>
   createRenderEffect(
     mapArray(
       () => Object.keys(props),
       (key) => {
-        /* We wrap it in an effect only if a prop is a getter or a function */
-        const descriptors = Object.getOwnPropertyDescriptor(props, key)
-        const isDynamic = !!(descriptors?.get || typeof descriptors?.value === 'function')
-        const needsUpdate = NEEDS_UPDATE.includes(key)
-        const update = (value: any) => applyProp(object, key, value, needsUpdate)
-        isDynamic ? createRenderEffect(on(() => props[key], update)) : update(props[key])
+        createRenderEffect(
+          on(
+            () => (typeof object === 'function' ? object() : object),
+            (object) => {
+              if (!object) return
+              /* We wrap it in an effect only if a prop is a getter or a function */
+              const descriptors = Object.getOwnPropertyDescriptor(props, key)
+              const isDynamic = !!(descriptors?.get || typeof descriptors?.value === 'function')
+              const needsUpdate = NEEDS_UPDATE.includes(key)
+              const update = (value: any) => applyProp(object, key, value, needsUpdate)
+              isDynamic ? createRenderEffect(on(() => props[key], update)) : update(props[key])
+            },
+          ),
+        )
       },
     ),
   )
