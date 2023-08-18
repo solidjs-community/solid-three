@@ -22,7 +22,7 @@ import {
 } from 'solid-js'
 import * as THREE from 'three'
 import { resolveAccessor } from './proxy'
-import type { RenderCallback } from './store'
+import type { RenderCallback, RootState } from './store'
 import { context } from './store'
 import type { ObjectMap } from './utils'
 import { buildGraph } from './utils'
@@ -45,12 +45,15 @@ export type Extensions<T> = (loader: Loader<T>) => void
  * Accesses R3F's internal state, containing renderer, canvas, scene, etc.
  * @see https://docs.pmnd.rs/react-three-fiber/api/hooks#usethree
  */
-export function useThree() {
+export function useThree(): RootState
+export function useThree<T>(callback: (value: RootState) => T): Accessor<T>
+export function useThree(callback?: (value: RootState) => any)  {
   const store = useContext(context)
   if (!store) {
     // console.error('R3F: Hooks can only be used within the Canvas component!')
     throw new Error('R3F: Hooks can only be used within the Canvas component!')
   }
+  if(callback) return () => callback(store)
   return store
 }
 
