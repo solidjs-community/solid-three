@@ -177,7 +177,7 @@ export function manageProps<T>(getObject: () => Instance<T>['object'] | undefine
 
   /* Automatically dispose */
   // @ts-ignore s3f
-  createRenderEffect(() => onCleanup(() => getObject().dispose?.()))
+  onCleanup(() => getObject()?.dispose?.())
 }
 
 export function Primitive<T>(
