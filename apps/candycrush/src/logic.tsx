@@ -45,12 +45,8 @@ const getMatches = (state: GameState) => {
   return Array.from(new Set(state.flatMap((row, i) => row.flatMap((_, j) => evaluateCell([i, j])))))
 }
 
-const clearMatches = (state: GameState) => {
-  return temp
-}
-
-const dropGems = (state: GameState) => {
-  const createColumn = (state: Matrix<Color | undefined>, row: number) => {
+const dropGems = (state: GameState) =>
+  state.map((_, row) => {
     let segments: Color[][] = [[]]
     let column = 0
     while (column < AMOUNT) {
@@ -63,17 +59,7 @@ const dropGems = (state: GameState) => {
       column++
     }
     return segments.flatMap((v) => v)
-  }
-
-  const columns = state[0].map((_, i) => createColumn(state, i))
-  const result: Matrix<Color | undefined> = columns.map((row, i) => [])
-  columns.forEach((column, i) => {
-    column.forEach((color, j) => {
-      result[i][j] = color
-    })
   })
-  return result
-}
 
 const fillBoard = (state: GameState) => {
   const temp = state.map((row) => [...row])

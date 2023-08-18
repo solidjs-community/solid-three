@@ -12,7 +12,7 @@ import {
   type Component,
 } from 'solid-js'
 
-import { Box, Icosahedron, OrthographicCamera } from '@solid-three/drei'
+import { Box, Icosahedron, OrthographicCamera, Plane, useCubeTexture } from '@solid-three/drei'
 import { Canvas, T } from '@solid-three/fiber'
 import { extend } from 'colord'
 import namesPlugin from 'colord/plugins/names'
@@ -93,8 +93,10 @@ function createTween<const T extends number | number[] | Record<string, number>>
   }) as Accessor<T>
 }
 
+const envMap = useCubeTexture(['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'], { path: 'assets/cube/' })
+
 const Gem = (props: {
-  color: Color
+  color: Color | undefined
   type?: Shape
   position: Vector
   hovered: boolean
@@ -108,17 +110,20 @@ const Gem = (props: {
   const scale = createTween(() => props.hovered, 0.7, 1)
 
   return (
-    <Show when={props.color}>
+    <Show when={props.color && envMap()}>
       <T.Group position={[pos(props.position[0], AMOUNT), pos(props.position[1], AMOUNT), 0]}>
         <Box
           scale={SIZE}
           onPointerOver={() => props.onPointerOver(props.position)}
           onPointerOut={() => props.onPointerOut(props.position)}
-          onPointerDown={() => props.onPointerDown(props.position)}>
-          <T.MeshBasicMaterial wireframe visible={props.hovered} />
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            props.onPointerDown(props.position)
+          }}>
+          <T.MeshBasicMaterial wireframe visible={props.hovered} color="white" />
         </Box>
         <Dynamic component={Icosahedron} rotation={rotation()} scale={scale()}>
-          <T.MeshStandardMaterial color={props.color} />
+          <T.MeshPhysicalMaterial roughness={0} color={props.color} envMap={envMap()} />
         </Dynamic>
       </T.Group>
     </Show>
@@ -138,10 +143,11 @@ const App: Component = () => {
     setTimeout(() => evaluateState(state, setState, addToScore), DELAY)
   })
 
+  const clearSelection = () => {
+    setSelected()
+    setHoverSelection([])
+  }
   const highlightPosition = ([row, column]: Vector) => {
-    if (selected()) {
-      return
-    }
     const directions = [
       [1, 0],
       [0, 1],
@@ -170,17 +176,26 @@ const App: Component = () => {
     }
     setHoverSelection([])
   }
-  const onPointerOver = ([row, column]: Vector) => highlightPosition([row, column])
+  const onPointerOver = ([row, column]: Vector) => {
+    if (selected()) {
+      return
+    }
+    highlightPosition([row, column])
+  }
   const onPointerDown = ([row, column]: Vector) => {
     const _selected = selected()
     if (_selected) {
-      if (!isEqual(_selected, [row, column]) && hoverSelection().find((value) => isEqual(value, [row, column]))) {
+      if (isEqual(_selected, [row, column])) return
+      if (hoverSelection().find((value) => isEqual(value, [row, column]))) {
         swapElements(_selected, [row, column])
         setTimeout(() => evaluateState(state, setState, addToScore), DELAY)
+        return
       }
-    } else {
-      setSelected([row, column])
+      setSelected()
+      highlightPosition([row, column])
+      return
     }
+    setSelected([row, column])
   }
 
   const isSelected = createSelector(selected, (a, b) => isEqual(a, b))
@@ -203,8 +218,9 @@ const App: Component = () => {
         {score()}
       </div>
       <Canvas style={{ width: '100vw', height: '100vh', cursor: hoverSelection().length > 0 ? 'pointer' : undefined }}>
-        <T.Color attach="background" args={['goldenrod']} />
-        <T.DirectionalLight />
+        <OrthographicCamera makeDefault position={[0, 0, 2]} zoom={40} />
+        {/* <OrbitControls /> */}
+        <T.DirectionalLight castShadow />
         <T.AmbientLight />
         <T.Group position={[0, 0, 0]}>
           <Index each={state}>
@@ -225,7 +241,11 @@ const App: Component = () => {
             )}
           </Index>
         </T.Group>
-        <OrthographicCamera makeDefault position={[0, 0, 2]} zoom={40} />
+        <Plane scale={100} position-z={-5} onPointerDown={clearSelection}>
+          <T.MeshBasicMaterial>
+            <T.Color attach="color" args={['goldenrod']} />
+          </T.MeshBasicMaterial>
+        </Plane>
       </Canvas>
     </>
   )
