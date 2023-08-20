@@ -87,7 +87,7 @@ const TETROMINO_COLORS = {
 const rotateMatrix = (matrix: Matrix<number>) =>
   matrix[0].map((val, index) => matrix.map((row) => row[index]).reverse())
 
-type Tetromino = keyof typeof TETROMINO_SHAPES
+type TetrominoType = keyof typeof TETROMINO_SHAPES
 
 function isEqual<T extends any[] | undefined>(a: T, b: T) {
   return a && b && a.findIndex((_, index) => a[index] !== b[index]) === -1
@@ -141,18 +141,23 @@ function createTween<const T extends number | number[] | Record<string, number>>
 
 const envMap = useCubeTexture(['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'], { path: 'assets/cube/' })
 
-const Cell = (props: { position: Vector; color: string; scale?: number }) => {
+const Cell = (props: { position: Vector; color: string; scale?: number; opacity: number }) => {
   return (
     <RoundedBox
       scale={props.scale || 1}
       radius={0.25}
       position={[props.position[0] - 0.25, props.position[1] - 0.25, -0.25]}>
-      <T.MeshPhysicalMaterial color={props.color} envMap={envMap()} opacity={0.8} transparent />
+      <T.MeshPhysicalMaterial color={props.color} envMap={envMap()} opacity={props.opacity} transparent />
     </RoundedBox>
   )
 }
 
-const Tetromino = (props: { type: Tetromino; state: ValueOfObject<typeof TETROMINO_SHAPES>; position: Vector }) => {
+const Tetromino = (props: {
+  type: TetrominoType
+  state: ValueOfObject<typeof TETROMINO_SHAPES>
+  position: Vector
+  preview?: boolean
+}) => {
   return (
     <For each={props.state}>
       {(row, x) => (
@@ -163,6 +168,7 @@ const Tetromino = (props: { type: Tetromino; state: ValueOfObject<typeof TETROMI
                 position={[props.position[0] + x(), props.position[1] + y()]}
                 color={TETROMINO_COLORS[props.type]}
                 scale={0.9}
+                opacity={props.preview ? 0.35 : 1}
               />
             </Show>
           )}
@@ -175,7 +181,7 @@ const Tetromino = (props: { type: Tetromino; state: ValueOfObject<typeof TETROMI
 const getTetromino = () => {
   const type = Object.keys(TETROMINO_SHAPES)[
     Math.floor(Math.random() * (Object.keys(TETROMINO_SHAPES).length - 1))
-  ] as Tetromino
+  ] as TetrominoType
 
   return {
     state: TETROMINO_SHAPES[type],
@@ -198,7 +204,7 @@ const App: Component = () => {
   const [level, setLevel] = createSignal(1)
 
   const [currentTetromino, setCurrentTetromino] = createStore<{
-    type: Tetromino
+    type: TetrominoType
     state: Matrix<number>
     position: Vector
   }>(getTetromino())
@@ -248,20 +254,22 @@ const App: Component = () => {
     ),
   )
 
-  const dropCurrentTetromino = () => {
+  const getDroppedOffset = (tetromino = currentTetromino) => {
     let offset = 0
     while (true) {
-      if (getCollisions({ offset: [0, offset - 1] })) {
+      if (getCollisions({ ...tetromino, offset: [0, offset - 1] })) {
         break
       }
       offset--
     }
+    return offset
+  }
+
+  const dropCurrentTetromino = () => {
+    const offset = getDroppedOffset()
     setCurrentTetromino('position', 1, (y) => y + offset)
     addCurrentTetrominoToBoard()
     phases.evaluate()
-    // addNextCurrentTetromino()
-    // evaluateState()
-    // phases.evaluate()
   }
   const rotate = () => {
     const matrix = rotateMatrix(currentTetromino.state)
@@ -285,11 +293,11 @@ const App: Component = () => {
   const getCollisions = (config?: { state?: Matrix<number>; offset?: Vector; position?: Vector }) => {
     let collision = false
     const state = config?.state || currentTetromino.state
-    const position = config?.position
-      ? config.position
-      : config?.offset
-      ? ([currentTetromino.position[0] + config.offset[0], currentTetromino.position[1] + config.offset[1]] as Vector)
-      : currentTetromino.position
+    const initialPosition = config?.position ? config.position : currentTetromino.position
+    const position = config?.offset
+      ? ([initialPosition[0] + config.offset[0], initialPosition[1] + config.offset[1]] as Vector)
+      : initialPosition
+
     for (let x = 0; x < state.length; x++) {
       const row = state[x]
       for (let y = 0; y < row.length; y++) {
@@ -445,6 +453,13 @@ const App: Component = () => {
     phases.update()
   })
 
+  const previewTetromino = createMemo(
+    on(getDroppedOffset, (offset) => ({
+      ...currentTetromino,
+      position: [currentTetromino.position[0], currentTetromino.position[1] + offset] satisfies Vector,
+    })),
+  )
+
   return (
     <>
       <Portal>
@@ -483,6 +498,7 @@ const App: Component = () => {
       <T.DirectionalLight castShadow position={[5, 10, 2]} />
       <T.AmbientLight intensity={0.5} />
       <Tetromino {...currentTetromino} />
+      <Tetromino {...previewTetromino()} preview />
     </>
   )
 }
