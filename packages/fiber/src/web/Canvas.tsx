@@ -105,7 +105,7 @@ export function Canvas(props: Props) {
       },
     })
 
-    root.render(props)
+    root.render(() => props.children)
   })
 
   // When the event source is not this div, we need to set pointer-events to none

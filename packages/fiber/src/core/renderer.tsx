@@ -116,7 +116,7 @@ export interface ReconcilerRoot<TCanvas extends Canvas> {
   // s3f    solid-three has to pass the element to render as { children: JSX.Element }
   //        otherwise we would have to do .render(props.children) inside Canvas
   //        which would cause the children to be resolved too early.
-  render: (props: { children: JSX.Element }) => RootState
+  render: (children: Accessor<JSX.Element>) => RootState
   unmount: () => void
 }
 
@@ -329,25 +329,22 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
 
       return this
     },
-    render(props) {
+    render(getChildren) {
       // The root has to be configured before it can be rendered
       if (!configured) this.configure()
 
       // s3f:  this code will break when used in a worker.
       createResizeObserver(
         () => (canvas as HTMLCanvasElement).parentElement!,
-        ({ width, height }) => {
-          store.setSize(width, height)
-        },
+        ({ width, height }) => store.setSize(width, height),
       )
 
       const children = (
         <Provider store={store} rootElement={canvas} onCreated={onCreated}>
-          {props.children}
+          {getChildren()}
         </Provider>
       )
 
-      // s3f    children of <Canvas/> are being attached to the Instance<typeof store.scene>
       manageChildren(
         () => store.scene,
         () => children,
