@@ -425,7 +425,11 @@ export type InjectState = Partial<
   }
 >
 
-export function createPortal(children: JSX.Element, container: THREE.Object3D, state?: InjectState): JSX.Element {
+export function createPortal(
+  children: JSX.Element | Accessor<JSX.Element>,
+  container: THREE.Object3D,
+  state?: InjectState,
+): JSX.Element {
   return <Portal children={children} container={container} state={state} />
 }
 
@@ -496,22 +500,20 @@ export function Portal(props: PortalProps) {
     } as RootState
   }
 
-  // s3f    onMount is added so that Portal creation will be suspendend in case of Suspense
-  onMount(() => {
-    const usePortalStore = createMemo(() => {
-      const set = (...args: any[]) => setStore(...(args as [any]))
-      const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
-      const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
-      createRenderEffect(() => onMutate(previousRoot))
-      return store
-    })
-
-    const children = <context.Provider value={usePortalStore()}>{props.children}</context.Provider>
-    manageChildren(
-      () => scene().object,
-      () => children,
-    )
+  const usePortalStore = createMemo(() => {
+    const set = (...args: any[]) => setStore(...(args as [any]))
+    const [store, setStore] = createStore<RootState>({ ...rest, set } as RootState)
+    const onMutate = (prev: RootState) => store.set((state) => inject(prev, state))
+    createRenderEffect(() => onMutate(previousRoot))
+    return store
   })
+
+  const children = <context.Provider value={usePortalStore()}>{props.children}</context.Provider>
+
+  manageChildren(
+    () => scene().object,
+    () => children,
+  )
 
   return <></>
 }
