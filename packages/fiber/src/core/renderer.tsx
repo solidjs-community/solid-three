@@ -1,5 +1,5 @@
 import { createResizeObserver } from '@solid-primitives/resize-observer'
-import { createMemo, createRenderEffect, onMount, splitProps, type JSX } from 'solid-js'
+import { Accessor, createMemo, createRenderEffect, mergeProps, splitProps, type JSX } from 'solid-js'
 import { createStore } from 'solid-js/store'
 import * as THREE from 'three'
 
@@ -11,6 +11,7 @@ import { applyProps, calculateDpr, dispose, getColorManagement, is, prepare, upd
 
 import { insert } from 'solid-js/web'
 import type { Root, ThreeElement } from '../three-types'
+import { defaultProps } from '../utils/defaultProps'
 import type { ComputeFunction, EventManager } from './events'
 import type { Dpr, Frameloop, Performance, PrivateKeys, Renderer, RootState, Size } from './store'
 import type { Camera, EquConfig } from './utils'
@@ -153,54 +154,48 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
   let lastCamera: RenderProps<TCanvas>['camera']
 
   return {
-    configure(props: RenderProps<TCanvas> = {}): ReconcilerRoot<TCanvas> {
-      let {
-        gl: glConfig,
-        size: propsSize,
-        scene: sceneOptions,
-        events,
-        onCreated: onCreatedCallback,
-        shadows = false,
-        linear = false,
-        flat = false,
-        legacy = false,
-        orthographic = false,
-        frameloop = 'always',
-        dpr = [1, 2],
-        performance,
-        raycaster: raycastOptions,
-        camera: cameraOptions,
-        onPointerMissed,
-      } = props
+    configure(_props: RenderProps<TCanvas> = {}): ReconcilerRoot<TCanvas> {
+      const options = defaultProps(_props, {
+        shadows: false,
+        linear: false,
+        flat: false,
+        legacy: false,
+        orthographic: false,
+        frameloop: 'always',
+        dpr: [1, 2],
+        raycaster: {},
+      })
 
       // Set up renderer (one time only!)
       let gl = store.gl
-      if (!store.gl) store.set('gl', (gl = createRendererInstance(glConfig, canvas)))
+      if (!store.gl) store.set('gl', (gl = createRendererInstance(options.gl, canvas)))
 
       // Set up raycaster (one time only!)
       let raycaster = store.raycaster
       if (!raycaster) store.set('raycaster', (raycaster = new THREE.Raycaster()))
 
       // Set raycaster options
-      const { params, ...options } = raycastOptions || {}
-      if (!is.equ(options, raycaster, shallowLoose)) applyProps(raycaster, { ...options })
+      const [params, raycasterOptions] = splitProps(options.raycaster, ['params'])
+
+      // const { params, ...raycasterOptions } = options.raycaster
+      if (!is.equ(raycasterOptions, raycaster, shallowLoose)) applyProps(raycaster, raycasterOptions)
       if (!is.equ(params, raycaster.params, shallowLoose))
-        applyProps(raycaster, { params: { ...raycaster.params, ...params } })
+        applyProps(raycaster, { params: mergeProps(raycaster.params, params.params) })
 
       // Create default camera, don't overwrite any user-set state
-      if (!store.camera || (store.camera === lastCamera && !is.equ(lastCamera, cameraOptions, shallowLoose))) {
-        lastCamera = cameraOptions
-        const isCamera = cameraOptions instanceof THREE.Camera
+      if (!store.camera || (store.camera === lastCamera && !is.equ(lastCamera, options.camera, shallowLoose))) {
+        lastCamera = options.camera
+        const isCamera = options.camera instanceof THREE.Camera
         const camera = isCamera
-          ? (cameraOptions as Camera)
-          : orthographic
+          ? (options.camera as Camera)
+          : options.orthographic
           ? new THREE.OrthographicCamera(0, 0, 0, 0, 0.1, 1000)
           : new THREE.PerspectiveCamera(75, 0, 0.1, 1000)
         if (!isCamera) {
           camera.position.z = 5
-          if (cameraOptions) applyProps(camera, cameraOptions as any)
+          if (options.camera) applyProps(camera, options.camera as any)
           // Always look at center by default
-          if (!store.camera && !cameraOptions?.rotation) camera.lookAt(0, 0, 0)
+          if (!store.camera && !options.camera?.rotation) camera.lookAt(0, 0, 0)
         }
         store.set('camera', camera)
       }
@@ -209,13 +204,13 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       if (!store.scene) {
         let scene: THREE.Scene
 
-        if (sceneOptions instanceof THREE.Scene) {
-          scene = sceneOptions
+        if (options.scene instanceof THREE.Scene) {
+          scene = options.scene
           prepare(scene, store, '', {})
         } else {
           scene = new THREE.Scene()
           prepare(scene, store, '', {})
-          if (sceneOptions) applyProps(scene as any, sceneOptions as any)
+          if (options.scene) applyProps(scene as any, options.scene as any)
         }
 
         store.set('scene', scene)
@@ -260,20 +255,20 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       if (gl.shadowMap) {
         const oldEnabled = gl.shadowMap.enabled
         const oldType = gl.shadowMap.type
-        gl.shadowMap.enabled = !!shadows
+        gl.shadowMap.enabled = !!options.shadows
 
-        if (is.boo(shadows)) {
+        if (is.boo(options.shadows)) {
           gl.shadowMap.type = THREE.PCFSoftShadowMap
-        } else if (is.str(shadows)) {
+        } else if (is.str(options.shadows)) {
           const types = {
             basic: THREE.BasicShadowMap,
             percentage: THREE.PCFShadowMap,
             soft: THREE.PCFSoftShadowMap,
             variance: THREE.VSMShadowMap,
           }
-          gl.shadowMap.type = types[shadows] ?? THREE.PCFSoftShadowMap
-        } else if (is.obj(shadows)) {
-          Object.assign(gl.shadowMap, shadows)
+          gl.shadowMap.type = types[options.shadows] ?? THREE.PCFSoftShadowMap
+        } else if (is.obj(options.shadows)) {
+          Object.assign(gl.shadowMap, options.shadows)
         }
 
         if (oldEnabled !== gl.shadowMap.enabled || oldType !== gl.shadowMap.type) gl.shadowMap.needsUpdate = true
@@ -283,8 +278,8 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       // Avoid accessing THREE.ColorManagement to play nice with older versions
       const ColorManagement = getColorManagement()
       if (ColorManagement) {
-        if ('enabled' in ColorManagement) ColorManagement.enabled = !legacy
-        else if ('legacyMode' in ColorManagement) ColorManagement.legacyMode = legacy
+        if ('enabled' in ColorManagement) ColorManagement.enabled = !options.legacy
+        else if ('legacyMode' in ColorManagement) ColorManagement.legacyMode = options.legacy
       }
 
       // Set color space and tonemapping preferences
@@ -293,38 +288,43 @@ export function createRoot<TCanvas extends Canvas>(canvas: TCanvas): ReconcilerR
       applyProps(
         gl as any,
         {
-          outputEncoding: linear ? LinearEncoding : sRGBEncoding,
-          toneMapping: flat ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping,
+          get outputEncoding() {
+            return options.linear ? LinearEncoding : sRGBEncoding
+          },
+          get toneMapping() {
+            return options.flat ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping
+          },
         } as Partial<Properties<THREE.WebGLRenderer>>,
       )
 
       // Update color management state
-      if (store.legacy !== legacy) store.set('legacy', legacy)
-      if (store.linear !== linear) store.set('linear', linear)
-      if (store.flat !== flat) store.set('flat', flat)
+      if (store.legacy !== options.legacy) store.set('legacy', options.legacy)
+      if (store.linear !== options.linear) store.set('linear', options.linear)
+      if (store.flat !== options.flat) store.set('flat', options.flat)
 
       // Set gl props
-      if (glConfig && !is.fun(glConfig) && !isRenderer(glConfig) && !is.equ(glConfig, gl, shallowLoose))
-        applyProps(gl, glConfig as any)
+      if (options.gl && !is.fun(options.gl) && !isRenderer(options.gl) && !is.equ(options.gl, gl, shallowLoose))
+        applyProps(gl, options.gl as any)
       // Store events internally
-      if (events && !store.events.handlers) store.set('events', events(store))
+      if (options.events && !store.events.handlers) store.set('events', options.events(store))
 
       // Check size, allow it to take on container bounds initially
-      const size = computeInitialSize(canvas, propsSize)
+      const size = computeInitialSize(canvas, options.size)
       if (!is.equ(size, store.size, shallowLoose)) {
         store.setSize(size.width, size.height, size.top, size.left)
       }
       // Check pixelratio
-      if (dpr && store.viewport.dpr !== calculateDpr(dpr)) store.setDpr(dpr)
+      if (options.dpr && store.viewport.dpr !== calculateDpr(options.dpr)) store.setDpr(options.dpr)
       // Check frameloop
-      if (store.frameloop !== frameloop) store.setFrameloop(frameloop)
+      if (store.frameloop !== options.frameloop) store.setFrameloop(options.frameloop)
       // Check pointer missed
-      if (!store.onPointerMissed) store.set('onPointerMissed', onPointerMissed)
+      if (!store.onPointerMissed) store.set('onPointerMissed', options.onPointerMissed)
       // Check performance
-      if (performance && !is.equ(performance, store.performance, shallowLoose)) store.set('performance', performance)
+      if (options.performance && !is.equ(options.performance, store.performance, shallowLoose))
+        store.set('performance', options.performance)
 
       // Set locals
-      onCreated = onCreatedCallback
+      onCreated = options.onCreated
       configured = true
 
       return this
