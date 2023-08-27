@@ -17,6 +17,7 @@ import type { ThreeElement } from '../three-types'
 import { AllConstructorParameters, MapToComponents } from '../utils/typeHelpers'
 import { EventHandlers } from './events'
 import { ThreeSuspense, useThree } from './hooks'
+import { Portal } from './renderer'
 import { RootState } from './store'
 import { applyProps, attach, detach, prepare } from './utils'
 
@@ -54,6 +55,7 @@ export const intrinsicElements: SolidThree.IntrinsicElements = {}
 export const intrinsicComponents: SolidThree.IntrinsicComponents = {
   Suspense: ThreeSuspense,
   Primitive,
+  Portal,
 }
 export const extend = (objects: Record<string, ConstructorRepresentation>): void =>
   void Object.assign(intrinsicElements, objects)
@@ -209,6 +211,7 @@ declare global {
     interface IntrinsicComponents {
       Suspense: typeof ThreeSuspense
       Primitive: typeof Primitive
+      Portal: typeof Portal
     }
     interface IntrinsicElements {}
   }
