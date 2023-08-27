@@ -102,6 +102,7 @@ export interface XRManager {
 export interface RootState {
   /** Set current state */
   set: SetStoreFunction<RootState>
+  get: Accessor<RootState>
   /** The instance of the renderer */
   gl: THREE.WebGLRenderer
   /** Default camera */
@@ -202,7 +203,7 @@ const createThreeStore = (
 
   const [rootState, setRootState] = createStore<RootState>({
     set,
-
+    get,
     // Mock objects that have to be configured
     gl: null as unknown as THREE.WebGLRenderer,
     camera: null as unknown as Camera,
