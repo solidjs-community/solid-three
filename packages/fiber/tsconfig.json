@@ -1,10 +1,11 @@
 {
   "extends": "@vinxi/tsconfig/solid-library.json",
-  "include": ["src"],
+  "include": ["src", "tests"],
   "compilerOptions": {
     "outDir": "./types",
     "target": "esnext",
-    "lib": ["dom", "esnext"]
+    "lib": ["dom", "esnext"],
+    "types": ["jest", "node", "offscreencanvas"]
   },
   "exclude": ["dist", "build", "node_modules"]
 }
