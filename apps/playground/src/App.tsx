@@ -1,9 +1,9 @@
-import { OrbitControls } from '@solid-three/drei'
 import { Canvas, T } from '@solid-three/fiber'
 
 import { For, createSignal } from 'solid-js'
 import Tests from './Tests'
 
+import { OrbitControls } from '@solid-three/drei'
 import { Dynamic } from 'solid-js/web'
 import styles from './App.module.css'
 

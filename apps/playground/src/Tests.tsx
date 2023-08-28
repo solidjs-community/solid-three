@@ -1,11 +1,43 @@
-import { Primitive, T, Portal as ThreePortal, createThreeResource, useFrame, useLoader } from '@solid-three/fiber'
-import { Accessor, For, JSX, Match, Show, Switch, createSignal, onCleanup, onMount } from 'solid-js'
+import {
+  Primitive,
+  T,
+  Portal as ThreePortal,
+  createThreeResource,
+  useFrame,
+  useLoader,
+  useThree,
+} from '@solid-three/fiber'
+import {
+  Accessor,
+  For,
+  JSX,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+  splitProps,
+} from 'solid-js'
 import { Portal } from 'solid-js/web'
 import * as THREE from 'three'
 import { Mesh } from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { GLTFLoader, RGBELoader } from 'three-stdlib'
 
-import { CameraControls, PerspectiveCamera, Plane, useFBO, useGLTF } from '@solid-three/drei'
+import {
+  CameraControls,
+  Caustics,
+  CubeCamera,
+  MeshRefractionMaterial,
+  PerspectiveCamera,
+  Plane,
+  Point,
+  PointMaterial,
+  Points,
+  useFBO,
+  useGLTF,
+} from '@solid-three/drei'
 import { createStore } from 'solid-js/store'
 import { Box } from './components/Box'
 import { Sphere } from './components/Sphere'
@@ -426,7 +458,8 @@ export default {
      * we will render our scene in a render target and use it as a map.
      */
     const fbo = useFBO(400, 400)
-    let virtualCamera: CameraControls['camera']
+    // let [virtualCamera, setVirtualCamera] = createSignal<CameraControls['camera']>() //:
+    let virtualCamera
     let cameraControlRef: CameraControls | null
     const virtualScene = new THREE.Scene()
 
@@ -445,12 +478,104 @@ export default {
           <Box onClick={() => cameraControlRef?.rotate(Math.PI / 4, 0, true)}>
             <T.MeshBasicMaterial />
           </Box>
-          <PerspectiveCamera name="FBO Camera" ref={virtualCamera!} position={[0, 0, 5]} />
-          <CameraControls ref={cameraControlRef!} camera={virtualCamera!} />
+          <PerspectiveCamera name="FBO Camera" ref={virtualCamera} position={[0, 0, 5]} />
+          <CameraControls ref={cameraControlRef!} camera={virtualCamera} />
         </ThreePortal>
         <Plane args={[4, 4, 4]}>
           <T.MeshBasicMaterial map={fbo.texture} />
         </Plane>
+      </>
+    )
+  },
+  Points: () => {
+    function PointEvent(_props) {
+      const [props, rest] = splitProps(_props, ['color'])
+
+      const [hovered, setHover] = createSignal(false)
+      const [clicked, setClick] = createSignal(false)
+      return (
+        <Point
+          {...rest}
+          color={clicked() ? 'hotpink' : hovered() ? 'red' : props.color}
+          onPointerOver={(e) => {
+            console.log('over!')
+            setHover(true)
+          }}
+          onPointerOut={(e) => setHover(false)}
+          onClick={(e) => (e.stopPropagation(), setClick((state) => !state))}
+        />
+      )
+    }
+    const points = Array.from({ length: 100 }, (i) => [
+      THREE.MathUtils.randFloatSpread(10),
+      THREE.MathUtils.randFloatSpread(10),
+      THREE.MathUtils.randFloatSpread(10),
+    ])
+
+    const store = useThree()
+
+    createEffect(() => {
+      if (store.raycaster.params.Points) {
+        const old = store.raycaster.params.Points.threshold
+        store.raycaster.params.Points.threshold = 0.175
+        onCleanup(() => {
+          if (store.raycaster.params.Points) store.raycaster.params.Points.threshold = old
+        })
+      }
+    })
+
+    return (
+      <>
+        <Points /* limit={points.length} range={points.length} */>
+          <PointMaterial transparent vertexColors size={15} sizeAttenuation={false} depthWrite={false} />
+          <For each={points}>{(position, i) => <PointEvent color="orange" position={position} />}</For>
+        </Points>
+      </>
+    )
+  },
+  Diamond: () => {
+    let ref
+    const resource = useGLTF('assets/gltf/dflat.glb') as any
+    // Use a custom envmap/scene-backdrop for the diamond material
+    // This way we can have a clear BG while cube-cam can still film other objects
+    const texture = useLoader(
+      RGBELoader,
+      'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/aerodynamics_workshop_1k.hdr',
+    )
+
+    return (
+      <>
+        <Show when={texture() && resource()}>
+          <CubeCamera resolution={256} frames={1} /* envMap={texture()} */>
+            {(texture) => (
+              <>
+                {() => console.log('this mounts!!', texture.format)}
+                <Caustics
+                  // @ts-ignore
+                  backfaces
+                  color="white"
+                  position={[0, -0.5, 0]}
+                  lightSource={[5, 5, -10]}
+                  worldRadius={0.1}
+                  ior={1.8}
+                  backfaceIor={1.1}
+                  intensity={0.1}>
+                  <T.Mesh castShadow ref={ref} geometry={resource()?.nodes.Diamond_1_0.geometry}>
+                    <MeshRefractionMaterial
+                      envMap={texture}
+                      bounces={3}
+                      aberrationStrength={0.01}
+                      ior={2.75}
+                      fresnel={1}
+                      fastChroma
+                      toneMapped={false}
+                    />
+                  </T.Mesh>
+                </Caustics>
+              </>
+            )}
+          </CubeCamera>
+        </Show>
       </>
     )
   },
