@@ -20,7 +20,8 @@
     "postinstall": "pnpm --filter @solid-three/* build"
   },
   "devDependencies": {
-    "@vinxi/tsconfig": "0.0.3"
+    "@vinxi/tsconfig": "0.0.3",
+    "concurrently": "^8.2.0"
   },
   "packageManager": "pnpm@7.26.0"
 }
