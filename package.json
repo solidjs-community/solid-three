@@ -13,7 +13,8 @@
     "watch:fiber": "pnpm --filter @solid-three/fiber watch",
     "build:drei": "pnpm --filter @solid-three/drei build",
     "dev:playground": "pnpm --filter @solid-three/playground dev",
-    "build:playground": "pnpm --filter @solid-three/playground build"
+    "build:playground": "pnpm --filter @solid-three/playground build",
+    "postinstall": "git submodule update --remote && pnpm --filter @solid-three/* build"
   },
   "devDependencies": {
     "@vinxi/tsconfig": "0.0.3"
