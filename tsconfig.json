@@ -1,11 +1,11 @@
 {
   "extends": "@vinxi/tsconfig/solid-library.json",
-  "include": ["./src"],
+  "include": ["packages/fiber/src"],
   "compilerOptions": {
     "outDir": "./types",
-    "rootDir": "./src",
     "target": "esnext",
-    "lib": ["dom", "esnext"]
+    "lib": ["dom", "esnext"],
+    "types": ["jest", "node"]
   },
   "exclude": ["dist", "build", "node_modules"]
 }

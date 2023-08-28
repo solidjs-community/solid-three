@@ -1,0 +1,12 @@
+[submodule "reference/react-three-fiber"]
+	path = reference/react-three-fiber
+	url = https://github.com/pmndrs/react-three-fiber.git
+  branch = v9
+[submodule "solid-drei"]
+	path = packages/drei
+	url = https://github.com/bigmistqke/drei.git
+  branch = solid-drei
+[submodule "solid-xr"]
+	path = packages/solid-xr
+	url = https://github.com/bigmistqke/solid-xr.git
+  branch = solid-xr

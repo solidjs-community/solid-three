@@ -1,0 +1,11 @@
+.options {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  flex-wrap: wrap;
+}
+.option {
+  position: absolute;
+}

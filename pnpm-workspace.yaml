@@ -1,3 +1,4 @@
 packages:
-  - 'playground'
-  - 'src'
+  - 'packages/*'
+  - 'apps/*'
+  - 'references/*'

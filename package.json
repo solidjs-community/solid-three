@@ -1,64 +1,28 @@
 {
   "name": "solid-three",
-  "version": "0.2.0",
   "description": "SolidJS bindings for ThreeJS",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
-  "module": "./dist/index.mjs",
-  "main": "./dist/index.js",
-  "types": "./types/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
-  "files": [
-    "dist/**",
-    "types/**",
-    "README.md"
-  ],
   "scripts": {
-    "test": "vitest",
-    "build:lib": "BUILD_MODE=lib vite build",
-    "build": "vite build",
-    "types": "tsc --emitDeclarationOnly --declarationDir types",
-    "dev": "vite",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
-  },
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs.js"
-    }
+    "build:fiber": "pnpm --filter @solid-three/fiber build",
+    "watch:fiber": "pnpm --filter @solid-three/fiber watch",
+    "build:drei": "pnpm --filter @solid-three/drei build",
+    "dev:playground": "pnpm --filter @solid-three/playground dev",
+    "build:playground": "pnpm --filter @solid-three/playground build",
+    "build:packages": "pnpm --filter @solid-three/* build",
+    "install:packages": "pnpm --filter @solid-three/* install",
+    "prepare": "git submodule init; git submodule update --remote --rebase; git submodule foreach -q --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo master)'",
+    "postinstall": "pnpm --filter @solid-three/* build"
   },
   "devDependencies": {
-    "@types/node": "^18.11.18",
-    "@types/three": "0.149.0",
+    "@types/jest": "^29.5.4",
     "@vinxi/tsconfig": "0.0.3",
-    "esbuild": "^0.16.16",
-    "esbuild-register": "^3.4.2",
-    "remark-gfm": "^3.0.1",
-    "rollup": "^3.9.1",
-    "rollup-plugin-dts": "^5.1.1",
-    "solid-app-router": "^0.1.14",
-    "solid-js": "^1.7.0",
-    "three": "0.149.0",
-    "tsm": "^2.3.0",
-    "tsup": "^6.5.0",
-    "typescript": "^4.9.4",
-    "vite": "4.1.1",
-    "vite-plugin-inspect": "0.7.14",
-    "vite-plugin-solid": "2.5.0"
-  },
-  "peerDependencies": {
-    "solid-js": "*",
-    "three": "*"
-  },
-  "jest": {
-    "preset": "scripts/jest/node"
-  },
-  "dependencies": {
-    "@types/three": "0.149.0",
-    "zustand": "^3.7.2"
+    "concurrently": "^8.2.0"
   },
   "packageManager": "pnpm@7.26.0"
 }
