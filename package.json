@@ -16,7 +16,7 @@
     "build:playground": "pnpm --filter @solid-three/playground build",
     "build:packages": "pnpm --filter @solid-three/* build",
     "install:packages": "pnpm --filter @solid-three/* install",
-    "pnpm:devPreinstall": "git submodule init; git submodule update --remote --rebase; git submodule foreach -q --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo master)'",
+    "prepare": "git submodule init; git submodule update --remote --rebase; git submodule foreach -q --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo master)'",
     "postinstall": "pnpm --filter @solid-three/* build"
   },
   "devDependencies": {
