@@ -6,3 +6,7 @@
 	path = packages/drei
 	url = https://github.com/bigmistqke/drei.git
   branch = solid-drei
+[submodule "solid-xr"]
+	path = packages/solid-xr
+	url = https://github.com/bigmistqke/solid-xr.git
+  branch = solid-xr
