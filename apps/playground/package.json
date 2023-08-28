@@ -30,8 +30,8 @@
     }
   },
   "devDependencies": {
-    "@solid-three/drei": "workspace:0.0.0-semantic-release",
-    "@solid-three/fiber": "workspace:^0.9.0",
+    "@solid-three/drei": "workspace:*",
+    "@solid-three/fiber": "workspace:*",
     "@types/node": "^18.11.18",
     "@types/three": "^0.149.0",
     "@vinxi/tsconfig": "0.0.3",

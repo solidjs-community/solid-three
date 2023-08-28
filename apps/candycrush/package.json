@@ -16,8 +16,8 @@
     "vite-plugin-solid": "^2.7.0"
   },
   "dependencies": {
-    "@solid-three/drei": "workspace:0.0.0-semantic-release",
-    "@solid-three/fiber": "workspace:^0.9.0",
+    "@solid-three/drei": "workspace:*",
+    "@solid-three/fiber": "workspace:*",
     "colord": "^2.9.3",
     "solid-js": "^1.7.6"
   }
