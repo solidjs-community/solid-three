@@ -20,6 +20,7 @@
     "postinstall": "pnpm --filter @solid-three/* build"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.4",
     "@vinxi/tsconfig": "0.0.3",
     "concurrently": "^8.2.0"
   },
