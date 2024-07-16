@@ -33,6 +33,7 @@ import { manageProps, manageSceneGraph } from "./props";
 import { Context } from "./types";
 import { defaultProps } from "./utils/default-props";
 import { removeElementFromArray } from "./utils/remove-element-from-array";
+import { useMeasure } from "./utils/use-measure";
 import { withMultiContexts } from "./utils/with-context";
 
 /**
@@ -42,7 +43,7 @@ import { withMultiContexts } from "./utils/with-context";
  *
  * @param canvas - The HTML canvas element on which Three.js will render.
  * @param props - Configuration properties.
- * @returns - an `S3.Context` with additional properties including eventRegistry and addFrameListener.
+ * @returns - an `SolidThree.Context` with additional properties including eventRegistry and addFrameListener.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" });
@@ -122,8 +123,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new AugmentedStack<Raycaster>("raycaster");
   const glStack = new AugmentedStack<WebGLRenderer>("gl");
 
+  const measure = useMeasure();
+  measure.setElement(canvas);
+
   const context: Context = {
     canvas,
+    get bounds() {
+      return measure.bounds();
+    },
     get pointer() {
       return pointer();
     },

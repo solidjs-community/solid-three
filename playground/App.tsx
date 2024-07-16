@@ -14,6 +14,7 @@ export const App: Component = () => {
       <T.AmbientLight color={[0.2, 0.2, 0.2]} />
       <T.PointLight intensity={1.2} decay={1} position={[2, 2, 5]} rotation={[0, Math.PI / 3, 0]} />
       <Box />
+      <T.ExtrudeGeometry args={[[new THREE.Shape()]]} />
     </Canvas>
   );
 };

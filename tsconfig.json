@@ -1,11 +1,21 @@
 {
-  "extends": "@vinxi/tsconfig/solid-library.json",
-  "include": ["./src", "./tests"],
   "compilerOptions": {
-    "outDir": "./types",
-    "rootDir": "./",
-    "target": "esnext",
-    "lib": ["dom", "esnext"]
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": false,
+    "target": "ESNext"
   },
   "exclude": ["dist", "build", "node_modules"]
 }

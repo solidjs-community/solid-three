@@ -9,6 +9,7 @@ import {
   InstanceFromConstructor,
   Overwrite,
 } from "./type-utils";
+import { Measure } from "./utils/use-measure";
 
 declare global {
   namespace SolidThree {
@@ -31,6 +32,7 @@ export type Context = ContextElements & {
     connect: () => void;
     disconnect: () => void;
   };
+  bounds: Measure;
 };
 
 type ContextElements = {

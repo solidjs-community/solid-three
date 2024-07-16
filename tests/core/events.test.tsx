@@ -283,7 +283,7 @@ describe("events", () => {
     it("should release when the capture target is unmounted", async () => {
       const [hasMesh, setHasMesh] = createSignal(true);
 
-      // s3f:   we do not have a replacement for rerender
+      // S3:   we do not have a replacement for rerender
       const { canvas } = test(() => <PointerCaptureTest hasMesh={hasMesh()} />);
 
       canvas.setPointerCapture = vi.fn();

@@ -2,7 +2,7 @@ import { onCleanup } from "solid-js";
 import { Intersection, Object3D } from "three";
 import { S3 } from "./";
 import { $S3C } from "./augment";
-import { isAugmentedElement } from "./utils/is-augmented-element";
+import { isInstance } from "./utils/is-instance";
 import { removeElementFromArray } from "./utils/remove-element-from-array";
 
 /**
@@ -99,7 +99,7 @@ export const createEvents = (context: S3.Context) => {
       // If event has been stopped with event.stopPropagation() we break out.
       if (event.stopped) break;
       // If node is an AugmentedElement we call the type's event-handler if it is defined.
-      if (isAugmentedElement(node)) {
+      if (isInstance(node)) {
         node[$S3C].props[type]?.(event);
       }
       // We bubble a layer down.

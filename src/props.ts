@@ -23,7 +23,9 @@ import { $S3C } from "./augment";
 import { isEventType } from "./create-events";
 import { useThree } from "./hooks";
 import { addToEventListeners, useCanvasProps } from "./internal-context";
+import { when } from "./utils/conditionals";
 import { hasColorSpace } from "./utils/has-colorspace";
+import { isInstance } from "./utils/is-instance";
 import { resolve } from "./utils/resolve";
 
 /**********************************************************************************/
@@ -54,30 +56,47 @@ export function manageProps<T>(object: Accessor<S3.Instance<T>>, props: any) {
   // Connect or attach children to THREE-instance
   const childrenAccessor = children(() => props.children);
   createRenderEffect(() =>
+    // @ts-expect-error TODO: fix type-error
     manageSceneGraph(object(), childrenAccessor as unknown as Accessor<S3.Instance>),
   );
 
   // Apply the props to THREE-instance
   createRenderEffect(() => {
-    const keys = Object.keys(instanceProps);
-    for (const key of keys) {
-      // An array of sub-property-keys:
-      // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
-      const subKeys = keys.filter(_key => key !== _key && _key.includes(key));
-      createRenderEffect(() => {
-        applyProp(object(), key, instanceProps[key]);
-        // If property updates, apply its sub-properties immediately after.
-        for (const subKey of subKeys) {
-          applyProp(object(), subKey, instanceProps[subKey]);
-        }
-      });
-    }
+    applyProps(object(), instanceProps);
     // NOTE: see "onUpdate should not update itself"-test
     untrack(() => props.onUpdate)?.(object());
   });
 
   // Automatically dispose
-  onCleanup(() => object()?.dispose?.());
+  onCleanup(() =>
+    when(object, object => {
+      if ("dispose" in object && typeof object.dispose === "function") {
+        object.dispose();
+      }
+    }),
+  );
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                   Apply Props                                  */
+/*                                                                                */
+/**********************************************************************************/
+
+export function applyProps<T>(object: S3.Instance<T>, props: any) {
+  const keys = Object.keys(props);
+  for (const key of keys) {
+    // An array of sub-property-keys:
+    // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
+    const subKeys = keys.filter(_key => key !== _key && _key.includes(key));
+    createRenderEffect(() => {
+      applyProp(object, key, props[key]);
+      // If property updates, apply its sub-properties immediately after.
+      for (const subKey of subKeys) {
+        applyProp(object, subKey, props[subKey]);
+      }
+    });
+  }
 }
 
 /**********************************************************************************/
@@ -108,7 +127,7 @@ const NEEDS_UPDATE = [
  * @param type - The property name, which can include nested paths indicated by hyphens.
  * @param value - The value to be assigned to the property; can be of any appropriate type.
  */
-export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) => {
+export function applyProp<T>(source: S3.Instance<T>, type: string, value: any) {
   if (!source) {
     console.error("error while applying prop", source, type, value);
     return;
@@ -125,6 +144,7 @@ export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) =
   }
 
   if (NEEDS_UPDATE.includes(type) && ((!source[type] && value) || (source[type] && !value))) {
+    // @ts-expect-error
     source.needsUpdate = true;
   }
 
@@ -145,7 +165,7 @@ export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) =
   }
 
   if (isEventType(type)) {
-    if (source instanceof Object3D) {
+    if (source instanceof Object3D && isInstance(source)) {
       addToEventListeners(source, type);
     } else {
       console.error(
@@ -206,6 +226,7 @@ export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) =
           if (hasColorSpace(texture) && hasColorSpace(context.gl)) {
             texture.colorSpace = context.gl.outputColorSpace;
           } else {
+            // @ts-expect-error
             texture.encoding = context.gl.outputEncoding;
           }
         });
@@ -216,7 +237,7 @@ export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) =
       context.requestRender();
     }
   }
-};
+}
 
 /**********************************************************************************/
 /*                                                                                */
@@ -235,7 +256,7 @@ export const applyProp = <T>(source: S3.Instance<T>, type: string, value: any) =
  * @param parent - The parent element to which children will be attached.
  * @param childAccessor - A function returning the child or children to be managed.
  */
-export const manageSceneGraph = <T>(
+export const manageSceneGraph = <T extends S3.Instance<Object3D>>(
   parent: T,
   childAccessor: Accessor<S3.Instance | S3.Instance[]>,
 ) => {

@@ -11,7 +11,6 @@ type OmitFunctionProperties<T> = { [K in keyof T]: T[K] extends Function ? never
 /** Overwrites the properties in `T` with the properties from `O`. */
 export type Overwrite<T, O> = Omit<T, OmitFunctionProperties<O>> & O;
 
-type ExcludeUnknown<T> = T extends Array<infer I> ? ({} extends I & {} ? never : T) : T;
 /**
  * Extracts the parameters of all possible overloads of a given constructor.
  *
@@ -27,55 +26,53 @@ type ExcludeUnknown<T> = T extends Array<infer I> ? ({} extends I & {} ? never :
  * type ExampleParameters = ConstructorOverloadParameters<typeof Example>;
  * // ExampleParameters will be equivalent to: [string] | [number, boolean]
  */
-export type ConstructorOverloadParameters<T extends Constructor> = ExcludeUnknown<
-  T extends {
-    new (...o: infer U): void;
-    new (...o: infer U2): void;
-    new (...o: infer U3): void;
-    new (...o: infer U4): void;
-    new (...o: infer U5): void;
-    new (...o: infer U6): void;
-    new (...o: infer U7): void;
-  }
-    ? U | U2 | U3 | U4 | U5 | U6 | U7
-    : T extends {
-        new (...o: infer U): void;
-        new (...o: infer U2): void;
-        new (...o: infer U3): void;
-        new (...o: infer U4): void;
-        new (...o: infer U5): void;
-        new (...o: infer U6): void;
-      }
-    ? U | U2 | U3 | U4 | U5 | U6
-    : T extends {
-        new (...o: infer U): void;
-        new (...o: infer U2): void;
-        new (...o: infer U3): void;
-        new (...o: infer U4): void;
-        new (...o: infer U5): void;
-      }
-    ? U | U2 | U3 | U4 | U5
-    : T extends {
-        new (...o: infer U): void;
-        new (...o: infer U2): void;
-        new (...o: infer U3): void;
-        new (...o: infer U4): void;
-      }
-    ? U | U2 | U3 | U4
-    : T extends {
-        new (...o: infer U): void;
-        new (...o: infer U2): void;
-        new (...o: infer U3): void;
-      }
-    ? U | U2 | U3
-    : T extends {
-        new (...o: infer U): void;
-        new (...o: infer U2): void;
-      }
-    ? U | U2
-    : T extends {
-        new (...o: infer U): void;
-      }
-    ? U
-    : never
->;
+export type ConstructorOverloadParameters<T extends Constructor> = T extends {
+  new (...o: infer U): void;
+  new (...o: infer U2): void;
+  new (...o: infer U3): void;
+  new (...o: infer U4): void;
+  new (...o: infer U5): void;
+  new (...o: infer U6): void;
+  new (...o: infer U7): void;
+}
+  ? U | U2 | U3 | U4 | U5 | U6 | U7
+  : T extends {
+      new (...o: infer U): void;
+      new (...o: infer U2): void;
+      new (...o: infer U3): void;
+      new (...o: infer U4): void;
+      new (...o: infer U5): void;
+      new (...o: infer U6): void;
+    }
+  ? U | U2 | U3 | U4 | U5 | U6
+  : T extends {
+      new (...o: infer U): void;
+      new (...o: infer U2): void;
+      new (...o: infer U3): void;
+      new (...o: infer U4): void;
+      new (...o: infer U5): void;
+    }
+  ? U | U2 | U3 | U4 | U5
+  : T extends {
+      new (...o: infer U): void;
+      new (...o: infer U2): void;
+      new (...o: infer U3): void;
+      new (...o: infer U4): void;
+    }
+  ? U | U2 | U3 | U4
+  : T extends {
+      new (...o: infer U): void;
+      new (...o: infer U2): void;
+      new (...o: infer U3): void;
+    }
+  ? U | U2 | U3
+  : T extends {
+      new (...o: infer U): void;
+      new (...o: infer U2): void;
+    }
+  ? U | U2
+  : T extends {
+      new (...o: infer U): void;
+    }
+  ? U
+  : never;

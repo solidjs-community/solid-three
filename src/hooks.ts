@@ -1,5 +1,6 @@
 import { Accessor, Resource, createContext, createResource, useContext } from "solid-js";
 import { S3 } from "./";
+import { Texture, TextureLoader } from "three";
 
 /**********************************************************************************/
 /*                                                                                */
@@ -23,7 +24,7 @@ export function useThree<T>(callback: (value: S3.Context) => T): Accessor<T>;
 export function useThree(callback?: (value: S3.Context) => any) {
   const store = useContext(threeContext);
   if (!store) {
-    throw new Error("S3F: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
   }
   if (callback) return () => callback(store);
   return store;
@@ -52,7 +53,7 @@ export const useFrame = (
 ) => {
   const addFrameListener = useContext(frameContext);
   if (!addFrameListener) {
-    throw new Error("S3F: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
   }
   addFrameListener(callback);
 };
@@ -68,7 +69,7 @@ type Loader<TLoaderResult = any> = {
     value: string,
     onLoad: (value: TLoaderResult) => void,
     onProgress: (() => void) | undefined,
-    onReject: ((error: ErrorEvent) => void) | undefined,
+    onReject: ((error: ErrorEvent | unknown) => void) | undefined,
   ) => void | null;
 };
 type UseLoaderOverload<TLoaderArg, TLoaderResult, TArg> = TArg extends readonly TLoaderArg[]

@@ -14,7 +14,7 @@ import { CanvasProps } from "./canvas";
 export const addToEventListeners = (object: S3.Instance<Object3D>, type: S3.EventName) => {
   const addToEventListeners = useContext(eventContext);
   if (!addToEventListeners) {
-    throw new Error("S3F: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
   }
   addToEventListeners(object, type);
 };
@@ -31,7 +31,7 @@ export const eventContext =
 export const addPortal = (children: JSX.Element | JSX.Element[]) => {
   const addPortal = useContext(portalContext);
   if (!addPortal) {
-    throw new Error("S3F: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
   }
   addPortal(children);
 };
@@ -47,7 +47,7 @@ export const portalContext = createContext<(children: JSX.Element | JSX.Element[
 export const useCanvasProps = () => {
   const canvasProps = useContext(canvasPropsContext);
   if (!canvasProps) {
-    throw new Error("S3F: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
   }
   return canvasProps;
 };

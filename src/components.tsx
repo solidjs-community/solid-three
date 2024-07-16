@@ -5,7 +5,7 @@ import { augment } from "./augment";
 import { threeContext, useThree } from "./hooks";
 import { manageProps, manageSceneGraph } from "./props";
 import { InstanceFromConstructor } from "./type-utils";
-import { isAugmentedElement } from "./utils/is-augmented-element";
+import { isInstance } from "./utils/is-instance";
 import { withContext } from "./utils/with-context";
 
 type PortalProps = ParentProps<{
@@ -23,7 +23,7 @@ export const Portal = (props: PortalProps) => {
   const context = useThree();
   const scene = createMemo(() => {
     return props.element
-      ? isAugmentedElement(props.element)
+      ? isInstance(props.element)
         ? (props.element as S3.Instance<Object3D>)
         : augment(props.element, { props: {} })
       : context.scene;
