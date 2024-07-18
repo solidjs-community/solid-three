@@ -21,8 +21,19 @@ declare global {
   }
 }
 
+interface ContextElements {
+  camera: Instance<S3.CameraType>;
+  setCamera: (camera: S3.CameraType | Accessor<S3.CameraType>) => () => void;
+  gl: Instance<THREE.WebGLRenderer>;
+  setGl: (gl: THREE.WebGLRenderer | Accessor<THREE.WebGLRenderer>) => () => void;
+  raycaster: Instance<THREE.Raycaster>;
+  setRaycaster: (raycaster: THREE.Raycaster | Accessor<THREE.Raycaster>) => () => void;
+  scene: Instance<THREE.Scene>;
+  setScene: (scene: THREE.Scene | Accessor<THREE.Scene>) => () => void;
+}
+
 /** `solid-three` context. Accessible via `useThree`. */
-export type Context = ContextElements & {
+export interface Context extends ContextElements {
   clock: THREE.Clock;
   canvas: HTMLCanvasElement;
   render: (delta: number) => void;
@@ -34,18 +45,7 @@ export type Context = ContextElements & {
     disconnect: () => void;
   };
   bounds: Measure;
-};
-
-type ContextElements = {
-  camera: Instance<S3.CameraType>;
-  setCamera: (camera: S3.CameraType | Accessor<S3.CameraType>) => () => void;
-  gl: Instance<THREE.WebGLRenderer>;
-  setGl: (gl: THREE.WebGLRenderer | Accessor<THREE.WebGLRenderer>) => () => void;
-  raycaster: Instance<THREE.Raycaster>;
-  setRaycaster: (raycaster: THREE.Raycaster | Accessor<THREE.Raycaster>) => () => void;
-  scene: Instance<THREE.Scene> | Instance<THREE.Object3D>;
-  setScene: (scene: THREE.Scene | Accessor<THREE.Scene>) => () => void;
-};
+}
 
 /** Possible camera types. */
 export type CameraType = THREE.PerspectiveCamera | THREE.OrthographicCamera;
@@ -64,7 +64,7 @@ export type Event<TEvent extends WheelEvent | MouseEvent = WheelEvent | MouseEve
 };
 
 /** Event handlers for various `solid-three` events. */
-export type EventHandlers = {
+export interface EventHandlers {
   onClick: (event: Event<MouseEvent>) => void;
   onDoubleClick: (event: Event<MouseEvent>) => void;
   onContextMenu: (event: Event<MouseEvent>) => void;
@@ -80,7 +80,7 @@ export type EventHandlers = {
   onPointerLeave: (event: Event<MouseEvent>) => void;
   onPointerMissed: (event: Event<MouseEvent>) => void;
   onWheel: (event: Event<WheelEvent>) => void;
-};
+}
 
 /** The names of all `SolidThreeEventHandlers` */
 export type EventName = keyof EventHandlers;

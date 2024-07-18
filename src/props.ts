@@ -139,7 +139,7 @@ export function applyProp<T>(source: S3.Instance<T>, type: string, value: any) {
   /* If the key contains a hyphen, we're setting a sub property. */
   if (type.indexOf("-") > -1) {
     const [property, ...rest] = type.split("-");
-    applyProp(source[property], rest.join("-"), value);
+    applyProp(source[property as string], rest.join("-"), value);
     return;
   }
 
@@ -278,7 +278,7 @@ export const manageSceneGraph = <T extends S3.Instance<Object3D>>(
           onCleanup(() => parent[$S3C].children.delete(child));
 
           // Attaching children first. If a child is attached it will not be added to the parent's children.
-          let attachProp = child[$S3C].props.attach;
+          let attachProp = child[$S3C].props?.attach;
 
           // Attach-prop can be a callback. It returns a cleanup-function.
           if (typeof attachProp === "function") {
