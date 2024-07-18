@@ -7,62 +7,30 @@ import { createThree } from "./create-three";
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
 export interface CanvasProps extends ComponentProps<"div"> {
-  /**
-   * Configuration for the camera used in the scene.
-   */
+  /** Configuration for the camera used in the scene. */
   camera?: Partial<S3.Props<"PerspectiveCamera"> | S3.Props<"OrthographicCamera">> | Camera;
-
-  /**
-   * Element to render while the main content is loading asynchronously.
-   */
+  /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element;
-
-  /**
-   * Options for the WebGLRenderer or a function returning a customized renderer.
-   */
+  /** Options for the WebGLRenderer or a function returning a customized renderer. */
   gl?:
     | Partial<S3.Props<"WebGLRenderer">>
     | ((canvas: HTMLCanvasElement) => WebGLRenderer)
     | WebGLRenderer;
-
-  /**
-   * Toggles between Orthographic and Perspective camera.
-   */
+  /** Toggles between Orthographic and Perspective camera. */
   orthographic?: boolean;
-
-  /**
-   * Configuration for the Raycaster used for mouse and pointer events.
-   */
+  /** Configuration for the Raycaster used for mouse and pointer events. */
   raycaster?: Partial<S3.Props<"Raycaster">> | Raycaster;
-
-  /**
-   * Configuration for the Scene instance.
-   */
+  /** Configuration for the Scene instance. */
   scene?: Partial<S3.Props<"Scene">> | Scene;
-
-  /**
-   * Custom CSS styles for the canvas container.
-   */
+  /** Custom CSS styles for the canvas container. */
   style?: JSX.CSSProperties;
-
-  /**
-   * Enables and configures shadows in the scene.
-   */
+  /** Enables and configures shadows in the scene. */
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"];
-
-  /**
-   * Toggles linear interpolation for texture filtering.
-   */
+  /** Toggles linear interpolation for texture filtering. */
   linear?: boolean;
-
-  /**
-   * Toggles flat interpolation for texture filtering.
-   */
+  /** Toggles flat interpolation for texture filtering. */
   flat?: boolean;
-
-  /**
-   * Controls the rendering loop's operation mode.
-   */
+  /** Controls the rendering loop's operation mode. */
   frameloop?: "never" | "demand" | "always";
 }
 

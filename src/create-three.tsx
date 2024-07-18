@@ -11,6 +11,7 @@ import {
   ACESFilmicToneMapping,
   BasicShadowMap,
   Camera,
+  Clock,
   NoToneMapping,
   OrthographicCamera,
   PCFShadowMap,
@@ -43,7 +44,7 @@ import { withMultiContexts } from "./utils/with-context";
  *
  * @param canvas - The HTML canvas element on which Three.js will render.
  * @param props - Configuration properties.
- * @returns - an `SolidThree.Context` with additional properties including eventRegistry and addFrameListener.
+ * @returns - an `S3.Context` with additional properties including eventRegistry and addFrameListener.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" });
@@ -101,6 +102,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   let isRenderPending = false;
   function render(timestamp: number, frame?: XRFrame) {
+    if (props.frameloop === "never") {
+      context.clock.elapsedTime = timestamp;
+    }
     isRenderPending = false;
     context.gl.render(context.scene, context.camera);
     frameListeners.forEach(listener => listener(context, timestamp, frame));
@@ -128,6 +132,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const context: Context = {
     canvas,
+    clock: new Clock(),
     get bounds() {
       return measure.bounds();
     },
@@ -199,8 +204,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   function loop(value: number) {
     if (canvasProps.frameloop === "always") {
       requestAnimationFrame(loop);
-      context.render(value);
     }
+    context.render(value);
   }
   createRenderEffect(() => {
     if (canvasProps.frameloop === "always") {
@@ -221,6 +226,15 @@ function initializeContext(context: S3.Context, props: CanvasProps) {
     context.setCamera(camera);
     context.setScene(scene);
     context.setRaycaster(raycaster);
+
+    createRenderEffect(() => {
+      if (props.frameloop === "never") {
+        context.clock.stop();
+        context.clock.elapsedTime = 0;
+      } else {
+        context.clock.start();
+      }
+    });
 
     // Manage camera
     createRenderEffect(() => {

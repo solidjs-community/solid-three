@@ -23,6 +23,7 @@ declare global {
 
 /** `solid-three` context. Accessible via `useThree`. */
 export type Context = ContextElements & {
+  clock: THREE.Clock;
   canvas: HTMLCanvasElement;
   render: (delta: number) => void;
   requestRender: () => void;
