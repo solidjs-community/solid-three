@@ -1,6 +1,5 @@
 import { Accessor, Resource, createContext, createResource, useContext } from "solid-js";
 import { S3 } from "./";
-import { Texture, TextureLoader } from "three";
 
 /**********************************************************************************/
 /*                                                                                */
@@ -64,19 +63,18 @@ export const useFrame = (
 /*                                                                                */
 /**********************************************************************************/
 
-type Loader<TLoaderResult = any> = {
+type Loader<TSource = any, TResult = any, TReturnValue = any> = {
   load: (
-    value: string,
-    onLoad: (value: TLoaderResult) => void,
+    url: TSource,
+    onLoad: (result: TResult) => void,
     onProgress: (() => void) | undefined,
     onReject: ((error: ErrorEvent | unknown) => void) | undefined,
-  ) => void | null;
+  ) => TReturnValue;
 };
-type UseLoaderOverload<TLoaderArg, TLoaderResult, TArg> = TArg extends readonly TLoaderArg[]
-  ? { [K in keyof TArg]: TLoaderResult }
-  : TLoaderResult;
-type LoaderCache<T = Loader<any>> = { loader: T; resources: {} };
+type LoaderUrl<T extends Loader> = Parameters<T["load"]>[0];
+type LoaderResult<T extends Loader> = Parameters<Parameters<T["load"]>[1]>[0];
 
+type LoaderCache<T = Loader<any>> = { loader: T; resources: {} };
 const LOADER_CACHE = new Map<any, LoaderCache>();
 
 /**
@@ -89,11 +87,14 @@ const LOADER_CACHE = new Map<any, LoaderCache>();
  * @param args - The arguments to be passed to the loader function, wrapped in an accessor to enable reactivity.
  * @returns An accessor containing the loaded resource, re-evaluating when inputs change.
  */
-export const useLoader = <TArg extends string | readonly string[], TLoader extends Loader>(
-  Constructor: new () => TLoader,
-  args: Accessor<TArg>,
-  setup?: (loader: TLoader) => void,
-) => {
+export function useLoader<
+  const TLoader extends Loader,
+  const TArgs extends LoaderUrl<TLoader> | Array<LoaderUrl<TLoader>>,
+>(
+  Constructor: new (...args: any[]) => TLoader,
+  args: Accessor<TArgs>,
+  setup?: (loader: NoInfer<TLoader>) => void,
+) {
   let cache = LOADER_CACHE.get(Constructor) as LoaderCache<TLoader>;
   if (!cache) {
     cache = {
@@ -126,7 +127,7 @@ export const useLoader = <TArg extends string | readonly string[], TLoader exten
       : load(args as string),
   );
 
-  return resource as Resource<
-    UseLoaderOverload<string, TLoader extends Loader<infer U> ? U : never, TArg>
-  >;
-};
+  return resource as TArgs extends LoaderUrl<TLoader>
+    ? Resource<LoaderResult<TLoader>>
+    : Resource<{ [K in keyof TArgs]: LoaderResult<TLoader> }>;
+}
