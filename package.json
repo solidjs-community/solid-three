@@ -6,9 +6,9 @@
     "type": "git",
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
-  "module": "./dist/core/index.js",
-  "main": "./dist/core/index.js",
-  "types": "./dist/core/index.d.ts",
+  "module": "./dist/index/index.js",
+  "main": "./dist/index/index.js",
+  "types": "./dist/index/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
   "files": [
@@ -25,16 +25,16 @@
     "types": "tsc --emitDeclarationOnly --declarationDir types"
   },
   "exports": {
-    "./core": {
+    ".": {
       "development": {
         "import": {
-          "types": "./dist/core/index.d.ts",
-          "default": "./dist/core/dev.js"
+          "types": "./dist/index/index.d.ts",
+          "default": "./dist/index/dev.js"
         }
       },
       "import": {
-        "types": "./dist/core/index.d.ts",
-        "default": "./dist/core/index.js"
+        "types": "./dist/index/index.d.ts",
+        "default": "./dist/index/index.js"
       }
     },
     "./testing": {
@@ -94,9 +94,6 @@
   "browser": {},
   "typesVersions": {
     "*": {
-      "core": [
-        "./dist/core/index.d.ts"
-      ],
       "testing": [
         "./dist/testing/index.d.ts"
       ]

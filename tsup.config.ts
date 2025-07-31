@@ -14,7 +14,6 @@ export default defineConfig(config => {
     {
       entries: [
         {
-          name: "core",
           entry: "src/index.ts",
           dev_entry: true,
         },
