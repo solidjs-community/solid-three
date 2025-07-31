@@ -260,7 +260,7 @@ const App = () => {
 
 ### Primitive
 
-The `Primitive` component wraps existing `three.js` objects and allows them to be used as JSX components within solid-three. This is useful when you have pre-created `three.js` objects or when working with objects from external libraries.
+The `Primitive` component wraps existing `three.js` objects and allows them to be used as JSX components within `solid-three`. This is useful when you have pre-created `three.js` objects or when working with objects from external libraries.
 
 **Props:**
 
@@ -460,7 +460,7 @@ export const App = () => {
 
 **Event Object:**
 
-Event handlers receive a simplified event object with the following properties:
+Event handlers receive an event object with the following properties:
 
 ```tsx
 interface Event<T> {
@@ -616,46 +616,6 @@ const MyComponent = () => {
 type Metadata = S3.Metadata<Mesh>;
 ```
 
-### Practical Examples
-
-```tsx
-import type { S3 } from "solid-three";
-import { Component } from "solid-js";
-
-// Typed component with props
-type BoxProps = {
-  size?: S3.Vector3;
-  color?: S3.Color;
-  onClick?: S3.EventHandlers["onClick"];
-};
-
-const Box: Component<BoxProps> = props => {
-  return (
-    <T.Mesh onClick={props.onClick}>
-      <T.BoxGeometry args={props.size || [1, 1, 1]} />
-      <T.MeshStandardMaterial color={props.color || "white"} />
-    </T.Mesh>
-  );
-};
-
-// Using generic instance types
-const processInstance = (instance: S3.Instance) => {
-  // Access metadata
-  const metadata = instance[$S3C];
-  console.log(metadata.props);
-};
-
-// Type-safe event handling
-const InteractiveObject: Component = () => {
-  const handlePointer: S3.EventHandlers["onPointerMove"] = e => {
-    // e is fully typed as S3.Event<PointerEvent>
-    console.log(`Pointer at: ${e.point.toArray()}`);
-  };
-
-  return <T.Mesh onPointerMove={handlePointer} />;
-};
-```
-
 ## Performance Optimization
 
 `solid-three` provides several mechanisms to optimize rendering performance:
@@ -689,10 +649,9 @@ const AutoDisposedGeometry = () => {
 const ManualDisposal = () => {
   let geometry: BoxGeometry;
 
-  onCleanup(() => {
-    // Custom cleanup logic
+  const dispose = () => {
     geometry?.dispose();
-  });
+  };
 
   return <T.BoxGeometry ref={geometry} />;
 };
