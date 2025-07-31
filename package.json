@@ -1,14 +1,14 @@
 {
   "name": "solid-three",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "SolidJS bindings for ThreeJS",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
-  "module": "./dist/index.mjs",
-  "main": "./dist/index.js",
-  "types": "./types/index.d.ts",
+  "module": "./dist/core/index.js",
+  "main": "./dist/core/index.js",
+  "types": "./dist/core/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
   "files": [
@@ -17,39 +17,70 @@
     "README.md"
   ],
   "scripts": {
-    "test": "vitest",
-    "build:lib": "BUILD_MODE=lib vite build",
-    "build": "vite build",
-    "types": "tsc --emitDeclarationOnly --declarationDir types",
+    "build": "tsup",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "dev": "vite",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+    "start": "vite",
+    "test": "vitest",
+    "types": "tsc --emitDeclarationOnly --declarationDir types"
   },
   "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs.js"
+    "./core": {
+      "development": {
+        "import": {
+          "types": "./dist/core/index.d.ts",
+          "default": "./dist/core/dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/core/index.d.ts",
+        "default": "./dist/core/index.js"
+      }
+    },
+    "./testing": {
+      "solid": {
+        "development": "./dist/testing/dev.jsx",
+        "import": "./dist/testing/index.jsx"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/testing/index.d.ts",
+          "default": "./dist/testing/dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing/index.js"
+      }
     }
   },
   "devDependencies": {
-    "@types/node": "^18.11.18",
-    "@types/three": "0.149.0",
-    "@vinxi/tsconfig": "0.0.3",
-    "esbuild": "^0.16.16",
-    "esbuild-register": "^3.4.2",
+    "@jest/types": "^29.6.3",
+    "@solidjs/testing-library": "^0.8.8",
+    "@types/node": "^18.19.33",
+    "@types/three": "^0.164.1",
+    "esbuild": "^0.21.4",
+    "esbuild-register": "^3.5.0",
+    "jest": "^29.7.0",
+    "jsdom": "^24.1.0",
     "remark-gfm": "^3.0.1",
-    "rollup": "^3.9.1",
-    "rollup-plugin-dts": "^5.1.1",
+    "rollup": "^4.18.0",
+    "rollup-plugin-dts": "^6.1.1",
     "solid-app-router": "^0.1.14",
-    "solid-js": "^1.7.0",
-    "three": "0.149.0",
+    "solid-js": "^1.8.17",
+    "three": "^0.164.1",
+    "three-stdlib": "^2.30.1",
     "tsm": "^2.3.0",
-    "tsup": "^6.5.0",
-    "typescript": "^4.9.4",
-    "vite": "4.1.1",
-    "vite-plugin-inspect": "0.7.14",
-    "vite-plugin-solid": "2.5.0"
+    "tsup": "^8.0.2",
+    "tsup-preset-solid": "^2.2.0",
+    "typescript": "^5.4.5",
+    "vite": "5.2.12",
+    "vite-plugin-inspect": "0.8.4",
+    "vite-plugin-solid": "2.10.2",
+    "vitest": "^1.6.0"
   },
   "peerDependencies": {
+    "@types/three": "*",
     "solid-js": "*",
     "three": "*"
   },
@@ -57,8 +88,19 @@
     "preset": "scripts/jest/node"
   },
   "dependencies": {
-    "@types/three": "0.149.0",
-    "zustand": "^3.7.2"
+    "@solid-primitives/resize-observer": "^2.0.25",
+    "debounce": "^2.1.0"
   },
-  "packageManager": "pnpm@7.26.0"
+  "browser": {},
+  "typesVersions": {
+    "*": {
+      "core": [
+        "./dist/core/index.d.ts"
+      ],
+      "testing": [
+        "./dist/testing/index.d.ts"
+      ]
+    }
+  },
+  "type": "module"
 }

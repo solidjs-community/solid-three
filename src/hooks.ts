@@ -1,161 +1,133 @@
-import * as THREE from "three";
-import { StateSelector, EqualityChecker } from "zustand/vanilla";
-import { ThreeContext, RootState, RenderCallback } from "./core/store";
-import { buildGraph, ObjectMap, is } from "./core/utils";
-import {
-  createComputed,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  untrack,
-  useContext,
-} from "solid-js";
+import { Accessor, Resource, createContext, createResource, useContext } from "solid-js";
+import { S3 } from "./";
 
-export interface Loader<T> extends THREE.Loader {
-  load(
-    url: string,
-    onLoad?: (result: T) => void,
-    onProgress?: (event: ProgressEvent) => void,
-    onError?: (event: ErrorEvent) => void
-  ): unknown;
-}
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Use Three                                   */
+/*                                                                                */
+/**********************************************************************************/
 
-export type Extensions = (loader: THREE.Loader) => void;
-export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>;
-export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent
-  ? Truthy
-  : Falsy;
-export type BranchingReturn<T, Parent, Coerced> = ConditionalType<
-  T,
-  Parent,
-  Coerced,
-  T
->;
+export const threeContext = createContext<S3.Context>(null!);
 
-export function useStore() {
-  const store = useContext(ThreeContext);
-  if (!store) throw `R3F hooks can only be used within the Canvas component!`;
+/**
+ * Custom hook to access all necessary Three.js objects needed to manage a 3D scene.
+ * This hook must be used within a component that is a descendant of the `<Canvas/>` component.
+ *
+ * @template T The expected return type after applying the callback to the context.
+ * @param [callback] - Optional callback function that processes and returns a part of the context.
+ * @returns Returns `S3.Context` directly, or as a selector if a callback is provided.
+ * @throws Throws an error if used outside of the Canvas component context.
+ */
+export function useThree(): S3.Context;
+export function useThree<T>(callback: (value: S3.Context) => T): Accessor<T>;
+export function useThree(callback?: (value: S3.Context) => any) {
+  const store = useContext(threeContext);
+  if (!store) {
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
+  }
+  if (callback) return () => callback(store);
   return store;
 }
 
-export function useThree<T = RootState, U = T>(
-  selector: StateSelector<RootState, U> = (state) => state as unknown as U,
-  equalityFn?: EqualityChecker<U>
-) {
-  let store = useStore();
-  const [signal, setSignal] = createSignal<U>(selector(store.getState()));
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Use Frame                                   */
+/*                                                                                */
+/**********************************************************************************/
 
-  createComputed(() => {
-    let cleanup = useStore().subscribe<U>(
-      // @ts-expect-error
-      selector,
-      (v) => {
-        // @ts-expect-error
-        setSignal(() => v);
-      },
-      equalityFn
-    );
-
-    onCleanup(cleanup);
-  });
-
-  return signal;
-}
+type FrameContext = (
+  callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
+) => void;
+export const frameContext = createContext<FrameContext>();
 
 /**
- * Creates a signal that is updated when the given effect is run.
+ * Hook to register a callback that will be executed on each animation frame within the `<Canvas/>` component.
+ * This hook must be used within a component that is a descendant of the `<Canvas/>` component.
  *
- * @example
- * ```ts
- * const [count, setCount] = useSignal(0);
- * useFrame(() => {
- *  setCount(count + 1);
- * });
- * ```
- *
- * @param callback - a function to run on every frame render
- * @param renderPriority -  priority of the callback decides its order in the frameloop, higher is earlier
+ * @param callback - The callback function to be executed on each frame.
+ * @throws Throws an error if used outside of the Canvas component context.
  */
-export function useFrame(
-  callback: RenderCallback,
-  renderPriority: number = 0
-): void {
-  const subscribe = useStore().getState().internal.subscribe;
-  let cleanup = subscribe(
-    (t, delta) => untrack(() => callback(t, delta)),
-    renderPriority
+export const useFrame = (
+  callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
+) => {
+  const addFrameListener = useContext(frameContext);
+  if (!addFrameListener) {
+    throw new Error("S3: Hooks can only be used within the Canvas component!");
+  }
+  addFrameListener(callback);
+};
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                   Use Loader                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+type Loader<TSource = any, TResult = any, TReturnValue = any> = {
+  load: (
+    url: TSource,
+    onLoad: (result: TResult) => void,
+    onProgress: (() => void) | undefined,
+    onReject: ((error: ErrorEvent | unknown) => void) | undefined,
+  ) => TReturnValue;
+};
+type LoaderUrl<T extends Loader> = Parameters<T["load"]>[0];
+type LoaderResult<T extends Loader> = Parameters<Parameters<T["load"]>[1]>[0];
+
+type LoaderCache<T = Loader<any>> = { loader: T; resources: {} };
+const LOADER_CACHE = new Map<any, LoaderCache>();
+
+/**
+ * Hook to create and manage a resource using a Three.js loader. It ensures that the loader is
+ * reused if it has been instantiated before, and manages the resource lifecycle automatically.
+ *
+ * @template TResult The type of the resolved data when the loader completes loading.
+ * @template TArg The argument type expected by the loader function.
+ * @param Constructor - The loader class constructor.
+ * @param args - The arguments to be passed to the loader function, wrapped in an accessor to enable reactivity.
+ * @returns An accessor containing the loaded resource, re-evaluating when inputs change.
+ */
+export function useLoader<
+  const TLoader extends Loader,
+  const TArgs extends LoaderUrl<TLoader> | Array<LoaderUrl<TLoader>>,
+>(
+  Constructor: new (...args: any[]) => TLoader,
+  args: Accessor<TArgs>,
+  setup?: (loader: NoInfer<TLoader>) => void,
+) {
+  let cache = LOADER_CACHE.get(Constructor) as LoaderCache<TLoader>;
+  if (!cache) {
+    cache = {
+      loader: new Constructor(),
+      resources: {},
+    };
+    LOADER_CACHE.set(Constructor, cache);
+  }
+  const { loader, resources } = cache;
+  setup?.(loader);
+
+  const load = (arg: string) => {
+    if (resources[arg]) return resources[arg];
+    return (resources[arg] = new Promise((resolve, reject) =>
+      loader.load(
+        arg,
+        value => {
+          resources[arg] = value;
+          resolve(value);
+        },
+        undefined,
+        reject,
+      ),
+    ));
+  };
+
+  const [resource] = createResource(args, args =>
+    Array.isArray(args)
+      ? Promise.all((args as string[]).map(arg => load(arg)))
+      : load(args as string),
   );
 
-  onCleanup(cleanup);
+  return resource as TArgs extends LoaderUrl<TLoader>
+    ? Resource<LoaderResult<TLoader>>
+    : Resource<{ [K in keyof TArgs]: LoaderResult<TLoader> }>;
 }
-
-export function useGraph(object: THREE.Object3D) {
-  return createMemo(() => buildGraph(object));
-}
-
-export function loadingFn<T>(
-  extensions?: Extensions,
-  onProgress?: (event: ProgressEvent<EventTarget>) => void
-) {
-  return function (Proto: new () => LoaderResult<T>, ...input: string[]) {
-    // Construct new loader and run extensions
-    const loader = new Proto();
-    if (extensions) extensions(loader);
-    // Go through the urls and load them
-    return Promise.all(
-      input.map(
-        (input) =>
-          new Promise((res, reject) =>
-            loader.load(
-              input,
-              (data: any) => {
-                if (data.scene) Object.assign(data, buildGraph(data.scene));
-                res(data);
-              },
-              onProgress,
-              (error) => reject(`Could not load ${input}: ${error.message}`)
-            )
-          )
-      )
-    );
-  };
-}
-
-// export function useLoader<T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U,
-//   extensions?: Extensions,
-//   onProgress?: (event: ProgressEvent<EventTarget>) => void
-// ): U extends any[]
-//   ? BranchingReturn<T, GLTF, GLTF & ObjectMap>[]
-//   : BranchingReturn<T, GLTF, GLTF & ObjectMap> {
-//   // Use suspense to load async assets
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   const results = suspend(
-//     loadingFn<T>(extensions, onProgress),
-//     [Proto, ...keys],
-//     { equal: is.equ }
-//   );
-//   // Return the object/s
-//   return (Array.isArray(input) ? results : results[0]) as U extends any[]
-//     ? BranchingReturn<T, GLTF, GLTF & ObjectMap>[]
-//     : BranchingReturn<T, GLTF, GLTF & ObjectMap>;
-// }
-
-// useLoader.preload = function <T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U,
-//   extensions?: Extensions
-// ) {
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   return preload(loadingFn<T>(extensions), [Proto, ...keys]);
-// };
-
-// useLoader.clear = function <T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U
-// ) {
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   return clear([Proto, ...keys]);
-// };
