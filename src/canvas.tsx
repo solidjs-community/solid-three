@@ -45,7 +45,7 @@ export interface CanvasProps extends ComponentProps<"div"> {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function Canvas(_props: CanvasProps) {
-  const [props, canvasProps] = splitProps(_props, ["fallback", "camera", "children", "ref"]);
+  const [props, canvasProps] = splitProps(_props, ["fallback", "camera", "children", "ref", "scene", "gl", "raycaster", "shadows", "orthographic", "linear", "flat", "frameloop"])
   let canvas: HTMLCanvasElement;
   let container: HTMLDivElement;
 
