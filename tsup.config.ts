@@ -1,5 +1,6 @@
 import { defineConfig } from "tsup";
 import * as preset from "tsup-preset-solid";
+import process from "node:process";
 
 const CI =
   process.env["CI"] === "true" ||

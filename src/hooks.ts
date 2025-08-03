@@ -1,5 +1,5 @@
 import { type Accessor, type Resource, createContext, createResource, useContext } from "solid-js";
-import { S3 } from "./";
+import { S3 } from "./index.ts";
 
 /**********************************************************************************/
 /*                                                                                */

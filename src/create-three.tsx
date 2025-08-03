@@ -23,19 +23,19 @@ import {
   Vector2,
   WebGLRenderer,
 } from "three";
-import { S3 } from "./";
-import { augment } from "./augment";
-import type { CanvasProps } from "./canvas";
-import { createEvents } from "./create-events";
-import { AugmentedStack } from "./data-structure/augmented-stack";
-import { frameContext, threeContext } from "./hooks";
-import { canvasPropsContext, eventContext } from "./internal-context";
-import { manageProps, manageSceneGraph } from "./props";
-import type { Context } from "./types";
-import { defaultProps } from "./utils/default-props";
-import { removeElementFromArray } from "./utils/remove-element-from-array";
-import { useMeasure } from "./utils/use-measure";
-import { withMultiContexts } from "./utils/with-context";
+import { S3 } from "./index.ts";
+import { augment } from "./augment.ts";
+import type { CanvasProps } from "./canvas.tsx";
+import { createEvents } from "./create-events.ts";
+import { AugmentedStack } from "./data-structure/augmented-stack.ts";
+import { frameContext, threeContext } from "./hooks.ts";
+import { canvasPropsContext, eventContext } from "./internal-context.ts";
+import { manageProps, manageSceneGraph } from "./props.ts";
+import type { Context } from "./types.ts";
+import { defaultProps } from "./utils/default-props.ts";
+import { removeElementFromArray } from "./utils/remove-element-from-array.ts";
+import { useMeasure } from "./utils/use-measure.ts";
+import { withMultiContexts } from "./utils/with-context.ts";
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like

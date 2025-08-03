@@ -1,4 +1,4 @@
-import { S3 } from ".";
+import { S3 } from "./index.ts";
 
 export const $S3C = Symbol("solid-three");
 
