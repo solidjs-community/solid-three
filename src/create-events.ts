@@ -24,16 +24,23 @@ export const createEvents = (context: S3.Context) => {
   /**
    * An object keeping track of all the `AugmentedElement<Object3D>` that are listening to a specific event.
    */
-  const eventRegistry = {
-    onMouseMove: [] as S3.Instance<Object3D>[],
-    onMouseUp: [] as S3.Instance<Object3D>[],
-    onMouseDown: [] as S3.Instance<Object3D>[],
-    onPointerMove: [] as S3.Instance<Object3D>[],
-    onPointerUp: [] as S3.Instance<Object3D>[],
-    onPointerDown: [] as S3.Instance<Object3D>[],
-    onWheel: [] as S3.Instance<Object3D>[],
-    onClick: [] as S3.Instance<Object3D>[],
-    onDoubleClick: [] as S3.Instance<Object3D>[],
+  const eventRegistry: Record<S3.EventName, Array<S3.Instance<Object3D>>> = {
+    onClick: [],
+    onClickMissed: [],
+    onContextMenu: [],
+    onDoubleClick: [],
+    onDoubleClickMissed: [],
+    onMouseDown: [],
+    onMouseEnter: [],
+    onMouseLeave: [],
+    onMouseMove: [],
+    onMouseUp: [],
+    onPointerDown: [],
+    onPointerEnter: [],
+    onPointerLeave: [],
+    onPointerMove: [],
+    onPointerUp: [],
+    onWheel: [],
   } as const
 
   // Creates a `ThreeEvent` from the current `MouseEvent` | `WheelEvent`.
@@ -170,11 +177,70 @@ export const createEvents = (context: S3.Context) => {
     <TEvent extends MouseEvent | WheelEvent>(type: keyof typeof eventRegistry) =>
     (nativeEvent: TEvent) => {
       const event = createThreeEvent(nativeEvent)
-      for (const { object } of raycast(nativeEvent, type)) {
-        // @ts-expect-error TODO: fix type-error
-        object[$S3C].props?.[type]?.(event)
-        bubbleDown(object, type, event)
-        if (event.stopped) break
+
+      // For click/doubleclick events, we need to check ALL clickable objects
+      if (type === "onClick" || type === "onDoubleClick") {
+        // Get all objects that could be clicked
+        const allClickableObjects = [
+          ...new Set([...eventRegistry[type], ...eventRegistry[`${type}Missed`]]),
+        ]
+
+        // Perform raycast on all clickable objects
+        context.setPointer(pointer => {
+          pointer.x = (nativeEvent.offsetX / globalThis.innerWidth) * 2 - 1
+          pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1
+          return pointer
+        })
+        context.raycaster.setFromCamera(context.pointer, context.camera)
+
+        const intersections = context.raycaster.intersectObjects(allClickableObjects, true)
+        const hitObjects = new Set<S3.Instance<Object3D>>()
+
+        // Process hit objects - collect all hit augmented instances
+        for (const { object } of intersections) {
+          // Check if this object or any of its ancestors is registered
+          let current: Object3D | null = object
+          while (current) {
+            const registeredObject = allClickableObjects.find(o => o === current)
+            if (registeredObject) {
+              hitObjects.add(registeredObject)
+              break
+            }
+            current = current.parent
+          }
+        }
+
+        // Process regular click events on hit objects
+        for (const object of eventRegistry[type]) {
+          if (hitObjects.has(object)) {
+            // @ts-expect-error TODO: fix type-error
+            object[$S3C].props?.[type]?.(event)
+            bubbleDown(object, type, event)
+            if (event.stopped) break
+          }
+        }
+
+        // Process missed events
+        const missedType = type.replace(
+          /^on(Click|DoubleClick)$/,
+          "on$1Missed",
+        ) as keyof typeof eventRegistry
+        for (const object of eventRegistry[missedType]) {
+          if (!hitObjects.has(object)) {
+            // @ts-expect-error TODO: fix type-error
+            object[$S3C].props?.[missedType]?.(event)
+            if (event.stopped) break
+          }
+        }
+      } else {
+        // For non-click events, use the original logic
+        const intersections = raycast(nativeEvent, type)
+        for (const { object } of intersections) {
+          // @ts-expect-error TODO: fix type-error
+          object[$S3C].props?.[type]?.(event)
+          bubbleDown(object, type, event)
+          if (event.stopped) break
+        }
       }
     }
 
@@ -228,7 +294,7 @@ export const createEvents = (context: S3.Context) => {
       }
 
       // @ts-expect-error TODO: fix type-error
-      removeElementFromArray(eventRegistry[type], object)
+      removeElementFromArray(eventRegistry[derivedType], object)
     })
   }
 

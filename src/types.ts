@@ -67,7 +67,9 @@ export type Event<TEvent extends WheelEvent | MouseEvent = WheelEvent | MouseEve
 /** Event handlers for various `solid-three` events. */
 export interface EventHandlers {
   onClick: (event: Event<MouseEvent>) => void
+  onClickMissed: (event: Event<MouseEvent>) => void
   onDoubleClick: (event: Event<MouseEvent>) => void
+  onDoubleClickMissed: (event: Event<MouseEvent>) => void
   onContextMenu: (event: Event<MouseEvent>) => void
   onMouseDown: (event: Event<MouseEvent>) => void
   onMouseEnter: (event: Event<MouseEvent>) => void
@@ -102,10 +104,10 @@ interface ThreeVectorRepresentation extends ThreeMathRepresentation {
 type Representation<T> = T extends THREE.Color
   ? ConstructorParameters<typeof THREE.Color> | THREE.ColorRepresentation
   : T extends ThreeVectorRepresentation | THREE.Layers | THREE.Euler
-    ? T | Parameters<T["set"]> | number
-    : T extends ThreeMathRepresentation
-      ? T | Parameters<T["set"]>
-      : T
+  ? T | Parameters<T["set"]> | number
+  : T extends ThreeMathRepresentation
+  ? T | Parameters<T["set"]>
+  : T
 
 export type Vector2 = Representation<THREE.Vector2>
 export type Vector3 = Representation<THREE.Vector3>
@@ -172,5 +174,5 @@ export type Props<T extends keyof typeof THREE | keyof SolidThree.Elements> =
   T extends keyof typeof THREE
     ? ClassProps<(typeof THREE)[T]>
     : T extends keyof SolidThree.Elements
-      ? ClassProps<SolidThree.Elements[T]>
-      : never
+    ? ClassProps<SolidThree.Elements[T]>
+    : never
