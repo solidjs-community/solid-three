@@ -1,9 +1,9 @@
 import { onCleanup } from "solid-js";
 import { type Intersection, Object3D } from "three";
-import { S3 } from "./";
-import { $S3C } from "./augment";
-import { isInstance } from "./utils/is-instance";
-import { removeElementFromArray } from "./utils/remove-element-from-array";
+import { S3 } from "./index.ts";
+import { $S3C } from "./augment.ts";
+import { isInstance } from "./utils/is-instance.ts";
+import { removeElementFromArray } from "./utils/remove-element-from-array.ts";
 
 /**
  * Checks if a given string is a valid event type within the system.
@@ -55,8 +55,8 @@ export const createEvents = (context: S3.Context) => {
     type: keyof typeof eventRegistry,
   ): Intersection<S3.Instance<Object3D>>[] => {
     context.setPointer(pointer => {
-      pointer.x = (nativeEvent.offsetX / window.innerWidth) * 2 - 1;
-      pointer.y = -(nativeEvent.offsetY / window.innerHeight) * 2 + 1;
+      pointer.x = (nativeEvent.offsetX / globalThis.innerWidth) * 2 - 1;
+      pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1;
       return pointer;
     });
 

@@ -1,10 +1,10 @@
 import { createMemo, type JSX, mergeProps } from "solid-js";
 import type * as THREE from "three";
-import { S3 } from ".";
-import { augment } from "./augment";
-import { Portal, Primitive } from "./components";
-import { manageProps } from "./props";
-import type { Constructor } from "./type-utils";
+import { S3 } from "./index.ts";
+import { augment } from "./augment.ts";
+import { Portal, Primitive } from "./components.tsx";
+import { manageProps } from "./props.ts";
+import type { Constructor } from "./type-utils.ts";
 
 /**********************************************************************************/
 /*                                                                                */

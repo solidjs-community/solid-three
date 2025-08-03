@@ -1,7 +1,7 @@
 import "./index.css";
 import { createSignal } from "solid-js";
 import * as THREE from "three";
-import { Canvas, T, extend, useFrame } from "../src/index";
+import { Canvas, T, extend, useFrame } from "../src/index.ts";
 
 extend(THREE);
 

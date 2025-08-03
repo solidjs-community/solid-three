@@ -18,15 +18,15 @@ import {
   Texture,
   UnsignedByteType,
 } from "three";
-import { S3 } from "./";
-import { $S3C } from "./augment";
-import { isEventType } from "./create-events";
-import { useThree } from "./hooks";
-import { addToEventListeners, useCanvasProps } from "./internal-context";
-import { when } from "./utils/conditionals";
-import { hasColorSpace } from "./utils/has-colorspace";
-import { isInstance } from "./utils/is-instance";
-import { resolve } from "./utils/resolve";
+import { S3 } from "./index.ts";
+import { $S3C } from "./augment.ts";
+import { isEventType } from "./create-events.ts";
+import { useThree } from "./hooks.ts";
+import { addToEventListeners, useCanvasProps } from "./internal-context.ts";
+import { when } from "./utils/conditionals.ts";
+import { hasColorSpace } from "./utils/has-colorspace.ts";
+import { isInstance } from "./utils/is-instance.ts";
+import { resolve } from "./utils/resolve.ts";
 
 /**********************************************************************************/
 /*                                                                                */

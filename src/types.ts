@@ -1,15 +1,15 @@
 import type { Accessor, JSX, Setter, Component as SolidComponent } from "solid-js";
 import type * as THREE from "three";
-import { S3 } from ".";
-import { $S3C } from "./augment";
-import { Portal, Primitive } from "./components";
+import { S3 } from "./index.ts";
+import { $S3C } from "./augment.ts";
+import { Portal, Primitive } from "./components.tsx";
 import type {
   Constructor,
   ConstructorOverloadParameters,
   InstanceFromConstructor,
   Overwrite,
-} from "./type-utils";
-import type { Measure } from "./utils/use-measure";
+} from "./type-utils.ts";
+import type { Measure } from "./utils/use-measure.ts";
 
 declare global {
   namespace SolidThree {
@@ -45,6 +45,7 @@ export interface Context extends ContextElements {
     disconnect: () => void;
   };
   bounds: Measure;
+  dpr: number;
 }
 
 /** Possible camera types. */

@@ -7,8 +7,8 @@ import {
   splitProps,
 } from "solid-js";
 import { Camera, OrthographicCamera, Raycaster, Scene, WebGLRenderer } from "three";
-import { S3 } from "./";
-import { createThree } from "./create-three";
+import { S3 } from "./index.ts";
+import { createThree } from "./create-three.tsx";
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -63,7 +63,7 @@ export function Canvas(_props: CanvasProps) {
     function onResize() {
       const { width, height } = container.getBoundingClientRect();
       context.gl.setSize(width, height);
-      context.gl.setPixelRatio(window.devicePixelRatio);
+      context.gl.setPixelRatio(globalThis.devicePixelRatio);
 
       if (context.camera instanceof OrthographicCamera) {
         context.camera.left = width / -2;

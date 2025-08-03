@@ -2,8 +2,8 @@ import { fireEvent } from "@solidjs/testing-library";
 import { describe, expect, it, vi } from "vitest";
 
 import { Show, createSignal } from "solid-js";
-import { T } from "../../src";
-import { test } from "../../src/testing";
+import { T } from "../../src/index.ts";
+import { test } from "../../src/testing/index.tsx";
 
 describe("events", () => {
   it("can handle onPointerDown", async () => {

@@ -1,7 +1,7 @@
 import { type Accessor, type JSX, createRenderEffect, createRoot, mergeProps } from "solid-js";
-import type { CanvasProps } from "../canvas";
-import { createThree } from "../create-three";
-import { WebGL2RenderingContext } from "./webgl2-rendering-context";
+import type { CanvasProps } from "../canvas.tsx";
+import { createThree } from "../create-three.tsx";
+import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts";
 
 /**
  * Initializes a testing enviromnent for `solid-three`.
