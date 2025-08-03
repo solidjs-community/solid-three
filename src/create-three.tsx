@@ -139,6 +139,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     get bounds() {
       return measure.bounds();
     },
+    get dpr() {
+      return (this.gl.getPixelRatio());
+    },
     get pointer() {
       return pointer();
     },
