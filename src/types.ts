@@ -45,6 +45,7 @@ export interface Context extends ContextElements {
     disconnect: () => void;
   };
   bounds: Measure;
+  dpr: number;
 }
 
 /** Possible camera types. */
