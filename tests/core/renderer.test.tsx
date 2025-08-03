@@ -56,7 +56,7 @@ declare global {
 extend({ HasObject3dMember, HasObject3dMethods });
 
 beforeAll(() => {
-  Object.defineProperty(window, "devicePixelRatio", {
+  Object.defineProperty(globalThis, "devicePixelRatio", {
     configurable: true,
     value: 2,
   });

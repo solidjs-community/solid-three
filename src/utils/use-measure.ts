@@ -43,7 +43,7 @@ export function useMeasure(options?: UseMeasureOptions) {
 
   const ResizeObserver =
     config.polyfill ||
-    (typeof window === "undefined" ? class ResizeObserver {} : (window as any).ResizeObserver);
+    (typeof globalThis === "undefined" ? class ResizeObserver {} : (globalThis as any).ResizeObserver);
 
   if (!ResizeObserver) {
     throw new Error(
