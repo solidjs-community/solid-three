@@ -1,7 +1,7 @@
-import { type Accessor, type JSX, createRenderEffect, createRoot, mergeProps } from "solid-js";
-import type { CanvasProps } from "../canvas.tsx";
-import { createThree } from "../create-three.tsx";
-import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts";
+import { type Accessor, type JSX, createRenderEffect, createRoot, mergeProps } from "solid-js"
+import type { CanvasProps } from "../canvas.tsx"
+import { createThree } from "../create-three.tsx"
+import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts"
 
 /**
  * Initializes a testing enviromnent for `solid-three`.
@@ -19,18 +19,18 @@ export function test(
   children: Accessor<JSX.Element>,
   props?: Omit<CanvasProps, "children">,
 ): TestApi {
-  const canvas = createTestCanvas();
-  let context: ReturnType<typeof createThree> = null!;
-  let unmount: () => void = null!;
+  const canvas = createTestCanvas()
+  let context: ReturnType<typeof createThree> = null!
+  let unmount: () => void = null!
 
   createRoot(dispose => {
-    unmount = dispose;
+    unmount = dispose
     context = createThree(
       canvas,
       mergeProps(
         {
           get children() {
-            return children();
+            return children()
           },
           camera: {
             position: [0, 0, 5] as [number, number, number],
@@ -38,23 +38,23 @@ export function test(
         },
         props,
       ),
-    );
-  });
+    )
+  })
 
   const waitTillNextFrame = () =>
     new Promise<void>(resolve => {
-      const cleanup = context.addFrameListener(() => (cleanup(), resolve()));
-    });
+      const cleanup = context.addFrameListener(() => (cleanup(), resolve()))
+    })
 
   return mergeProps(context, {
     unmount,
     waitTillNextFrame,
-  });
+  })
 }
 type TestApi = ReturnType<typeof createThree> & {
-  unmount: () => void;
-  waitTillNextFrame: () => Promise<void>;
-};
+  unmount: () => void
+  waitTillNextFrame: () => Promise<void>
+}
 
 /**
  * Canvas element tailored for testing.
@@ -66,19 +66,19 @@ type TestApi = ReturnType<typeof createThree> & {
  * render(<TestCanvas camera={{ position: [0,0,5] }} />);
  */
 export function TestCanvas(props: CanvasProps) {
-  const canvas = createTestCanvas();
+  const canvas = createTestCanvas()
   const container = (
     <div style={{ width: "100%", height: "100%" }}>{canvas}</div>
-  ) as HTMLDivElement;
+  ) as HTMLDivElement
 
-  createRoot(() => createThree(canvas, props));
+  createRoot(() => createThree(canvas, props))
   /* Assign ref */
   createRenderEffect(() => {
-    if (props.ref instanceof Function) props.ref(container);
-    else props.ref = container;
-  });
+    if (props.ref instanceof Function) props.ref(container)
+    else props.ref = container
+  })
 
-  return container;
+  return container
 }
 
 /**
@@ -98,10 +98,10 @@ export function TestCanvas(props: CanvasProps) {
  * const customCanvas = createTestCanvas({ width: 1024, height: 768 });
  */
 const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
-  let canvas: HTMLCanvasElement;
+  let canvas: HTMLCanvasElement
 
   if (typeof document !== "undefined" && typeof document.createElement === "function") {
-    canvas = document.createElement("canvas");
+    canvas = document.createElement("canvas")
   } else {
     canvas = {
       style: {},
@@ -110,27 +110,27 @@ const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
       clientWidth: width,
       clientHeight: height,
       getContext: (() => new WebGL2RenderingContext(canvas)) as any,
-    } as HTMLCanvasElement;
+    } as HTMLCanvasElement
   }
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = width
+  canvas.height = height
 
   // eslint-disable-next-line
   if (globalThis.HTMLCanvasElement) {
-    const getContext = HTMLCanvasElement.prototype.getContext;
+    const getContext = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, id: string) {
-      if (id.startsWith("webgl")) return new WebGL2RenderingContext(this);
-      return getContext.apply(this, arguments as any);
-    } as any;
+      if (id.startsWith("webgl")) return new WebGL2RenderingContext(this)
+      return getContext.apply(this, arguments as any)
+    } as any
   }
 
   class WebGLRenderingContext extends WebGL2RenderingContext {}
   // @ts-expect-error
   // eslint-disable-next-line
-  globalThis.WebGLRenderingContext ??= WebGLRenderingContext;
+  globalThis.WebGLRenderingContext ??= WebGLRenderingContext
   // @ts-expect-error
   // eslint-disable-next-line
-  globalThis.WebGL2RenderingContext ??= WebGL2RenderingContext;
+  globalThis.WebGL2RenderingContext ??= WebGL2RenderingContext
 
-  return canvas;
-};
+  return canvas
+}

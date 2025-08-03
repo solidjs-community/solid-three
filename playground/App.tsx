@@ -1,15 +1,15 @@
-import "./index.css";
-import { createSignal } from "solid-js";
-import * as THREE from "three";
-import { Canvas, T, extend, useFrame } from "../src/index.ts";
+import "./index.css"
+import { createSignal } from "solid-js"
+import * as THREE from "three"
+import { Canvas, T, extend, useFrame } from "../src/index.ts"
 
-extend(THREE);
+extend(THREE)
 
 function Box() {
-  const mesh = new THREE.Mesh();
-  const [hovered, setHovered] = createSignal(false);
+  const mesh = new THREE.Mesh()
+  const [hovered, setHovered] = createSignal(false)
 
-  useFrame(() => (mesh!.rotation.y += 0.01));
+  useFrame(() => (mesh!.rotation.y += 0.01))
 
   return (
     <>
@@ -22,7 +22,7 @@ function Box() {
         <T.MeshStandardMaterial color={hovered() ? "green" : "red"} />
       </T.Primitive>
     </>
-  );
+  )
 }
 
 export function App() {
@@ -36,5 +36,5 @@ export function App() {
       <Box />
       <T.ExtrudeGeometry args={[[new THREE.Shape()]]} />
     </Canvas>
-  );
+  )
 }

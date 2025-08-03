@@ -2,7 +2,7 @@
 
 type DebouncedFunction<T extends (...args: any[]) => any> = (
   ...args: Parameters<T>
-) => ReturnType<T> & { clear: () => void; flush: () => void; trigger: () => void };
+) => ReturnType<T> & { clear: () => void; flush: () => void; trigger: () => void }
 
 /**
 Creates a debounced function that delays execution until `wait` milliseconds have passed since its last invocation.
@@ -23,42 +23,42 @@ export function debounce<T extends () => any>(
   if (typeof callback !== "function") {
     throw new TypeError(
       `Expected the first parameter to be a function, got \`${typeof callback}\`.`,
-    );
+    )
   }
 
   if (wait < 0) {
-    throw new RangeError("`wait` must not be negative.");
+    throw new RangeError("`wait` must not be negative.")
   }
 
-  const { immediate } = options;
+  const { immediate } = options
 
-  let storedContext: any;
-  let storedArguments: Parameters<T>;
-  let timeoutId: ReturnType<typeof setTimeout>;
-  let timestamp: number;
-  let result: ReturnType<T>;
+  let storedContext: any
+  let storedArguments: Parameters<T>
+  let timeoutId: ReturnType<typeof setTimeout>
+  let timestamp: number
+  let result: ReturnType<T>
 
   function run() {
-    const callContext = storedContext;
-    const callArguments = storedArguments;
-    storedContext = undefined;
+    const callContext = storedContext
+    const callArguments = storedArguments
+    storedContext = undefined
     // @ts-expect-error TODO: fix type-error
-    storedArguments = undefined;
-    result = callback.apply(callContext, callArguments);
-    return result;
+    storedArguments = undefined
+    result = callback.apply(callContext, callArguments)
+    return result
   }
 
   function later() {
-    const last = Date.now() - timestamp;
+    const last = Date.now() - timestamp
 
     if (last < wait && last >= 0) {
-      timeoutId = setTimeout(later, wait - last);
+      timeoutId = setTimeout(later, wait - last)
     } else {
       // @ts-expect-error TODO: fix type-error
-      timeoutId = undefined;
+      timeoutId = undefined
 
       if (!immediate) {
-        result = run();
+        result = run()
       }
     }
   }
@@ -66,47 +66,47 @@ export function debounce<T extends () => any>(
   function debounced(...args: Parameters<T>) {
     // @ts-expect-error TODO: fix type-error
     if (storedContext && this !== storedContext) {
-      throw new Error("Debounced method called with different contexts.");
+      throw new Error("Debounced method called with different contexts.")
     }
 
     // @ts-expect-error TODO: fix type-error
-    storedContext = this;
-    storedArguments = args;
-    timestamp = Date.now();
+    storedContext = this
+    storedArguments = args
+    timestamp = Date.now()
 
-    const callNow = immediate && !timeoutId;
+    const callNow = immediate && !timeoutId
 
     // eslint-disable-next-line
     if (!timeoutId) {
-      timeoutId = setTimeout(later, wait);
+      timeoutId = setTimeout(later, wait)
     }
 
     // eslint-disable-next-line
     if (callNow) {
-      result = run();
+      result = run()
     }
 
-    return result;
+    return result
   }
 
   debounced.clear = () => {
     // eslint-disable-next-line
-    if (!timeoutId) return;
-    clearTimeout(timeoutId);
+    if (!timeoutId) return
+    clearTimeout(timeoutId)
     // @ts-expect-error TODO: fix type-error
-    timeoutId = undefined;
-  };
+    timeoutId = undefined
+  }
 
   debounced.flush = () => {
     // eslint-disable-next-line
-    if (!timeoutId) return;
-    debounced.trigger();
-  };
+    if (!timeoutId) return
+    debounced.trigger()
+  }
 
   debounced.trigger = () => {
-    result = run();
-    debounced.clear();
-  };
+    result = run()
+    debounced.clear()
+  }
 
-  return debounced;
+  return debounced
 }

@@ -1,5 +1,5 @@
-import { type Accessor, type Resource, createContext, createResource, useContext } from "solid-js";
-import { S3 } from "./index.ts";
+import { type Accessor, type Resource, createContext, createResource, useContext } from "solid-js"
+import { S3 } from "./index.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -7,7 +7,7 @@ import { S3 } from "./index.ts";
 /*                                                                                */
 /**********************************************************************************/
 
-export const threeContext = createContext<S3.Context>(null!);
+export const threeContext = createContext<S3.Context>(null!)
 
 /**
  * Custom hook to access all necessary Three.js objects needed to manage a 3D scene.
@@ -18,15 +18,15 @@ export const threeContext = createContext<S3.Context>(null!);
  * @returns Returns `S3.Context` directly, or as a selector if a callback is provided.
  * @throws Throws an error if used outside of the Canvas component context.
  */
-export function useThree(): S3.Context;
-export function useThree<T>(callback: (value: S3.Context) => T): Accessor<T>;
+export function useThree(): S3.Context
+export function useThree<T>(callback: (value: S3.Context) => T): Accessor<T>
 export function useThree(callback?: (value: S3.Context) => any) {
-  const store = useContext(threeContext);
+  const store = useContext(threeContext)
   if (!store) {
-    throw new Error("S3: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  if (callback) return () => callback(store);
-  return store;
+  if (callback) return () => callback(store)
+  return store
 }
 
 /**********************************************************************************/
@@ -37,8 +37,8 @@ export function useThree(callback?: (value: S3.Context) => any) {
 
 type FrameContext = (
   callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
-) => void;
-export const frameContext = createContext<FrameContext>();
+) => void
+export const frameContext = createContext<FrameContext>()
 
 /**
  * Hook to register a callback that will be executed on each animation frame within the `<Canvas/>` component.
@@ -50,12 +50,12 @@ export const frameContext = createContext<FrameContext>();
 export const useFrame = (
   callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
 ) => {
-  const addFrameListener = useContext(frameContext);
+  const addFrameListener = useContext(frameContext)
   if (!addFrameListener) {
-    throw new Error("S3: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  addFrameListener(callback);
-};
+  addFrameListener(callback)
+}
 
 /**********************************************************************************/
 /*                                                                                */
@@ -69,13 +69,13 @@ type Loader<TSource = any, TResult = any, TReturnValue = any> = {
     onLoad: (result: TResult) => void,
     onProgress: (() => void) | undefined,
     onReject: ((error: ErrorEvent | unknown) => void) | undefined,
-  ) => TReturnValue;
-};
-type LoaderUrl<T extends Loader> = Parameters<T["load"]>[0];
-type LoaderResult<T extends Loader> = Parameters<Parameters<T["load"]>[1]>[0];
+  ) => TReturnValue
+}
+type LoaderUrl<T extends Loader> = Parameters<T["load"]>[0]
+type LoaderResult<T extends Loader> = Parameters<Parameters<T["load"]>[1]>[0]
 
-type LoaderCache<T = Loader<any>> = { loader: T; resources: {} };
-const LOADER_CACHE = new Map<any, LoaderCache>();
+type LoaderCache<T = Loader<any>> = { loader: T; resources: {} }
+const LOADER_CACHE = new Map<any, LoaderCache>()
 
 /**
  * Hook to create and manage a resource using a Three.js loader. It ensures that the loader is
@@ -95,42 +95,42 @@ export function useLoader<
   args: Accessor<TArgs>,
   setup?: (loader: NoInfer<TLoader>) => void,
 ) {
-  let cache = LOADER_CACHE.get(Constructor) as LoaderCache<TLoader>;
+  let cache = LOADER_CACHE.get(Constructor) as LoaderCache<TLoader>
   if (!cache) {
     cache = {
       loader: new Constructor(),
       resources: {},
-    };
-    LOADER_CACHE.set(Constructor, cache);
+    }
+    LOADER_CACHE.set(Constructor, cache)
   }
-  const { loader, resources } = cache;
-  setup?.(loader);
+  const { loader, resources } = cache
+  setup?.(loader)
 
   const load = (arg: string) => {
     // @ts-expect-error TODO: fix type-error
-    if (resources[arg]) return resources[arg];
+    if (resources[arg]) return resources[arg]
     // @ts-expect-error TODO: fix type-error
     return (resources[arg] = new Promise((resolve, reject) =>
       loader.load(
         arg,
         value => {
           // @ts-expect-error TODO: fix type-error
-          resources[arg] = value;
-          resolve(value);
+          resources[arg] = value
+          resolve(value)
         },
         undefined,
         reject,
       ),
-    ));
-  };
+    ))
+  }
 
   const [resource] = createResource(args, args =>
     Array.isArray(args)
       ? Promise.all((args as string[]).map(arg => load(arg)))
       : load(args as string),
-  );
+  )
 
   return resource as /* TArgs extends  LoaderUrl<TLoader>
     ? Resource<LoaderResult<TLoader>>
-    : */ Resource<{ [K in keyof TArgs]: LoaderResult<TLoader> }>;
+    : */ Resource<{ [K in keyof TArgs]: LoaderResult<TLoader> }>
 }

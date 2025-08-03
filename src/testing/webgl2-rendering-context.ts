@@ -224,7 +224,7 @@ const functions = [
   "vertexAttribPointer",
   "viewport",
   "makeXRCompatible",
-];
+]
 
 const enums: Record<string, number> = {
   DEPTH_BUFFER_BIT: 256,
@@ -676,7 +676,7 @@ const enums: Record<string, number> = {
   TEXTURE_IMMUTABLE_LEVELS: 33503,
   TIMEOUT_IGNORED: -1,
   MAX_CLIENT_WAIT_TIMEOUT_WEBGL: 37447,
-};
+}
 
 const extensions: { [key: string]: any } = {
   // ratified
@@ -711,21 +711,21 @@ const extensions: { [key: string]: any } = {
   WEBGL_color_buffer_float: null,
   EXT_sRGB: null,
   WEBGL_compressed_texture_etc1: null,
-};
+}
 
 export class WebGL2RenderingContext {
-  [key: string]: any;
+  [key: string]: any
 
   constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
-    this.drawingBufferWidth = canvas.width;
-    this.drawingBufferHeight = canvas.height;
+    this.canvas = canvas
+    this.drawingBufferWidth = canvas.width
+    this.drawingBufferHeight = canvas.height
 
     for (const method of functions) {
-      this[method] ??= () => {};
+      this[method] ??= () => {}
     }
 
-    Object.assign(this, enums);
+    Object.assign(this, enums)
   }
 
   getShaderPrecisionFormat = () => {
@@ -733,28 +733,28 @@ export class WebGL2RenderingContext {
       rangeMin: 127,
       rangeMax: 127,
       precision: 23,
-    };
-  };
+    }
+  }
 
-  private GL_VERSION = 7938;
-  private SCISSOR_BOX = 3088;
-  private VIEWPORT = 2978;
+  private GL_VERSION = 7938
+  private SCISSOR_BOX = 3088
+  private VIEWPORT = 2978
 
   getParameter(paramId: number) {
     switch (paramId) {
       case this.GL_VERSION:
-        return ["WebGL2"];
+        return ["WebGL2"]
       case this.SCISSOR_BOX:
       case this.VIEWPORT:
-        return [0, 0, 1, 1];
+        return [0, 0, 1, 1]
     }
   }
 
   getExtension(ext: string) {
-    return extensions[ext];
+    return extensions[ext]
   }
 
-  getProgramInfoLog = () => "";
+  getProgramInfoLog = () => ""
 
-  getShaderInfoLog = () => "";
+  getShaderInfoLog = () => ""
 }

@@ -1,11 +1,11 @@
-import type { Accessor, Context, JSX } from "solid-js";
+import type { Accessor, Context, JSX } from "solid-js"
 
 export type ContextProviderProps = {
-  children?: JSX.Element;
-} & Record<string, unknown>;
+  children?: JSX.Element
+} & Record<string, unknown>
 export type ContextProvider<T extends ContextProviderProps> = (
   props: { children: JSX.Element } & T,
-) => JSX.Element;
+) => JSX.Element
 /**
  * A utility-function to provide context to components.
  *
@@ -30,17 +30,17 @@ export function withContext<T, TResult>(
   context: Context<T>,
   value: T,
 ) {
-  let result: TResult;
+  let result: TResult
 
   context.Provider({
     value,
     children: (() => {
-      result = children();
-      return "";
+      result = children()
+      return ""
     }) as any as JSX.Element,
-  });
+  })
 
-  return result!;
+  return result!
 }
 
 /*
@@ -72,21 +72,21 @@ Type validation of the `values` array thanks to the amazing @otonashixav (https:
 export function withMultiContexts<TResult, T extends readonly [unknown?, ...unknown[]]>(
   children: () => TResult,
   values: {
-    [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]];
+    [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]]
   },
 ) {
-  let result: TResult;
+  let result: TResult
 
-  (values as [Context<any>, any]).reduce((acc, [context, value], index) => {
+  ;(values as [Context<any>, any]).reduce((acc, [context, value], index) => {
     return () =>
       context.Provider({
         value,
         children: () => {
-          if (index === 0) result = acc();
-          else acc();
+          if (index === 0) result = acc()
+          else acc()
         },
-      });
-  }, children)();
+      })
+  }, children)()
 
-  return result!;
+  return result!
 }

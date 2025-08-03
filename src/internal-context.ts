@@ -1,7 +1,7 @@
-import { type JSX, createContext, useContext } from "solid-js";
-import { Object3D } from "three";
-import { S3 } from "./index.ts";
-import type { CanvasProps } from "./canvas.tsx";
+import { type JSX, createContext, useContext } from "solid-js"
+import { Object3D } from "three"
+import { S3 } from "./index.ts"
+import type { CanvasProps } from "./canvas.tsx"
 
 /**
  * Registers an event listener for an `AugmentedElement` to the nearest Canvas component up the component tree.
@@ -12,14 +12,14 @@ import type { CanvasProps } from "./canvas.tsx";
  * @throws Throws an error if used outside of the Canvas component context.
  */
 export const addToEventListeners = (object: S3.Instance<Object3D>, type: S3.EventName) => {
-  const addToEventListeners = useContext(eventContext);
+  const addToEventListeners = useContext(eventContext)
   if (!addToEventListeners) {
-    throw new Error("S3: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  addToEventListeners(object, type);
-};
+  addToEventListeners(object, type)
+}
 export const eventContext =
-  createContext<(object: S3.Instance<Object3D>, type: S3.EventName) => void>();
+  createContext<(object: S3.Instance<Object3D>, type: S3.EventName) => void>()
 
 /**
  * This function facilitates the rendering of JSX elements outside the normal scene
@@ -29,13 +29,13 @@ export const eventContext =
  * @throws Throws an error if used outside of the Canvas component context.
  */
 export const addPortal = (children: JSX.Element | JSX.Element[]) => {
-  const addPortal = useContext(portalContext);
+  const addPortal = useContext(portalContext)
   if (!addPortal) {
-    throw new Error("S3: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  addPortal(children);
-};
-export const portalContext = createContext<(children: JSX.Element | JSX.Element[]) => void>();
+  addPortal(children)
+}
+export const portalContext = createContext<(children: JSX.Element | JSX.Element[]) => void>()
 
 /**
  * Hook that provides access to the props of the nearest Canvas component up the component tree.
@@ -45,10 +45,10 @@ export const portalContext = createContext<(children: JSX.Element | JSX.Element[
  * @throws Throws an error if used outside of a Canvas component context.
  */
 export const useCanvasProps = () => {
-  const canvasProps = useContext(canvasPropsContext);
+  const canvasProps = useContext(canvasPropsContext)
   if (!canvasProps) {
-    throw new Error("S3: Hooks can only be used within the Canvas component!");
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  return canvasProps;
-};
-export const canvasPropsContext = createContext<CanvasProps>();
+  return canvasProps
+}
+export const canvasPropsContext = createContext<CanvasProps>()

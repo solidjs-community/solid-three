@@ -1,4 +1,4 @@
-import type { Accessor, Resource } from "solid-js";
+import type { Accessor, Resource } from "solid-js"
 
 export function when<
   T,
@@ -7,7 +7,7 @@ export function when<
     ? Exclude<ReturnType<Exclude<TAccessor, undefined>>, null | undefined | false>
     : Exclude<TAccessor, null | undefined | false>,
   const TResult,
->(accessor: TAccessor, callback: (value: TValues) => TResult): TResult | undefined;
+>(accessor: TAccessor, callback: (value: TValues) => TResult): TResult | undefined
 
 export function when<
   T,
@@ -21,7 +21,7 @@ export function when<
   accessor: TAccessor,
   callback: (value: TValues) => TResult,
   fallback: () => TFallbackResult,
-): TResult | TFallbackResult;
+): TResult | TFallbackResult
 
 export function when<
   T,
@@ -36,8 +36,8 @@ export function when<
   callback: (value: TValues) => TResult,
   fallback?: () => TFallbackResult,
 ): TResult | TFallbackResult | undefined {
-  const value = typeof accessor === "function" ? accessor() : accessor;
-  return value ? callback(value) : fallback ? fallback() : undefined;
+  const value = typeof accessor === "function" ? accessor() : accessor
+  return value ? callback(value) : fallback ? fallback() : undefined
 }
 
 /**
@@ -54,7 +54,7 @@ export function whenever<
     ? Exclude<ReturnType<Exclude<TAccessor, undefined>>, null | undefined | false>
     : Exclude<TAccessor, null | undefined | false>,
   const TResult,
->(accessor: TAccessor, callback: (value: TValues) => TResult): () => TResult | undefined;
+>(accessor: TAccessor, callback: (value: TValues) => TResult): () => TResult | undefined
 
 export function whenever<
   const T,
@@ -68,7 +68,7 @@ export function whenever<
   accessor: TAccessor,
   callback: (value: TValues) => TResult,
   fallback: () => TFallbackResult,
-): () => TResult | TFallbackResult;
+): () => TResult | TFallbackResult
 
 export function whenever<
   T,
@@ -84,7 +84,7 @@ export function whenever<
   fallback?: () => TFallbackResult,
 ): () => TResult | TFallbackResult | undefined {
   // @ts-expect-error
-  return () => when(accessor, callback, fallback);
+  return () => when(accessor, callback, fallback)
 }
 
 /**
@@ -99,26 +99,25 @@ export function every<
   const TValues extends {
     [TKey in keyof TAccessors]: TAccessors[TKey] extends ((...args: any[]) => any) | undefined
       ? Exclude<ReturnType<Exclude<TAccessors[TKey], undefined>>, null | undefined | false>
-      : Exclude<TAccessors[TKey], null | undefined | false>;
+      : Exclude<TAccessors[TKey], null | undefined | false>
   },
 >(...accessors: TAccessors) {
   function callback(): TValues | undefined {
-    const values = new Array(accessors.length);
+    const values = new Array(accessors.length)
 
     for (let i = 0; i < accessors.length; i++) {
-      const _value =
-        typeof accessors[i] === "function" ? (accessors[i] as () => T)() : accessors[i];
-      if (!_value) return undefined;
-      values[i] = _value;
+      const _value = typeof accessors[i] === "function" ? (accessors[i] as () => T)() : accessors[i]
+      if (!_value) return undefined
+      values[i] = _value
     }
 
-    return values as TValues;
+    return values as TValues
   }
-  return callback;
+  return callback
 }
 
 export function wrapNullableResource<T extends Resource<any>>(
   value: T,
 ): Accessor<false | [ReturnType<T>]> {
-  return () => value.state === "ready" && [value()];
+  return () => value.state === "ready" && [value()]
 }

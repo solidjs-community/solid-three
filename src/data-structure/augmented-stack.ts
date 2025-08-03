@@ -1,16 +1,16 @@
-import type { Accessor } from "solid-js";
-import { S3 } from "../index.ts";
-import { augment } from "../augment.ts";
-import { Stack } from "./stack.ts";
+import type { Accessor } from "solid-js"
+import { S3 } from "../index.ts"
+import { augment } from "../augment.ts"
+import { Stack } from "./stack.ts"
 
 /** A generic stack data structure. It augments each value before pushing it onto the stack. */
 export class AugmentedStack<T> {
-  #stack = new Stack<S3.Instance<T>>(null!);
+  #stack = new Stack<S3.Instance<T>>(null!)
   constructor(public name: string) {
-    this.#stack.name = name;
+    this.#stack.name = name
   }
-  all = this.#stack.all.bind(this.#stack);
-  peek = this.#stack.peek.bind(this.#stack);
+  all = this.#stack.all.bind(this.#stack)
+  peek = this.#stack.peek.bind(this.#stack)
   /**
    * Augments a value `T` or `Accessor<T>` and adds it to the stack.
    * Value is automatically removed from stack on cleanup.
@@ -22,7 +22,7 @@ export class AugmentedStack<T> {
     const cleanup =
       typeof value === "function"
         ? this.#stack.push(() => augment((value as Accessor<T>)()))
-        : this.#stack.push(augment(value));
-    return cleanup;
+        : this.#stack.push(augment(value))
+    return cleanup
   }
 }

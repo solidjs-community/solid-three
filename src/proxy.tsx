@@ -1,10 +1,10 @@
-import { createMemo, type JSX, mergeProps } from "solid-js";
-import type * as THREE from "three";
-import { S3 } from "./index.ts";
-import { augment } from "./augment.ts";
-import { Portal, Primitive } from "./components.tsx";
-import { manageProps } from "./props.ts";
-import type { Constructor } from "./type-utils.ts";
+import { createMemo, type JSX, mergeProps } from "solid-js"
+import type * as THREE from "three"
+import { S3 } from "./index.ts"
+import { augment } from "./augment.ts"
+import { Portal, Primitive } from "./components.tsx"
+import { manageProps } from "./props.ts"
+import type { Constructor } from "./type-utils.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -15,7 +15,7 @@ import type { Constructor } from "./type-utils.ts";
 /**
  * Global catalogue object storing mappings from names to constructor representations.
  */
-const CATALOGUE = {};
+const CATALOGUE = {}
 
 /**
  * Predefined components that can be used directly within the system.
@@ -23,7 +23,7 @@ const CATALOGUE = {};
 const COMPONENTS: SolidThree.Components = {
   Primitive,
   Portal,
-};
+}
 
 /**
  * Extends the global CATALOGUE with additional objects.
@@ -33,11 +33,11 @@ const COMPONENTS: SolidThree.Components = {
 export const extend = (
   objects: Partial<
     | {
-        [TKey in keyof SolidThree.Elements]: Constructor<SolidThree.Elements[TKey]>;
+        [TKey in keyof SolidThree.Elements]: Constructor<SolidThree.Elements[TKey]>
       }
     | typeof THREE
   >,
-): void => void Object.assign(CATALOGUE, objects);
+): void => void Object.assign(CATALOGUE, objects)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -48,12 +48,12 @@ export const extend = (
 /**
  * Cache for storing initialized components.
  */
-const T_CACHE = new Map<string, S3.Component<any>>(Object.entries(COMPONENTS));
+const T_CACHE = new Map<string, S3.Component<any>>(Object.entries(COMPONENTS))
 
 /** Map given type to `S3.Component` */
 type MapToS3Components<Source> = {
-  [K in keyof Source]: S3.Component<Source[K]>;
-};
+  [K in keyof Source]: S3.Component<Source[K]>
+}
 
 /**
  * A proxy that provides on-demand creation and caching of `solid-three` components.
@@ -67,18 +67,18 @@ export const T = new Proxy<
     if (!T_CACHE.has(name)) {
       /* Try and find a constructor within the THREE namespace. */
       // @ts-expect-error TODO: fix type-error
-      const constructor = CATALOGUE[name];
+      const constructor = CATALOGUE[name]
 
       /* If no constructor is found, return undefined. */
-      if (!constructor) return undefined;
+      if (!constructor) return undefined
 
       /* Otherwise, create and memoize a component for that constructor. */
-      T_CACHE.set(name, createThreeComponent(constructor));
+      T_CACHE.set(name, createThreeComponent(constructor))
     }
 
-    return T_CACHE.get(name);
+    return T_CACHE.get(name)
   },
-});
+})
 
 /**
  * Creates a ThreeComponent instance for a given source constructor.
@@ -91,16 +91,16 @@ function createThreeComponent<TSource>(
   source: TSource,
 ): S3.Component<TSource | SolidThree.Elements> {
   return (props: any) => {
-    const merged = mergeProps({ args: [] }, props);
+    const merged = mergeProps({ args: [] }, props)
     const memo = createMemo(() => {
       try {
-        return augment(new (source as any)(...merged.args), { props });
+        return augment(new (source as any)(...merged.args), { props })
       } catch (e) {
-        console.error(e);
-        throw new Error("");
+        console.error(e)
+        throw new Error("")
       }
-    });
-    manageProps(memo, props);
-    return memo as unknown as JSX.Element;
-  };
+    })
+    manageProps(memo, props)
+    return memo as unknown as JSX.Element
+  }
 }
