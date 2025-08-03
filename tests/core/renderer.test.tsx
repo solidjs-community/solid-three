@@ -9,8 +9,8 @@ import {
   onMount,
 } from "solid-js";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { S3, T, extend, useFrame, useThree } from "../../src/index";
-import { test } from "../../src/testing";
+import { S3, T, extend, useFrame, useThree } from "../../src/index.ts";
+import { test } from "../../src/testing/index.tsx";
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>;
 
@@ -752,7 +752,7 @@ describe("renderer", () => {
         // @ts-ignore TODO: fix type-error
         ref={material}
         map={signal() === 1 ? texture1 : texture2}
-        map-needsUpdate={true}
+        map-needsUpdate
         map-name="test"
       />
     ));

@@ -1,7 +1,7 @@
 import type { Accessor } from "solid-js";
-import { S3 } from "..";
-import { augment } from "../augment";
-import { Stack } from "./stack";
+import { S3 } from "../index.ts";
+import { augment } from "../augment.ts";
+import { Stack } from "./stack.ts";
 
 /** A generic stack data structure. It augments each value before pushing it onto the stack. */
 export class AugmentedStack<T> {

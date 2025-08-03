@@ -2,8 +2,8 @@
 import { render } from "@solidjs/testing-library";
 
 import { describe, expect, it } from "vitest";
-import { T } from "../../src";
-import { TestCanvas } from "../../src/testing";
+import { T } from "../../src/index.ts";
+import { TestCanvas } from "../../src/testing/index.tsx";
 
 describe("web Canvas", () => {
   it("should correctly mount", async () => {

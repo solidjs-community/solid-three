@@ -1,12 +1,12 @@
 import { type JSX, type ParentProps, createMemo, createRenderEffect, mergeProps } from "solid-js";
 import { Object3D } from "three";
-import { S3 } from "./";
-import { augment } from "./augment";
-import { threeContext, useThree } from "./hooks";
-import { manageProps, manageSceneGraph } from "./props";
-import { type InstanceFromConstructor } from "./type-utils";
-import { isInstance } from "./utils/is-instance";
-import { withContext } from "./utils/with-context";
+import { S3 } from "./index.ts";
+import { augment } from "./augment.ts";
+import { threeContext, useThree } from "./hooks.ts";
+import { manageProps, manageSceneGraph } from "./props.ts";
+import { type InstanceFromConstructor } from "./type-utils.ts";
+import { isInstance } from "./utils/is-instance.ts";
+import { withContext } from "./utils/with-context.ts";
 
 type PortalProps = ParentProps<{
   element?: InstanceFromConstructor<Object3D> | S3.Instance<Object3D>;

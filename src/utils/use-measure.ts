@@ -1,6 +1,6 @@
 import { createEffect, createMemo, createSignal, mergeProps, onCleanup } from "solid-js";
-import { whenever } from "./conditionals";
-import { debounce as createDebounce } from "./debounce";
+import { whenever } from "./conditionals.ts";
+import { debounce as createDebounce } from "./debounce.ts";
 
 declare type ResizeObserverCallback = (entries: any[], observer: ResizeObserver) => void;
 declare class ResizeObserver {
@@ -108,8 +108,8 @@ export function useMeasure(options?: UseMeasureOptions) {
 
     createEffect(() => {
       if (!config.scroll) return;
-      window.addEventListener("scroll", onScroll, { capture: true, passive: true });
-      onCleanup(() => window.removeEventListener("scroll", onScroll, true));
+      globalThis.addEventListener("scroll", onScroll, { capture: true, passive: true });
+      onCleanup(() => globalThis.removeEventListener("scroll", onScroll, true));
     });
 
     createEffect(
@@ -134,8 +134,8 @@ export function useMeasure(options?: UseMeasureOptions) {
   createEffect(() => {
     const onResize = getDebounce("resize");
 
-    window.addEventListener("resize", onResize);
-    onCleanup(() => window.removeEventListener("resize", onResize));
+    globalThis.addEventListener("resize", onResize);
+    onCleanup(() => globalThis.removeEventListener("resize", onResize));
 
     createEffect(
       whenever(element, element => {
@@ -160,7 +160,7 @@ export function useMeasure(options?: UseMeasureOptions) {
 function findScrollContainers(element: HTMLOrSVGElement | null): HTMLOrSVGElement[] {
   const result: HTMLOrSVGElement[] = [];
   if (!element || element === document.body) return result;
-  const { overflow, overflowX, overflowY } = window.getComputedStyle(element);
+  const { overflow, overflowX, overflowY } = globalThis.getComputedStyle(element);
   if ([overflow, overflowX, overflowY].some(prop => prop === "auto" || prop === "scroll"))
     result.push(element);
   return [...result, ...findScrollContainers(element.parentElement)];

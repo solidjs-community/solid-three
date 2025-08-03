@@ -2,9 +2,9 @@ import { Show, Suspense } from "solid-js";
 import * as THREE from "three";
 import { GLTFLoader } from "three-stdlib";
 import { describe, expect, it, vi } from "vitest";
-import { S3, T, buildGraph, useFrame, useLoader, useThree } from "../../src";
-import { test } from "../../src/testing";
-import { asyncUtils } from "../utils/async-utils";
+import { S3, T, buildGraph, useFrame, useLoader, useThree } from "../../src/index.ts";
+import { test } from "../../src/testing/index.tsx";
+import { asyncUtils } from "../utils/async-utils.ts";
 
 const resolvers: (() => void)[] = [];
 const { waitFor } = asyncUtils(resolver => resolvers.push(resolver));

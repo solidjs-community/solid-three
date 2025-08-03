@@ -1,7 +1,7 @@
-export { $S3C } from "./augment";
-export { Canvas, type CanvasProps } from "./canvas";
-export { useFrame, useLoader, useThree } from "./hooks";
-export { T, extend } from "./proxy";
-export * as S3 from "./types";
-export { buildGraph } from "./utils/build-graph";
-export { applyProps } from "./props";
+export { $S3C } from "./augment.ts";
+export { Canvas, type CanvasProps } from "./canvas.tsx";
+export { useFrame, useLoader, useThree } from "./hooks.ts";
+export { T, extend } from "./proxy.tsx";
+export * as S3 from "./types.ts";
+export { buildGraph } from "./utils/build-graph.ts";
+export { applyProps } from "./props.ts";
