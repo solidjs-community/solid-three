@@ -201,14 +201,12 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
     // Phase #1 - Enter
     const enterEvent = createThreeEvent(nativeEvent)
     const enterSet = new Set<Object3D>()
-    const leaveSet = new Set(hoveredSet)
 
     for (const { object } of intersections) {
       // Bubble up
       let current: Object3D | null = object
       while (current && !enterSet.has(current)) {
         enterSet.add(current)
-        leaveSet.delete(current)
 
         if (isInstance(current) && !hoveredSet.has(current)) {
           current[$S3C].props?.[`on${type}Enter`]?.(enterEvent)
@@ -217,8 +215,6 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
         current = current.parent
       }
     }
-
-    hoveredSet = enterSet
 
     // Phase #2 - Move
     const moveEvent = createThreeEvent(nativeEvent)
@@ -245,6 +241,8 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
 
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent)
+    const leaveSet = hoveredSet.difference(enterSet)
+    hoveredSet = enterSet
 
     for (const object of leaveSet.values()) {
       if (isInstance(object)) {
