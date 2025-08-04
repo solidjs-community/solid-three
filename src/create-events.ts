@@ -10,9 +10,11 @@ const eventNameMap = {
   onMouseDown: "mousedown",
   onMouseMove: "mousemove",
   onMouseUp: "mouseup",
+  onMouseLeave: "mouseleave",
   onPointerUp: "pointerup",
   onPointerDown: "pointerdown",
   onPointerMove: "pointermove",
+  onPointerLeave: "pointerleave",
   onWheel: "wheel",
 } as const
 
@@ -55,9 +57,24 @@ export const isEventType = (type: string): type is S3.EventName =>
 /**********************************************************************************/
 
 // Creates a `ThreeEvent` from the current `MouseEvent` | `WheelEvent`.
-function createThreeEvent<TEvent extends Event>(nativeEvent: TEvent): S3.Event<TEvent> {
+function createThreeEvent<TEvent extends Event>(
+  nativeEvent: TEvent,
+  stoppable?: true,
+): S3.Event<TEvent>
+function createThreeEvent<TEvent extends Event>(
+  nativeEvent: TEvent,
+  stoppable: false,
+): S3.Event<TEvent, false>
+function createThreeEvent<TEvent extends Event>(
+  nativeEvent: TEvent,
+  stoppable = true,
+): S3.Event<TEvent, boolean> {
+  if (!stoppable) {
+    return {
+      nativeEvent,
+    }
+  }
   const event = {
-    ...nativeEvent,
     nativeEvent,
     stopped: false,
     stopPropagation() {
@@ -144,6 +161,12 @@ function createMissableEventRegistry(
       }
     }
 
+    // Call the respective canvas event-handler
+    // if event propagated all the way down
+    if (!event.stopped) {
+      props[type]?.(event)
+    }
+
     // Phase #2 - Raycast remaining missed objects
     for (const remainingObject of missedObjects) {
       // Perform raycast on unvisited missed objects
@@ -165,7 +188,7 @@ function createMissableEventRegistry(
     }
 
     // Phase #3 - Fire missed event-handler on missed objects
-    const missedEvent = createThreeEvent(nativeEvent)
+    const missedEvent = createThreeEvent(nativeEvent, false)
 
     for (const object of missedObjects) {
       if (isInstance(object)) {
@@ -173,8 +196,8 @@ function createMissableEventRegistry(
       }
     }
 
-    if (visitedObjects.size === 0) {
-      props[missedType]?.(missedEvent)
+    if (visitedObjects.size > 0) {
+      props[`${type}Missed`]?.(missedEvent)
     }
   })
 
@@ -198,15 +221,20 @@ function createMissableEventRegistry(
  *    - `onPointerMove`
  *    - `onPointerLeave`
  */
-function createHoverEventRegistry(type: "Mouse" | "Pointer", context: S3.Context) {
+function createHoverEventRegistry(
+  type: "Mouse" | "Pointer",
+  context: S3.Context,
+  props: CanvasProps,
+) {
   const registry = createRegistry<Object3D>()
   let hoveredSet = new Set<Object3D>()
+  let intersections: Intersection<S3.Instance<Object3D>>[] = []
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
-    const intersections = raycast(context, registry.array, nativeEvent)
+    intersections = raycast(context, registry.array, nativeEvent)
 
     // Phase #1 - Enter
-    const enterEvent = createThreeEvent(nativeEvent)
+    const enterEvent = createThreeEvent(nativeEvent, false)
     const enterSet = new Set<Object3D>()
 
     for (const { object } of intersections) {
@@ -246,6 +274,10 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: S3.Context
       }
     }
 
+    if (!moveEvent.stopped) {
+      props[`on${type}Move`]?.(moveEvent)
+    }
+
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent)
     const leaveSet = hoveredSet.difference(enterSet)
@@ -256,6 +288,18 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: S3.Context
         object[$S3C].props?.[`on${type}Leave`]?.(leaveEvent)
       }
     }
+  })
+
+  context.canvas.addEventListener(eventNameMap[`on${type}Leave`], nativeEvent => {
+    if (hoveredSet.size === 0) return
+    const leaveEvent = createThreeEvent(nativeEvent)
+    for (const object of hoveredSet) {
+      if (isInstance(object)) {
+        object[$S3C].props?.[`on${type}Leave`]?.(leaveEvent)
+      }
+    }
+    props[`on${type}Leave`]?.(leaveEvent)
+    hoveredSet.clear()
   })
 
   return registry
@@ -278,6 +322,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: S3.Context
 function createDefaultEventRegistry(
   type: "onMouseDown" | "onMouseUp" | "onPointerDown" | "onPointerUp" | "onWheel",
   context: S3.Context,
+  props: CanvasProps,
   options?: AddEventListenerOptions,
 ) {
   const registry = createRegistry<Object3D>()
@@ -299,6 +344,10 @@ function createDefaultEventRegistry(
           node = node.parent
         }
       }
+
+      if (!event.stopped) {
+        props[type]?.(event)
+      }
     },
     options,
   )
@@ -317,9 +366,9 @@ function createDefaultEventRegistry(
  */
 export function createEvents(context: S3.Context, props: CanvasProps) {
   // onMouseMove/onMouseEnter/onMouseLeave
-  const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
+  const hoverMouseRegistry = createHoverEventRegistry("Mouse", context, props)
   // onPointerMove/onPointerEnter/onPointerLeave
-  const hoverPointerRegistry = createHoverEventRegistry("Pointer", context)
+  const hoverPointerRegistry = createHoverEventRegistry("Pointer", context, props)
 
   // onClick/onClickMissed
   const missableClickRegistry = createMissableEventRegistry("onClick", context, props)
@@ -329,13 +378,13 @@ export function createEvents(context: S3.Context, props: CanvasProps) {
   const missableDoubleClickRegistry = createMissableEventRegistry("onDoubleClick", context, props)
 
   // Default mouse-events
-  const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context)
-  const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context)
+  const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context, props)
+  const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context, props)
   // Default pointer-events
-  const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context)
-  const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context)
+  const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context, props)
+  const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context, props)
   // Default wheel-event
-  const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
+  const wheelRegistry = createDefaultEventRegistry("onWheel", context, props, { passive: true })
 
   return {
     /**

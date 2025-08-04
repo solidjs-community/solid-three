@@ -1,19 +1,21 @@
 import {
-  type ComponentProps,
   type JSX,
+  type ParentProps,
+  type Ref,
   createRenderEffect,
   onCleanup,
   onMount,
-  splitProps,
 } from "solid-js"
 import { Camera, OrthographicCamera, Raycaster, Scene, WebGLRenderer } from "three"
 import { createThree } from "./create-three.tsx"
 import { S3 } from "./index.ts"
+import type { EventHandlers } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps extends ComponentProps<"div"> {
+export interface CanvasProps extends Partial<EventHandlers> {
+  class?: string
   /** Configuration for the camera used in the scene. */
   camera?: Partial<S3.Props<"PerspectiveCamera"> | S3.Props<"OrthographicCamera">> | Camera
   /** Element to render while the main content is loading asynchronously.  */
@@ -23,13 +25,11 @@ export interface CanvasProps extends ComponentProps<"div"> {
     | Partial<S3.Props<"WebGLRenderer">>
     | ((canvas: HTMLCanvasElement) => WebGLRenderer)
     | WebGLRenderer
-  onClickMissed?(event: S3.Event<MouseEvent>): void
-  onContextMenuMissed?(event: S3.Event<MouseEvent>): void
-  onDoubleClickMissed?(event: S3.Event<MouseEvent>): void
   /** Toggles between Orthographic and Perspective camera. */
   orthographic?: boolean
   /** Configuration for the Raycaster used for mouse and pointer events. */
   raycaster?: Partial<S3.Props<"Raycaster">> | Raycaster
+  ref?: Ref<HTMLDivElement>
   /** Configuration for the Scene instance. */
   scene?: Partial<S3.Props<"Scene">> | Scene
   /** Custom CSS styles for the canvas container. */
@@ -54,16 +54,7 @@ export interface CanvasProps extends ComponentProps<"div"> {
  * @param props - Configuration options include camera settings, style, and children elements.
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
-export function Canvas(_props: CanvasProps) {
-  const [props, canvasProps] = splitProps(_props, [
-    "camera",
-    "children",
-    "fallback",
-    "onClickMissed",
-    "onDoubleClickMissed",
-    "onContextMenuMissed",
-    "ref",
-  ])
+export function Canvas(props: ParentProps<CanvasProps>) {
   let canvas: HTMLCanvasElement = null!
   let container: HTMLDivElement = null!
 
@@ -103,15 +94,15 @@ export function Canvas(_props: CanvasProps) {
   return (
     <div
       ref={container!}
-      {...canvasProps}
       style={{
         position: "relative",
         width: "100%",
         height: "100%",
         overflow: "hidden",
         display: "flex",
-        ...canvasProps.style,
+        ...props.style,
       }}
+      class={props.class}
     >
       <canvas ref={canvas!} style={{ width: "100%", height: "100%" }} />
     </div>

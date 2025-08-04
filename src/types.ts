@@ -58,29 +58,33 @@ export type CameraType = THREE.PerspectiveCamera | THREE.OrthographicCamera
 /**********************************************************************************/
 
 /** Generic `solid-three` event. */
-export type Event<TEvent> = {
-  nativeEvent: TEvent
-  stopped: boolean
-  stopPropagation: () => void
-}
+export type Event<TEvent, TStoppable = true> = TStoppable extends true
+  ? {
+      nativeEvent: TEvent
+      stopped: boolean
+      stopPropagation: () => void
+    }
+  : {
+      nativeEvent: TEvent
+    }
 
 /** Event handlers for various `solid-three` events. */
 export interface EventHandlers {
   onClick(event: Event<MouseEvent>): void
-  onClickMissed(event: MouseEvent): void
-  onDoubleClick(event: MouseEvent): void
-  onDoubleClickMissed(): void
+  onClickMissed(event: Event<MouseEvent, false>): void
+  onDoubleClick(event: Event<MouseEvent>): void
+  onDoubleClickMissed(event: Event<MouseEvent, false>): void
   onContextMenu(event: Event<MouseEvent>): void
-  onContextMenuMissed(event: MouseEvent): void
+  onContextMenuMissed(event: Event<MouseEvent, false>): void
   onMouseDown(event: Event<MouseEvent>): void
-  onMouseEnter(event: Event<MouseEvent>): void
+  onMouseEnter(event: Event<MouseEvent, false>): void
   onMouseLeave(event: Event<MouseEvent>): void
   onMouseMove(event: Event<MouseEvent>): void
   onMouseUp(event: Event<MouseEvent>): void
   onPointerUp(event: Event<MouseEvent>): void
   onPointerDown(event: Event<MouseEvent>): void
   onPointerMove(event: Event<MouseEvent>): void
-  onPointerEnter(event: Event<MouseEvent>): void
+  onPointerEnter(event: Event<MouseEvent, false>): void
   onPointerLeave(event: Event<MouseEvent>): void
   onWheel(event: Event<WheelEvent>): void
 }
