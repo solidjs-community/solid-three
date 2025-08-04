@@ -16,23 +16,33 @@ function Box(
   const mesh = new THREE.Mesh()
   const [hovered, setHovered] = createSignal(false)
 
-  //useFrame(() => (mesh!.rotation.y += 0.01))
-
   return (
     <>
       <T.Primitive
         object={mesh}
+        name={props.name}
         position={props.position}
-        onContextMenu={e => console.log("contextmenu", props.name, e)}
-        onContextMenuMissed={e => console.log("contextmenu missed", props.name, e)}
-        onPointerEnter={e => (console.log("enter", props.name, e), setHovered(true))}
-        onPointerLeave={e => setHovered(false)}
-        onPointerMove={e => console.log("move", props.name, e)}
-        onClickMissed={e => console.log("click missed!", props.name, e)}
+        onContextMenu={event => console.debug("contextmenu", props.name, event)}
+        onContextMenuMissed={event => console.debug("contextmenu missed", props.name, event)}
+        onPointerEnter={event => {
+          console.debug("enter", props.name, event)
+          setHovered(true)
+        }}
+        onPointerLeave={event => {
+          console.debug("leave", props.name, event)
+          setHovered(false)
+        }}
+        onPointerMove={event => {
+          console.debug("move", props.name, event)
+          if (props.stopPropagation) {
+            event.stopPropagation()
+          }
+        }}
+        onClickMissed={event => console.debug("click missed!", props.name, event)}
         onClick={
           !props.noClick
             ? event => {
-                console.log("click", props.name)
+                console.debug("click", props.name)
                 if (props.stopPropagation) {
                   event.stopPropagation()
                 }
@@ -53,14 +63,14 @@ export function App() {
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
       camera={{ position: new THREE.Vector3(0, 0, 10) }}
-      onClick={event => console.log(event)}
+      onClick={event => console.debug("canvas clicked", event)}
     >
       <T.AmbientLight color={[0.2, 0.2, 0.2]} />
       <T.PointLight intensity={1.2} decay={1} position={[2, 2, 5]} rotation={[0, Math.PI / 3, 0]} />
 
       <Box name="1" position={new THREE.Vector3(0, 0, 0)}>
-        <Box name="2" position={new THREE.Vector3(2, 0, 0)}>
-          <Box name="3" position={new THREE.Vector3(2, 0, 0)} stopPropagation />
+        <Box name="2" position={new THREE.Vector3(0.5, 0, 1)}>
+          <Box name="3" position={new THREE.Vector3(0.5, 0, 1)} stopPropagation />
         </Box>
       </Box>
     </Canvas>
