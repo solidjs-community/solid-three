@@ -58,7 +58,7 @@ export type CameraType = THREE.PerspectiveCamera | THREE.OrthographicCamera
 /**********************************************************************************/
 
 /** Generic `solid-three` event. */
-export type Event<TEvent extends WheelEvent | MouseEvent = WheelEvent | MouseEvent> = {
+export type Event<TEvent> = {
   nativeEvent: TEvent
   stopped: boolean
   stopPropagation: () => void
@@ -66,22 +66,23 @@ export type Event<TEvent extends WheelEvent | MouseEvent = WheelEvent | MouseEve
 
 /** Event handlers for various `solid-three` events. */
 export interface EventHandlers {
-  onClick: (event: Event<MouseEvent>) => void
-  onClickMissed: (event: Event<MouseEvent>) => void
-  onDoubleClick: (event: Event<MouseEvent>) => void
-  onDoubleClickMissed: (event: Event<MouseEvent>) => void
-  onContextMenu: (event: Event<MouseEvent>) => void
-  onMouseDown: (event: Event<MouseEvent>) => void
-  onMouseEnter: (event: Event<MouseEvent>) => void
-  onMouseLeave: (event: Event<MouseEvent>) => void
-  onMouseMove: (event: Event<MouseEvent>) => void
-  onMouseUp: (event: Event<MouseEvent>) => void
-  onPointerUp: (event: Event<MouseEvent>) => void
-  onPointerDown: (event: Event<MouseEvent>) => void
-  onPointerMove: (event: Event<MouseEvent>) => void
-  onPointerEnter: (event: Event<MouseEvent>) => void
-  onPointerLeave: (event: Event<MouseEvent>) => void
-  onWheel: (event: Event<WheelEvent>) => void
+  onClick(event: Event<MouseEvent>): void
+  onClickMissed(event: Event<MouseEvent>): void
+  onDoubleClick(event: Event<MouseEvent>): void
+  onDoubleClickMissed(event: Event<MouseEvent>): void
+  onContextMenu(event: Event<MouseEvent>): void
+  onContextMenuMissed(event: Event<MouseEvent>): void
+  onMouseDown(event: Event<MouseEvent>): void
+  onMouseEnter(event: Event<MouseEvent>): void
+  onMouseLeave(event: Event<MouseEvent>): void
+  onMouseMove(event: Event<MouseEvent>): void
+  onMouseUp(event: Event<MouseEvent>): void
+  onPointerUp(event: Event<MouseEvent>): void
+  onPointerDown(event: Event<MouseEvent>): void
+  onPointerMove(event: Event<MouseEvent>): void
+  onPointerEnter(event: Event<MouseEvent>): void
+  onPointerLeave(event: Event<MouseEvent>): void
+  onWheel(event: Event<WheelEvent>): void
 }
 
 /** The names of all `SolidThreeEventHandlers` */

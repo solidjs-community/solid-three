@@ -1,9 +1,15 @@
 import { onCleanup } from "solid-js"
 import { type Intersection, Object3D } from "three"
-import { S3 } from "./index.ts"
 import { $S3C } from "./augment.ts"
+import { S3 } from "./index.ts"
 import { isInstance } from "./utils/is-instance.ts"
 import { removeElementFromArray } from "./utils/remove-element-from-array.ts"
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                      Utils                                     */
+/*                                                                                */
+/**********************************************************************************/
 
 /**
  * Checks if a given string is a valid event type within the system.
@@ -13,6 +19,46 @@ import { removeElementFromArray } from "./utils/remove-element-from-array.ts"
  */
 export const isEventType = (type: string): type is S3.EventName =>
   /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel|Mouse)/.test(type)
+
+// Propagates an event down through the ancestors of a given `Object3D` in a scene graph,
+// calling the event handler for each ancestor as long as the event has not been marked as stopped.
+function bubbleDown(
+  element: S3.Instance<Object3D>,
+  type: S3.EventName,
+  event: S3.Event<MouseEvent | WheelEvent>,
+) {
+  let node: Object3D | null = element.parent
+  while (node) {
+    // If event has been stopped with event.stopPropagation() we break out.
+    if (event.stopped) break
+    // If node is an AugmentedElement we call the type's event-handler if it is defined.
+    if (isInstance(node)) {
+      // @ts-expect-error TODO: fix type-error
+      node[$S3C].props[type]?.(event)
+    }
+    // We bubble a layer down.
+    node = node.parent
+  }
+}
+
+// Creates a `ThreeEvent` from the current `MouseEvent` | `WheelEvent`.
+function createThreeEvent<TEvent extends Event>(nativeEvent: TEvent): S3.Event<TEvent> {
+  const event = {
+    ...nativeEvent,
+    nativeEvent,
+    stopped: false,
+    stopPropagation() {
+      event.stopped = true
+    },
+  }
+  return event
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                  Create Events                                 */
+/*                                                                                */
+/**********************************************************************************/
 
 /**
  * Initializes and manages event handling for `AugmentedElement<Object3D>`.
@@ -28,6 +74,7 @@ export const createEvents = (context: S3.Context) => {
     onClick: [],
     onClickMissed: [],
     onContextMenu: [],
+    onContextMenuMissed: [],
     onDoubleClick: [],
     onDoubleClickMissed: [],
     onMouseDown: [],
@@ -43,24 +90,19 @@ export const createEvents = (context: S3.Context) => {
     onWheel: [],
   } as const
 
-  // Creates a `ThreeEvent` from the current `MouseEvent` | `WheelEvent`.
-  const createThreeEvent = <TEvent extends MouseEvent | WheelEvent>(
-    nativeEvent: TEvent,
-  ): S3.Event<TEvent> => {
-    const event = {
-      ...nativeEvent,
-      nativeEvent,
-      stopped: false,
-      stopPropagation: () => (event.stopped = true),
-    }
-    return event
-  }
+  /**********************************************************************************/
+  /*                                                                                */
+  /*                                     Raycast                                    */
+  /*                                                                                */
+  /**********************************************************************************/
 
-  // Performs a raycast from the camera through the mouse position to find intersecting 3D objects.
-  const raycast = <TNativeEvent extends MouseEvent | WheelEvent>(
+  /**
+   * Performs a raycast from the camera through the mouse position to find intersecting 3D objects.
+   */
+  function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     nativeEvent: TNativeEvent,
-    type: keyof typeof eventRegistry,
-  ): Intersection<S3.Instance<Object3D>>[] => {
+    type: S3.EventName,
+  ): Intersection<S3.Instance<Object3D>>[] {
     context.setPointer(pointer => {
       pointer.x = (nativeEvent.offsetX / globalThis.innerWidth) * 2 - 1
       pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1
@@ -91,79 +133,13 @@ export const createEvents = (context: S3.Context) => {
     )
   }
 
-  // Propagates an event down through the ancestors of a given `Object3D` in a scene graph,
-  // calling the event handler for each ancestor as long as the event has not been marked as stopped.
-  const bubbleDown = <
-    TNativeEvent extends MouseEvent | WheelEvent,
-    TEvent extends S3.Event<TNativeEvent>,
-  >(
-    element: S3.Instance<Object3D>,
-    type: S3.EventName,
-    event: TEvent,
-  ) => {
-    let node: Object3D | null = element.parent
-    while (node) {
-      // If event has been stopped with event.stopPropagation() we break out.
-      if (event.stopped) break
-      // If node is an AugmentedElement we call the type's event-handler if it is defined.
-      if (isInstance(node)) {
-        // @ts-expect-error TODO: fix type-error
-        node[$S3C].props[type]?.(event)
-      }
-      // We bubble a layer down.
-      node = node.parent
-    }
-  }
+  /**********************************************************************************/
+  /*                                                                                */
+  /*                              Movable Event Handler                             */
+  /*                                                                                */
+  /**********************************************************************************/
 
-  // A handler-factory for `on{Pointer|Mouse}Move` events.
-  // This handler manages also its derived events:
-  // - `on{Pointer|Mouse}Enter`
-  // - `on{Pointer|Mouse}Leave`
-  const createMoveHandler = (type: "Pointer" | "Mouse") => (nativeEvent: MouseEvent) => {
-    const moveEvent = createThreeEvent(nativeEvent)
-    const enterEvent = createThreeEvent(nativeEvent)
-
-    let staleIntersects = new Set(priorIntersects[type])
-
-    for (const intersection of raycast(nativeEvent, `on${type}Move`)) {
-      const props = intersection.object[$S3C].props
-
-      if (!enterEvent.stopped && !priorIntersects[type].has(intersection.object)) {
-        // @ts-expect-error TODO: fix type-error
-        props[`on${type}Enter`]?.(enterEvent)
-        bubbleDown(intersection.object, `on${type}Enter`, enterEvent)
-      }
-
-      if (!moveEvent.stopped) {
-        // @ts-expect-error TODO: fix type-error
-        props[`on${type}Move`]?.(moveEvent)
-        bubbleDown(intersection.object, `on${type}Move`, moveEvent)
-      }
-
-      staleIntersects.delete(intersection.object)
-      priorIntersects[type].add(intersection.object)
-
-      if (moveEvent.stopped && enterEvent.stopped) break
-    }
-
-    if (priorMoveEvents[type]) {
-      const leaveEvent = createThreeEvent(priorMoveEvents[type]!)
-
-      for (const object of staleIntersects.values()) {
-        priorIntersects[type].delete(object)
-
-        if (!leaveEvent.stopped) {
-          const props = object[$S3C].props
-          // @ts-expect-error TODO: fix type-error
-          props[`on${type}Leave`]?.(leaveEvent)
-          bubbleDown(object, `on${type}Leave`, leaveEvent)
-        }
-      }
-    }
-
-    priorMoveEvents[type] = nativeEvent
-  }
-  const priorIntersects = {
+  const priorMoveIntersects = {
     Mouse: new Set<S3.Instance<Object3D>>(),
     Pointer: new Set<S3.Instance<Object3D>>(),
   }
@@ -172,131 +148,217 @@ export const createEvents = (context: S3.Context) => {
     Pointer: undefined as undefined | MouseEvent,
   }
 
-  // Creates a generic event handler for events other than `move` and its derived events.
-  const createEventHandler =
-    <TEvent extends MouseEvent | WheelEvent>(type: keyof typeof eventRegistry) =>
-    (nativeEvent: TEvent) => {
-      const event = createThreeEvent(nativeEvent)
+  /**
+   * A handler-factory for `on{Pointer|Mouse}Move` events.
+   * This handler manages also its derived events:
+   * - `on{Pointer|Mouse}Enter`
+   * - `on{Pointer|Mouse}Leave`
+   */
+  function movableEventHandler(type: "Pointer" | "Mouse") {
+    context.canvas.addEventListener(
+      `${type.toLowerCase() as Lowercase<typeof type>}move`,
+      (nativeEvent: MouseEvent) => {
+        const moveEvent = createThreeEvent(nativeEvent)
+        const enterEvent = createThreeEvent(nativeEvent)
+        const staleIntersects = new Set(priorMoveIntersects[type])
 
-      // For click/doubleclick events, we need to check ALL clickable objects
-      if (type === "onClick" || type === "onDoubleClick") {
-        // Get all objects that could be clicked
-        const allClickableObjects = [
-          ...new Set([...eventRegistry[type], ...eventRegistry[`${type}Missed`]]),
-        ]
+        for (const intersection of raycast(nativeEvent, `on${type}Move`)) {
+          const props = intersection.object[$S3C].props
 
-        // Perform raycast on all clickable objects
-        context.setPointer(pointer => {
-          pointer.x = (nativeEvent.offsetX / globalThis.innerWidth) * 2 - 1
-          pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1
-          return pointer
-        })
-        context.raycaster.setFromCamera(context.pointer, context.camera)
+          // Handle enter-event
+          if (!enterEvent.stopped && !priorMoveIntersects[type].has(intersection.object)) {
+            // @ts-expect-error TODO: fix type-error
+            props[`on${type}Enter`]?.(enterEvent)
+            bubbleDown(intersection.object, `on${type}Enter`, enterEvent)
+          }
 
-        const intersections = context.raycaster.intersectObjects(allClickableObjects, true)
-        const hitObjects = new Set<S3.Instance<Object3D>>()
+          // Handle move-event
+          if (!moveEvent.stopped) {
+            // @ts-expect-error TODO: fix type-error
+            props[`on${type}Move`]?.(moveEvent)
+            bubbleDown(intersection.object, `on${type}Move`, moveEvent)
+          }
 
-        // Process hit objects - collect all hit augmented instances
-        for (const { object } of intersections) {
-          // Check if this object or any of its ancestors is registered
-          let current: Object3D | null = object
-          while (current) {
-            const registeredObject = allClickableObjects.find(o => o === current)
-            if (registeredObject) {
-              hitObjects.add(registeredObject)
-              break
+          staleIntersects.delete(intersection.object)
+          priorMoveIntersects[type].add(intersection.object)
+
+          if (moveEvent.stopped && enterEvent.stopped) break
+        }
+
+        // Handle leave-event
+        if (priorMoveEvents[type]) {
+          const leaveEvent = createThreeEvent(priorMoveEvents[type]!)
+
+          for (const object of staleIntersects.values()) {
+            priorMoveIntersects[type].delete(object)
+
+            if (!leaveEvent.stopped) {
+              const props = object[$S3C].props
+              // @ts-expect-error TODO: fix type-error
+              props[`on${type}Leave`]?.(leaveEvent)
+              bubbleDown(object, `on${type}Leave`, leaveEvent)
             }
-            current = current.parent
           }
         }
 
-        // Process regular click events on hit objects
-        for (const object of eventRegistry[type]) {
-          if (hitObjects.has(object)) {
-            // @ts-expect-error TODO: fix type-error
-            object[$S3C].props?.[type]?.(event)
-            bubbleDown(object, type, event)
-            if (event.stopped) break
-          }
-        }
+        priorMoveEvents[type] = nativeEvent
+      },
+    )
+  }
 
-        // Process missed events
-        const missedType = type.replace(
-          /^on(Click|DoubleClick)$/,
-          "on$1Missed",
-        ) as keyof typeof eventRegistry
-        for (const object of eventRegistry[missedType]) {
-          if (!hitObjects.has(object)) {
-            // @ts-expect-error TODO: fix type-error
-            object[$S3C].props?.[missedType]?.(event)
-            if (event.stopped) break
-          }
-        }
-      } else {
-        // For non-click events, use the original logic
+  /**********************************************************************************/
+  /*                                                                                */
+  /*                               Missable Event Handler                           */
+  /*                                                                                */
+  /**********************************************************************************/
+
+  /**
+   * Handles click, double-click and contextmenu events with missed event support
+   */
+  function missableEventHandler(type: "onClick" | "onDoubleClick" | "onContextMenu") {
+    context.canvas.addEventListener(
+      type === "onDoubleClick" ? "dblclick" : type === "onClick" ? "click" : "contextmenu",
+      nativeEvent => {
+        const event = createThreeEvent(nativeEvent)
+        const missedType = `${type}Missed` as const
+
+        // Track which objects have been visited during event processing
+        const visitedObjects = new Set<Object3D>()
+
+        // Pass #1 - Process normal click events
         const intersections = raycast(nativeEvent, type)
+
         for (const { object } of intersections) {
-          // @ts-expect-error TODO: fix type-error
+          let node: Object3D | null = object
+          while (node && !event.stopped && !visitedObjects.has(node)) {
+            visitedObjects.add(node)
+            if (isInstance(node)) {
+              node[$S3C].props?.[type]?.(event)
+            }
+            node = node.parent
+          }
+        }
+
+        // Phase #2 - Raycast missedType-objects that haven't been visited
+        const missedEvent = createThreeEvent(nativeEvent)
+
+        for (const missedObject of eventRegistry[missedType]) {
+          if (visitedObjects.has(missedObject)) {
+            continue
+          }
+
+          // Perform raycast on unvisited missed objects
+          context.raycaster.setFromCamera(context.pointer, context.camera)
+          const missedIntersections = context.raycaster.intersectObject(missedObject, true)
+
+          // Bubble down missed intersections
+          // adding objects to visitedObjects, if they haven't been visited before
+          for (const { object } of missedIntersections) {
+            let node: Object3D | null = object
+            while (node && !visitedObjects.has(node)) {
+              visitedObjects.add(node)
+              node = node.parent
+            }
+          }
+        }
+
+        // Pass #3 - Fire onClickMissed on remaining unvisited missedType-objects
+        for (const object of eventRegistry[missedType]) {
+          if (!visitedObjects.has(object)) {
+            object[$S3C].props?.[missedType]?.(missedEvent)
+            if (missedEvent.stopped) break
+          }
+        }
+      },
+    )
+  }
+
+  /**********************************************************************************/
+  /*                                                                                */
+  /*                                Default Event Handler                           */
+  /*                                                                                */
+  /**********************************************************************************/
+
+  function defaultEventHandler<T extends S3.EventName>(type: T, options?: AddEventListenerOptions) {
+    context.canvas.addEventListener(
+      type.replace("on", "").toLowerCase(),
+      nativeEvent => {
+        const event = createThreeEvent(nativeEvent)
+        const intersections = raycast(nativeEvent, type)
+
+        for (const { object } of intersections) {
           object[$S3C].props?.[type]?.(event)
           bubbleDown(object, type, event)
           if (event.stopped) break
         }
-      }
-    }
-
-  // Register event handlers to the canvas
-  context.canvas.addEventListener("mousemove", createMoveHandler("Mouse"))
-  context.canvas.addEventListener("pointermove", createMoveHandler("Pointer"))
-
-  context.canvas.addEventListener("mousedown", createEventHandler("onMouseDown"))
-  context.canvas.addEventListener("pointerdown", createEventHandler("onPointerDown"))
-
-  context.canvas.addEventListener("mouseup", createEventHandler("onMouseUp"))
-  context.canvas.addEventListener("pointerup", createEventHandler("onPointerUp"))
-
-  context.canvas.addEventListener("wheel", createEventHandler("onWheel"), { passive: true })
-  context.canvas.addEventListener("click", createEventHandler("onClick"))
-  context.canvas.addEventListener("dblclick", createEventHandler("onDoubleClick"))
-
-  /**
-   * Registers an `AugmentedElement<Object3D>` with the event handling system.
-   *
-   * @param object - The 3D object to register.
-   * @param type - The type of event the object should listen for.
-   */
-  const addEventListener = (object: S3.Instance<Object3D>, type: S3.EventName) => {
-    const isDerivedEvent = type.includes("Enter") || type.includes("Leave")
-    const isPointerEvent = type.includes("Pointer")
-
-    // Derived events are handled by `on{Pointer|Mouse}Move`
-    const derivedType = isDerivedEvent ? `on${isPointerEvent ? "Pointer" : "Mouse"}Move` : type
-
-    // @ts-expect-error TODO: fix type-error
-    if (!eventRegistry[derivedType].find(value => value === object)) {
-      // @ts-expect-error TODO: fix type-error
-      eventRegistry[derivedType].push(object)
-    }
-
-    onCleanup(() => {
-      // NOTE:  When a move/derived event-handler cleans up, it only removes the object from the registry
-      //        if the object is currently not listening to another move/derived-event.
-      if (derivedType.includes("Move")) {
-        const props = object[$S3C].props ?? {}
-        if (isPointerEvent) {
-          if ("onPointerMove" in props || "onPointerEnter" in props || "onPointerLeave" in props) {
-            return
-          }
-        } else {
-          if ("onMouseMove" in props || "onMouseEnter" in props || "onMouseLeave" in props) {
-            return
-          }
-        }
-      }
-
-      // @ts-expect-error TODO: fix type-error
-      removeElementFromArray(eventRegistry[derivedType], object)
-    })
+      },
+      options,
+    )
   }
 
-  return { addEventListener, eventRegistry }
+  /**********************************************************************************/
+  /*                                                                                */
+  /*                           Register Event Handlers To Canvas                    */
+  /*                                                                                */
+  /**********************************************************************************/
+
+  movableEventHandler("Mouse")
+  movableEventHandler("Pointer")
+
+  missableEventHandler("onClick")
+  missableEventHandler("onContextMenu")
+  missableEventHandler("onDoubleClick")
+
+  defaultEventHandler("onMouseDown")
+  defaultEventHandler("onPointerDown")
+  defaultEventHandler("onMouseUp")
+  defaultEventHandler("onPointerUp")
+  defaultEventHandler("onWheel", { passive: true })
+
+  return {
+    eventRegistry,
+    /**
+     * Registers an `AugmentedElement<Object3D>` with the event handling system.
+     *
+     * @param object - The 3D object to register.
+     * @param type - The type of event the object should listen for.
+     */
+    addEventListener(object: S3.Instance<Object3D>, type: S3.EventName) {
+      const isDerivedEvent = type.includes("Enter") || type.includes("Leave")
+      const isPointerEvent = type.includes("Pointer")
+
+      // Derived events are handled by `on{Pointer|Mouse}Move`
+      const derivedType = isDerivedEvent ? `on${isPointerEvent ? "Pointer" : "Mouse"}Move` : type
+
+      // @ts-expect-error TODO: fix type-error
+      if (!eventRegistry[derivedType].find(value => value === object)) {
+        // @ts-expect-error TODO: fix type-error
+        eventRegistry[derivedType].push(object)
+      }
+
+      onCleanup(() => {
+        // NOTE:  When a move/derived event-handler cleans up, it only removes the object from the registry
+        //        if the object is currently not listening to another move/derived-event.
+        if (derivedType.includes("Move")) {
+          const props = object[$S3C].props ?? {}
+          if (isPointerEvent) {
+            if (
+              "onPointerMove" in props ||
+              "onPointerEnter" in props ||
+              "onPointerLeave" in props
+            ) {
+              return
+            }
+          } else {
+            if ("onMouseMove" in props || "onMouseEnter" in props || "onMouseLeave" in props) {
+              return
+            }
+          }
+        }
+
+        // @ts-expect-error TODO: fix type-error
+        removeElementFromArray(eventRegistry[derivedType], object)
+      })
+    },
+  }
 }
