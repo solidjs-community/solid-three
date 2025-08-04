@@ -98,29 +98,19 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1
     return pointer
   })
-
   context.raycaster.setFromCamera(context.pointer, context.camera)
 
-  const duplicates = new Set<S3.Instance<Object3D>>()
+  const nodeSet = new Set<Object3D>()
+  const stack = [...registry]
 
-  // NOTE:  we currently perform a recursive intersection-test just as r3f.
-  //        this method performs a lot of duplicate intersection-tests.
-  const intersections: Intersection<S3.Instance<Object3D>>[] = context.raycaster.intersectObjects(
-    registry,
-    true,
-  )
+  // Collect all unique descendants of registry
+  for (const object of stack) {
+    if (nodeSet.has(object)) continue
+    nodeSet.add(object)
+    stack.push(...object.children)
+  }
 
-  return (
-    intersections
-      // sort by distance
-      .sort((a, b) => a.distance - b.distance)
-      // remove duplicates
-      .filter(({ object }) => {
-        if (duplicates.has(object)) return false
-        duplicates.add(object)
-        return true
-      })
-  )
+  return context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
 }
 
 /**********************************************************************************/
@@ -140,6 +130,7 @@ function createMissableEventRegistry(
   const registry: Object3D[] = []
 
   context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
+    if (registry.length === 0) return
     const event = createThreeEvent(nativeEvent)
     const missedType = `${type}Missed` as const
 
@@ -193,8 +184,10 @@ function createMissableEventRegistry(
   return (instance: S3.Instance<Object3D>) => {
     registry.push(instance)
     return () => {
-      const index = registry.findIndex(_instance => _instance === instance)
-      registry.splice(index, 1)
+      registry.splice(
+        registry.findIndex(_instance => _instance === instance),
+        1,
+      )
     }
   }
 }
@@ -266,8 +259,10 @@ function createMovableEventRegistry(context: S3.Context, type: "Mouse" | "Pointe
   return (instance: S3.Instance<Object3D>) => {
     registry.push(instance)
     return () => {
-      const index = registry.findIndex(_instance => _instance === instance)
-      registry.splice(index, 1)
+      registry.splice(
+        registry.findIndex(_instance => _instance === instance),
+        1,
+      )
     }
   }
 }
