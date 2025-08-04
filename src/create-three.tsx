@@ -28,10 +28,9 @@ import type { CanvasProps } from "./canvas.tsx"
 import { createEvents } from "./create-events.ts"
 import { AugmentedStack } from "./data-structure/augmented-stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
-import { S3 } from "./index.ts"
 import { canvasPropsContext, eventContext } from "./internal-context.ts"
 import { manageProps, manageSceneGraph } from "./props.ts"
-import type { Context } from "./types.ts"
+import type { CameraType, Context } from "./types.ts"
 import { defaultProps } from "./utils/default-props.ts"
 import { removeElementFromArray } from "./utils/remove-element-from-array.ts"
 import { useMeasure } from "./utils/use-measure.ts"
@@ -44,7 +43,7 @@ import { withMultiContexts } from "./utils/with-context.ts"
  *
  * @param canvas - The HTML canvas element on which Three.js will render.
  * @param props - Configuration properties.
- * @returns - an `S3.Context` with additional properties including addFrameListener.
+ * @returns - an `Context` with additional properties including addFrameListener.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
@@ -55,7 +54,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  type FrameListener = (context: S3.Context, delta: number, frame?: XRFrame) => void
+  type FrameListener = (context: Context, delta: number, frame?: XRFrame) => void
 
   const frameListeners: FrameListener[] = []
   // Adds a callback to be called on each frame
@@ -125,7 +124,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   const [pointer, setPointer] = createSignal(new Vector2(), { equals: false })
-  const cameraStack = new AugmentedStack<S3.CameraType>("camera")
+  const cameraStack = new AugmentedStack<CameraType>("camera")
   const sceneStack = new AugmentedStack<Scene>("scene")
   const raycasterStack = new AugmentedStack<Raycaster>("raycaster")
   const glStack = new AugmentedStack<WebGLRenderer>("gl")
@@ -224,7 +223,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   return mergeProps(context, { addFrameListener })
 }
 
-function initializeContext(context: S3.Context, props: CanvasProps) {
+function initializeContext(context: Context, props: CanvasProps) {
   withMultiContexts(() => {
     const { camera, scene, gl, raycaster } = createDefaultElements(context, props)
     // Set default elements to context
@@ -331,7 +330,7 @@ function initializeContext(context: S3.Context, props: CanvasProps) {
  * @returns - Returns objects providing reactive access to the camera, WebGL renderer, raycaster,
  *            and scene, allowing these elements to be integrated into the Solid.js reactive system.
  */
-function createDefaultElements(context: S3.Context, props: CanvasProps) {
+function createDefaultElements(context: Context, props: CanvasProps) {
   return {
     camera: createMemo(() =>
       augment(

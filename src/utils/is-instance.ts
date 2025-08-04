@@ -1,5 +1,5 @@
-import { S3 } from "../index.ts"
-import { $S3C } from "../augment.ts"
+import type { Instance } from "src/types.ts"
+import { $S3C } from "../constants.ts"
 
-export const isInstance = (element: any): element is S3.Instance =>
+export const isInstance = (element: any): element is Instance =>
   typeof element === "object" && $S3C in element

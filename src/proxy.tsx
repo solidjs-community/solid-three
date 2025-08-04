@@ -1,10 +1,10 @@
 import { createMemo, type JSX, mergeProps } from "solid-js"
 import type * as THREE from "three"
-import { S3 } from "./index.ts"
 import { augment } from "./augment.ts"
 import { Portal, Primitive } from "./components.tsx"
 import { manageProps } from "./props.ts"
 import type { Constructor } from "./type-utils.ts"
+import type { Component } from "./types.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -48,11 +48,11 @@ export const extend = (
 /**
  * Cache for storing initialized components.
  */
-const T_CACHE = new Map<string, S3.Component<any>>(Object.entries(COMPONENTS))
+const T_CACHE = new Map<string, Component<any>>(Object.entries(COMPONENTS))
 
-/** Map given type to `S3.Component` */
+/** Map given type to `Component` */
 type MapToS3Components<Source> = {
-  [K in keyof Source]: S3.Component<Source[K]>
+  [K in keyof Source]: Component<Source[K]>
 }
 
 /**
@@ -87,9 +87,7 @@ export const T = new Proxy<
  * @param source - The constructor from which the component will be created.
  * @returns The created component.
  */
-function createThreeComponent<TSource>(
-  source: TSource,
-): S3.Component<TSource | SolidThree.Elements> {
+function createThreeComponent<TSource>(source: TSource): Component<TSource | SolidThree.Elements> {
   return (props: any) => {
     const merged = mergeProps({ args: [] }, props)
     const memo = createMemo(() => {

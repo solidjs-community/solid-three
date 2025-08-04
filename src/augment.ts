@@ -1,6 +1,5 @@
-import { S3 } from "./index.ts"
-
-export const $S3C = Symbol("solid-three")
+import { $S3C } from "./constants.ts"
+import type { Instance } from "./types"
 
 /**
  * A utility to add metadata to a given instance.
@@ -12,9 +11,9 @@ export const $S3C = Symbol("solid-three")
  */
 export const augment = <T>(instance: T, augmentation = {}) => {
   if (instance && typeof instance === "object" && $S3C in instance) {
-    return instance as S3.Instance<T>
+    return instance as Instance<T>
   }
   // @ts-expect-error TODO: fix type-error
   instance[$S3C] = { children: new Set(), ...augmentation }
-  return instance as S3.Instance<T>
+  return instance as Instance<T>
 }

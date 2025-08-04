@@ -18,11 +18,11 @@ import {
   Texture,
   UnsignedByteType,
 } from "three"
-import { $S3C } from "./augment.ts"
+import { $S3C } from "./constants.ts"
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
-import { S3 } from "./index.ts"
 import { addToEventListeners, useCanvasProps } from "./internal-context.ts"
+import type { Instance } from "./types.ts"
 import { when } from "./utils/conditionals.ts"
 import { hasColorSpace } from "./utils/has-colorspace.ts"
 import { isInstance } from "./utils/is-instance.ts"
@@ -44,7 +44,7 @@ import { resolve } from "./utils/resolve.ts"
  * @param props - An object containing the props to apply. This includes both direct properties
  *                and special properties like `ref` and `children`.
  */
-export function manageProps<T>(object: Accessor<S3.Instance<T>>, props: any) {
+export function manageProps<T>(object: Accessor<Instance<T>>, props: any) {
   const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
 
   // Assign ref
@@ -57,7 +57,7 @@ export function manageProps<T>(object: Accessor<S3.Instance<T>>, props: any) {
   const childrenAccessor = children(() => props.children)
   createRenderEffect(() =>
     // @ts-expect-error TODO: fix type-error
-    manageSceneGraph(object(), childrenAccessor as unknown as Accessor<S3.Instance>),
+    manageSceneGraph(object(), childrenAccessor as unknown as Accessor<Instance>),
   )
 
   // Apply the props to THREE-instance
@@ -83,7 +83,7 @@ export function manageProps<T>(object: Accessor<S3.Instance<T>>, props: any) {
 /*                                                                                */
 /**********************************************************************************/
 
-export function applyProps<T>(object: S3.Instance<T>, props: any) {
+export function applyProps<T>(object: Instance<T>, props: any) {
   const keys = Object.keys(props)
   for (const key of keys) {
     // An array of sub-property-keys:
@@ -127,7 +127,7 @@ const NEEDS_UPDATE = [
  * @param type - The property name, which can include nested paths indicated by hyphens.
  * @param value - The value to be assigned to the property; can be of any appropriate type.
  */
-export function applyProp<T>(source: S3.Instance<T>, type: string, value: any) {
+export function applyProp<T>(source: Instance<T>, type: string, value: any) {
   if (!source) {
     console.error("error while applying prop", source, type, value)
     return
@@ -266,9 +266,9 @@ export function applyProp<T>(source: S3.Instance<T>, type: string, value: any) {
  * @param parent - The parent element to which children will be attached.
  * @param childAccessor - A function returning the child or children to be managed.
  */
-export const manageSceneGraph = <T extends S3.Instance<Object3D>>(
+export const manageSceneGraph = <T extends Instance<Object3D>>(
   parent: T,
-  childAccessor: Accessor<S3.Instance | S3.Instance[]>,
+  childAccessor: Accessor<Instance | Instance[]>,
 ) => {
   createRenderEffect(
     mapArray(

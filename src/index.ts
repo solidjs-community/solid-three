@@ -1,5 +1,5 @@
-export { $S3C } from "./augment.ts"
 export { Canvas, type CanvasProps } from "./canvas.tsx"
+export { $S3C } from "./constants.ts"
 export { useFrame, useLoader, useThree } from "./hooks.ts"
 export { applyProps } from "./props.ts"
 export { extend, T } from "./proxy.tsx"

@@ -8,30 +8,29 @@ import {
 } from "solid-js"
 import { Camera, OrthographicCamera, Raycaster, Scene, WebGLRenderer } from "three"
 import { createThree } from "./create-three.tsx"
-import { S3 } from "./index.ts"
-import type { EventHandlers } from "./types.ts"
+import type { EventHandlers, Props } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps extends Partial<EventHandlers> {
+export interface CanvasProps extends ParentProps<Partial<EventHandlers>> {
   class?: string
   /** Configuration for the camera used in the scene. */
-  camera?: Partial<S3.Props<"PerspectiveCamera"> | S3.Props<"OrthographicCamera">> | Camera
+  camera?: Partial<Props<"PerspectiveCamera"> | Props<"OrthographicCamera">> | Camera
   /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element
   /** Options for the WebGLRenderer or a function returning a customized renderer. */
   gl?:
-    | Partial<S3.Props<"WebGLRenderer">>
+    | Partial<Props<"WebGLRenderer">>
     | ((canvas: HTMLCanvasElement) => WebGLRenderer)
     | WebGLRenderer
   /** Toggles between Orthographic and Perspective camera. */
   orthographic?: boolean
   /** Configuration for the Raycaster used for mouse and pointer events. */
-  raycaster?: Partial<S3.Props<"Raycaster">> | Raycaster
+  raycaster?: Partial<Props<"Raycaster">> | Raycaster
   ref?: Ref<HTMLDivElement>
   /** Configuration for the Scene instance. */
-  scene?: Partial<S3.Props<"Scene">> | Scene
+  scene?: Partial<Props<"Scene">> | Scene
   /** Custom CSS styles for the canvas container. */
   style?: JSX.CSSProperties
   /** Enables and configures shadows in the scene. */

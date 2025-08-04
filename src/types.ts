@@ -1,8 +1,7 @@
 import type { Accessor, JSX, Setter, Component as SolidComponent } from "solid-js"
 import type * as THREE from "three"
-import { $S3C } from "./augment.ts"
-import { Portal, Primitive } from "./components.tsx"
-import { S3 } from "./index.ts"
+import type { Portal, Primitive } from "./components.tsx"
+import type { $S3C } from "./constants.ts"
 import type {
   Constructor,
   ConstructorOverloadParameters,
@@ -22,8 +21,8 @@ declare global {
 }
 
 interface ContextElements {
-  camera: Instance<S3.CameraType>
-  setCamera: (camera: S3.CameraType | Accessor<S3.CameraType>) => () => void
+  camera: Instance<CameraType>
+  setCamera: (camera: CameraType | Accessor<CameraType>) => () => void
   gl: Instance<THREE.WebGLRenderer>
   setGl: (gl: THREE.WebGLRenderer | Accessor<THREE.WebGLRenderer>) => () => void
   raycaster: Instance<THREE.Raycaster>
@@ -58,7 +57,7 @@ export type CameraType = THREE.PerspectiveCamera | THREE.OrthographicCamera
 /**********************************************************************************/
 
 /** Generic `solid-three` event. */
-export type Event<TEvent, TStoppable = true> = TStoppable extends true
+export type S3Event<TEvent = Event, TStoppable = true> = TStoppable extends true
   ? {
       nativeEvent: TEvent
       stopped: boolean
@@ -70,23 +69,23 @@ export type Event<TEvent, TStoppable = true> = TStoppable extends true
 
 /** Event handlers for various `solid-three` events. */
 export interface EventHandlers {
-  onClick(event: Event<MouseEvent>): void
-  onClickMissed(event: Event<MouseEvent, false>): void
-  onDoubleClick(event: Event<MouseEvent>): void
-  onDoubleClickMissed(event: Event<MouseEvent, false>): void
-  onContextMenu(event: Event<MouseEvent>): void
-  onContextMenuMissed(event: Event<MouseEvent, false>): void
-  onMouseDown(event: Event<MouseEvent>): void
-  onMouseEnter(event: Event<MouseEvent, false>): void
-  onMouseLeave(event: Event<MouseEvent>): void
-  onMouseMove(event: Event<MouseEvent>): void
-  onMouseUp(event: Event<MouseEvent>): void
-  onPointerUp(event: Event<MouseEvent>): void
-  onPointerDown(event: Event<MouseEvent>): void
-  onPointerMove(event: Event<MouseEvent>): void
-  onPointerEnter(event: Event<MouseEvent, false>): void
-  onPointerLeave(event: Event<MouseEvent>): void
-  onWheel(event: Event<WheelEvent>): void
+  onClick(event: S3Event<MouseEvent>): void
+  onClickMissed(event: S3Event<MouseEvent, false>): void
+  onDoubleClick(event: S3Event<MouseEvent>): void
+  onDoubleClickMissed(event: S3Event<MouseEvent, false>): void
+  onContextMenu(event: S3Event<MouseEvent>): void
+  onContextMenuMissed(event: S3Event<MouseEvent, false>): void
+  onMouseDown(event: S3Event<MouseEvent>): void
+  onMouseEnter(event: S3Event<MouseEvent, false>): void
+  onMouseLeave(event: S3Event<MouseEvent>): void
+  onMouseMove(event: S3Event<MouseEvent>): void
+  onMouseUp(event: S3Event<MouseEvent>): void
+  onPointerUp(event: S3Event<MouseEvent>): void
+  onPointerDown(event: S3Event<MouseEvent>): void
+  onPointerMove(event: S3Event<MouseEvent>): void
+  onPointerEnter(event: S3Event<MouseEvent, false>): void
+  onPointerLeave(event: S3Event<MouseEvent>): void
+  onWheel(event: S3Event<WheelEvent>): void
 }
 
 /** The names of all `SolidThreeEventHandlers` */

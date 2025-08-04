@@ -1,5 +1,5 @@
 import { type Accessor, type Resource, createContext, createResource, useContext } from "solid-js"
-import { S3 } from "./index.ts"
+import type { Context } from "./types"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -7,7 +7,7 @@ import { S3 } from "./index.ts"
 /*                                                                                */
 /**********************************************************************************/
 
-export const threeContext = createContext<S3.Context>(null!)
+export const threeContext = createContext<Context>(null!)
 
 /**
  * Custom hook to access all necessary Three.js objects needed to manage a 3D scene.
@@ -15,12 +15,12 @@ export const threeContext = createContext<S3.Context>(null!)
  *
  * @template T The expected return type after applying the callback to the context.
  * @param [callback] - Optional callback function that processes and returns a part of the context.
- * @returns Returns `S3.Context` directly, or as a selector if a callback is provided.
+ * @returns Returns `Context` directly, or as a selector if a callback is provided.
  * @throws Throws an error if used outside of the Canvas component context.
  */
-export function useThree(): S3.Context
-export function useThree<T>(callback: (value: S3.Context) => T): Accessor<T>
-export function useThree(callback?: (value: S3.Context) => any) {
+export function useThree(): Context
+export function useThree<T>(callback: (value: Context) => T): Accessor<T>
+export function useThree(callback?: (value: Context) => any) {
   const store = useContext(threeContext)
   if (!store) {
     throw new Error("S3: Hooks can only be used within the Canvas component!")
@@ -35,9 +35,7 @@ export function useThree(callback?: (value: S3.Context) => any) {
 /*                                                                                */
 /**********************************************************************************/
 
-type FrameContext = (
-  callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
-) => void
+type FrameContext = (callback: (context: Context, delta: number, frame?: XRFrame) => void) => void
 export const frameContext = createContext<FrameContext>()
 
 /**
@@ -47,9 +45,7 @@ export const frameContext = createContext<FrameContext>()
  * @param callback - The callback function to be executed on each frame.
  * @throws Throws an error if used outside of the Canvas component context.
  */
-export const useFrame = (
-  callback: (context: S3.Context, delta: number, frame?: XRFrame) => void,
-) => {
+export const useFrame = (callback: (context: Context, delta: number, frame?: XRFrame) => void) => {
   const addFrameListener = useContext(frameContext)
   if (!addFrameListener) {
     throw new Error("S3: Hooks can only be used within the Canvas component!")
