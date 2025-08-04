@@ -23,6 +23,10 @@
    - [useFrame](#useframe)
    - [useLoader](#useloader)
 8. [Event Handling](#event-handling)
+   - [Supported Events](#supported-events)
+   - [Event Object](#event-object)
+   - [Event Propagation](#event-propagation)
+   - [Missed Events](#missed-events)
 9. [TypeScript Support](#typescript-support)
 10. [Performance Optimization](#performance-optimization)
 11. [Testing](#testing)
@@ -46,9 +50,9 @@ While `solid-three` is heavily inspired by– and initially shared a lot of code
 - **No `performance` Prop**: The `Canvas` component does not support a `performance` prop as optimization is handled differently in `solid-js`.
 - **Simplified Event Objects**: The event object provided to event handlers is more minimalistic.
 - **Minimal `useThree` Hook**: Returns a more concise context object, focusing on essential properties.
+- **Missed Events**: Implements `onClickMissed`, `onDoubleClickMissed`, and `onContextMenuMissed` for handling events on empty space or stopped propagation.
 - **TODO**:
   - **No Pointer Capture**: Pointer events do not support pointer capture management.
-  - **Limited `onPointerMissed` Event**: This event is partially implemented but currently marked as TODO in the codebase.
 
 ## Installation
 
@@ -441,12 +445,16 @@ export const App = () => {
 
 `solid-three` provides a comprehensive event system that integrates `three.js` pointer and mouse events with `solid-js`' reactivity. Events are automatically handled through raycasting and support stopping propagation.
 
-**Supported Events:**
+### Supported Events
 
 **Mouse Events:**
 
 - `onClick` - Fired when clicking on an object
+- `onClickMissed` - Fired when a click doesn't hit any objects with onClick handlers
 - `onDoubleClick` - Fired when double-clicking on an object
+- `onDoubleClickMissed` - Fired when a double-click doesn't hit any objects with onDoubleClick handlers
+- `onContextMenu` - Fired when right-clicking on an object
+- `onContextMenuMissed` - Fired when a right-click doesn't hit any objects with onContextMenu handlers
 - `onMouseDown` - Fired when mouse button is pressed
 - `onMouseUp` - Fired when mouse button is released
 - `onMouseMove` - Fired when mouse moves over object
@@ -458,7 +466,7 @@ export const App = () => {
 - `onPointerUp` - Fired when pointer is released
 - `onPointerMove` - Fired when pointer moves
 
-**Event Object:**
+### Event Object
 
 Event handlers receive an event object with the following properties:
 
@@ -500,22 +508,106 @@ const InteractiveCube = () => {
 };
 ```
 
-**Event Propagation:**
+### Event Propagation
 
-Events bubble up through the `three.js` scene graph. Use `stopPropagation()` to prevent bubbling:
+solid-three implements a dual propagation system for events:
+
+1. **Raycast Propagation (3D Space)**: When you click, solid-three casts a ray from the camera through your mouse position into the 3D scene. This ray may intersect multiple objects. Events are processed for each intersected object in order from closest to farthest from the camera. If an object calls `stopPropagation()`, objects further along the ray won't receive the event.
+
+2. **Tree Propagation (Scene Graph)**: After an object handles an event, it bubbles up through the scene graph hierarchy (child → parent). This follows the three.js object tree structure. If `stopPropagation()` is called, parent objects won't receive the event.
 
 ```tsx
-<T.Group onClick={() => console.log("Group clicked")}>
+// Example showing both propagation types
+<T.Group onClick={() => console.log("3. Group clicked (tree propagation)")}>
   <T.Mesh
+    position={[0, 0, 0]}
+    onClick={() => console.log("2. Back mesh clicked (raycast propagation)")}
+  >
+    <T.BoxGeometry />
+    <T.MeshBasicMaterial color="blue" />
+  </T.Mesh>
+  
+  <T.Mesh
+    position={[0, 0, 2]} // In front
     onClick={e => {
-      e.stopPropagation(); // Prevents group click handler
-      console.log("Mesh clicked");
+      console.log("1. Front mesh clicked (raycast propagation)");
+      e.stopPropagation(); // Stops BOTH raycast and tree propagation
     }}
   >
-    {/* ... */}
+    <T.BoxGeometry />
+    <T.MeshBasicMaterial color="red" />
   </T.Mesh>
 </T.Group>
 ```
+
+In this example, clicking the overlapping area would normally trigger events in this order:
+1. Front mesh (closest to camera)
+2. Back mesh (further from camera) 
+3. Group (parent in tree)
+
+But with `stopPropagation()`, only the front mesh receives the event.
+
+### Missed Events
+
+The "missed" events (`onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed`) fire when an object has registered a missed event handler and the click/interaction didn't hit the object or any of its descendants.
+
+**When missed events fire:**
+
+1. **Click outside object**: The click didn't intersect with the object or any of its descendants
+2. **Blocked by stopPropagation**: Another object called `stopPropagation()` preventing the event from reaching this object
+
+```tsx
+const MissedEventExample = () => {
+  return (
+    <>
+      {/* Example 1: Click outside the mesh */}
+      <T.Mesh 
+        onClickMissed={() => console.log("Missed - clicked outside this mesh")}
+      >
+        <T.BoxGeometry />
+        <T.MeshBasicMaterial color="blue" />
+      </T.Mesh>
+
+      {/* Example 2: Blocked by tree propagation */}
+      <T.Group onClickMissed={() => console.log("Group missed - child stopped propagation")}>
+        <T.Mesh 
+          onClick={e => {
+            e.stopPropagation();
+            console.log("Child clicked");
+          }}
+        >
+          <T.BoxGeometry />
+          <T.MeshBasicMaterial color="red" />
+        </T.Mesh>
+      </T.Group>
+
+      {/* Example 3: Blocked by raycast propagation */}
+      <T.Mesh 
+        position={[0, 0, 0]}
+        onClickMissed={() => console.log("Back mesh missed - front mesh blocked it")}
+      >
+        <T.BoxGeometry />
+        <T.MeshBasicMaterial color="green" />
+      </T.Mesh>
+      <T.Mesh 
+        position={[0, 0, 2]} // In front
+        onClick={e => {
+          e.stopPropagation();
+          console.log("Front mesh clicked");
+        }}
+      >
+        <T.BoxGeometry />
+        <T.MeshBasicMaterial color="yellow" />
+      </T.Mesh>
+    </>
+  );
+};
+```
+
+This is useful for:
+- Deselecting objects when clicking outside them
+- Creating UI layers where front objects can block interactions with objects behind
+- Handling complex interaction patterns where parent containers need to know when their children intercepted events
 
 ## TypeScript Support
 
