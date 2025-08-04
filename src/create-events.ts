@@ -150,8 +150,6 @@ function createMissableEventHandler(context: S3.Context, eventRegistry: EventReg
         }
 
         // Phase #2 - Raycast missedType-objects that haven't been visited
-        const missedEvent = createThreeEvent(nativeEvent)
-
         for (const missedObject of eventRegistry[missedType]) {
           if (visitedObjects.has(missedObject)) {
             continue
@@ -175,8 +173,7 @@ function createMissableEventHandler(context: S3.Context, eventRegistry: EventReg
         // Pass #3 - Fire onClickMissed on remaining unvisited missedType-objects
         for (const object of eventRegistry[missedType]) {
           if (!visitedObjects.has(object)) {
-            object[$S3C].props?.[missedType]?.(missedEvent)
-            if (missedEvent.stopped) break
+            object[$S3C].props?.[missedType]?.(nativeEvent)
           }
         }
       },

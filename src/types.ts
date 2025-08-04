@@ -1,8 +1,8 @@
 import type { Accessor, JSX, Setter, Component as SolidComponent } from "solid-js"
 import type * as THREE from "three"
-import { S3 } from "./index.ts"
 import { $S3C } from "./augment.ts"
 import { Portal, Primitive } from "./components.tsx"
+import { S3 } from "./index.ts"
 import type {
   Constructor,
   ConstructorOverloadParameters,
@@ -67,11 +67,11 @@ export type Event<TEvent> = {
 /** Event handlers for various `solid-three` events. */
 export interface EventHandlers {
   onClick(event: Event<MouseEvent>): void
-  onClickMissed(event: Event<MouseEvent>): void
-  onDoubleClick(event: Event<MouseEvent>): void
-  onDoubleClickMissed(event: Event<MouseEvent>): void
+  onClickMissed(event: MouseEvent): void
+  onDoubleClick(event: MouseEvent): void
+  onDoubleClickMissed(): void
   onContextMenu(event: Event<MouseEvent>): void
-  onContextMenuMissed(event: Event<MouseEvent>): void
+  onContextMenuMissed(event: MouseEvent): void
   onMouseDown(event: Event<MouseEvent>): void
   onMouseEnter(event: Event<MouseEvent>): void
   onMouseLeave(event: Event<MouseEvent>): void
