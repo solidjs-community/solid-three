@@ -7,8 +7,8 @@ import {
   splitProps,
 } from "solid-js"
 import { Camera, OrthographicCamera, Raycaster, Scene, WebGLRenderer } from "three"
-import { S3 } from "./index.ts"
 import { createThree } from "./create-three.tsx"
+import { S3 } from "./index.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -23,6 +23,9 @@ export interface CanvasProps extends ComponentProps<"div"> {
     | Partial<S3.Props<"WebGLRenderer">>
     | ((canvas: HTMLCanvasElement) => WebGLRenderer)
     | WebGLRenderer
+  onClickMissed?(event: S3.Event<MouseEvent>): void
+  onContextMenuMissed?(event: S3.Event<MouseEvent>): void
+  onDoubleClickMissed?(event: S3.Event<MouseEvent>): void
   /** Toggles between Orthographic and Perspective camera. */
   orthographic?: boolean
   /** Configuration for the Raycaster used for mouse and pointer events. */
@@ -52,7 +55,15 @@ export interface CanvasProps extends ComponentProps<"div"> {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function Canvas(_props: CanvasProps) {
-  const [props, canvasProps] = splitProps(_props, ["fallback", "camera", "children", "ref"])
+  const [props, canvasProps] = splitProps(_props, [
+    "camera",
+    "children",
+    "fallback",
+    "onClickMissed",
+    "onDoubleClickMissed",
+    "onContextMenuMissed",
+    "ref",
+  ])
   let canvas: HTMLCanvasElement = null!
   let container: HTMLDivElement = null!
 

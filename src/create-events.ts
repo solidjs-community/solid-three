@@ -1,6 +1,6 @@
-import { type Intersection, Object3D } from "three"
+import { Object3D, type Intersection } from "three"
 import { $S3C } from "./augment.ts"
-import { S3 } from "./index.ts"
+import { S3, type CanvasProps } from "./index.ts"
 import { isInstance } from "./utils/is-instance.ts"
 
 const eventNameMap = {
@@ -114,8 +114,9 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
  * - `onDoubleClick` / `onDoubleClickMissed`
  */
 function createMissableEventRegistry(
-  context: S3.Context,
   type: "onClick" | "onDoubleClick" | "onContextMenu",
+  context: S3.Context,
+  props: CanvasProps,
 ) {
   const registry = createRegistry<Object3D>()
 
@@ -164,10 +165,16 @@ function createMissableEventRegistry(
     }
 
     // Phase #3 - Fire missed event-handler on missed objects
+    const missedEvent = createThreeEvent(nativeEvent)
+
     for (const object of missedObjects) {
       if (isInstance(object)) {
-        object[$S3C].props?.[missedType]?.(nativeEvent)
+        object[$S3C].props?.[missedType]?.(missedEvent)
       }
+    }
+
+    if (visitedObjects.size === 0) {
+      props[missedType]?.(missedEvent)
     }
   })
 
@@ -191,7 +198,7 @@ function createMissableEventRegistry(
  *    - `onPointerMove`
  *    - `onPointerLeave`
  */
-function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
+function createHoverEventRegistry(type: "Mouse" | "Pointer", context: S3.Context) {
   const registry = createRegistry<Object3D>()
   let hoveredSet = new Set<Object3D>()
 
@@ -269,8 +276,8 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
  * - `onWheel`
  */
 function createDefaultEventRegistry(
-  context: S3.Context,
   type: "onMouseDown" | "onMouseUp" | "onPointerDown" | "onPointerUp" | "onWheel",
+  context: S3.Context,
   options?: AddEventListenerOptions,
 ) {
   const registry = createRegistry<Object3D>()
@@ -308,27 +315,27 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export function createEvents(context: S3.Context) {
+export function createEvents(context: S3.Context, props: CanvasProps) {
   // onMouseMove/onMouseEnter/onMouseLeave
-  const hoverMouseRegistry = createHoverEventRegistry(context, "Mouse")
+  const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
   // onPointerMove/onPointerEnter/onPointerLeave
-  const hoverPointerRegistry = createHoverEventRegistry(context, "Pointer")
+  const hoverPointerRegistry = createHoverEventRegistry("Pointer", context)
 
   // onClick/onClickMissed
-  const missableClickRegistry = createMissableEventRegistry(context, "onClick")
+  const missableClickRegistry = createMissableEventRegistry("onClick", context, props)
   // onContextMenu/onContextMenuMissed
-  const missableContextMenuRegistry = createMissableEventRegistry(context, "onContextMenu")
+  const missableContextMenuRegistry = createMissableEventRegistry("onContextMenu", context, props)
   // onDoubleClick/onDoubleClickMissed
-  const missableDoubleClickRegistry = createMissableEventRegistry(context, "onDoubleClick")
+  const missableDoubleClickRegistry = createMissableEventRegistry("onDoubleClick", context, props)
 
   // Default mouse-events
-  const mouseDownRegistry = createDefaultEventRegistry(context, "onMouseDown")
-  const mouseUpRegistry = createDefaultEventRegistry(context, "onMouseUp")
+  const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context)
+  const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context)
   // Default pointer-events
-  const pointerDownRegistry = createDefaultEventRegistry(context, "onPointerDown")
-  const pointerUpRegistry = createDefaultEventRegistry(context, "onPointerUp")
+  const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context)
+  const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context)
   // Default wheel-event
-  const wheelRegistry = createDefaultEventRegistry(context, "onWheel", { passive: true })
+  const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
 
   return {
     /**

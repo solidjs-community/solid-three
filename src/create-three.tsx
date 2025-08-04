@@ -177,7 +177,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   // Initialize event-system
-  const { addEventListener } = createEvents(context)
+  const { addEventListener } = createEvents(context, props)
 
   /**********************************************************************************/
   /*                                                                                */
