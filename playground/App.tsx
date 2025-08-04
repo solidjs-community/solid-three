@@ -64,6 +64,7 @@ export function App() {
       style={{ width: "100vw", height: "100vh" }}
       camera={{ position: new THREE.Vector3(0, 0, 10) }}
       onClick={event => console.debug("canvas clicked", event)}
+      onClickMissed={event => console.debug("canvas click missed", event)}
     >
       <T.AmbientLight color={[0.2, 0.2, 0.2]} />
       <T.PointLight intensity={1.2} decay={1} position={[2, 2, 5]} rotation={[0, Math.PI / 3, 0]} />
