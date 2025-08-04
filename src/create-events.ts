@@ -222,55 +222,60 @@ function createMissableEventRegistry(
  */
 function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
   const registry = createRegistry<Object3D>()
-
-  const priorMoveIntersects = new Set<S3.Instance<Object3D>>()
-  let priorMoveEvent: undefined | MouseEvent = undefined
+  const hoveredSet = new Set<Object3D>()
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
-    const moveEvent = createThreeEvent(nativeEvent)
+    const leaveSet = new Set(hoveredSet)
+    hoveredSet.clear()
+
+    const intersections = raycast(context, registry.array, nativeEvent)
+
+    // Phase #1 - Enter
     const enterEvent = createThreeEvent(nativeEvent)
-    const staleIntersects = new Set(priorMoveIntersects)
 
-    for (const intersection of raycast(context, registry.array, nativeEvent)) {
-      const props = intersection.object[$S3C].props
-
-      // Handle enter-event
-      if (!enterEvent.stopped && !priorMoveIntersects.has(intersection.object)) {
-        // @ts-expect-error TODO: fix type-error
-        props[`on${type}Enter`]?.(enterEvent)
-        bubbleDown(intersection.object, `on${type}Enter`, enterEvent)
+    for (const { object } of intersections) {
+      // Bubble up
+      let current: Object3D | null = object
+      while (current && !hoveredSet.has(current)) {
+        if (isInstance(current)) {
+          if (!leaveSet.has(current)) {
+            current[$S3C].props?.[`on${type}Enter`]?.(enterEvent)
+          }
+          leaveSet.delete(current)
+          hoveredSet.add(current)
+        }
+        // We bubble a layer down.
+        current = current.parent
       }
+    }
 
-      // Handle move-event
-      if (!moveEvent.stopped) {
-        // @ts-expect-error TODO: fix type-error
-        props[`on${type}Move`]?.(moveEvent)
-        bubbleDown(intersection.object, `on${type}Move`, moveEvent)
+    // Phase #2 - Move
+    const moveEvent = createThreeEvent(nativeEvent)
+
+    for (const { object } of intersections) {
+      if (moveEvent.stopped) break
+      // Bubble up
+      let current: Object3D | null = object
+      while (current) {
+        if (isInstance(current)) {
+          current[$S3C].props?.[`on${type}Move`]?.(moveEvent)
+          if (moveEvent.stopped) {
+            break
+          }
+        }
+        // We bubble a layer down.
+        current = current.parent
       }
-
-      staleIntersects.delete(intersection.object)
-      priorMoveIntersects.add(intersection.object)
-
-      if (moveEvent.stopped && enterEvent.stopped) break
     }
 
     // Handle leave-event
-    if (priorMoveEvent) {
-      const leaveEvent = createThreeEvent(priorMoveEvent)
+    const leaveEvent = createThreeEvent(nativeEvent)
 
-      for (const object of staleIntersects.values()) {
-        priorMoveIntersects.delete(object)
-
-        if (!leaveEvent.stopped) {
-          const props = object[$S3C].props
-          // @ts-expect-error TODO: fix type-error
-          props[`on${type}Leave`]?.(leaveEvent)
-          bubbleDown(object, `on${type}Leave`, leaveEvent)
-        }
+    for (const object of leaveSet.values()) {
+      if (isInstance(object)) {
+        object[$S3C].props?.[`on${type}Leave`]?.(leaveEvent)
       }
     }
-
-    priorMoveEvent = nativeEvent
   })
 
   return registry
