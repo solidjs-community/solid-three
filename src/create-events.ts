@@ -194,7 +194,7 @@ function createMissableEventRegistry(
 
 /**********************************************************************************/
 /*                                                                                */
-/*                           Create Movable Event Registry                        */
+/*                            Create Hover Event Registry                         */
 /*                                                                                */
 /**********************************************************************************/
 
@@ -204,7 +204,7 @@ function createMissableEventRegistry(
  * - `on{Pointer|Mouse}Enter`
  * - `on{Pointer|Mouse}Leave`
  */
-function createMovableEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
+function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
   const registry: S3.Instance<Object3D>[] = []
   const priorMoveIntersects = new Set<S3.Instance<Object3D>>()
   let priorMoveEvent: undefined | MouseEvent = undefined
@@ -312,13 +312,13 @@ function createDefaultEventRegistry(
 /**********************************************************************************/
 
 /**
- * Initializes and manages event handling for `Instance<Object3D>`.
+ * Initializes and manages event handling for all `Instance<Object3D>`.
  */
 export function createEvents(context: S3.Context) {
   // onMouseMove/onMouseEnter/onMouseLeave
-  const addMovableMouseListener = createMovableEventRegistry(context, "Mouse")
+  const addHoverMouseListener = createHoverEventRegistry(context, "Mouse")
   // onPointerMove/onPointerEnter/onPointerLeave
-  const addMovablePointerListener = createMovableEventRegistry(context, "Pointer")
+  const addHoverPointerListener = createHoverEventRegistry(context, "Pointer")
 
   // onClick/onClickMissed
   const addMissableClickListener = createMissableEventRegistry(context, "onClick")
@@ -345,6 +345,7 @@ export function createEvents(context: S3.Context) {
      */
     addEventListener(object: S3.Instance<Object3D>, type: S3.EventName) {
       switch (type) {
+        // Missable Events
         case "onClick":
         case "onClickMissed":
           return addMissableClickListener(object)
@@ -355,24 +356,25 @@ export function createEvents(context: S3.Context) {
         case "onDoubleClickMissed":
           return addMissableDoubleClickListener(object)
 
+        // Hover Events
+        case "onMouseEnter":
+        case "onMouseLeave":
+        case "onMouseMove":
+          return addHoverMouseListener(object)
+        case "onPointerEnter":
+        case "onPointerLeave":
+        case "onPointerMove":
+          return addHoverPointerListener(object)
+
+        // Default Events
         case "onMouseDown":
           return addMouseDownListener(object)
         case "onMouseUp":
           return addMouseUpListener(object)
-        case "onMouseEnter":
-        case "onMouseLeave":
-        case "onMouseMove":
-          return addMovableMouseListener(object)
-
         case "onPointerDown":
           return addPointerDownListener(object)
         case "onPointerUp":
           return addPointerUpListener(object)
-        case "onPointerEnter":
-        case "onPointerLeave":
-        case "onPointerMove":
-          return addMovablePointerListener(object)
-
         case "onWheel":
           return addWheelListener(object)
       }
