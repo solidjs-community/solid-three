@@ -50,35 +50,6 @@ export const isEventType = (type: string): type is S3.EventName =>
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                   Bubble Down                                  */
-/*                                                                                */
-/**********************************************************************************/
-
-/**
- * Propagates an event down through the ancestors of a given `Object3D` in a scene graph,
- * calling the event handler for each ancestor as long as the event has not been marked as stopped.
- */
-function bubbleDown(
-  element: S3.Instance<Object3D>,
-  type: S3.EventName,
-  event: S3.Event<MouseEvent | WheelEvent>,
-) {
-  let node: Object3D | null = element.parent
-  while (node) {
-    // If event has been stopped with event.stopPropagation() we break out.
-    if (event.stopped) break
-    // If node is an AugmentedElement we call the type's event-handler if it is defined.
-    if (isInstance(node)) {
-      // @ts-expect-error TODO: fix type-error
-      node[$S3C].props[type]?.(event)
-    }
-    // We bubble a layer down.
-    node = node.parent
-  }
-}
-
-/**********************************************************************************/
-/*                                                                                */
 /*                                Create Three Event                              */
 /*                                                                                */
 /**********************************************************************************/
@@ -313,9 +284,15 @@ function createDefaultEventRegistry(
       const intersections = raycast(context, registry.array, nativeEvent)
 
       for (const { object } of intersections) {
-        object[$S3C].props?.[type]?.(event)
-        bubbleDown(object, type, event)
-        if (event.stopped) break
+        // Bubble up
+        let node: Object3D | null = object
+
+        while (node && !event.stopped) {
+          if (isInstance(object)) {
+            object[$S3C].props?.[type]?.(event)
+          }
+          node = node.parent
+        }
       }
     },
     options,
