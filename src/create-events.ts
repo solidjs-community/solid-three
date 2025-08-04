@@ -16,6 +16,23 @@ const eventNameMap = {
   onWheel: "wheel",
 } as const
 
+function createRegistry<T>() {
+  const array: T[] = []
+
+  return {
+    array,
+    add(instance: T) {
+      array.push(instance)
+      return () => {
+        array.splice(
+          array.findIndex(_instance => _instance === instance),
+          1,
+        )
+      }
+    },
+  }
+}
+
 /**********************************************************************************/
 /*                                                                                */
 /*                                   Is Event Type                                */
@@ -129,19 +146,19 @@ function createMissableEventRegistry(
   context: S3.Context,
   type: "onClick" | "onDoubleClick" | "onContextMenu",
 ) {
-  const registry: Object3D[] = []
+  const registry = createRegistry<Object3D>()
 
   context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
-    if (registry.length === 0) return
+    if (registry.array.length === 0) return
     const event = createThreeEvent(nativeEvent)
     const missedType = `${type}Missed` as const
 
     // Track which objects have been visited during event processing
-    const missedObjects = new Set(registry)
+    const missedObjects = new Set(registry.array)
     const visitedObjects = new Set()
 
     // Phase #1 - Process normal click events
-    const intersections = raycast(context, registry, nativeEvent)
+    const intersections = raycast(context, registry.array, nativeEvent)
 
     for (const { object } of intersections) {
       let node: Object3D | null = object
@@ -183,15 +200,7 @@ function createMissableEventRegistry(
     }
   })
 
-  return (instance: S3.Instance<Object3D>) => {
-    registry.push(instance)
-    return () => {
-      registry.splice(
-        registry.findIndex(_instance => _instance === instance),
-        1,
-      )
-    }
-  }
+  return registry
 }
 
 /**********************************************************************************/
@@ -212,7 +221,8 @@ function createMissableEventRegistry(
  *    - `onPointerLeave`
  */
 function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
-  const registry: S3.Instance<Object3D>[] = []
+  const registry = createRegistry<Object3D>()
+
   const priorMoveIntersects = new Set<S3.Instance<Object3D>>()
   let priorMoveEvent: undefined | MouseEvent = undefined
 
@@ -221,7 +231,7 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
     const enterEvent = createThreeEvent(nativeEvent)
     const staleIntersects = new Set(priorMoveIntersects)
 
-    for (const intersection of raycast(context, registry, nativeEvent)) {
+    for (const intersection of raycast(context, registry.array, nativeEvent)) {
       const props = intersection.object[$S3C].props
 
       // Handle enter-event
@@ -263,15 +273,7 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
     priorMoveEvent = nativeEvent
   })
 
-  return (instance: S3.Instance<Object3D>) => {
-    registry.push(instance)
-    return () => {
-      registry.splice(
-        registry.findIndex(_instance => _instance === instance),
-        1,
-      )
-    }
-  }
+  return registry
 }
 
 /**********************************************************************************/
@@ -293,13 +295,13 @@ function createDefaultEventRegistry(
   type: "onMouseDown" | "onMouseUp" | "onPointerDown" | "onPointerUp" | "onWheel",
   options?: AddEventListenerOptions,
 ) {
-  const registry: S3.Instance<Object3D>[] = []
+  const registry = createRegistry<Object3D>()
 
   context.canvas.addEventListener(
     eventNameMap[type],
     nativeEvent => {
       const event = createThreeEvent(nativeEvent)
-      const intersections = raycast(context, registry, nativeEvent)
+      const intersections = raycast(context, registry.array, nativeEvent)
 
       for (const { object } of intersections) {
         object[$S3C].props?.[type]?.(event)
@@ -310,14 +312,7 @@ function createDefaultEventRegistry(
     options,
   )
 
-  return (instance: S3.Instance<Object3D>) => {
-    registry.push(instance)
-    return () =>
-      registry.splice(
-        registry.findIndex(_instance => _instance === instance),
-        1,
-      )
-  }
+  return registry
 }
 
 /**********************************************************************************/
@@ -331,25 +326,25 @@ function createDefaultEventRegistry(
  */
 export function createEvents(context: S3.Context) {
   // onMouseMove/onMouseEnter/onMouseLeave
-  const addHoverMouseListener = createHoverEventRegistry(context, "Mouse")
+  const hoverMouseRegistry = createHoverEventRegistry(context, "Mouse")
   // onPointerMove/onPointerEnter/onPointerLeave
-  const addHoverPointerListener = createHoverEventRegistry(context, "Pointer")
+  const hoverPointerRegistry = createHoverEventRegistry(context, "Pointer")
 
   // onClick/onClickMissed
-  const addMissableClickListener = createMissableEventRegistry(context, "onClick")
+  const missableClickRegistry = createMissableEventRegistry(context, "onClick")
   // onContextMenu/onContextMenuMissed
-  const addMissableContextMenuListener = createMissableEventRegistry(context, "onContextMenu")
+  const missableContextMenuRegistry = createMissableEventRegistry(context, "onContextMenu")
   // onDoubleClick/onDoubleClickMissed
-  const addMissableDoubleClickListener = createMissableEventRegistry(context, "onDoubleClick")
+  const missableDoubleClickRegistry = createMissableEventRegistry(context, "onDoubleClick")
 
   // Default mouse-events
-  const addMouseDownListener = createDefaultEventRegistry(context, "onMouseDown")
-  const addMouseUpListener = createDefaultEventRegistry(context, "onMouseUp")
+  const mouseDownRegistry = createDefaultEventRegistry(context, "onMouseDown")
+  const mouseUpRegistry = createDefaultEventRegistry(context, "onMouseUp")
   // Default pointer-events
-  const addPointerDownListener = createDefaultEventRegistry(context, "onPointerDown")
-  const addPointerUpListener = createDefaultEventRegistry(context, "onPointerUp")
+  const pointerDownRegistry = createDefaultEventRegistry(context, "onPointerDown")
+  const pointerUpRegistry = createDefaultEventRegistry(context, "onPointerUp")
   // Default wheel-event
-  const addWheelListener = createDefaultEventRegistry(context, "onWheel", { passive: true })
+  const wheelRegistry = createDefaultEventRegistry(context, "onWheel", { passive: true })
 
   return {
     /**
@@ -363,35 +358,35 @@ export function createEvents(context: S3.Context) {
         // Missable Events
         case "onClick":
         case "onClickMissed":
-          return addMissableClickListener(object)
+          return missableClickRegistry.add(object)
         case "onContextMenu":
         case "onContextMenuMissed":
-          return addMissableContextMenuListener(object)
+          return missableContextMenuRegistry.add(object)
         case "onDoubleClick":
         case "onDoubleClickMissed":
-          return addMissableDoubleClickListener(object)
+          return missableDoubleClickRegistry.add(object)
 
         // Hover Events
         case "onMouseEnter":
         case "onMouseLeave":
         case "onMouseMove":
-          return addHoverMouseListener(object)
+          return hoverMouseRegistry.add(object)
         case "onPointerEnter":
         case "onPointerLeave":
         case "onPointerMove":
-          return addHoverPointerListener(object)
+          return hoverPointerRegistry.add(object)
 
         // Default Events
         case "onMouseDown":
-          return addMouseDownListener(object)
+          return mouseDownRegistry.add(object)
         case "onMouseUp":
-          return addMouseUpListener(object)
+          return mouseUpRegistry.add(object)
         case "onPointerDown":
-          return addPointerDownListener(object)
+          return pointerDownRegistry.add(object)
         case "onPointerUp":
-          return addPointerUpListener(object)
+          return pointerUpRegistry.add(object)
         case "onWheel":
-          return addWheelListener(object)
+          return wheelRegistry.add(object)
       }
     },
   }
