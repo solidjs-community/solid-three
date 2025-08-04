@@ -157,6 +157,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
   - `"demand"`: Renders only when explicitly requested
   - `"never"`: Disables automatic rendering
 - **style** (`JSX.CSSProperties`): Custom CSS styles for the canvas container.
+- **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onClickMissed`, etc.)
 
 Example with all props:
 
@@ -173,6 +174,9 @@ Example with all props:
   flat={false}
   frameloop="always"
   style={{ background: "black" }}
+  onClick={e => console.log("Canvas clicked")}
+  onClickMissed={e => console.log("Clicked empty space")}
+  onPointerMove={e => console.log("Pointer moved on canvas")}
 >
   {/* Your 3D scene */}
 </Canvas>
@@ -480,10 +484,38 @@ interface Event<T> {
   // Original DOM event
   nativeEvent: T
 
-  // Event control
-  stopped: boolean // Whether propagation has been stopped
-  stopPropagation: () => void // Stop event propagation
+  // Event control (only for stoppable events)
+  stopped?: boolean // Whether propagation has been stopped
+  stopPropagation?: () => void // Stop event propagation
 }
+```
+
+### Stoppable vs Non-Stoppable Events
+
+Not all events in solid-three can be stopped with `stopPropagation()`. This design choice aligns with DOM behavior and ensures predictable event handling.
+
+**Non-stoppable events:**
+- `onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed` - Missed events always fire for all registered handlers
+- `onMouseEnter`, `onPointerEnter` - Enter events always fire to maintain consistent hover state
+- `onMouseLeave`, `onPointerLeave` - Leave events always fire to ensure proper cleanup
+
+**Stoppable events:**
+- All other events (`onClick`, `onMouseMove`, `onPointerMove`, `onMouseDown`, etc.) can be stopped with `stopPropagation()`
+
+For non-stoppable events, the event object only contains the `nativeEvent` property:
+
+```tsx
+// Stoppable event
+onClick={e => {
+  e.stopPropagation() // ✓ Works
+  console.log(e.stopped) // ✓ Available
+}}
+
+// Non-stoppable event
+onClickMissed={e => {
+  e.stopPropagation() // ✗ Property doesn't exist
+  console.log(e.nativeEvent) // ✓ Available
+}}
 ```
 
 **Example:**
@@ -517,32 +549,41 @@ const InteractiveCube = () => {
 
 solid-three implements a dual propagation system for events:
 
-1. **Raycast Propagation (3D Space)**: When you click, solid-three casts a ray from the camera through your mouse position into the 3D scene. This ray may intersect multiple objects. Events are processed for each intersected object in order from closest to farthest from the camera. If an object calls `stopPropagation()`, objects further along the ray won't receive the event.
+1. **Raycast Propagation (3D Space)**
 
-2. **Tree Propagation (Scene Graph)**: After an object handles an event, it bubbles up through the scene graph hierarchy (child → parent). This follows the three.js object tree structure. If `stopPropagation()` is called, parent objects won't receive the event.
+   - When you click, solid-three casts a ray from the camera through your mouse position into the 3D scene. This ray may intersect multiple objects.
+   - Events are processed for each intersected object in order from closest to farthest from the camera.
+   - If an object calls `stopPropagation()`, objects further along the ray won't receive the event.
+
+2. **Tree Propagation (Scene Graph)**
+   - After an object handles an event, it bubbles up through the scene graph hierarchy (child → parent).
+   - If `stopPropagation()` is called, parent objects won't receive the event.
+   - If no object calls `stopPropagation()`, the event finally bubbles to the `<Canvas/>` component itself. This allows you to handle events at the canvas level, such as detecting clicks on empty space.
 
 ```tsx
-// Example showing both propagation types
-<T.Group onClick={() => console.log("3. Group clicked (tree propagation)")}>
-  <T.Mesh
-    position={[0, 0, 0]}
-    onClick={() => console.log("2. Back mesh clicked (raycast propagation)")}
-  >
-    <T.BoxGeometry />
-    <T.MeshBasicMaterial color="blue" />
-  </T.Mesh>
+// Example showing all propagation types
+<Canvas onClick={() => console.log("4. Canvas clicked (canvas propagation)")}>
+  <T.Group onClick={() => console.log("3. Group clicked (tree propagation)")}>
+    <T.Mesh
+      position={[0, 0, 0]}
+      onClick={() => console.log("2. Back mesh clicked (raycast propagation)")}
+    >
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial color="blue" />
+    </T.Mesh>
 
-  <T.Mesh
-    position={[0, 0, 2]} // In front
-    onClick={e => {
-      console.log("1. Front mesh clicked (raycast propagation)")
-      e.stopPropagation() // Stops BOTH raycast and tree propagation
-    }}
-  >
-    <T.BoxGeometry />
-    <T.MeshBasicMaterial color="red" />
-  </T.Mesh>
-</T.Group>
+    <T.Mesh
+      position={[0, 0, 2]} // In front
+      onClick={e => {
+        console.log("1. Front mesh clicked (raycast propagation)")
+        e.stopPropagation() // Stops ALL propagation (raycast, tree, and canvas)
+      }}
+    >
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial color="red" />
+    </T.Mesh>
+  </T.Group>
+</Canvas>
 ```
 
 In this example, clicking the overlapping area would normally trigger events in this order:
@@ -550,6 +591,7 @@ In this example, clicking the overlapping area would normally trigger events in 
 1. Front mesh (closest to camera)
 2. Back mesh (further from camera)
 3. Group (parent in tree)
+4. Canvas (root container)
 
 But with `stopPropagation()`, only the front mesh receives the event.
 
