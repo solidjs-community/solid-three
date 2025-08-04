@@ -75,21 +75,21 @@ Ensure that `solid-js` is installed in your environment, as it is a peer depende
 Before using solid-three components, you must register THREE.js objects with the `extend()` function:
 
 ```tsx
-import { extend } from "solid-three";
-import * as THREE from "three";
+import { extend } from "solid-three"
+import * as THREE from "three"
 
 // Register all THREE.js objects (required step)
-extend(THREE);
+extend(THREE)
 ```
 
 This registration step is required and must be done before rendering any `<T.*>` components. You can also register specific objects, allowing for treeshaking:
 
 ```tsx
-import { extend } from "solid-three";
-import { Mesh, BoxGeometry, MeshBasicMaterial } from "three";
+import { extend } from "solid-three"
+import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
 
 // Register only specific objects
-extend({ Mesh, BoxGeometry, MeshBasicMaterial });
+extend({ Mesh, BoxGeometry, MeshBasicMaterial })
 ```
 
 ## Basic Usage
@@ -97,19 +97,19 @@ extend({ Mesh, BoxGeometry, MeshBasicMaterial });
 Here's a simple example to get you started:
 
 ```tsx
-import { Component, createSignal } from "solid-js";
-import { Canvas, T, extend, useFrame } from "solid-three";
-import { Mesh } from "three";
-import * as THREE from "three";
+import { Component, createSignal } from "solid-js"
+import { Canvas, T, extend, useFrame } from "solid-three"
+import { Mesh } from "three"
+import * as THREE from "three"
 
 // Required: Register THREE.js objects before using them
-extend(THREE);
+extend(THREE)
 
 const Box = () => {
-  let mesh: Mesh | undefined;
-  const [hovered, setHovered] = createSignal(false);
+  let mesh: Mesh | undefined
+  const [hovered, setHovered] = createSignal(false)
 
-  useFrame(() => (mesh!.rotation.y += 0.01));
+  useFrame(() => (mesh!.rotation.y += 0.01))
 
   return (
     <T.Mesh
@@ -120,8 +120,8 @@ const Box = () => {
       <T.BoxGeometry />
       <T.MeshStandardMaterial color={hovered() ? "green" : "red"} />
     </T.Mesh>
-  );
-};
+  )
+}
 
 const App: Component = () => {
   return (
@@ -130,8 +130,8 @@ const App: Component = () => {
       <T.PointLight position={[10, 10, 10]} />
       <Box />
     </Canvas>
-  );
-};
+  )
+}
 ```
 
 ## Components
@@ -212,8 +212,8 @@ const AdvancedProps = () => {
         material-emissive-intensity={0.5}
       />
     </T.Mesh>
-  );
-};
+  )
+}
 ```
 
 **Supported patterns:**
@@ -237,10 +237,10 @@ The `Portal` component allows you to place children outside the regular scene gr
 Example:
 
 ```tsx
-import { Portal } from "solid-three";
+import { Portal } from "solid-three"
 
 // Create a separate scene for UI elements
-const uiScene = new Scene();
+const uiScene = new Scene()
 
 const App = () => {
   return (
@@ -258,8 +258,8 @@ const App = () => {
         </T.Mesh>
       </Portal>
     </Canvas>
-  );
-};
+  )
+}
 ```
 
 ### Primitive
@@ -275,13 +275,13 @@ The `Primitive` component wraps existing `three.js` objects and allows them to b
 Example:
 
 ```tsx
-import { Primitive } from "solid-three";
-import { Mesh, BoxGeometry, MeshBasicMaterial } from "three";
+import { Primitive } from "solid-three"
+import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
 
 // Create `three.js` objects imperatively
-const geometry = new BoxGeometry(1, 1, 1);
-const material = new MeshBasicMaterial({ color: "orange" });
-const mesh = new Mesh(geometry, material);
+const geometry = new BoxGeometry(1, 1, 1)
+const material = new MeshBasicMaterial({ color: "orange" })
+const mesh = new Mesh(geometry, material)
 
 const App = () => {
   return (
@@ -289,8 +289,8 @@ const App = () => {
       {/* Use the existing mesh in the declarative scene */}
       <Primitive object={mesh} position={[0, 0, 0]} onClick={() => console.log("Clicked!")} />
     </Canvas>
-  );
-};
+  )
+}
 ```
 
 ## Hooks
@@ -318,23 +318,23 @@ Provides access to the `three.js` context, including the renderer, scene, camera
 
 ```tsx
 // Get the entire context
-const context = useThree();
-const { gl, scene, camera } = context;
+const context = useThree()
+const { gl, scene, camera } = context
 
 // Use with a selector for specific properties (returns Accessor)
-const camera = useThree(state => state.camera);
-const cameraValue = camera(); // Must call the accessor
+const camera = useThree(state => state.camera)
+const cameraValue = camera() // Must call the accessor
 
 // Multiple values with selector
-const values = useThree(state => ({ gl: state.gl, scene: state.scene }));
-const { gl, scene } = values(); // Must call the accessor
+const values = useThree(state => ({ gl: state.gl, scene: state.scene }))
+const { gl, scene } = values() // Must call the accessor
 
 // Example: Manual rendering control
-const context = useThree();
+const context = useThree()
 const handleUpdate = () => {
   // Perform updates
-  context.requestRender(); // Request a render for the next frame
-};
+  context.requestRender() // Request a render for the next frame
+}
 ```
 
 ### useFrame
@@ -356,17 +356,17 @@ useFrame((context: Context, delta: number, frame?: XRFrame) => void)
 ```tsx
 const RotatingMesh = () => {
   useFrame((context, delta) => {
-    const { scene } = context;
-    scene.children[0].rotation.y += delta * Math.PI;
-  });
+    const { scene } = context
+    scene.children[0].rotation.y += delta * Math.PI
+  })
 
   return (
     <T.Mesh>
       <T.BoxGeometry />
       <T.MeshStandardMaterial color="purple" />
     </T.Mesh>
-  );
-};
+  )
+}
 ```
 
 ### useLoader
@@ -380,45 +380,45 @@ function useLoader<TLoader, TArgs>(
   Constructor: new (...args: any[]) => TLoader,
   args: Accessor<TArgs>, // Must be an Accessor
   setup?: (loader: TLoader) => void, // Optional setup function
-);
+)
 ```
 
 #### Single Texture
 
 ```tsx
-import { createSignal } from "solid-js";
-import { Canvas, T, useLoader } from "solid-three";
-import { TextureLoader } from "three";
+import { createSignal } from "solid-js"
+import { Canvas, T, useLoader } from "solid-three"
+import { TextureLoader } from "three"
 
 const TexturedSphere = () => {
-  const [url, setUrl] = createSignal("path/to/texture.jpg");
-  const texture = useLoader(TextureLoader, url, loader => (loader.crossOrigin = "anonymous"));
+  const [url, setUrl] = createSignal("path/to/texture.jpg")
+  const texture = useLoader(TextureLoader, url, loader => (loader.crossOrigin = "anonymous"))
 
   return (
     <T.Mesh onClick={() => setUrl("path/to/other/texture.jpg")}>
       <T.SphereGeometry args={[5, 32, 32]} />
       <T.MeshBasicMaterial map={texture()} />
     </T.Mesh>
-  );
-};
+  )
+}
 
 export const App = () => {
   return (
     <Canvas>
       <TexturedSphere />
     </Canvas>
-  );
-};
+  )
+}
 ```
 
 ### Multiple textures
 
 ```tsx
-import { Canvas, T, useLoader } from "solid-three";
-import { TextureLoader } from "three";
+import { Canvas, T, useLoader } from "solid-three"
+import { TextureLoader } from "three"
 
 const TexturedPlanes = () => {
-  const textures = useLoader(TextureLoader, () => ["/textures/wood.jpg", "/textures/metal.jpg"]);
+  const textures = useLoader(TextureLoader, () => ["/textures/wood.jpg", "/textures/metal.jpg"])
 
   return (
     <For each={textures()}>
@@ -429,16 +429,16 @@ const TexturedPlanes = () => {
         </T.Mesh>
       )}
     </For>
-  );
-};
+  )
+}
 
 export const App = () => {
   return (
     <Canvas>
       <TexturedPlanes />
     </Canvas>
-  );
-};
+  )
+}
 ```
 
 ## Event Handling
@@ -458,6 +458,8 @@ export const App = () => {
 - `onMouseDown` - Fired when mouse button is pressed
 - `onMouseUp` - Fired when mouse button is released
 - `onMouseMove` - Fired when mouse moves over object
+- `onMouseEnter` - Fired when mouse enters object
+- `onMouseLeave` - Fired when mouse leaves object
 - `onWheel` - Fired on mouse wheel events
 
 **Pointer Events:**
@@ -465,6 +467,8 @@ export const App = () => {
 - `onPointerDown` - Fired when pointer is pressed
 - `onPointerUp` - Fired when pointer is released
 - `onPointerMove` - Fired when pointer moves
+- `onPointerEnter` - Fired when pointer enters object
+- `onPointerLeave` - Fired when pointer leaves object
 
 ### Event Object
 
@@ -473,11 +477,11 @@ Event handlers receive an event object with the following properties:
 ```tsx
 interface Event<T> {
   // Original DOM event
-  nativeEvent: T;
+  nativeEvent: T
 
   // Event control
-  stopped: boolean; // Whether propagation has been stopped
-  stopPropagation: () => void; // Stop event propagation
+  stopped: boolean // Whether propagation has been stopped
+  stopPropagation: () => void // Stop event propagation
 }
 ```
 
@@ -485,15 +489,15 @@ interface Event<T> {
 
 ```tsx
 const InteractiveCube = () => {
-  const [hovered, setHovered] = createSignal(false);
-  const [clicked, setClicked] = createSignal(0);
+  const [hovered, setHovered] = createSignal(false)
+  const [clicked, setClicked] = createSignal(0)
 
   return (
     <T.Mesh
       onClick={e => {
-        e.stopPropagation();
-        setClicked(c => c + 1);
-        console.log("Native event:", e.nativeEvent);
+        e.stopPropagation()
+        setClicked(c => c + 1)
+        console.log("Native event:", e.nativeEvent)
       }}
       onPointerMove={() => setHovered(true)}
       onWheel={e => console.log("Wheel delta:", e.nativeEvent.deltaY)}
@@ -504,8 +508,8 @@ const InteractiveCube = () => {
         emissive={clicked() > 0 ? "red" : "black"}
       />
     </T.Mesh>
-  );
-};
+  )
+}
 ```
 
 ### Event Propagation
@@ -526,12 +530,12 @@ solid-three implements a dual propagation system for events:
     <T.BoxGeometry />
     <T.MeshBasicMaterial color="blue" />
   </T.Mesh>
-  
+
   <T.Mesh
     position={[0, 0, 2]} // In front
     onClick={e => {
-      console.log("1. Front mesh clicked (raycast propagation)");
-      e.stopPropagation(); // Stops BOTH raycast and tree propagation
+      console.log("1. Front mesh clicked (raycast propagation)")
+      e.stopPropagation() // Stops BOTH raycast and tree propagation
     }}
   >
     <T.BoxGeometry />
@@ -541,8 +545,9 @@ solid-three implements a dual propagation system for events:
 ```
 
 In this example, clicking the overlapping area would normally trigger events in this order:
+
 1. Front mesh (closest to camera)
-2. Back mesh (further from camera) 
+2. Back mesh (further from camera)
 3. Group (parent in tree)
 
 But with `stopPropagation()`, only the front mesh receives the event.
@@ -561,19 +566,17 @@ const MissedEventExample = () => {
   return (
     <>
       {/* Example 1: Click outside the mesh */}
-      <T.Mesh 
-        onClickMissed={() => console.log("Missed - clicked outside this mesh")}
-      >
+      <T.Mesh onClickMissed={() => console.log("Missed - clicked outside this mesh")}>
         <T.BoxGeometry />
         <T.MeshBasicMaterial color="blue" />
       </T.Mesh>
 
       {/* Example 2: Blocked by tree propagation */}
       <T.Group onClickMissed={() => console.log("Group missed - child stopped propagation")}>
-        <T.Mesh 
+        <T.Mesh
           onClick={e => {
-            e.stopPropagation();
-            console.log("Child clicked");
+            e.stopPropagation()
+            console.log("Child clicked")
           }}
         >
           <T.BoxGeometry />
@@ -582,29 +585,30 @@ const MissedEventExample = () => {
       </T.Group>
 
       {/* Example 3: Blocked by raycast propagation */}
-      <T.Mesh 
+      <T.Mesh
         position={[0, 0, 0]}
         onClickMissed={() => console.log("Back mesh missed - front mesh blocked it")}
       >
         <T.BoxGeometry />
         <T.MeshBasicMaterial color="green" />
       </T.Mesh>
-      <T.Mesh 
+      <T.Mesh
         position={[0, 0, 2]} // In front
         onClick={e => {
-          e.stopPropagation();
-          console.log("Front mesh clicked");
+          e.stopPropagation()
+          console.log("Front mesh clicked")
         }}
       >
         <T.BoxGeometry />
         <T.MeshBasicMaterial color="yellow" />
       </T.Mesh>
     </>
-  );
-};
+  )
+}
 ```
 
 This is useful for:
+
 - Deselecting objects when clicking outside them
 - Creating UI layers where front objects can block interactions with objects behind
 - Handling complex interaction patterns where parent containers need to know when their children intercepted events
@@ -616,51 +620,51 @@ This is useful for:
 ### Core Types
 
 ```tsx
-import type { S3 } from "solid-three";
+import type { S3 } from "solid-three"
 
 // Component types
-type MeshComponent = S3.Component<Mesh>;
-type BoxProps = S3.ClassProps<BoxGeometry>;
+type MeshComponent = S3.Component<Mesh>
+type BoxProps = S3.ClassProps<BoxGeometry>
 
 // Instance types - `three.js` objects augmented with solid-three metadata
-type AugmentedMesh = S3.Instance<Mesh>;
+type AugmentedMesh = S3.Instance<Mesh>
 
 // Generic Three instance
-type AnyInstance = S3.ThreeInstance;
+type AnyInstance = S3.ThreeInstance
 
 // Camera types
-type Camera = S3.CameraType; // PerspectiveCamera | OrthographicCamera
+type Camera = S3.CameraType // PerspectiveCamera | OrthographicCamera
 ```
 
 ### Props Types
 
 ```tsx
 // Get props type for a specific `three.js` class
-type MeshProps = S3.Props<"Mesh">;
-type MaterialProps = S3.Props<"MeshStandardMaterial">;
+type MeshProps = S3.Props<"Mesh">
+type MaterialProps = S3.Props<"MeshStandardMaterial">
 
 // Using in components
 const MyMesh = (props: MeshProps) => {
-  return <T.Mesh {...props} />;
-};
+  return <T.Mesh {...props} />
+}
 ```
 
 ### Event Types
 
 ```tsx
 // Event handler types
-type ClickHandler = S3.EventHandlers["onClick"];
-type PointerHandler = S3.EventHandlers["onPointerMove"];
+type ClickHandler = S3.EventHandlers["onClick"]
+type PointerHandler = S3.EventHandlers["onPointerMove"]
 
 // Event object type
 const handleClick: ClickHandler = (event: S3.Event<MouseEvent>) => {
-  console.log(event.point); // Vector3
-  console.log(event.distance); // number
-  event.stopPropagation();
-};
+  console.log(event.point) // Vector3
+  console.log(event.distance) // number
+  event.stopPropagation()
+}
 
 // All event names
-type EventName = S3.EventName; // "onClick" | "onPointerMove" | ...
+type EventName = S3.EventName // "onClick" | "onPointerMove" | ...
 ```
 
 ### Representation Types
@@ -669,43 +673,43 @@ These types represent how `three.js` objects can be specified in props:
 
 ```tsx
 // Vector representations - can be arrays or `three.js` objects
-type Position = S3.Vector3; // [x, y, z] | Vector3 | { x, y, z }
-type Scale = S3.Vector3;
+type Position = S3.Vector3 // [x, y, z] | Vector3 | { x, y, z }
+type Scale = S3.Vector3
 
 // Color representation
-type Color = S3.Color; // string | number | Color | [r, g, b]
+type Color = S3.Color // string | number | Color | [r, g, b]
 
 // Rotation representations
-type Rotation = S3.Euler; // [x, y, z] | Euler
-type Quaternion = S3.Quaternion; // [x, y, z, w] | Quaternion
+type Rotation = S3.Euler // [x, y, z] | Euler
+type Quaternion = S3.Quaternion // [x, y, z, w] | Quaternion
 
 // Other representations
-type Layers = S3.Layers; // number | Layers
-type Matrix = S3.Matrix4; // number[] | Matrix4
+type Layers = S3.Layers // number | Layers
+type Matrix = S3.Matrix4 // number[] | Matrix4
 ```
 
 ### Context Type
 
 ```tsx
 // The full context returned by useThree
-type Context = S3.Context;
+type Context = S3.Context
 
 const MyComponent = () => {
-  const context: Context = useThree();
+  const context: Context = useThree()
 
   // All properties are properly typed
-  context.camera; // Camera
-  context.gl; // WebGLRenderer
-  context.pointer; // Vector2
+  context.camera // Camera
+  context.gl // WebGLRenderer
+  context.pointer // Vector2
   // ... etc
-};
+}
 ```
 
 ### Metadata Type
 
 ```tsx
 // Access instance metadata
-type Metadata = S3.Metadata<Mesh>;
+type Metadata = S3.Metadata<Mesh>
 ```
 
 ## Performance Optimization
@@ -724,8 +728,8 @@ const AutoDisposedGeometry = () => {
       <T.BoxGeometry />
       <T.MeshBasicMaterial color="red" />
     </T.Mesh>
-  );
-};
+  )
+}
 ```
 
 **Automatic disposal includes:**
@@ -739,14 +743,14 @@ const AutoDisposedGeometry = () => {
 
 ```tsx
 const ManualDisposal = () => {
-  let geometry: BoxGeometry;
+  let geometry: BoxGeometry
 
   const dispose = () => {
-    geometry?.dispose();
-  };
+    geometry?.dispose()
+  }
 
-  return <T.BoxGeometry ref={geometry} />;
-};
+  return <T.BoxGeometry ref={geometry} />
+}
 ```
 
 ### Frame Loop Control
@@ -787,19 +791,19 @@ When using `frameloop="demand"` or `"never"`, you can manually trigger renders:
 
 ```tsx
 const ManualRender = () => {
-  const { render, requestRender } = useThree();
+  const { render, requestRender } = useThree()
 
   // Immediate render
-  const forceRender = () => render();
+  const forceRender = () => render()
 
   // Request render on next frame
   const updateScene = () => {
     // Make changes
-    requestRender();
-  };
+    requestRender()
+  }
 
-  return <T.Mesh onClick={updateScene} />;
-};
+  return <T.Mesh onClick={updateScene} />
+}
 ```
 
 ### Conditional Frame Updates
@@ -808,17 +812,17 @@ Use conditional logic within `useFrame` for optimized updates:
 
 ```tsx
 const OptimizedAnimation = () => {
-  let mesh: Mesh;
-  const [isAnimating, setIsAnimating] = createSignal(true);
+  let mesh: Mesh
+  const [isAnimating, setIsAnimating] = createSignal(true)
 
   useFrame((context, delta) => {
-    if (!isAnimating()) return; // Skip if not animating
+    if (!isAnimating()) return // Skip if not animating
 
-    mesh.rotation.y += delta;
-  });
+    mesh.rotation.y += delta
+  })
 
-  return <T.Mesh ref={mesh} onClick={() => setIsAnimating(!isAnimating())} />;
-};
+  return <T.Mesh ref={mesh} onClick={() => setIsAnimating(!isAnimating())} />
+}
 ```
 
 ### Color Space Handling
@@ -837,8 +841,8 @@ const ColorHandling = () => {
         opacity={0.5} // Numeric values passed through
       />
     </T.Mesh>
-  );
-};
+  )
+}
 ```
 
 **Automatic conversions:**
@@ -865,7 +869,7 @@ Reuse `three.js` objects across components:
 
 ```tsx
 // Create shared geometry
-const sharedGeometry = new BoxGeometry(1, 1, 1);
+const sharedGeometry = new BoxGeometry(1, 1, 1)
 
 const OptimizedBoxes = () => {
   return (
@@ -874,8 +878,8 @@ const OptimizedBoxes = () => {
         <Primitive object={new Mesh(sharedGeometry)} position={[i * 2, 0, 0]} />
       ))}
     </>
-  );
-};
+  )
+}
 ```
 
 ### Automatic Disposal
@@ -884,15 +888,15 @@ const OptimizedBoxes = () => {
 
 ```tsx
 const SharedResource = () => {
-  const texture = useLoader(TextureLoader, "/texture.jpg");
+  const texture = useLoader(TextureLoader, "/texture.jpg")
 
   onCleanup(() => {
     // Manual cleanup for shared resources if needed
-    texture()?.dispose();
-  });
+    texture()?.dispose()
+  })
 
-  return <T.MeshBasicMaterial map={texture()} />;
-};
+  return <T.MeshBasicMaterial map={texture()} />
+}
 ```
 
 ## Testing
@@ -902,9 +906,9 @@ const SharedResource = () => {
 ### Setup and Basic Testing
 
 ```tsx
-import { test, TestCanvas } from "solid-three/testing";
-import { render } from "@solidjs/testing-library";
-import { T } from "solid-three";
+import { test, TestCanvas } from "solid-three/testing"
+import { render } from "@solidjs/testing-library"
+import { T } from "solid-three"
 
 test("renders a mesh", () => {
   const { canvas, scene, unmount, waitTillNextFrame } = test(() => (
@@ -912,14 +916,14 @@ test("renders a mesh", () => {
       <T.BoxGeometry />
       <T.MeshBasicMaterial />
     </T.Mesh>
-  ));
+  ))
 
-  expect(scene.children).toHaveLength(1);
-  expect(scene.children[0]).toBeDefined();
+  expect(scene.children).toHaveLength(1)
+  expect(scene.children[0]).toBeDefined()
 
   // Clean up
-  unmount();
-});
+  unmount()
+})
 
 // Using TestCanvas for JSX-based testing
 test("renders with TestCanvas", () => {
@@ -930,10 +934,10 @@ test("renders with TestCanvas", () => {
         <T.MeshBasicMaterial />
       </T.Mesh>
     </TestCanvas>
-  ));
+  ))
 
   // TestCanvas automatically handles the canvas setup
-});
+})
 ```
 
 ### Mock WebGL Context
@@ -941,7 +945,7 @@ test("renders with TestCanvas", () => {
 The testing framework includes a mock WebGL2RenderingContext for environments without GPU support:
 
 ```tsx
-import { WebGL2RenderingContext } from "solid-three/testing";
+import { WebGL2RenderingContext } from "solid-three/testing"
 
 // Automatically used when real WebGL is unavailable
 // Provides all WebGL methods as no-ops for testing
@@ -950,79 +954,79 @@ import { WebGL2RenderingContext } from "solid-three/testing";
 ### Testing Events
 
 ```tsx
-import { fireEvent } from "@solidjs/testing-library";
+import { fireEvent } from "@solidjs/testing-library"
 
 test("handles click events", () => {
-  let clicked = false;
+  let clicked = false
 
   const { canvas } = test(() => (
     <T.Mesh onClick={() => (clicked = true)}>
       <T.BoxGeometry />
       <T.MeshBasicMaterial />
     </T.Mesh>
-  ));
+  ))
 
   // Create a mock click event on the canvas
-  const clickEvent = new MouseEvent("click");
-  Object.defineProperty(clickEvent, "offsetX", { get: () => 640 });
-  Object.defineProperty(clickEvent, "offsetY", { get: () => 400 });
+  const clickEvent = new MouseEvent("click")
+  Object.defineProperty(clickEvent, "offsetX", { get: () => 640 })
+  Object.defineProperty(clickEvent, "offsetY", { get: () => 400 })
 
-  fireEvent(canvas, clickEvent);
+  fireEvent(canvas, clickEvent)
 
-  expect(clicked).toBe(true);
-});
+  expect(clicked).toBe(true)
+})
 ```
 
 ### Testing Hooks
 
 ```tsx
-import { test } from "solid-three/testing";
-import { useThree } from "solid-three";
+import { test } from "solid-three/testing"
+import { useThree } from "solid-three"
 
 test("useThree returns context", () => {
-  let context;
+  let context
 
   const TestComponent = () => {
-    context = useThree();
+    context = useThree()
     return (
       <T.Mesh>
         <T.BoxGeometry />
         <T.MeshBasicMaterial />
       </T.Mesh>
-    );
-  };
+    )
+  }
 
-  const { unmount } = test(() => <TestComponent />);
+  const { unmount } = test(() => <TestComponent />)
 
-  expect(context.camera).toBeDefined();
-  expect(context.gl).toBeDefined();
-  expect(context.scene).toBeDefined();
+  expect(context.camera).toBeDefined()
+  expect(context.gl).toBeDefined()
+  expect(context.scene).toBeDefined()
 
-  unmount();
-});
+  unmount()
+})
 ```
 
 ### Testing Animations
 
 ```tsx
 test("animates on frame", async () => {
-  let rotation = 0;
+  let rotation = 0
 
   const AnimatedBox = () => {
     useFrame(() => {
-      rotation += 0.01;
-    });
+      rotation += 0.01
+    })
 
-    return <T.Mesh />;
-  };
+    return <T.Mesh />
+  }
 
-  const { waitTillNextFrame } = test(() => <AnimatedBox />, { frameloop: "always" });
+  const { waitTillNextFrame } = test(() => <AnimatedBox />, { frameloop: "always" })
 
   // Wait for animation frame using test utility
-  await waitTillNextFrame();
+  await waitTillNextFrame()
 
-  expect(rotation).toBeGreaterThan(0);
-});
+  expect(rotation).toBeGreaterThan(0)
+})
 ```
 
 ## Contributing
