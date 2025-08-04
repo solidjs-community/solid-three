@@ -18,10 +18,10 @@ import {
   Texture,
   UnsignedByteType,
 } from "three"
-import { S3 } from "./index.ts"
 import { $S3C } from "./augment.ts"
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
+import { S3 } from "./index.ts"
 import { addToEventListeners, useCanvasProps } from "./internal-context.ts"
 import { when } from "./utils/conditionals.ts"
 import { hasColorSpace } from "./utils/has-colorspace.ts"
@@ -169,7 +169,8 @@ export function applyProp<T>(source: S3.Instance<T>, type: string, value: any) {
   if (isEventType(type)) {
     if (source instanceof Object3D && isInstance(source)) {
       // @ts-expect-error TODO: fix type-error
-      addToEventListeners(source, type)
+      const cleanup = addToEventListeners(source, type)
+      onCleanup(cleanup)
     } else {
       console.error(
         "Event handlers can only be added to Three elements extending from Object3D. Ignored event-type:",

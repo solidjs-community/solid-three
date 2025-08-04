@@ -23,12 +23,12 @@ import {
   Vector2,
   WebGLRenderer,
 } from "three"
-import { S3 } from "./index.ts"
 import { augment } from "./augment.ts"
 import type { CanvasProps } from "./canvas.tsx"
 import { createEvents } from "./create-events.ts"
 import { AugmentedStack } from "./data-structure/augmented-stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
+import { S3 } from "./index.ts"
 import { canvasPropsContext, eventContext } from "./internal-context.ts"
 import { manageProps, manageSceneGraph } from "./props.ts"
 import type { Context } from "./types.ts"
@@ -44,7 +44,7 @@ import { withMultiContexts } from "./utils/with-context.ts"
  *
  * @param canvas - The HTML canvas element on which Three.js will render.
  * @param props - Configuration properties.
- * @returns - an `S3.Context` with additional properties including eventRegistry and addFrameListener.
+ * @returns - an `S3.Context` with additional properties including addFrameListener.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
@@ -177,7 +177,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   // Initialize event-system
-  const { addEventListener, eventRegistry } = createEvents(context)
+  const { addEventListener } = createEvents(context)
 
   /**********************************************************************************/
   /*                                                                                */
@@ -219,9 +219,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
   })
 
-  // Return context merged with `eventRegistry` and `addFrameListeners``
+  // Return context merged with `addFrameListeners``
   // This is used in `@solid-three/testing`
-  return mergeProps(context, { eventRegistry, addFrameListener })
+  return mergeProps(context, { addFrameListener })
 }
 
 function initializeContext(context: S3.Context, props: CanvasProps) {
@@ -338,8 +338,8 @@ function createDefaultElements(context: S3.Context, props: CanvasProps) {
         props.camera instanceof Camera
           ? (props.camera as OrthographicCamera | PerspectiveCamera)
           : props.orthographic
-            ? new OrthographicCamera()
-            : new PerspectiveCamera(),
+          ? new OrthographicCamera()
+          : new PerspectiveCamera(),
         {
           get props() {
             return props.camera || {}
@@ -367,10 +367,10 @@ function createDefaultElements(context: S3.Context, props: CanvasProps) {
           ? // props.gl can be a WebGLRenderer provided by the user
             props.gl
           : typeof props.gl === "function"
-            ? // or a callback that returns a Renderer
-              props.gl(context.canvas)
-            : // if props.gl is not defined we default to a WebGLRenderer
-              new WebGLRenderer({ canvas: context.canvas })
+          ? // or a callback that returns a Renderer
+            props.gl(context.canvas)
+          : // if props.gl is not defined we default to a WebGLRenderer
+            new WebGLRenderer({ canvas: context.canvas })
 
       return augment(gl, {
         get props() {

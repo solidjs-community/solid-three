@@ -1,7 +1,7 @@
 import { type JSX, createContext, useContext } from "solid-js"
 import { Object3D } from "three"
-import { S3 } from "./index.ts"
 import type { CanvasProps } from "./canvas.tsx"
+import { S3 } from "./index.ts"
 
 /**
  * Registers an event listener for an `AugmentedElement` to the nearest Canvas component up the component tree.
@@ -16,10 +16,10 @@ export const addToEventListeners = (object: S3.Instance<Object3D>, type: S3.Even
   if (!addToEventListeners) {
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  addToEventListeners(object, type)
+  return addToEventListeners(object, type)
 }
 export const eventContext =
-  createContext<(object: S3.Instance<Object3D>, type: S3.EventName) => void>()
+  createContext<(object: S3.Instance<Object3D>, type: S3.EventName) => () => void>()
 
 /**
  * This function facilitates the rendering of JSX elements outside the normal scene

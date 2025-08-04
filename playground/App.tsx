@@ -23,11 +23,12 @@ function Box(
       <T.Primitive
         object={mesh}
         position={props.position}
-        onContextMenu={() => console.log("contextmenu", props.name)}
-        onContextMenuMissed={() => console.log("contextmenu missed", props.name)}
-        onPointerEnter={e => (console.log(e), setHovered(true))}
+        onContextMenu={e => console.log("contextmenu", props.name, e)}
+        onContextMenuMissed={e => console.log("contextmenu missed", props.name, e)}
+        onPointerEnter={e => (console.log("enter", props.name, e), setHovered(true))}
         onPointerLeave={e => setHovered(false)}
-        onClickMissed={() => console.log("click missed!", props.name)}
+        onPointerMove={e => console.log("move", props.name, e)}
+        onClickMissed={e => console.log("click missed!", props.name, e)}
         onClick={
           !props.noClick
             ? event => {
@@ -52,6 +53,7 @@ export function App() {
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
       camera={{ position: new THREE.Vector3(0, 0, 10) }}
+      onClick={event => console.log(event)}
     >
       <T.AmbientLight color={[0.2, 0.2, 0.2]} />
       <T.PointLight intensity={1.2} decay={1} position={[2, 2, 5]} rotation={[0, Math.PI / 3, 0]} />
