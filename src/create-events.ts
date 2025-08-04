@@ -1,6 +1,8 @@
 import { Object3D, type Intersection } from "three"
+import type { Context } from "vm"
 import { $S3C } from "./augment.ts"
-import { S3, type CanvasProps } from "./index.ts"
+import type { CanvasProps } from "./canvas.tsx"
+import type { EventName, Instance } from "./types.ts"
 import { isInstance } from "./utils/is-instance.ts"
 
 const eventNameMap = {
@@ -47,7 +49,7 @@ function createRegistry<T>() {
  * @param type - The type of the event to check.
  * @returns `true` if the type is a recognized `EventType`, otherwise `false`.
  */
-export const isEventType = (type: string): type is S3.EventName =>
+export const isEventType = (type: string): type is EventName =>
   /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel|Mouse)/.test(type)
 
 /**********************************************************************************/
@@ -60,15 +62,15 @@ export const isEventType = (type: string): type is S3.EventName =>
 function createThreeEvent<TEvent extends Event>(
   nativeEvent: TEvent,
   stoppable?: true,
-): S3.Event<TEvent>
+): Event<TEvent>
 function createThreeEvent<TEvent extends Event>(
   nativeEvent: TEvent,
   stoppable: false,
-): S3.Event<TEvent, false>
+): Event<TEvent, false>
 function createThreeEvent<TEvent extends Event>(
   nativeEvent: TEvent,
   stoppable = true,
-): S3.Event<TEvent, boolean> {
+): Event<TEvent, boolean> {
   if (!stoppable) {
     return {
       nativeEvent,
@@ -94,10 +96,10 @@ function createThreeEvent<TEvent extends Event>(
  * Performs a raycast from the camera through the mouse position to find intersecting 3D objects.
  */
 function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
-  context: S3.Context,
+  context: Context,
   registry: Object3D[],
   nativeEvent: TNativeEvent,
-): Intersection<S3.Instance<Object3D>>[] {
+): Intersection<Instance<Object3D>>[] {
   context.setPointer(pointer => {
     pointer.x = (nativeEvent.offsetX / globalThis.innerWidth) * 2 - 1
     pointer.y = -(nativeEvent.offsetY / globalThis.innerHeight) * 2 + 1
@@ -132,7 +134,7 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
  */
 function createMissableEventRegistry(
   type: "onClick" | "onDoubleClick" | "onContextMenu",
-  context: S3.Context,
+  context: Context,
   props: CanvasProps,
 ) {
   const registry = createRegistry<Object3D>()
@@ -221,14 +223,11 @@ function createMissableEventRegistry(
  *    - `onPointerMove`
  *    - `onPointerLeave`
  */
-function createHoverEventRegistry(
-  type: "Mouse" | "Pointer",
-  context: S3.Context,
-  props: CanvasProps,
-) {
+function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context, props: CanvasProps) {
   const registry = createRegistry<Object3D>()
   let hoveredSet = new Set<Object3D>()
-  let intersections: Intersection<S3.Instance<Object3D>>[] = []
+  let intersections: Intersection<Instance<Object3D>>[] = []
+  let hoveredCanvas = false
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
     intersections = raycast(context, registry.array, nativeEvent)
@@ -249,6 +248,11 @@ function createHoverEventRegistry(
         // We bubble a layer down.
         current = current.parent
       }
+    }
+
+    if (hoveredCanvas === false) {
+      props[`on${type}Enter`]?.(enterEvent)
+      hoveredCanvas = true
     }
 
     // Phase #2 - Move
@@ -291,14 +295,15 @@ function createHoverEventRegistry(
   })
 
   context.canvas.addEventListener(eventNameMap[`on${type}Leave`], nativeEvent => {
-    if (hoveredSet.size === 0) return
-    const leaveEvent = createThreeEvent(nativeEvent)
+    const leaveEvent = createThreeEvent(nativeEvent, false)
+    props[`on${type}Leave`]?.(leaveEvent)
+    hoveredCanvas = false
+
     for (const object of hoveredSet) {
       if (isInstance(object)) {
         object[$S3C].props?.[`on${type}Leave`]?.(leaveEvent)
       }
     }
-    props[`on${type}Leave`]?.(leaveEvent)
     hoveredSet.clear()
   })
 
@@ -321,7 +326,7 @@ function createHoverEventRegistry(
  */
 function createDefaultEventRegistry(
   type: "onMouseDown" | "onMouseUp" | "onPointerDown" | "onPointerUp" | "onWheel",
-  context: S3.Context,
+  context: Context,
   props: CanvasProps,
   options?: AddEventListenerOptions,
 ) {
@@ -364,7 +369,7 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export function createEvents(context: S3.Context, props: CanvasProps) {
+export function createEvents(context: Context, props: CanvasProps) {
   // onMouseMove/onMouseEnter/onMouseLeave
   const hoverMouseRegistry = createHoverEventRegistry("Mouse", context, props)
   // onPointerMove/onPointerEnter/onPointerLeave
@@ -393,7 +398,7 @@ export function createEvents(context: S3.Context, props: CanvasProps) {
      * @param object - The 3D object to register.
      * @param type - The type of event the object should listen for.
      */
-    addEventListener(object: S3.Instance<Object3D>, type: S3.EventName) {
+    addEventListener(object: Instance<Object3D>, type: EventName) {
       switch (type) {
         // Missable Events
         case "onClick":
