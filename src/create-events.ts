@@ -222,43 +222,47 @@ function createMissableEventRegistry(
  */
 function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
   const registry = createRegistry<Object3D>()
-  const hoveredSet = new Set<Object3D>()
+  let hoveredSet = new Set<Object3D>()
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
-    const leaveSet = new Set(hoveredSet)
-    hoveredSet.clear()
-
     const intersections = raycast(context, registry.array, nativeEvent)
 
     // Phase #1 - Enter
     const enterEvent = createThreeEvent(nativeEvent)
+    const enterSet = new Set<Object3D>()
+    const leaveSet = new Set(hoveredSet)
 
     for (const { object } of intersections) {
       // Bubble up
       let current: Object3D | null = object
-      while (current && !hoveredSet.has(current)) {
-        if (isInstance(current)) {
-          if (!leaveSet.has(current)) {
-            current[$S3C].props?.[`on${type}Enter`]?.(enterEvent)
-          }
-          leaveSet.delete(current)
-          hoveredSet.add(current)
+      while (current && !enterSet.has(current)) {
+        enterSet.add(current)
+        leaveSet.delete(current)
+
+        if (isInstance(current) && !hoveredSet.has(current)) {
+          current[$S3C].props?.[`on${type}Enter`]?.(enterEvent)
         }
         // We bubble a layer down.
         current = current.parent
       }
     }
 
+    hoveredSet = enterSet
+
     // Phase #2 - Move
     const moveEvent = createThreeEvent(nativeEvent)
+    const moveSet = new Set()
 
     for (const { object } of intersections) {
       if (moveEvent.stopped) break
       // Bubble up
       let current: Object3D | null = object
-      while (current) {
+      while (current && !moveSet.has(current)) {
+        moveSet.add(current)
+
         if (isInstance(current)) {
           current[$S3C].props?.[`on${type}Move`]?.(moveEvent)
+          // Break if event was
           if (moveEvent.stopped) {
             break
           }
