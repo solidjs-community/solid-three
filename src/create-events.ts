@@ -120,8 +120,10 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
 /**********************************************************************************/
 
 /**
- * A registry for `on{Click|DoubleClick|ContextMenu}`-
- * and their respective `on{Click|DoubleClick|ContextMenu}Missed`-event
+ * A registry for `MissableEvents`:
+ * - `onClick` / `onClickMissed`
+ * - `onContextMenu` / `onContextMenuMissed`
+ * - `onDoubleClick` / `onDoubleClickMissed`
  */
 function createMissableEventRegistry(
   context: S3.Context,
@@ -199,10 +201,15 @@ function createMissableEventRegistry(
 /**********************************************************************************/
 
 /**
- * A registry for `on{Pointer|Mouse}Move` events.
- * This handler manages also its derived events:
- * - `on{Pointer|Mouse}Enter`
- * - `on{Pointer|Mouse}Leave`
+ * A registry for `HoverEvents`:
+ * - Mouse
+ *    - `onMouseEnter`
+ *    - `onMouseMove`
+ *    - `onMouseLeave`
+ * - Pointer
+ *    - `onPointerEnter`
+ *    - `onPointerMove`
+ *    - `onPointerLeave`
  */
 function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer") {
   const registry: S3.Instance<Object3D>[] = []
@@ -273,9 +280,17 @@ function createHoverEventRegistry(context: S3.Context, type: "Mouse" | "Pointer"
 /*                                                                                */
 /**********************************************************************************/
 
+/**
+ * A registry for `DefaultEvents`:
+ * - `onMouseDown`
+ * - `onMouseUp`
+ * - `onPointerDown`
+ * - `onPointerUp`
+ * - `onWheel`
+ */
 function createDefaultEventRegistry(
   context: S3.Context,
-  type: "onMouseDown" | "onPointerDown" | "onMouseUp" | "onPointerUp" | "onWheel",
+  type: "onMouseDown" | "onMouseUp" | "onPointerDown" | "onPointerUp" | "onWheel",
   options?: AddEventListenerOptions,
 ) {
   const registry: S3.Instance<Object3D>[] = []
