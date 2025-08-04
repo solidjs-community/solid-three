@@ -2,7 +2,7 @@ import { Object3D, type Intersection } from "three"
 import type { Context } from "vm"
 import type { CanvasProps } from "./canvas.tsx"
 import { $S3C } from "./constants.ts"
-import type { EventName, Instance, S3Event } from "./types.ts"
+import type { EventName, Instance, ThreeEvent } from "./types.ts"
 import { isInstance } from "./utils/is-instance.ts"
 
 const eventNameMap = {
@@ -59,18 +59,18 @@ export const isEventType = (type: string): type is EventName =>
 /**********************************************************************************/
 
 // Creates a `ThreeEvent` from the current `MouseEvent` | `WheelEvent`.
-function createThreeEvent<TEvent extends S3Event>(
+function createThreeEvent<TEvent extends ThreeEvent>(
   nativeEvent: TEvent,
   stoppable?: true,
-): S3Event<TEvent>
-function createThreeEvent<TEvent extends S3Event>(
+): ThreeEvent<TEvent>
+function createThreeEvent<TEvent extends ThreeEvent>(
   nativeEvent: TEvent,
   stoppable: false,
-): S3Event<TEvent, false>
-function createThreeEvent<TEvent extends S3Event>(
+): ThreeEvent<TEvent, false>
+function createThreeEvent<TEvent extends ThreeEvent>(
   nativeEvent: TEvent,
   stoppable = true,
-): S3Event<TEvent, boolean> {
+): ThreeEvent<TEvent, boolean> {
   if (!stoppable) {
     return {
       nativeEvent,
