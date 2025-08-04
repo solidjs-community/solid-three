@@ -27,6 +27,7 @@
    - [Event Object](#event-object)
    - [Event Propagation](#event-propagation)
    - [Missed Events](#missed-events)
+   - [Hover Events](#hover-events)
 9. [TypeScript Support](#typescript-support)
 10. [Performance Optimization](#performance-optimization)
 11. [Testing](#testing)
@@ -612,6 +613,41 @@ This is useful for:
 - Deselecting objects when clicking outside them
 - Creating UI layers where front objects can block interactions with objects behind
 - Handling complex interaction patterns where parent containers need to know when their children intercepted events
+
+### Hover Events (Enter/Move/Leave)
+
+solid-three handles hover events (`onMouseEnter`, `onMouseMove`, `onMouseLeave`, `onPointerEnter`, `onPointerMove`, `onPointerLeave`) with a specific scheduling approach:
+
+**Event Scheduling:**
+
+1. **Enter Phase**: All enter events are processed first for newly hovered objects
+2. **Move Phase**: All move events are processed for objects under the pointer
+3. **Leave Phase**: All leave events are processed for objects no longer under the pointer
+
+This ensures predictable event ordering and aligns with standard DOM behavior where enter/leave events have clear boundaries.
+
+<details>
+<summary>Differences from react-three-fiber</summary>
+
+solid-three's hover event handling differs from react-three-fiber in several key ways:
+
+**1. Event Order:**
+
+- **solid-three**: Processes all enter events first, then move events, then leave events (DOM-like behavior)
+- **react-three-fiber**: Intertwines enter/move/leave events as they occur during traversal
+
+**2. Propagation:**
+
+- **solid-three**:
+  - Move events can be stopped with `stopPropagation()`
+  - Enter/Leave events always fire and cannot be stopped (DOM-like behavior)
+- **react-three-fiber**: All hover events can be stopped with `stopPropagation()`
+
+**3. Parent-Child Behavior:**
+
+- **solid-three**: When moving from child to parent, only the child receives a leave event (DOM-like behavior)
+- **react-three-fiber**: When moving from child to parent, the parent receives both leave and immediate re-enter events
+</details>
 
 ## TypeScript Support
 
