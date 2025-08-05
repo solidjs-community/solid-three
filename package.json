@@ -1,6 +1,6 @@
 {
   "name": "solid-three",
-  "version": "0.3.0-next.3",
+  "version": "0.3.0-next.4",
   "description": "SolidJS bindings for ThreeJS",
   "repository": {
     "type": "git",
