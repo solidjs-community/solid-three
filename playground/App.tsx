@@ -3,11 +3,12 @@ import type { ParentProps } from "solid-js"
 import * as THREE from "three"
 import { Canvas, createT, Entity } from "../src/index.ts"
 import { EnvironmentExample } from "./examples/EnvironmentExample.tsx"
+import { PluginExample } from "./examples/PluginExample.tsx"
 import { PortalExample } from "./examples/PortalExample.tsx"
 import { SolarExample } from "./examples/SolarExample.tsx"
 import "./index.css"
 
-const T = createT(THREE)
+const { T } = createT({ ...THREE, Entity })
 
 function Layout(props: ParentProps) {
   return (
@@ -67,6 +68,17 @@ function Layout(props: ParentProps) {
         >
           Environment
         </A>
+        <A
+          href="/plugin"
+          style={{
+            color: "white",
+            "text-decoration": "none",
+            padding: "5px 10px",
+            display: "block",
+          }}
+        >
+          Plugins
+        </A>
       </nav>
       {props.children}
     </>
@@ -79,6 +91,7 @@ export function App() {
       <Route path="/simple-solar" component={SolarExample} />
       <Route path="/portal" component={PortalExample} />
       <Route path="/environment" component={EnvironmentExample} />
+      <Route path="/plugin" component={PluginExample} />
       <Route
         path="/"
         component={() => (
@@ -87,7 +100,7 @@ export function App() {
             scene={{ background: [1, 0, 0] }}
             style={{ width: "100vw", height: "100vh" }}
           >
-            <Entity from={THREE.Group}>
+            <Entity from={THREE.Group} position={[0, 0, 0]}>
               <T.Mesh>
                 <T.BoxGeometry />
                 <T.MeshBasicMaterial color="gray" />

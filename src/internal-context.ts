@@ -1,6 +1,6 @@
 import { type JSX, createContext, useContext } from "solid-js"
 import { Object3D } from "three"
-import type { EventName, Meta } from "./types.ts"
+import type { EventName, Meta, Plugin } from "./types.ts"
 
 /**
  * Registers an event listener for an `AugmentedElement` to the nearest Canvas component up the component tree.
@@ -34,3 +34,13 @@ export const addPortal = (children: JSX.Element | JSX.Element[]) => {
   addPortal(children)
 }
 export const portalContext = createContext<(children: JSX.Element | JSX.Element[]) => void>()
+
+export function usePlugins() {
+  const plugins = useContext(pluginContext)
+  if (!plugins) {
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
+  }
+  return plugins
+}
+
+export const pluginContext = createContext<Plugin[]>()

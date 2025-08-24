@@ -27,10 +27,10 @@ import type { CanvasProps } from "./canvas.tsx"
 import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
-import { eventContext } from "./internal-context.ts"
+import { eventContext, pluginContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
-import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
+import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
 import {
   binarySearch,
   defaultProps,
@@ -47,7 +47,7 @@ import { useMeasure } from "./utils/use-measure.ts"
  * camera, renderer, raycaster, and scene, manages the scene graph, setups up an event system
  * and rendering loop based on the provided properties.
  */
-export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
+export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugins: Plugin[]) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
 
   /**********************************************************************************/
@@ -407,11 +407,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   const c = children(() => (
-    <eventContext.Provider value={addEventListener}>
-      <frameContext.Provider value={addFrameListener}>
-        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-      </frameContext.Provider>
-    </eventContext.Provider>
+    <pluginContext.Provider value={plugins}>
+      <eventContext.Provider value={addEventListener}>
+        <frameContext.Provider value={addFrameListener}>
+          <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
+        </frameContext.Provider>
+      </eventContext.Provider>
+    </pluginContext.Provider>
   ))
 
   useSceneGraph(

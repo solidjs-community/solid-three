@@ -10,7 +10,16 @@ import {
   Vector3,
 } from "three"
 import { $S3C } from "./constants.ts"
-import type { CameraKind, Constructor, Data, Loader, Meta } from "./types.ts"
+import type {
+  CameraKind,
+  Constructor,
+  Data,
+  InstanceOf,
+  Loader,
+  Meta,
+  Plugin,
+  Props,
+} from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
@@ -39,24 +48,40 @@ export function autodispose<T extends { dispose?: () => void }>(object: T): T {
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                     Augment                                    */
+/*                                      Meta                                      */
 /*                                                                                */
 /**********************************************************************************/
+
+interface MetaOptions<T extends object> {
+  props?: Props<InstanceOf<T>>
+  plugins?: Plugin[]
+}
 
 /**
  * A utility to add metadata to a given instance.
  * This data can be accessed behind the `S3C` symbol and is used internally in `solid-three`.
  *
  * @param instance - `three` instance
- * @param augmentation - additional data: `{ props }`
+ * @param options - additional data: `{ props }`
  * @returns the `three` instance with the additional data
  */
-export function meta<T>(instance: T, augmentation = { props: {} }) {
+export function meta<T extends object>(
+  instance: T,
+  { props = {}, plugins = [] }: MetaOptions<T> = {},
+) {
   if (hasMeta(instance)) {
     return instance
   }
+
   const _instance = instance as Meta<T>
-  _instance[$S3C] = { children: new Set(), parent: undefined, ...augmentation }
+
+  _instance[$S3C] = {
+    children: new Set(),
+    parent: undefined,
+    plugins,
+    props,
+  }
+
   return _instance
 }
 

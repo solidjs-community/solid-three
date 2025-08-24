@@ -1,4 +1,4 @@
-import type { Accessor, JSX, Ref } from "solid-js"
+import type { Accessor, JSX, MergeProps, Ref } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -23,6 +23,12 @@ import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type { Measure } from "./utils/use-measure.ts"
+
+declare global {
+  namespace $3 {
+    // type Plugins = Plugin[]
+  }
+}
 
 /**********************************************************************************/
 /*                                                                                */
@@ -181,7 +187,7 @@ export type FrameListener = (
 
 export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
 
-export type ThreeEvent<
+export type Event<
   TEvent,
   TConfig extends { stoppable?: boolean; intersections?: boolean } = {
     stoppable: true
@@ -209,23 +215,23 @@ export type ThreeEvent<
 >
 
 type EventHandlersMap = {
-  onClick: Prettify<ThreeEvent<MouseEvent>>
-  onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onMouseDown: Prettify<ThreeEvent<MouseEvent>>
-  onMouseEnter: Prettify<ThreeEvent<MouseEvent, { stoppable: false }>>
-  onMouseLeave: Prettify<ThreeEvent<MouseEvent, { stoppable: false }>>
-  onMouseMove: Prettify<ThreeEvent<MouseEvent>>
-  onMouseUp: Prettify<ThreeEvent<MouseEvent>>
-  onPointerUp: Prettify<ThreeEvent<PointerEvent>>
-  onPointerDown: Prettify<ThreeEvent<PointerEvent>>
-  onPointerMove: Prettify<ThreeEvent<PointerEvent>>
-  onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onWheel: Prettify<ThreeEvent<WheelEvent>>
+  onClick: Prettify<Event<MouseEvent>>
+  onClickMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
+  onDoubleClick: Prettify<Event<MouseEvent>>
+  onDoubleClickMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
+  onContextMenu: Prettify<Event<MouseEvent>>
+  onContextMenuMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
+  onMouseDown: Prettify<Event<MouseEvent>>
+  onMouseEnter: Prettify<Event<MouseEvent, { stoppable: false }>>
+  onMouseLeave: Prettify<Event<MouseEvent, { stoppable: false }>>
+  onMouseMove: Prettify<Event<MouseEvent>>
+  onMouseUp: Prettify<Event<MouseEvent>>
+  onPointerUp: Prettify<Event<PointerEvent>>
+  onPointerDown: Prettify<Event<PointerEvent>>
+  onPointerMove: Prettify<Event<PointerEvent>>
+  onPointerEnter: Prettify<Event<PointerEvent, { stoppable: false }>>
+  onPointerLeave: Prettify<Event<PointerEvent, { stoppable: false }>>
+  onWheel: Prettify<Event<WheelEvent>>
 }
 
 export type EventHandlers = {
@@ -246,6 +252,11 @@ export type EventName = keyof EventHandlersMap
 /*                           Solid Three Representation                           */
 /*                                                                                */
 /**********************************************************************************/
+
+/** Maps properties of given type to their `solid-three` representations. */
+export type MapToRepresentation<T> = {
+  [TKey in keyof T]: Representation<T[TKey]>
+}
 
 interface ThreeMathRepresentation {
   set(...args: number[]): any
@@ -275,9 +286,17 @@ export type Matrix4 = Representation<ThreeMatrix4>
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                  Three To JSX                                  */
+/*                                       Meta                                     */
 /*                                                                                */
 /**********************************************************************************/
+
+export interface Plugin<T extends Record<string, any> = object> {
+  <U>(element: U): T
+}
+
+export type InferPluginProps<TPlugins extends Plugin[]> = MergeProps<{
+  [TKey in keyof TPlugins]: ReturnType<TPlugins[TKey]>
+}>
 
 export type Meta<T = unknown> = T & {
   [$S3C]: Data<T>
@@ -288,16 +307,18 @@ export type Data<T> = {
   props: Props<InstanceOf<T>>
   parent: any
   children: Set<Meta<any>>
+  plugins: Plugin[]
 }
 
-/** Maps properties of given type to their `solid-three` representations. */
-export type MapToRepresentation<T> = {
-  [TKey in keyof T]: Representation<T[TKey]>
-}
+/**********************************************************************************/
+/*                                                                                */
+/*                                      Props                                     */
+/*                                                                                */
+/**********************************************************************************/
 
 /** Generic `solid-three` props of a given class. */
-export type Props<T> = Partial<
-  Overwrite<
+export type Props<T, TPlugins extends Plugin[] | undefined = Plugin[]> = Partial<
+  Merge<
     [
       MapToRepresentation<InstanceOf<T>>,
       EventHandlers,
@@ -313,7 +334,38 @@ export type Props<T> = Partial<
          * Object3D can still receive events via propagation from its descendants.
          */
         raycastable: boolean
+        plugins: TPlugins
       },
     ]
   >
 >
+
+type Simplify<T> = T extends any
+  ? {
+      [K in keyof T]: T[K]
+    }
+  : T
+type _Merge<T extends unknown[], Curr = {}> = T extends [
+  infer Next | (() => infer Next),
+  ...infer Rest,
+]
+  ? _Merge<Rest, Override<Curr, Next>>
+  : T extends [...infer Rest, infer Next]
+  ? Override<_Merge<Rest, Curr>, Next>
+  : T extends []
+  ? Curr
+  : // : T extends (infer I)[]
+    // ? OverrideSpread<Curr, I>
+    Curr
+export type Merge<T extends unknown[]> = Simplify<_Merge<T>>
+
+type DistributeOverride<T, F> = T extends undefined ? F : T
+type Override<T, U> = T extends any
+  ? U extends any
+    ? {
+        [K in keyof T]: K extends keyof U ? DistributeOverride<U[K], T[K]> : T[K]
+      } & {
+        [K in keyof U]: K extends keyof T ? DistributeOverride<U[K], T[K]> : U[K]
+      }
+    : T & U
+  : T & U

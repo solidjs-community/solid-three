@@ -1,10 +1,9 @@
 import * as THREE from "three"
 import { createT, Resource } from "../../src/index.ts"
-import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 const Plugin1 = () => {
   return {
-    onCustom(callback: (value: string) => void) {
+    onCustom(callback: (value: "HALLO FROM PLUGIN1!") => void) {
       callback("HALLO FROM PLUGIN1!")
     },
     onYolo(callback: (value: "yolo") => void) {
@@ -15,7 +14,7 @@ const Plugin1 = () => {
 
 const Plugin2 = () => {
   return {
-    onCustom(callback: (value: number) => void) {
+    onMouseDown(callback: (value: number) => void) {
       callback(2)
     },
   }
@@ -23,20 +22,16 @@ const Plugin2 = () => {
 
 const { T, Canvas } = createT(THREE, [Plugin1])
 
-export function EnvironmentExample() {
+export function PluginExample() {
   return (
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
-      onClick={event => console.debug("canvas clicked", event)}
-      onClickMissed={event => console.debug("canvas click missed", event)}
-      onPointerLeave={event => console.debug("canvas pointer leave", event)}
-      onPointerEnter={event => console.debug("canvas pointer enter", event)}
     >
-      <OrbitControls />
       <T.Mesh
         plugins={[Plugin2]}
         onYolo={value => console.log(value)}
+        onMouseDown={value => console.log(value)}
         onCustom={value => console.log(value)}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />

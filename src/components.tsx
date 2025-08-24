@@ -12,7 +12,7 @@ import {
 import { Object3D } from "three"
 import { threeContext, useThree } from "./hooks.ts"
 import { useProps } from "./props.ts"
-import type { Constructor, Loader, Meta, Overwrite, Props } from "./types.ts"
+import type { Constructor, InferPluginProps, Loader, Meta, Plugin, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, load, meta, withContext } from "./utils.ts"
 import { whenMemo } from "./utils/conditionals.ts"
@@ -74,15 +74,6 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
 /*                                                                                */
 /**********************************************************************************/
 
-type EntityProps<T extends object | Constructor<object>> = Overwrite<
-  [
-    Props<T>,
-    {
-      from: T | undefined
-      children?: JSXElement
-    },
-  ]
->
 /**
  * Wraps a `ThreeElement` and allows it to be used as a JSX-component within a `solid-three` scene.
  *
@@ -92,7 +83,15 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  *                                    optional children, and a ref that provides access to the object instance.
  * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
  */
-export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
+export function Entity<
+  const T extends object | Constructor<object> = object,
+  const TPlugins extends Plugin[] = $3.Plugins,
+>(
+  props:
+    | Props<T>
+    | { from: T; children?: JSXElement; plugins?: TPlugins }
+    | InferPluginProps<TPlugins>,
+) {
   const [config, rest] = splitProps(props, ["from", "args"])
   const memo = whenMemo(
     () => config.from,
@@ -103,6 +102,9 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
         isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
         {
           props,
+          get plugins() {
+            return props.plugins
+          },
         },
       ) as Meta<T>
       useProps(instance, rest)

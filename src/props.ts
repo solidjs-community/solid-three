@@ -2,9 +2,11 @@ import {
   type Accessor,
   children,
   createComputed,
+  createMemo,
   createRenderEffect,
   type JSXElement,
   mapArray,
+  mergeProps,
   onCleanup,
   splitProps,
   untrack,
@@ -22,7 +24,7 @@ import {
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
 import { addToEventListeners } from "./internal-context.ts"
-import type { AccessorMaybe, Context, Meta } from "./types.ts"
+import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import { getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
 
 function isWritable(object: object, propertyName: string) {
@@ -303,12 +305,27 @@ function applyProp<T extends Record<string, any>>(
  */
 export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
-  props: any,
-  context: Pick<Context, "requestRender" | "gl" | "props"> = useThree(),
+  props: { plugins?: Plugin[] } & Record<string, any>,
+  plugins?: Plugin[],
 ) {
-  const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
+  const context: Pick<Context, "requestRender" | "gl" | "props"> = useThree()
+
+  const [local, instanceProps] = splitProps(props, [
+    "ref",
+    "args",
+    "object",
+    "attach",
+    "children",
+    "plugins",
+  ])
 
   useSceneGraph(accessor, props)
+
+  const pluginMethods = createMemo(() =>
+    mergeProps(
+      ...[...(plugins ?? []), ...(props.plugins ?? [])].map(init => () => init(resolve(accessor))),
+    ),
+  )
 
   createRenderEffect(() => {
     const object = resolve(accessor)
@@ -329,6 +346,11 @@ export function useProps<T extends Record<string, any>>(
         // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
         const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
         createRenderEffect(() => {
+          if (key in pluginMethods()) {
+            pluginMethods()[key](props[key])
+            return
+          }
+
           applyProp(context, object, key, props[key])
           // If property updates, apply its sub-properties immediately after.
           // NOTE:  Discuss - is this expected behavior? Feature or a bug?

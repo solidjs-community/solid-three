@@ -1,5 +1,5 @@
 import { Object3D, type Intersection } from "three"
-import type { Context, EventName, Meta, Prettify, ThreeEvent } from "./types.ts"
+import type { Context, Event, EventName, Meta, Prettify } from "./types.ts"
 import { getMeta } from "./utils.ts"
 
 const eventNameMap = {
@@ -77,7 +77,7 @@ function createThreeEvent<
 
   return event as Prettify<
     Omit<
-      ThreeEvent<
+      Event<
         TEvent,
         {
           stoppable: TConfig["stoppable"] extends false
