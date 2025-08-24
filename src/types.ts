@@ -378,23 +378,12 @@ export interface PluginFn {
     (element: any) => Methods
   >
 
-  // No setup - direct usage with two arguments (single constructor)
-  <T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
-    Constructor: T,
-    methods: (element: InstanceType<T>) => Methods,
-  ): Plugin<{
-    (element: InstanceType<T>): Methods
-    (element: any): {}
-  }>
-
   // No setup - direct usage with two arguments (array of constructors)
-  <T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
+  <T extends readonly Constructor[], Methods extends Record<string, any>>(
     Constructors: T,
-    methods: (
-      element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never,
-    ) => Methods,
+    methods: (element: T extends readonly Constructor<infer U>[] ? U : never) => Methods,
   ): Plugin<{
-    (element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never): Methods
+    (element: T extends readonly Constructor<infer U>[] ? U : never): Methods
     (element: any): {}
   }>
 
@@ -417,24 +406,15 @@ export interface PluginFn {
         methods: (element: any, context: TSetupContext) => Methods,
       ): Plugin<(element: any) => Methods>
 
-      // With setup - two arguments (single constructor)
-      <T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
-        Constructor: T,
-        methods: (element: InstanceType<T>, context: TSetupContext) => Methods,
-      ): Plugin<{
-        (element: InstanceType<T>): Methods
-        (element: any): {}
-      }>
-
       // With setup - two arguments (array of constructors)
-      <T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
+      <T extends readonly Constructor[], Methods extends Record<string, any>>(
         Constructors: T,
         methods: (
-          element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never,
+          element: T extends readonly Constructor<infer U>[] ? U : never,
           context: TSetupContext,
         ) => Methods,
       ): Plugin<{
-        (element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never): Methods
+        (element: T extends readonly Constructor<infer U>[] ? U : never): Methods
         (element: any): {}
       }>
 

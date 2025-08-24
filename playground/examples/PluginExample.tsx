@@ -12,7 +12,7 @@ import {
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 // LookAt plugin - works for all Object3D elements
-const LookAtPlugin = plugin(THREE.Object3D, element => ({
+const LookAtPlugin = plugin([THREE.Object3D], element => ({
   lookAt: (target: THREE.Object3D | [number, number, number]) => {
     useFrame(() => {
       if (Array.isArray(target)) {
