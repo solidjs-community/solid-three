@@ -1,62 +1,45 @@
 import * as THREE from "three"
-import type { Meta, Plugin } from "types.ts"
-import { createT, Resource, useFrame, useThree } from "../../src/index.ts"
+import type { Meta } from "types.ts"
+import {
+  createPlugin,
+  createT,
+  EventPlugin,
+  Resource,
+  useFrame,
+  useThree,
+} from "../../src/index.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 // LookAt plugin - works for all Object3D elements
-interface LookAtPluginFn {
-  (element: THREE.Object3D): {
-    lookAt(target: THREE.Object3D | [number, number, number]): void
-  }
-  (element: any): {}
-}
-
-const LookAtPlugin: Plugin<LookAtPluginFn> = () => {
-  return ((element: any) => {
-    if (element instanceof THREE.Object3D) {
-      return {
-        lookAt: (target: THREE.Object3D | [number, number, number]) => {
-          useFrame(() => {
-            if (Array.isArray(target)) {
-              element.lookAt(...target)
-            } else {
-              element.lookAt(target.position)
-            }
-          })
-        },
-      }
-    }
-    return {}
-  }) as LookAtPluginFn
-}
+const LookAtPlugin = createPlugin()
+  .extends(THREE.Object3D)
+  .provide(element => ({
+    lookAt: (target: THREE.Object3D | [number, number, number]) => {
+      useFrame(() => {
+        if (Array.isArray(target)) {
+          element.lookAt(...target)
+        } else {
+          element.lookAt(target.position)
+        }
+      })
+    },
+  }))
 
 // Shake plugin - works only for Camera elements
-interface ShakePluginFn {
-  (element: THREE.Camera): {
-    shake(intensity?: number): void
-  }
-  (element: any): {}
-}
+const ShakePlugin = createPlugin()
+  .extends(THREE.Camera)
+  .provide(element => ({
+    shake: (intensity = 0.1) => {
+      const originalPosition = element.position.clone()
+      useFrame(() => {
+        element.position.x = originalPosition.x + (Math.random() - 0.5) * intensity
+        element.position.y = originalPosition.y + (Math.random() - 0.5) * intensity
+        element.position.z = originalPosition.z + (Math.random() - 0.5) * intensity
+      })
+    },
+  }))
 
-const ShakePlugin: Plugin<ShakePluginFn> = () => {
-  return ((element: any) => {
-    if (element instanceof THREE.Camera) {
-      return {
-        shake: (intensity = 0.1) => {
-          const originalPosition = element.position.clone()
-          useFrame(() => {
-            element.position.x = originalPosition.x + (Math.random() - 0.5) * intensity
-            element.position.y = originalPosition.y + (Math.random() - 0.5) * intensity
-            element.position.z = originalPosition.z + (Math.random() - 0.5) * intensity
-          })
-        },
-      }
-    }
-    return {}
-  }) as ShakePluginFn
-}
-
-const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin])
+const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin, EventPlugin])
 
 export function PluginExample() {
   let cubeRef: Meta<THREE.Mesh>
@@ -70,7 +53,12 @@ export function PluginExample() {
       <OrbitControls />
 
       {/* Mesh with lookAt (from LookAtPlugin) */}
-      <T.Mesh ref={cubeRef!} position={[0, 0, 0]} lookAt={useThree().currentCamera}>
+      <T.Mesh
+        ref={cubeRef!}
+        position={[0, 0, 0]}
+        lookAt={useThree().currentCamera}
+        onMouseDown={console.info}
+      >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
           <Resource

@@ -291,6 +291,88 @@ export interface Plugin<TFn = (element: any) => any> {
   (): TFn
 }
 
+/**
+ * Creates a plugin with a fluent builder API
+ * Usage:
+ * - createPlugin(() => { setup }).filter(Constructor).provide((element, context) => methods)
+ * - createPlugin(() => { setup }).provide((element, context) => methods) // no filtering
+ */
+export function createPlugin(setup?: () => void) {
+  return {
+    // Direct provide without filtering - applies to all elements
+    provide<Methods extends Record<string, any>>(methods: (element: any, context: any) => Methods) {
+      type PluginFn = (element: any) => Methods
+
+      const plugin: Plugin<PluginFn> = () => {
+        // Run setup once if provided and store result as context
+        const context = setup ? setup() : undefined
+
+        return ((element: any) => {
+          return methods(element, context)
+        }) as PluginFn
+      }
+
+      return plugin
+    },
+
+    // Filtered provide - only applies to specific types
+    extends<T>(Constructor: new (...args: any[]) => T) {
+      return {
+        provide<Methods extends Record<string, any>>(
+          methods: (element: T, context: any) => Methods,
+        ) {
+          type PluginFn = {
+            (element: T): Methods
+            (element: any): {}
+          }
+
+          const plugin: Plugin<PluginFn> = () => {
+            // Run setup once if provided and store result as context
+            const context = setup ? setup() : undefined
+
+            return ((element: any) => {
+              if (element instanceof Constructor) {
+                return methods(element as T, context)
+              }
+              return {}
+            }) as PluginFn
+          }
+
+          return plugin
+        },
+      }
+    },
+
+    // Alternative for custom conditions
+    where<T>(condition: (element: any) => element is T) {
+      return {
+        provide<Methods extends Record<string, any>>(
+          methods: (element: T, context: any) => Methods,
+        ) {
+          type PluginFn = {
+            (element: T): Methods
+            (element: any): {}
+          }
+
+          const plugin: Plugin<PluginFn> = () => {
+            // Run setup once if provided and store result as context
+            const context = setup ? setup() : undefined
+
+            return ((element: any) => {
+              if (condition(element)) {
+                return methods(element as T, context)
+              }
+              return {}
+            }) as PluginFn
+          }
+
+          return plugin
+        },
+      }
+    },
+  }
+}
+
 export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
   [TKey in keyof TPlugins]: TPlugins[TKey] extends () => (element: any) => infer U
     ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
@@ -301,17 +383,61 @@ export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
  * Helper type to resolve overloaded function returns
  * Matches overloads from most specific to least specific
  */
-type ResolveOverload<F, T> = 
-  F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3; (element: infer P4): infer R4; (element: infer P5): infer R5 }
-    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : T extends P4 ? R4 : T extends P5 ? R5 : never
-  : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3; (element: infer P4): infer R4 }
-    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : T extends P4 ? R4 : never
-  : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3 }
-    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : never
+type ResolveOverload<F, T> = F extends {
+  (element: infer P1): infer R1
+  (element: infer P2): infer R2
+  (element: infer P3): infer R3
+  (element: infer P4): infer R4
+  (element: infer P5): infer R5
+}
+  ? T extends P1
+    ? R1
+    : T extends P2
+    ? R2
+    : T extends P3
+    ? R3
+    : T extends P4
+    ? R4
+    : T extends P5
+    ? R5
+    : never
+  : F extends {
+      (element: infer P1): infer R1
+      (element: infer P2): infer R2
+      (element: infer P3): infer R3
+      (element: infer P4): infer R4
+    }
+  ? T extends P1
+    ? R1
+    : T extends P2
+    ? R2
+    : T extends P3
+    ? R3
+    : T extends P4
+    ? R4
+    : never
+  : F extends {
+      (element: infer P1): infer R1
+      (element: infer P2): infer R2
+      (element: infer P3): infer R3
+    }
+  ? T extends P1
+    ? R1
+    : T extends P2
+    ? R2
+    : T extends P3
+    ? R3
+    : never
   : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2 }
-    ? T extends P1 ? R1 : T extends P2 ? R2 : never
+  ? T extends P1
+    ? R1
+    : T extends P2
+    ? R2
+    : never
   : F extends { (element: infer P): infer R }
-    ? T extends P ? R : never
+  ? T extends P
+    ? R
+    : never
   : never
 
 /**

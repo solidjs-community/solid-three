@@ -1,7 +1,14 @@
 import { onCleanup } from "solid-js"
 import { Object3D, type Intersection } from "three"
 import { useThree } from "./hooks.ts"
-import type { Context, Event, EventName, Meta, Plugin, Prettify } from "./types.ts"
+import {
+  createPlugin,
+  type Context,
+  type Event,
+  type EventName,
+  type Meta,
+  type Prettify,
+} from "./types.ts"
 import { getMeta } from "./utils.ts"
 
 const eventNameMap = {
@@ -425,7 +432,7 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export const EventPlugin = (() => {
+export const EventPlugin = createPlugin(() => {
   const context = useThree()
 
   // onMouseMove/onMouseEnter/onMouseLeave
@@ -449,7 +456,34 @@ export const EventPlugin = (() => {
   // Default wheel-event
   const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
 
-  return object => {
+  return {
+    hoverMouseRegistry,
+    hoverPointerRegistry,
+    missableClickRegistry,
+    missableContextMenuRegistry,
+    missableDoubleClickRegistry,
+    mouseDownRegistry,
+    mouseUpRegistry,
+    pointerDownRegistry,
+    pointerUpRegistry,
+    wheelRegistry,
+  }
+}).provide(
+  (
+    object,
+    {
+      hoverMouseRegistry,
+      hoverPointerRegistry,
+      missableClickRegistry,
+      missableContextMenuRegistry,
+      missableDoubleClickRegistry,
+      mouseDownRegistry,
+      mouseUpRegistry,
+      pointerDownRegistry,
+      pointerUpRegistry,
+      wheelRegistry,
+    },
+  ) => {
     return {
       onClick(callback: (event: Event<MouseEvent>) => void) {
         onCleanup(missableClickRegistry.add(object))
@@ -503,5 +537,5 @@ export const EventPlugin = (() => {
         onCleanup(wheelRegistry.add(object))
       },
     }
-  }
-}) satisfies Plugin
+  },
+)
