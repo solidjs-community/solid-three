@@ -297,10 +297,86 @@ export interface Plugin<TFn = (element: any) => any> {
  * - createPlugin(() => { setup }).filter(Constructor).provide((element, context) => methods)
  * - createPlugin(() => { setup }).provide((element, context) => methods) // no filtering
  */
-export function createPlugin(setup?: () => void) {
+// Helper function to create the actual plugin implementation
+function createFilteredPlugin(
+  setup: (() => any) | undefined,
+  filterArg: any,
+  methods: any,
+): Plugin<any> {
+  const plugin: Plugin<any> = () => {
+    // Run setup once if provided and store result as context
+    const context = setup ? setup() : undefined
+
+    return ((element: any) => {
+      // Handle single constructor
+      if (typeof filterArg === "function" && filterArg.prototype) {
+        if (element instanceof filterArg) {
+          return methods(element, context)
+        }
+      }
+      // Handle array of constructors
+      else if (Array.isArray(filterArg)) {
+        for (const Constructor of filterArg) {
+          if (element instanceof Constructor) {
+            return methods(element, context)
+          }
+        }
+      }
+      // Handle type guard function
+      else if (typeof filterArg === "function") {
+        if (filterArg(element)) {
+          return methods(element, context)
+        }
+      }
+
+      return {}
+    }) as any
+  }
+
+  return plugin
+}
+
+interface PluginBuilder<TContext extends object> {
+  provide<Methods extends Record<string, any>>(
+    methods: (element: any, context: TContext) => Methods,
+  ): Plugin<(element: any) => Methods>
+
+  prop<T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
+    Constructor: T,
+    methods: (element: InstanceType<T>, context: TContext) => Methods,
+  ): Plugin<{
+    (element: InstanceType<T>): Methods
+    (element: any): {}
+  }>
+
+  prop<T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
+    Constructors: T,
+    methods: (
+      element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never,
+      context: TContext,
+    ) => Methods,
+  ): Plugin<{
+    (element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never): Methods
+    (element: any): {}
+  }>
+
+  prop<T, Methods extends Record<string, any>>(
+    condition: (element: unknown) => element is T,
+    methods: (element: T, context: TContext) => Methods,
+  ): Plugin<{
+    (element: T): Methods
+    (element: any): {}
+  }>
+}
+
+export function createPlugin<TContext extends object>(
+  setup?: () => TContext,
+): PluginBuilder<TContext> {
   return {
     // Direct provide without filtering - applies to all elements
-    provide<Methods extends Record<string, any>>(methods: (element: any, context: any) => Methods) {
+    provide<Methods extends Record<string, any>>(
+      methods: (element: any, context: TContext) => Methods,
+    ) {
       type PluginFn = (element: any) => Methods
 
       const plugin: Plugin<PluginFn> = () => {
@@ -315,97 +391,11 @@ export function createPlugin(setup?: () => void) {
       return plugin
     },
 
-    // Filtered provide - supports single or multiple types
-    extends<T extends readonly (new (...args: any[]) => any)[]>(
-      ...Constructors: T
-    ) {
-      type UnionType = T extends readonly (new (...args: any[]) => infer U)[] ? U : never
-      
-      return {
-        provide<Methods extends Record<string, any>>(
-          methods: (element: UnionType, context: any) => Methods,
-        ) {
-          type PluginFn = {
-            (element: UnionType): Methods
-            (element: any): {}
-          }
-
-          const plugin: Plugin<PluginFn> = () => {
-            // Run setup once if provided and store result as context
-            const context = setup ? setup() : undefined
-
-            return ((element: any) => {
-              // Check if element is instance of any of the constructors
-              for (const Constructor of Constructors) {
-                if (element instanceof Constructor) {
-                  return methods(element as UnionType, context)
-                }
-              }
-              return {}
-            }) as PluginFn
-          }
-
-          return plugin
-        },
-      }
+    // Implementation for all filter overloads
+    prop(filterArg: any, methods: any): Plugin<any> {
+      return createFilteredPlugin(setup, filterArg, methods)
     },
-
-    // Custom type guard filtering
-    filter<T>(condition: (element: any) => element is T) {
-      return {
-        provide<Methods extends Record<string, any>>(
-          methods: (element: T, context: any) => Methods,
-        ) {
-          type PluginFn = {
-            (element: T): Methods
-            (element: any): {}
-          }
-
-          const plugin: Plugin<PluginFn> = () => {
-            // Run setup once if provided and store result as context
-            const context = setup ? setup() : undefined
-
-            return ((element: any) => {
-              if (condition(element)) {
-                return methods(element as T, context)
-              }
-              return {}
-            }) as PluginFn
-          }
-
-          return plugin
-        },
-      }
-    },
-
-    // Alternative for custom conditions (alias for filter)
-    where<T>(condition: (element: any) => element is T) {
-      return {
-        provide<Methods extends Record<string, any>>(
-          methods: (element: T, context: any) => Methods,
-        ) {
-          type PluginFn = {
-            (element: T): Methods
-            (element: any): {}
-          }
-
-          const plugin: Plugin<PluginFn> = () => {
-            // Run setup once if provided and store result as context
-            const context = setup ? setup() : undefined
-
-            return ((element: any) => {
-              if (condition(element)) {
-                return methods(element as T, context)
-              }
-              return {}
-            }) as PluginFn
-          }
-
-          return plugin
-        },
-      }
-    },
-  }
+  } as PluginBuilder<TContext>
 }
 
 export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
