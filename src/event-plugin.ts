@@ -426,46 +426,32 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export const EventPlugin = plugin(() => {
-  const context = useThree()
+export const EventPlugin = plugin
+  .setup(() => {
+    const context = useThree()
 
-  // onMouseMove/onMouseEnter/onMouseLeave
-  const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
-  // onPointerMove/onPointerEnter/onPointerLeave
-  const hoverPointerRegistry = createHoverEventRegistry("Pointer", context)
+    // onMouseMove/onMouseEnter/onMouseLeave
+    const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
+    // onPointerMove/onPointerEnter/onPointerLeave
+    const hoverPointerRegistry = createHoverEventRegistry("Pointer", context)
 
-  // onClick/onClickMissed
-  const missableClickRegistry = createMissableEventRegistry("onClick", context)
-  // onContextMenu/onContextMenuMissed
-  const missableContextMenuRegistry = createMissableEventRegistry("onContextMenu", context)
-  // onDoubleClick/onDoubleClickMissed
-  const missableDoubleClickRegistry = createMissableEventRegistry("onDoubleClick", context)
+    // onClick/onClickMissed
+    const missableClickRegistry = createMissableEventRegistry("onClick", context)
+    // onContextMenu/onContextMenuMissed
+    const missableContextMenuRegistry = createMissableEventRegistry("onContextMenu", context)
+    // onDoubleClick/onDoubleClickMissed
+    const missableDoubleClickRegistry = createMissableEventRegistry("onDoubleClick", context)
 
-  // Default mouse-events
-  const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context)
-  const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context)
-  // Default pointer-events
-  const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context)
-  const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context)
-  // Default wheel-event
-  const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
+    // Default mouse-events
+    const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context)
+    const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context)
+    // Default pointer-events
+    const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context)
+    const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context)
+    // Default wheel-event
+    const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
 
-  return {
-    hoverMouseRegistry,
-    hoverPointerRegistry,
-    missableClickRegistry,
-    missableContextMenuRegistry,
-    missableDoubleClickRegistry,
-    mouseDownRegistry,
-    mouseUpRegistry,
-    pointerDownRegistry,
-    pointerUpRegistry,
-    wheelRegistry,
-  }
-}).prop(
-  (
-    object,
-    {
+    return {
       hoverMouseRegistry,
       hoverPointerRegistry,
       missableClickRegistry,
@@ -476,60 +462,76 @@ export const EventPlugin = plugin(() => {
       pointerDownRegistry,
       pointerUpRegistry,
       wheelRegistry,
-    },
-  ) => {
-    return {
-      onClick(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableClickRegistry.add(object))
-      },
-      onClickMissed(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableClickRegistry.add(object))
-      },
-      onDoubleClick(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableDoubleClickRegistry.add(object))
-      },
-      onDoubleClickMissed(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableDoubleClickRegistry.add(object))
-      },
-      onContextMenu(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableContextMenuRegistry.add(object))
-      },
-      onContextMenuMissed(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(missableContextMenuRegistry.add(object))
-      },
-      onMouseDown(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(mouseDownRegistry.add(object))
-      },
-      onMouseUp(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(mouseUpRegistry.add(object))
-      },
-      onMouseMove(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(hoverMouseRegistry.add(object))
-      },
-      onMouseEnter(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(hoverMouseRegistry.add(object))
-      },
-      onMouseLeave(callback: (event: Event<MouseEvent>) => void) {
-        onCleanup(hoverMouseRegistry.add(object))
-      },
-      onPointerDown(callback: (event: Event<PointerEvent>) => void) {
-        onCleanup(pointerDownRegistry.add(object))
-      },
-      onPointerUp(callback: (event: Event<PointerEvent>) => void) {
-        onCleanup(pointerUpRegistry.add(object))
-      },
-      onPointerMove(callback: (event: Event<PointerEvent>) => void) {
-        onCleanup(hoverPointerRegistry.add(object))
-      },
-      onPointerEnter(callback: (event: Event<PointerEvent>) => void) {
-        onCleanup(hoverPointerRegistry.add(object))
-      },
-      onPointerLeave(callback: (event: Event<PointerEvent>) => void) {
-        onCleanup(hoverMouseRegistry.add(object))
-      },
-      onwheel(callback: (event: Event<WheelEvent>) => void) {
-        onCleanup(wheelRegistry.add(object))
-      },
     }
-  },
-)
+  })
+  .then(
+    (
+      object,
+      {
+        hoverMouseRegistry,
+        hoverPointerRegistry,
+        missableClickRegistry,
+        missableContextMenuRegistry,
+        missableDoubleClickRegistry,
+        mouseDownRegistry,
+        mouseUpRegistry,
+        pointerDownRegistry,
+        pointerUpRegistry,
+        wheelRegistry,
+      },
+    ) => {
+      return {
+        onClick(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableClickRegistry.add(object))
+        },
+        onClickMissed(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableClickRegistry.add(object))
+        },
+        onDoubleClick(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableDoubleClickRegistry.add(object))
+        },
+        onDoubleClickMissed(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableDoubleClickRegistry.add(object))
+        },
+        onContextMenu(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableContextMenuRegistry.add(object))
+        },
+        onContextMenuMissed(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(missableContextMenuRegistry.add(object))
+        },
+        onMouseDown(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(mouseDownRegistry.add(object))
+        },
+        onMouseUp(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(mouseUpRegistry.add(object))
+        },
+        onMouseMove(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(hoverMouseRegistry.add(object))
+        },
+        onMouseEnter(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(hoverMouseRegistry.add(object))
+        },
+        onMouseLeave(callback: (event: Event<MouseEvent>) => void) {
+          onCleanup(hoverMouseRegistry.add(object))
+        },
+        onPointerDown(callback: (event: Event<PointerEvent>) => void) {
+          onCleanup(pointerDownRegistry.add(object))
+        },
+        onPointerUp(callback: (event: Event<PointerEvent>) => void) {
+          onCleanup(pointerUpRegistry.add(object))
+        },
+        onPointerMove(callback: (event: Event<PointerEvent>) => void) {
+          onCleanup(hoverPointerRegistry.add(object))
+        },
+        onPointerEnter(callback: (event: Event<PointerEvent>) => void) {
+          onCleanup(hoverPointerRegistry.add(object))
+        },
+        onPointerLeave(callback: (event: Event<PointerEvent>) => void) {
+          onCleanup(hoverMouseRegistry.add(object))
+        },
+        onwheel(callback: (event: Event<WheelEvent>) => void) {
+          onCleanup(wheelRegistry.add(object))
+        },
+      }
+    },
+  )

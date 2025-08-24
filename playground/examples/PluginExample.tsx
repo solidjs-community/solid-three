@@ -4,7 +4,7 @@ import { createT, EventPlugin, plugin, Resource, useFrame, useThree } from "../.
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 // LookAt plugin - works for all Object3D elements
-const LookAtPlugin = plugin().prop(THREE.Object3D, element => ({
+const LookAtPlugin = plugin(THREE.Object3D, element => ({
   lookAt: (target: THREE.Object3D | [number, number, number]) => {
     useFrame(() => {
       if (Array.isArray(target)) {
@@ -17,7 +17,7 @@ const LookAtPlugin = plugin().prop(THREE.Object3D, element => ({
 }))
 
 // Shake plugin - works for both Camera and Light elements using array syntax
-const ShakePlugin = plugin().prop([THREE.Camera, THREE.DirectionalLight], element => ({
+const ShakePlugin = plugin([THREE.Camera, THREE.DirectionalLight], element => ({
   shake: (intensity = 0.1) => {
     const originalPosition = element.position.clone()
     useFrame(() => {
@@ -29,7 +29,7 @@ const ShakePlugin = plugin().prop([THREE.Camera, THREE.DirectionalLight], elemen
 }))
 
 // Custom filter plugin - works for objects with a 'material' property using type guard
-const MaterialPlugin = plugin().prop(
+const MaterialPlugin = plugin(
   (element: any): element is THREE.Mesh =>
     element instanceof THREE.Mesh && element.material !== undefined,
   element => ({
@@ -45,11 +45,24 @@ const MaterialPlugin = plugin().prop(
 )
 
 // Global plugin - applies to all elements using single argument
-const GlobalPlugin = plugin().prop(element => ({
+const GlobalPlugin = plugin(element => ({
   log: (message: string) => {
-    console.log(`[${element.constructor.name}] ${message}`)
+    console.info(`[${element.constructor.name}] ${message}`)
   },
 }))
+
+// Example with setup - plugin that needs context from setup function
+const ContextPlugin = plugin
+  .setup(() => {
+    const context = useThree()
+    return { scene: context.scene }
+  })
+  .then((element, context) => ({
+    addToScene: () => {
+      // This plugin has access to the context from setup
+      console.info("Adding to scene", element, context.scene)
+    },
+  }))
 
 const { T, Canvas } = createT(THREE, [
   LookAtPlugin,
@@ -57,6 +70,7 @@ const { T, Canvas } = createT(THREE, [
   EventPlugin,
   MaterialPlugin,
   GlobalPlugin,
+  ContextPlugin,
 ])
 
 export function PluginExample() {
