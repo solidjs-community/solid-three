@@ -1,3 +1,4 @@
+import { ReactiveMap } from "@solid-primitives/map"
 import {
   children,
   createEffect,
@@ -24,10 +25,9 @@ import {
   WebGLRenderer,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
-import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
-import { eventContext, pluginContext } from "./internal-context.ts"
+import { pluginContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
@@ -235,6 +235,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
   const clock = new Clock()
   clock.start()
 
+  const pluginMap = new ReactiveMap<Plugin, ReturnType<Plugin>>()
+
   const context: Context = {
     get bounds() {
       return measure.bounds()
@@ -245,6 +247,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
       return this.gl.getPixelRatio()
     },
     props,
+    registerPlugin(plugin) {
+      let result = pluginMap.get(plugin)
+      if (result) {
+        return result
+      }
+      result = plugin()
+      pluginMap.set(plugin, result)
+      return result
+    },
     render,
     requestRender,
     get viewport() {
@@ -393,26 +404,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
   /**********************************************************************************/
   /*                                                                                */
-  /*                                     Events                                     */
-  /*                                                                                */
-  /**********************************************************************************/
-
-  // Initialize event-system
-  const { addEventListener } = createEvents(context)
-
-  /**********************************************************************************/
-  /*                                                                                */
   /*                                   Scene Graph                                  */
   /*                                                                                */
   /**********************************************************************************/
 
   const c = children(() => (
     <pluginContext.Provider value={plugins}>
-      <eventContext.Provider value={addEventListener}>
-        <frameContext.Provider value={addFrameListener}>
-          <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-        </frameContext.Provider>
-      </eventContext.Provider>
+      <frameContext.Provider value={addFrameListener}>
+        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
+      </frameContext.Provider>
     </pluginContext.Provider>
   ))
 

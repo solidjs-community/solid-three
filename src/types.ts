@@ -1,4 +1,4 @@
-import type { Accessor, JSX, MergeProps, Ref } from "solid-js"
+import type { Accessor, JSX, Ref } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -23,12 +23,6 @@ import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type { Measure } from "./utils/use-measure.ts"
-
-declare global {
-  namespace $3 {
-    // type Plugins = Plugin[]
-  }
-}
 
 /**********************************************************************************/
 /*                                                                                */
@@ -137,6 +131,7 @@ export interface Context {
   dpr: number
   gl: Meta<WebGLRenderer>
   props: CanvasProps
+  registerPlugin(plugin: Plugin): (element: any) => void
   render: (delta: number) => void
   requestRender: () => void
   scene: Meta<Scene>
@@ -290,12 +285,16 @@ export type Matrix4 = Representation<ThreeMatrix4>
 /*                                                                                */
 /**********************************************************************************/
 
+type PluginEntity<T, U> = (entity: T) => U
+
 export interface Plugin<T extends Record<string, any> = object> {
-  <U>(element: U): T
+  (): <U>(element: U) => T
 }
 
-export type InferPluginProps<TPlugins extends Plugin[]> = MergeProps<{
-  [TKey in keyof TPlugins]: ReturnType<TPlugins[TKey]>
+export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
+  [TKey in keyof TPlugins]: TPlugins[TKey] extends () => (element: any) => infer U
+    ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
+    : never
 }>
 
 export type Meta<T = unknown> = T & {
@@ -345,18 +344,17 @@ type Simplify<T> = T extends any
       [K in keyof T]: T[K]
     }
   : T
-type _Merge<T extends unknown[], Curr = {}> = T extends [
+
+type _Merge<T extends unknown[], Current = {}> = T extends [
   infer Next | (() => infer Next),
   ...infer Rest,
 ]
-  ? _Merge<Rest, Override<Curr, Next>>
+  ? _Merge<Rest, Override<Current, Next>>
   : T extends [...infer Rest, infer Next]
-  ? Override<_Merge<Rest, Curr>, Next>
+  ? Override<_Merge<Rest, Current>, Next>
   : T extends []
-  ? Curr
-  : // : T extends (infer I)[]
-    // ? OverrideSpread<Curr, I>
-    Curr
+  ? Current
+  : Current
 export type Merge<T extends unknown[]> = Simplify<_Merge<T>>
 
 type DistributeOverride<T, F> = T extends undefined ? F : T

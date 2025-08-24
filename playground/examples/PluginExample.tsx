@@ -1,26 +1,25 @@
+import type { InferPluginsFromT } from "create-t.tsx"
 import * as THREE from "three"
-import { createT, Resource } from "../../src/index.ts"
+import type { InferPluginProps, Plugin } from "types.ts"
+import { createT, Resource, useFrame, useThree } from "../../src/index.ts"
+import { OrbitControls } from "../controls/OrbitControls.tsx"
 
-const Plugin1 = () => {
-  return {
-    onCustom(callback: (value: "HALLO FROM PLUGIN1!") => void) {
-      callback("HALLO FROM PLUGIN1!")
-    },
-    onYolo(callback: (value: "yolo") => void) {
-      callback("yolo")
-    },
+const Plugin1 = (() => {
+  return function <U>(element: U) {
+    return {
+      lookAt: (target: THREE.Object3D) => {
+        useFrame(() => {
+          ;(element as THREE.Object3D).lookAt(target.position)
+        })
+      },
+    }
   }
-}
+}) satisfies Plugin
 
-const Plugin2 = () => {
-  return {
-    onMouseDown(callback: (value: number) => void) {
-      callback(2)
-    },
-  }
-}
+const { T, Canvas } = createT(THREE, [Plugin1 /* EventPlugin */])
 
-const { T, Canvas } = createT(THREE, [Plugin1])
+type X = InferPluginsFromT<typeof T>
+type Y = InferPluginProps<THREE.Mesh, X>
 
 export function PluginExample() {
   return (
@@ -28,11 +27,11 @@ export function PluginExample() {
       style={{ width: "100vw", height: "100vh" }}
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
     >
+      <OrbitControls />
       <T.Mesh
-        plugins={[Plugin2]}
-        onYolo={value => console.log(value)}
-        onMouseDown={value => console.log(value)}
-        onCustom={value => console.log(value)}
+        lookAt={useThree().currentCamera}
+        // onMouseMove={event => console.info("mousemove!", event)}
+        // onMouseDown={event => console.info("mousedown!", event)}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

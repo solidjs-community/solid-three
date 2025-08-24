@@ -8,9 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@solid-primitives/map':
+        specifier: ^0.7.2
+        version: 0.7.2(solid-js@1.8.17)
       '@solid-primitives/resize-observer':
         specifier: ^2.0.25
         version: 2.0.25(solid-js@1.8.17)
+      '@solid-primitives/set':
+        specifier: ^0.7.2
+        version: 0.7.2(solid-js@1.8.17)
       debounce:
         specifier: ^2.1.0
         version: 2.1.0
@@ -1050,6 +1056,11 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/map@0.7.2':
+    resolution: {integrity: sha512-sXK/rS68B4oq3XXNyLrzVhLtT1pnimmMUahd2FqhtYUuyQsCfnW058ptO1s+lWc2k8F/3zQSNVkZ2ifJjlcNbQ==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
   '@solid-primitives/resize-observer@2.0.25':
     resolution: {integrity: sha512-jVDXkt2MiriYRaz4DYs62185d+6jQ+1DCsR+v7f6XMsIJJuf963qdBRFjtZtKXBaxdPNMyuPeDgf5XQe3EoDJg==}
     peerDependencies:
@@ -1060,13 +1071,28 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/set@0.7.2':
+    resolution: {integrity: sha512-E4UzC1cQtPWicnbK9ulG0G27d8802DFi4OSC6HZm+yyQOVAb0ebkfJq9FKSYpFxE+gb6M2lM6Zh4ulXRna35CA==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
   '@solid-primitives/static-store@0.0.8':
     resolution: {integrity: sha512-ZecE4BqY0oBk0YG00nzaAWO5Mjcny8Fc06CdbXadH9T9lzq/9GefqcSe/5AtdXqjvY/DtJ5C6CkcjPZO0o/eqg==}
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/trigger@1.2.2':
+    resolution: {integrity: sha512-IWoptVc0SWYgmpBPpCMehS5b07+tpFcvw15tOQ3QbXedSYn6KP8zCjPkHNzMxcOvOicTneleeZDP7lqmz+PQ6g==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
   '@solid-primitives/utils@6.2.3':
     resolution: {integrity: sha512-CqAwKb2T5Vi72+rhebSsqNZ9o67buYRdEJrIFzRXz3U59QqezuuxPsyzTSVCacwS5Pf109VRsgCJQoxKRoECZQ==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/utils@6.3.2':
+    resolution: {integrity: sha512-hZ/M/qr25QOCcwDPOHtGjxTD8w2mNyVAYvcfgwzBHq2RwNqHNdDNsMZYap20+ruRwW4A3Cdkczyoz0TSxLCAPQ==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -4761,6 +4787,11 @@ snapshots:
       '@solid-primitives/utils': 6.2.3(solid-js@1.8.17)
       solid-js: 1.8.17
 
+  '@solid-primitives/map@0.7.2(solid-js@1.8.17)':
+    dependencies:
+      '@solid-primitives/trigger': 1.2.2(solid-js@1.8.17)
+      solid-js: 1.8.17
+
   '@solid-primitives/resize-observer@2.0.25(solid-js@1.8.17)':
     dependencies:
       '@solid-primitives/event-listener': 2.3.3(solid-js@1.8.17)
@@ -4774,12 +4805,26 @@ snapshots:
       '@solid-primitives/utils': 6.2.3(solid-js@1.8.17)
       solid-js: 1.8.17
 
+  '@solid-primitives/set@0.7.2(solid-js@1.8.17)':
+    dependencies:
+      '@solid-primitives/trigger': 1.2.2(solid-js@1.8.17)
+      solid-js: 1.8.17
+
   '@solid-primitives/static-store@0.0.8(solid-js@1.8.17)':
     dependencies:
       '@solid-primitives/utils': 6.2.3(solid-js@1.8.17)
       solid-js: 1.8.17
 
+  '@solid-primitives/trigger@1.2.2(solid-js@1.8.17)':
+    dependencies:
+      '@solid-primitives/utils': 6.3.2(solid-js@1.8.17)
+      solid-js: 1.8.17
+
   '@solid-primitives/utils@6.2.3(solid-js@1.8.17)':
+    dependencies:
+      solid-js: 1.8.17
+
+  '@solid-primitives/utils@6.3.2(solid-js@1.8.17)':
     dependencies:
       solid-js: 1.8.17
 

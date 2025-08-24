@@ -21,11 +21,9 @@ import {
   Texture,
   UnsignedByteType,
 } from "three"
-import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
-import { addToEventListeners } from "./internal-context.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
-import { getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
+import { getMeta, hasColorSpace, resolve } from "./utils.ts"
 
 function isWritable(object: object, propertyName: string) {
   return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
@@ -208,21 +206,6 @@ function applyProp<T extends Record<string, any>>(
     }
   }
 
-  if (isEventType(type)) {
-    if (source instanceof Object3D && hasMeta(source)) {
-      const cleanup = addToEventListeners(source, type)
-      onCleanup(cleanup)
-    } else {
-      console.error(
-        "Event handlers can only be added to Three elements extending from Object3D. Ignored event-type:",
-        type,
-        "from element",
-        source,
-      )
-    }
-    return
-  }
-
   const target = source[type]
 
   try {
@@ -308,7 +291,7 @@ export function useProps<T extends Record<string, any>>(
   props: { plugins?: Plugin[] } & Record<string, any>,
   plugins?: Plugin[],
 ) {
-  const context: Pick<Context, "requestRender" | "gl" | "props"> = useThree()
+  const context = useThree()
 
   const [local, instanceProps] = splitProps(props, [
     "ref",
@@ -319,13 +302,14 @@ export function useProps<T extends Record<string, any>>(
     "plugins",
   ])
 
-  useSceneGraph(accessor, props)
-
   const pluginMethods = createMemo(() =>
     mergeProps(
-      ...[...(plugins ?? []), ...(props.plugins ?? [])].map(init => () => init(resolve(accessor))),
+      ...[...(plugins ?? []), ...(props.plugins ?? [])].map(
+        init => () => context.registerPlugin(init)(resolve(accessor)),
+      ),
     ),
   )
+  useSceneGraph(accessor, props)
 
   createRenderEffect(() => {
     const object = resolve(accessor)

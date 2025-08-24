@@ -1,5 +1,7 @@
+import { onCleanup } from "solid-js"
 import { Object3D, type Intersection } from "three"
-import type { Context, Event, EventName, Meta, Prettify } from "./types.ts"
+import { useThree } from "./hooks.ts"
+import type { Context, Event, EventName, Meta, Plugin, Prettify } from "./types.ts"
 import { getMeta } from "./utils.ts"
 
 const eventNameMap = {
@@ -376,8 +378,10 @@ function createDefaultEventRegistry(
   context.canvas.addEventListener(
     eventNameMap[type],
     nativeEvent => {
-      const intersections = raycast(context, registry.array, nativeEvent)
+      const intersections = raycast(context, registry.array, nativeEvent) /* [0]] */
       const event = createThreeEvent(nativeEvent, { intersections })
+
+      const visitedNodes = new Set()
 
       for (const intersection of intersections) {
         // Update currentIntersection
@@ -387,11 +391,12 @@ function createDefaultEventRegistry(
         // Bubble up
         let node: Object3D | null = intersection.object
 
-        while (node && !event.stopped) {
-          getMeta(intersection.object)?.props[type]?.(
+        while (node && !event.stopped && !visitedNodes.has(node)) {
+          getMeta(node)?.props[type]?.(
             // @ts-expect-error TODO: fix type-error
             event,
           )
+          visitedNodes.add(node)
           node = node.parent
         }
       }
@@ -420,7 +425,9 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export function createEvents(context: Context) {
+export const EventPlugin = (() => {
+  const context = useThree()
+
   // onMouseMove/onMouseEnter/onMouseLeave
   const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
   // onPointerMove/onPointerEnter/onPointerLeave
@@ -442,48 +449,59 @@ export function createEvents(context: Context) {
   // Default wheel-event
   const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
 
-  return {
-    /**
-     * Registers an `AugmentedElement<Object3D>` with the event handling system.
-     *
-     * @param object - The 3D object to register.
-     * @param type - The type of event the object should listen for.
-     */
-    addEventListener(object: Meta<Object3D>, type: EventName) {
-      switch (type) {
-        // Missable Events
-        case "onClick":
-        case "onClickMissed":
-          return missableClickRegistry.add(object)
-        case "onContextMenu":
-        case "onContextMenuMissed":
-          return missableContextMenuRegistry.add(object)
-        case "onDoubleClick":
-        case "onDoubleClickMissed":
-          return missableDoubleClickRegistry.add(object)
-
-        // Hover Events
-        case "onMouseEnter":
-        case "onMouseLeave":
-        case "onMouseMove":
-          return hoverMouseRegistry.add(object)
-        case "onPointerEnter":
-        case "onPointerLeave":
-        case "onPointerMove":
-          return hoverPointerRegistry.add(object)
-
-        // Default Events
-        case "onMouseDown":
-          return mouseDownRegistry.add(object)
-        case "onMouseUp":
-          return mouseUpRegistry.add(object)
-        case "onPointerDown":
-          return pointerDownRegistry.add(object)
-        case "onPointerUp":
-          return pointerUpRegistry.add(object)
-        case "onWheel":
-          return wheelRegistry.add(object)
-      }
-    },
+  return object => {
+    return {
+      onClick(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableClickRegistry.add(object))
+      },
+      onClickMissed(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableClickRegistry.add(object))
+      },
+      onDoubleClick(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableDoubleClickRegistry.add(object))
+      },
+      onDoubleClickMissed(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableDoubleClickRegistry.add(object))
+      },
+      onContextMenu(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableContextMenuRegistry.add(object))
+      },
+      onContextMenuMissed(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(missableContextMenuRegistry.add(object))
+      },
+      onMouseDown(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(mouseDownRegistry.add(object))
+      },
+      onMouseUp(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(mouseUpRegistry.add(object))
+      },
+      onMouseMove(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(hoverMouseRegistry.add(object))
+      },
+      onMouseEnter(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(hoverMouseRegistry.add(object))
+      },
+      onMouseLeave(callback: (event: Event<MouseEvent>) => void) {
+        onCleanup(hoverMouseRegistry.add(object))
+      },
+      onPointerDown(callback: (event: Event<PointerEvent>) => void) {
+        onCleanup(pointerDownRegistry.add(object))
+      },
+      onPointerUp(callback: (event: Event<PointerEvent>) => void) {
+        onCleanup(pointerUpRegistry.add(object))
+      },
+      onPointerMove(callback: (event: Event<PointerEvent>) => void) {
+        onCleanup(hoverPointerRegistry.add(object))
+      },
+      onPointerEnter(callback: (event: Event<PointerEvent>) => void) {
+        onCleanup(hoverPointerRegistry.add(object))
+      },
+      onPointerLeave(callback: (event: Event<PointerEvent>) => void) {
+        onCleanup(hoverMouseRegistry.add(object))
+      },
+      onwheel(callback: (event: Event<WheelEvent>) => void) {
+        onCleanup(wheelRegistry.add(object))
+      },
+    }
   }
-}
+}) satisfies Plugin
