@@ -25,9 +25,9 @@ const LookAtPlugin = createPlugin()
     },
   }))
 
-// Shake plugin - works only for Camera elements
+// Shake plugin - works for both Camera and Light elements
 const ShakePlugin = createPlugin()
-  .extends(THREE.Camera)
+  .extends(THREE.Camera, THREE.DirectionalLight)
   .provide(element => ({
     shake: (intensity = 0.1) => {
       const originalPosition = element.position.clone()
@@ -39,7 +39,24 @@ const ShakePlugin = createPlugin()
     },
   }))
 
-const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin, EventPlugin])
+// Custom filter plugin - works for objects with a 'material' property
+const MaterialPlugin = createPlugin()
+  .filter(
+    (element): element is THREE.Mesh =>
+      element instanceof THREE.Mesh && element.material !== undefined,
+  )
+  .provide(element => ({
+    highlight: (color: string = "yellow") => {
+      const material = element.material as THREE.MeshBasicMaterial
+      material.color.set(color)
+    },
+    setColor: (color: string) => {
+      const material = element.material as THREE.MeshBasicMaterial
+      material.color.setHex(parseInt(color.replace("#", ""), 16))
+    },
+  }))
+
+const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin, MaterialPlugin, EventPlugin])
 
 export function PluginExample() {
   let cubeRef: Meta<THREE.Mesh>
@@ -52,11 +69,12 @@ export function PluginExample() {
     >
       <OrbitControls />
 
-      {/* Mesh with lookAt (from LookAtPlugin) */}
+      {/* Mesh with lookAt (from LookAtPlugin) and material methods (from MaterialPlugin) */}
       <T.Mesh
         ref={cubeRef!}
         position={[0, 0, 0]}
         lookAt={useThree().currentCamera}
+        setColor="#ff6600"
         onMouseDown={console.info}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
@@ -73,12 +91,13 @@ export function PluginExample() {
       {/* Camera with shake (from ShakePlugin) */}
       <T.PerspectiveCamera ref={cameraRef!} position={[10, 10, 10]} shake={0.05} />
 
-      {/* 
+      
         These would cause TypeScript errors:
-        <T.Mesh shake={0.1} />         // ❌ Mesh doesn't have shake
-        <T.DirectionalLight shake={0.1} />  // ❌ Light doesn't have shake  
-        <T.DirectionalLight lookAt={cubeRef} />  // ❌ Light doesn't inherit from Object3D in our type system
-      */}
+        <T.Mesh shake={0.1} />         // ❌ Mesh doesn't have shake (Camera/Light only)
+        <T.DirectionalLight shake={0.1} />  // ❌ Light doesn't have shake (Camera/Light only but DirectionalLight not included)
+        <T.DirectionalLight lookAt={cubeRef}! />  // ❌ Light doesn't inherit from Object3D in our type system
+        <T.DirectionalLight setColor="#ff0000" />  // ❌ Light doesn't have material (MaterialPlugin filter)
+     
 
       <T.DirectionalLight position={[5, 5, 5]} intensity={1} />
       <T.AmbientLight intensity={0.5} />

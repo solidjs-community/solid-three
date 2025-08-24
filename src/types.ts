@@ -315,8 +315,43 @@ export function createPlugin(setup?: () => void) {
       return plugin
     },
 
-    // Filtered provide - only applies to specific types
-    extends<T>(Constructor: new (...args: any[]) => T) {
+    // Filtered provide - supports single or multiple types
+    extends<T extends readonly (new (...args: any[]) => any)[]>(
+      ...Constructors: T
+    ) {
+      type UnionType = T extends readonly (new (...args: any[]) => infer U)[] ? U : never
+      
+      return {
+        provide<Methods extends Record<string, any>>(
+          methods: (element: UnionType, context: any) => Methods,
+        ) {
+          type PluginFn = {
+            (element: UnionType): Methods
+            (element: any): {}
+          }
+
+          const plugin: Plugin<PluginFn> = () => {
+            // Run setup once if provided and store result as context
+            const context = setup ? setup() : undefined
+
+            return ((element: any) => {
+              // Check if element is instance of any of the constructors
+              for (const Constructor of Constructors) {
+                if (element instanceof Constructor) {
+                  return methods(element as UnionType, context)
+                }
+              }
+              return {}
+            }) as PluginFn
+          }
+
+          return plugin
+        },
+      }
+    },
+
+    // Custom type guard filtering
+    filter<T>(condition: (element: any) => element is T) {
       return {
         provide<Methods extends Record<string, any>>(
           methods: (element: T, context: any) => Methods,
@@ -331,7 +366,7 @@ export function createPlugin(setup?: () => void) {
             const context = setup ? setup() : undefined
 
             return ((element: any) => {
-              if (element instanceof Constructor) {
+              if (condition(element)) {
                 return methods(element as T, context)
               }
               return {}
@@ -343,7 +378,7 @@ export function createPlugin(setup?: () => void) {
       }
     },
 
-    // Alternative for custom conditions
+    // Alternative for custom conditions (alias for filter)
     where<T>(condition: (element: any) => element is T) {
       return {
         provide<Methods extends Record<string, any>>(
