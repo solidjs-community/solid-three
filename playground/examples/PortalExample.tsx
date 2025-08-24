@@ -1,7 +1,7 @@
 import * as THREE from "three"
-import { Canvas, createT, Entity, Portal } from "../../src/index.ts"
+import { createT, Entity, Portal } from "../../src/index.ts"
 
-const T = createT(THREE)
+const { T, Canvas } = createT(THREE)
 
 export function PortalExample() {
   const group = new THREE.Group()

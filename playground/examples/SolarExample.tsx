@@ -1,10 +1,10 @@
 import { createEffect, createMemo, createSignal, Show, type ParentProps, type Ref } from "solid-js"
 import * as THREE from "three"
-import { Canvas, createT, Entity, useFrame } from "../../src/index.ts"
+import { createT, Entity, EventPlugin, useFrame } from "../../src/index.ts"
 import type { Meta } from "../../src/types.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
-const T = createT(THREE)
+const { T, Canvas } = createT(THREE, [EventPlugin])
 
 function OrbitPath(
   props: ParentProps<{
@@ -98,7 +98,7 @@ function CelestialBody(
         ref={ref}
         position={props.position || [0, 0, 0]}
         rotation={props.rotation || [0, 0, 0]}
-        onPointerDown={console.log}
+        onPointerDown={console.info}
         onPointerEnter={() => setHovered(true)}
         onPointerLeave={() => setHovered(false)}
       >
@@ -121,10 +121,10 @@ export function SolarExample() {
   return (
     <Canvas
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
-      onClick={event => console.debug("canvas clicked", event)}
-      onClickMissed={event => console.debug("canvas click missed", event)}
-      onPointerLeave={event => console.debug("canvas pointer leave", event)}
-      onPointerEnter={event => console.debug("canvas pointer enter", event)}
+      onClick={event => console.info("canvas clicked", event)}
+      onClickMissed={event => console.info("canvas click missed", event)}
+      onPointerLeave={event => console.info("canvas pointer leave", event)}
+      onPointerEnter={event => console.info("canvas pointer enter", event)}
     >
       <OrbitControls />
       <T.AmbientLight intensity={0.2} />

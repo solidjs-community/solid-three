@@ -1,14 +1,8 @@
 import { onCleanup } from "solid-js"
 import { Object3D, type Intersection } from "three"
 import { useThree } from "./hooks.ts"
-import {
-  createPlugin,
-  type Context,
-  type Event,
-  type EventName,
-  type Meta,
-  type Prettify,
-} from "./types.ts"
+import { plugin } from "./plugin.ts"
+import { type Context, type Event, type EventName, type Meta, type Prettify } from "./types.ts"
 import { getMeta } from "./utils.ts"
 
 const eventNameMap = {
@@ -432,7 +426,7 @@ function createDefaultEventRegistry(
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export const EventPlugin = createPlugin(() => {
+export const EventPlugin = plugin(() => {
   const context = useThree()
 
   // onMouseMove/onMouseEnter/onMouseLeave

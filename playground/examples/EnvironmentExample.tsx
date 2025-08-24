@@ -1,27 +1,8 @@
 import * as THREE from "three"
-import { createT, Resource } from "../../src/index.ts"
+import { createT, EventPlugin, Resource } from "../../src/index.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
-const Plugin1 = () => {
-  return {
-    onCustom(callback: (value: string) => void) {
-      callback("HALLO FROM PLUGIN1!")
-    },
-    onYolo(callback: (value: "yolo") => void) {
-      callback("yolo")
-    },
-  }
-}
-
-const Plugin2 = () => {
-  return {
-    onCustom(callback: (value: number) => void) {
-      callback(2)
-    },
-  }
-}
-
-const { T, Canvas } = createT(THREE, [Plugin1])
+const { T, Canvas } = createT(THREE, [EventPlugin])
 
 export function EnvironmentExample() {
   return (
@@ -34,11 +15,7 @@ export function EnvironmentExample() {
       onPointerEnter={event => console.debug("canvas pointer enter", event)}
     >
       <OrbitControls />
-      <T.Mesh
-        plugins={[Plugin2]}
-        onYolo={value => console.log(value)}
-        onCustom={value => console.log(value)}
-      >
+      <T.Mesh>
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
           <Resource
