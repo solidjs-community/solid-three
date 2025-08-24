@@ -1,161 +1,316 @@
-import * as THREE from "three";
-import { StateSelector, EqualityChecker } from "zustand/vanilla";
-import { ThreeContext, RootState, RenderCallback } from "./core/store";
-import { buildGraph, ObjectMap, is } from "./core/utils";
 import {
-  createComputed,
-  createEffect,
+  type Accessor,
+  createContext,
   createMemo,
-  createSignal,
-  onCleanup,
-  untrack,
+  createResource,
+  mergeProps,
+  type Resource,
   useContext,
-} from "solid-js";
+} from "solid-js"
+import { type Loader } from "three"
+import { LoaderCache, type LoaderRegistry } from "./data-structure/loader-cache.ts"
+import type {
+  AccessorMaybe,
+  Constructor,
+  Context,
+  FrameListener,
+  LoaderUrl,
+  PromiseMaybe,
+} from "./types.ts"
+import {
+  awaitMapObject,
+  isRecord,
+  load,
+  type LoadInput,
+  type LoadOutput,
+  resolve,
+} from "./utils.ts"
 
-export interface Loader<T> extends THREE.Loader {
-  load(
-    url: string,
-    onLoad?: (result: T) => void,
-    onProgress?: (event: ProgressEvent) => void,
-    onError?: (event: ErrorEvent) => void
-  ): unknown;
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Use Frame                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+export const frameContext = createContext<FrameListener>()
+
+/**
+ * Hook to register a callback that will be executed on each animation frame within the `<Canvas/>` component.
+ * This hook must be used within a component that is a descendant of the `<Canvas/>` component.
+ *
+ * @param callback - The callback function to be executed on each frame.
+ * @throws Throws an error if used outside of the Canvas component context.
+ */
+export const useFrame: FrameListener = (callback, options) => {
+  const addFrameListener = useContext(frameContext)
+  if (!addFrameListener) {
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
+  }
+  return addFrameListener(callback, options)
 }
 
-export type Extensions = (loader: THREE.Loader) => void;
-export type LoaderResult<T> = T extends any[] ? Loader<T[number]> : Loader<T>;
-export type ConditionalType<Child, Parent, Truthy, Falsy> = Child extends Parent
-  ? Truthy
-  : Falsy;
-export type BranchingReturn<T, Parent, Coerced> = ConditionalType<
-  T,
-  Parent,
-  Coerced,
-  T
->;
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Use Three                                   */
+/*                                                                                */
+/**********************************************************************************/
 
-export function useStore() {
-  const store = useContext(ThreeContext);
-  if (!store) throw `R3F hooks can only be used within the Canvas component!`;
-  return store;
+export const threeContext = createContext<Context>(null!)
+
+/**
+ * Custom hook to access all necessary Three.js objects needed to manage a 3D scene.
+ * This hook must be used within a component that is a descendant of the `<Canvas/>` component.
+ *
+ * @template T The expected return type after applying the callback to the context.
+ * @param [callback] - Optional callback function that processes and returns a part of the context.
+ * @returns Returns `Context` directly, or as a selector if a callback is provided.
+ * @throws Throws an error if used outside of the Canvas component context.
+ */
+export function useThree(): Context
+export function useThree<T>(callback: (value: Context) => T): Accessor<T>
+export function useThree(callback?: (value: Context) => any) {
+  const store = useContext(threeContext)
+  if (!store) {
+    throw new Error("S3: Hooks can only be used within the Canvas component!")
+  }
+  if (callback) return () => callback(store)
+  return store
 }
 
-export function useThree<T = RootState, U = T>(
-  selector: StateSelector<RootState, U> = (state) => state as unknown as U,
-  equalityFn?: EqualityChecker<U>
-) {
-  let store = useStore();
-  const [signal, setSignal] = createSignal<U>(selector(store.getState()));
+/**********************************************************************************/
+/*                                                                                */
+/*                                   Use Loader                                   */
+/*                                                                                */
+/**********************************************************************************/
 
-  createComputed(() => {
-    let cleanup = useStore().subscribe<U>(
-      // @ts-expect-error
-      selector,
-      (v) => {
-        // @ts-expect-error
-        setSignal(() => v);
-      },
-      equalityFn
-    );
+/** Global cache of loader instances to prevent duplicates */
+const LOADER_CACHE = new Map<
+  Constructor<Loader<any, string | string[]>>,
+  Loader<any, string | string[]>
+>()
 
-    onCleanup(cleanup);
-  });
-
-  return signal;
+/**
+ * Configuration options for the useLoader hook.
+ */
+export interface UseLoaderOptions<
+  TLoader extends Loader<any, any>,
+  TInput extends LoadInput<TLoader>,
+> {
+  /** Base URL to resolve relative paths against */
+  base?: string
+  /**
+   * Whether to use caching.
+   * - `true` | `undefined`: Use the default global cache, adjustable via `useLoader.cache`
+   * - `LoaderRegistry`: Use a custom cache instance
+   * - `false`: No caching
+   */
+  cache?: boolean | LoaderRegistry
+  /**
+   * Event Listener scheduled right before loading the resource
+   * @param loader
+   */
+  onBeforeLoad?(loader: TLoader): void
+  /**
+   * Event Listener scheduled right after loading the resource
+   * @param loader
+   */
+  onLoad?(resource: LoadOutput<TLoader, TInput>): void
 }
 
 /**
- * Creates a signal that is updated when the given effect is run.
+ * Resolves URLs relative to a base URL, handling strings, arrays, and nested objects.
+ * @param base The base URL to resolve against
+ * @param url The URL(s) to resolve
+ * @returns The resolved URL(s) in the same structure as the input
+ * @internal
+ */
+function resolveUrls<T>(base: string, url: T): T {
+  if (Array.isArray(url)) {
+    return url.map(url => new URL(url, base).href) as T
+  } else if (isRecord(url)) {
+    return Object.fromEntries(
+      Object.entries(url).map(([key, url]) => [key, resolveUrls(base, url)] as const),
+    ) as T
+  } else if (typeof url === "string") {
+    return new URL(url, base).href as T
+  }
+  throw new Error("Unexpected type")
+}
+
+/**
+ * Hook for loading Three.js resources with automatic caching (see useLoader.cache)
+ *
+ * @template TLoader The Three.js loader type
+ * @template TInput The URL type - depends on what the loader expects (string or string[]),
+ *                 or a record mapping keys to URLs
+ * @param constructor Three.js loader constructor (can be a value or accessor)
+ * @param url URL(s) to load - accepts what the loader expects (string/string[]) or a record of URLs (can be a value or accessor)
+ * @param options Configuration options
+ * @returns Solid.js resource containing the loaded data in the same structure as the input URL(s)
+ *
+ * @example
+ * ```tsx
+ * // Load a single texture (automatically cached)
+ * const texture = useLoader(TextureLoader, 'textures/wood.jpg')
+ *
+ * // Load a cube texture (CubeTextureLoader expects string[])
+ * const envMap = useLoader(CubeTextureLoader, [
+ *   'px.png', 'nx.png',
+ *   'py.png', 'ny.png',
+ *   'pz.png', 'nz.png'
+ * ])
+ *
+ * // Load multiple textures as a record
+ * const textures = useLoader(TextureLoader, {
+ *    diffuse: 'textures/wood-diffuse.jpg',
+ *    normal: 'textures/wood-normal.jpg'
+ * })
+ *
+ * // With reactive URLs
+ * const [theme, setTheme] = createSignal({
+ *    diffuse: 'textures/wood-diffuse.jpg',
+ *    normal: 'textures/wood-normal.jpg'
+ * })
+ * const textures = useLoader(TextureLoader, theme)
+ *
+ * return (
+ *   <Suspense>
+ *     <T.MeshStandardMaterial map={textures()?.diffuse} normalMap={textures()?.normal} />
+ *   </Suspense>
+ * )
+ * ```
+ */
+export function useLoader<
+  const TLoader extends Loader<any, any>,
+  const TInput extends LoadInput<TLoader>,
+>(
+  constructor: AccessorMaybe<Constructor<TLoader>>,
+  url: AccessorMaybe<TInput>,
+  options?: UseLoaderOptions<TLoader, TInput>,
+): Resource<LoadOutput<TLoader, TInput>> {
+  const config = mergeProps({ cache: true }, options)
+
+  const loader = createMemo(() => {
+    const _constructor = resolve(constructor)
+
+    let loader = LOADER_CACHE.get(_constructor) as TLoader
+
+    if (!loader) {
+      LOADER_CACHE.set(_constructor, (loader = new _constructor()))
+    }
+
+    return loader
+  })
+
+  /**
+   * Gets a resource from cache or loads and caches it.
+   * @param registry The cache registry to use
+   * @param loader The Three.js loader instance
+   * @param input The URL(s) to load
+   * @returns Promise resolving to the loaded resource
+   * @internal
+   */
+  function getOrInsert<TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader>>(
+    registry: LoaderRegistry,
+    loader: TLoader,
+    input: TInput,
+  ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
+    if (isRecord(input)) {
+      return awaitMapObject(input, async value => getOrInsert(registry, loader, value)) as PromiseMaybe<
+        LoadOutput<TLoader, TInput>
+      >
+    } else {
+      const _input = input as LoaderUrl<TLoader>
+
+      const cachedPromise = registry.get(loader, _input, false)
+
+      if (cachedPromise) {
+        return cachedPromise as PromiseMaybe<LoadOutput<TLoader, TInput>>
+      }
+
+      const promise = load(loader, _input)
+      registry.set(loader, _input, promise)
+
+      return promise as Promise<LoadOutput<TLoader, TInput>>
+    }
+  }
+
+  function loadUrl<TInput extends LoadInput<TLoader>>(
+    url: TInput,
+  ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
+    if (config.cache === true) {
+      if (!useLoader.cache) {
+        return load(loader(), url)
+      }
+
+      return getOrInsert(useLoader.cache, loader(), url)
+    }
+
+    if (config.cache) {
+      return getOrInsert(config.cache, loader(), url)
+    }
+
+    return load(loader(), url)
+  }
+
+  const [resource] = createResource(
+    () => [resolve(url), options?.base, loader()] as const,
+    async ([url, base, loader]) => {
+      config.onBeforeLoad?.(loader)
+
+      url = base ? resolveUrls(base, url) : url
+
+      const result = await loadUrl(url)
+
+      config.onLoad?.(result)
+
+      return result
+    },
+  )
+
+  return resource
+}
+
+/**
+ * A caching system for `three.js` loader resources with automatic memory management
+ * By default, `useLoader.cache` is set to `solid-three`'s `LoaderCache`:
+ * - resources are automatically reference-counted
+ * - added to a free-list when no longer actively in use
+ * - different methods to dispose the resources:
+ *     - `dispose(loader, path)`
+ *     - `disposeResource(resource)`
+ *     - `disposeFreeList()`
+ *
+ * `useLoader.cache` can be safely overwritten
+ * - by a custom cache implementation implementing the `LoaderRegistry` interface
+ * - by setting it to `undefined`, then no resources will be cached
  *
  * @example
  * ```ts
- * const [count, setCount] = useSignal(0);
- * useFrame(() => {
- *  setCount(count + 1);
- * });
- * ```
+ * function Image(props){
+ *    const resource = useLoader(TextureLoader, 'image.png')
+ *    return <Entity from={resource()} {...props} />
+ * }
  *
- * @param callback - a function to run on every frame render
- * @param renderPriority -  priority of the callback decides its order in the frameloop, higher is earlier
+ * function App(){
+ *    const [visible, setVisible] = createSignal(true)
+ *
+ *    onMount(() => {
+ *      // ❌ Texture will not be disposed because it is still referenced
+ *      useLoader.cache.disposeFreeList()
+ *
+ *      setVisible(false)
+ *
+ *      // ✅ Texture will be disposed because it is not referenced anymore
+ *      useLoader.cache.disposeFreeList()
+ *    })
+ *
+ *    return (
+ *      <Show when={visible}>
+ *        <Image/>
+ *      </Show>
+ * }
+ *
+ * ```
  */
-export function useFrame(
-  callback: RenderCallback,
-  renderPriority: number = 0
-): void {
-  const subscribe = useStore().getState().internal.subscribe;
-  let cleanup = subscribe(
-    (t, delta) => untrack(() => callback(t, delta)),
-    renderPriority
-  );
-
-  onCleanup(cleanup);
-}
-
-export function useGraph(object: THREE.Object3D) {
-  return createMemo(() => buildGraph(object));
-}
-
-export function loadingFn<T>(
-  extensions?: Extensions,
-  onProgress?: (event: ProgressEvent<EventTarget>) => void
-) {
-  return function (Proto: new () => LoaderResult<T>, ...input: string[]) {
-    // Construct new loader and run extensions
-    const loader = new Proto();
-    if (extensions) extensions(loader);
-    // Go through the urls and load them
-    return Promise.all(
-      input.map(
-        (input) =>
-          new Promise((res, reject) =>
-            loader.load(
-              input,
-              (data: any) => {
-                if (data.scene) Object.assign(data, buildGraph(data.scene));
-                res(data);
-              },
-              onProgress,
-              (error) => reject(`Could not load ${input}: ${error.message}`)
-            )
-          )
-      )
-    );
-  };
-}
-
-// export function useLoader<T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U,
-//   extensions?: Extensions,
-//   onProgress?: (event: ProgressEvent<EventTarget>) => void
-// ): U extends any[]
-//   ? BranchingReturn<T, GLTF, GLTF & ObjectMap>[]
-//   : BranchingReturn<T, GLTF, GLTF & ObjectMap> {
-//   // Use suspense to load async assets
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   const results = suspend(
-//     loadingFn<T>(extensions, onProgress),
-//     [Proto, ...keys],
-//     { equal: is.equ }
-//   );
-//   // Return the object/s
-//   return (Array.isArray(input) ? results : results[0]) as U extends any[]
-//     ? BranchingReturn<T, GLTF, GLTF & ObjectMap>[]
-//     : BranchingReturn<T, GLTF, GLTF & ObjectMap>;
-// }
-
-// useLoader.preload = function <T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U,
-//   extensions?: Extensions
-// ) {
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   return preload(loadingFn<T>(extensions), [Proto, ...keys]);
-// };
-
-// useLoader.clear = function <T, U extends string | string[]>(
-//   Proto: new () => LoaderResult<T>,
-//   input: U
-// ) {
-//   const keys = (Array.isArray(input) ? input : [input]) as string[];
-//   return clear([Proto, ...keys]);
-// };
+useLoader.cache = new LoaderCache()
