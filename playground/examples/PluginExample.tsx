@@ -25,7 +25,7 @@ const LookAtPlugin = plugin(THREE.Object3D, element => ({
 }))
 
 // Shake plugin - works for both Camera and Light elements using array syntax
-const ShakePlugin = plugin([THREE.Camera, THREE.DirectionalLight], element => ({
+const ShakePlugin = plugin([THREE.Camera, THREE.DirectionalLight, THREE.Mesh], element => ({
   shake: (intensity = 0.1) => {
     const originalPosition = element.position.clone()
     useFrame(() => {
@@ -99,6 +99,7 @@ export function PluginExample() {
         highlight="red"
         lookAt={useThree().currentCamera}
         log="Mesh rendered!"
+        shake={0.1}
         onMouseDown={event => console.info("ok")}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
