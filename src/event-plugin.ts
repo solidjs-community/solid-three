@@ -468,7 +468,7 @@ export const EventPlugin = createPlugin(() => {
     pointerUpRegistry,
     wheelRegistry,
   }
-}).provide(
+}).prop(
   (
     object,
     {

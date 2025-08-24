@@ -37,7 +37,7 @@ const ShakePlugin = createPlugin().prop([THREE.Camera, THREE.DirectionalLight], 
 
 // Custom filter plugin - works for objects with a 'material' property using type guard
 const MaterialPlugin = createPlugin().prop(
-  (element): element is THREE.Mesh =>
+  (element: any): element is THREE.Mesh =>
     element instanceof THREE.Mesh && element.material !== undefined,
   element => ({
     highlight: (color: string = "yellow") => {
@@ -51,7 +51,20 @@ const MaterialPlugin = createPlugin().prop(
   }),
 )
 
-const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin, EventPlugin, MaterialPlugin])
+// Global plugin - applies to all elements using single argument
+const GlobalPlugin = createPlugin().prop((element, context) => ({
+  log: (message: string) => {
+    console.log(`[${element.constructor.name}] ${message}`)
+  },
+}))
+
+const { T, Canvas } = createT(THREE, [
+  LookAtPlugin,
+  ShakePlugin,
+  EventPlugin,
+  MaterialPlugin,
+  GlobalPlugin,
+])
 
 export function PluginExample() {
   let cubeRef: Meta<THREE.Mesh>
@@ -66,12 +79,13 @@ export function PluginExample() {
       {/* Mesh with lookAt (from LookAtPlugin) and material methods (from MaterialPlugin) */}
       <T.Mesh
         ref={cubeRef!}
-        highlight="red"
         position={[0, 0, 0]}
+        highlight="red"
         lookAt={useThree().currentCamera}
+        log="Mesh rendered!"
         onMouseDown={console.info}
       >
-        <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} highlight="red" />
+        <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
           <Resource
             loader={THREE.CubeTextureLoader}
@@ -83,14 +97,7 @@ export function PluginExample() {
       </T.Mesh>
       {/* Camera with shake (from ShakePlugin) */}
       <T.PerspectiveCamera ref={cameraRef!} position={[10, 10, 10]} shake={0.05} />
-      These would cause TypeScript errors:
-      <T.Mesh shake={0.1} /> // ❌ Mesh doesn't have shake (Camera/Light only)
-      <T.DirectionalLight shake={0.1} /> // ❌ Light doesn't have shake (Camera/Light only but
-      DirectionalLight not included)
-      <T.DirectionalLight lookAt={cubeRef!} /> // ❌ Light doesn't inherit from Object3D in our type
-      system
-      <T.DirectionalLight lookAt={cubeRef!} /> // ❌ Light doesn't inherit from Object3D in our type
-      system
+
       <T.DirectionalLight position={[5, 5, 5]} intensity={1} />
       <T.AmbientLight intensity={0.5} />
     </Canvas>

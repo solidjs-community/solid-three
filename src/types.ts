@@ -292,10 +292,12 @@ export interface Plugin<TFn = (element: any) => any> {
 }
 
 /**
- * Creates a plugin with a fluent builder API
+ * Creates a plugin with a unified prop API
  * Usage:
- * - createPlugin(() => { setup }).filter(Constructor).provide((element, context) => methods)
- * - createPlugin(() => { setup }).provide((element, context) => methods) // no filtering
+ * - createPlugin(() => { setup }).prop((element, context) => methods) // apply to all elements
+ * - createPlugin(() => { setup }).prop(Constructor, (element, context) => methods) // single constructor filter
+ * - createPlugin(() => { setup }).prop([Constructor1, Constructor2], (element, context) => methods) // multiple constructors
+ * - createPlugin(() => { setup }).prop((element): element is T => condition, (element, context) => methods) // type guard
  */
 // Helper function to create the actual plugin implementation
 function createFilteredPlugin(
@@ -337,10 +339,12 @@ function createFilteredPlugin(
 }
 
 interface PluginBuilder<TContext extends object> {
-  provide<Methods extends Record<string, any>>(
+  // Apply to all elements - single argument
+  prop<Methods extends Record<string, any>>(
     methods: (element: any, context: TContext) => Methods,
   ): Plugin<(element: any) => Methods>
 
+  // Single constructor filter - two arguments
   prop<T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
     Constructor: T,
     methods: (element: InstanceType<T>, context: TContext) => Methods,
@@ -349,6 +353,7 @@ interface PluginBuilder<TContext extends object> {
     (element: any): {}
   }>
 
+  // Array of constructors filter - two arguments
   prop<T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
     Constructors: T,
     methods: (
@@ -360,6 +365,7 @@ interface PluginBuilder<TContext extends object> {
     (element: any): {}
   }>
 
+  // Type guard filter - two arguments
   prop<T, Methods extends Record<string, any>>(
     condition: (element: unknown) => element is T,
     methods: (element: T, context: TContext) => Methods,
@@ -373,27 +379,26 @@ export function createPlugin<TContext extends object>(
   setup?: () => TContext,
 ): PluginBuilder<TContext> {
   return {
-    // Direct provide without filtering - applies to all elements
-    provide<Methods extends Record<string, any>>(
-      methods: (element: any, context: TContext) => Methods,
-    ) {
-      type PluginFn = (element: any) => Methods
+    // Unified prop method - handles both single and two argument cases
+    prop(filterArgOrMethods: any, methods?: any): Plugin<any> {
+      // Single argument case - apply to all elements
+      if (methods === undefined) {
+        type PluginFn = (element: any) => any
 
-      const plugin: Plugin<PluginFn> = () => {
-        // Run setup once if provided and store result as context
-        const context = setup ? setup() : undefined
+        const plugin: Plugin<PluginFn> = () => {
+          // Run setup once if provided and store result as context
+          const context = setup ? setup() : undefined
 
-        return ((element: any) => {
-          return methods(element, context)
-        }) as PluginFn
+          return ((element: any) => {
+            return filterArgOrMethods(element, context)
+          }) as PluginFn
+        }
+
+        return plugin
       }
 
-      return plugin
-    },
-
-    // Implementation for all filter overloads
-    prop(filterArg: any, methods: any): Plugin<any> {
-      return createFilteredPlugin(setup, filterArg, methods)
+      // Two argument case - use filtering
+      return createFilteredPlugin(setup, filterArgOrMethods, methods)
     },
   } as PluginBuilder<TContext>
 }
