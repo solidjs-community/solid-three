@@ -85,7 +85,7 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
  */
 export function Entity<
   const T extends object | Constructor<object> = object,
-  const TPlugins extends Plugin[] = $3.Plugins,
+  const TPlugins extends Plugin[] = Plugin[],
 >(
   props:
     | Props<T>

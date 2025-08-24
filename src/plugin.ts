@@ -1,6 +1,6 @@
-import type { Plugin, PluginInterface } from "./types.ts"
+import type { Plugin, PluginFn } from "./types.ts"
 
-export const plugin: PluginInterface = Object.assign(
+export const plugin: PluginFn = Object.assign(
   // Main function implementation
   (filterArgOrMethods?: any, methods?: any): any => {
     // No arguments - return PluginBuilder for backward compatibility

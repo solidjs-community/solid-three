@@ -1,6 +1,14 @@
 import * as THREE from "three"
 import type { Meta } from "types.ts"
-import { createT, EventPlugin, plugin, Resource, useFrame, useThree } from "../../src/index.ts"
+import {
+  createT,
+  Entity,
+  EventPlugin,
+  plugin,
+  Resource,
+  useFrame,
+  useThree,
+} from "../../src/index.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 // LookAt plugin - works for all Object3D elements
@@ -83,6 +91,7 @@ export function PluginExample() {
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
     >
       <OrbitControls />
+      <Entity from={THREE.Mesh} />
       {/* Mesh with lookAt (from LookAtPlugin) and material methods (from MaterialPlugin) */}
       <T.Mesh
         ref={cubeRef!}
@@ -90,7 +99,7 @@ export function PluginExample() {
         highlight="red"
         lookAt={useThree().currentCamera}
         log="Mesh rendered!"
-        onMouseDown={console.info}
+        onMouseDown={event => console.info("ok")}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

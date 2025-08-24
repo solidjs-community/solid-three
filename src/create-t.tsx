@@ -2,7 +2,7 @@ import { createMemo, type Component, type JSX, type JSXElement, type MergeProps 
 import { createCanvas } from "./canvas.tsx"
 import { $S3C } from "./constants.ts"
 import { useProps } from "./props.ts"
-import type { InferPluginProps, Merge, Plugin, Props } from "./types.ts"
+import type { Plugin, Props } from "./types.ts"
 import { meta } from "./utils.ts"
 
 /**********************************************************************************/
