@@ -285,47 +285,86 @@ export type Matrix4 = Representation<ThreeMatrix4>
 /*                                                                                */
 /**********************************************************************************/
 
-type PluginEntity<T, U> = (entity: T) => U
+export interface PluginInterface {
+  // No setup - direct usage with one argument (global)
+  <Methods extends Record<string, any>>(methods: (element: any) => Methods): Plugin<
+    (element: any) => Methods
+  >
 
-export interface Plugin<TFn = (element: any) => any> {
-  (): TFn
-}
-
-export interface PluginBuilder<TContext extends object> {
-  // Apply to all elements - single argument
-  prop<Methods extends Record<string, any>>(
-    methods: (element: any, context: TContext) => Methods,
-  ): Plugin<(element: any) => Methods>
-
-  // Single constructor filter - two arguments
-  prop<T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
+  // No setup - direct usage with two arguments (single constructor)
+  <T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
     Constructor: T,
-    methods: (element: InstanceType<T>, context: TContext) => Methods,
+    methods: (element: InstanceType<T>) => Methods,
   ): Plugin<{
     (element: InstanceType<T>): Methods
     (element: any): {}
   }>
 
-  // Array of constructors filter - two arguments
-  prop<T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
+  // No setup - direct usage with two arguments (array of constructors)
+  <T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
     Constructors: T,
     methods: (
       element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never,
-      context: TContext,
     ) => Methods,
   ): Plugin<{
     (element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never): Methods
     (element: any): {}
   }>
 
-  // Type guard filter - two arguments
-  prop<T, Methods extends Record<string, any>>(
+  // No setup - direct usage with two arguments (type guard)
+  <T, Methods extends Record<string, any>>(
     condition: (element: unknown) => element is T,
-    methods: (element: T, context: TContext) => Methods,
+    methods: (element: T) => Methods,
   ): Plugin<{
     (element: T): Methods
     (element: any): {}
   }>
+
+  // Setup function
+  setup<TSetupContext extends object>(
+    setupFn: () => TSetupContext,
+  ): {
+    then: {
+      // With setup - one argument (global)
+      <Methods extends Record<string, any>>(
+        methods: (element: any, context: TSetupContext) => Methods,
+      ): Plugin<(element: any) => Methods>
+
+      // With setup - two arguments (single constructor)
+      <T extends new (...args: any[]) => any, Methods extends Record<string, any>>(
+        Constructor: T,
+        methods: (element: InstanceType<T>, context: TSetupContext) => Methods,
+      ): Plugin<{
+        (element: InstanceType<T>): Methods
+        (element: any): {}
+      }>
+
+      // With setup - two arguments (array of constructors)
+      <T extends readonly (new (...args: any[]) => any)[], Methods extends Record<string, any>>(
+        Constructors: T,
+        methods: (
+          element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never,
+          context: TSetupContext,
+        ) => Methods,
+      ): Plugin<{
+        (element: T extends readonly (new (...args: any[]) => infer U)[] ? U : never): Methods
+        (element: any): {}
+      }>
+
+      // With setup - two arguments (type guard)
+      <T, Methods extends Record<string, any>>(
+        condition: (element: unknown) => element is T,
+        methods: (element: T, context: TSetupContext) => Methods,
+      ): Plugin<{
+        (element: T): Methods
+        (element: any): {}
+      }>
+    }
+  }
+}
+
+export interface Plugin<TFn = (element: any) => any> {
+  (): TFn
 }
 
 export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
@@ -409,14 +448,6 @@ type ResolvePluginReturn<TPlugin, T> = TPlugin extends Plugin<infer TFn>
         : {}
       : ResolveOverload<TFn, T>
     : {}
-  : TPlugin extends () => infer PluginFn
-  ? ResolveOverload<PluginFn, T> extends never
-    ? PluginFn extends (element: T) => infer R
-      ? R
-      : PluginFn extends (element: any) => infer R
-      ? R
-      : {}
-    : ResolveOverload<PluginFn, T>
   : {}
 
 /**
