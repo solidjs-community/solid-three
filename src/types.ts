@@ -369,7 +369,7 @@ type ConstructorOverloadParameters<T extends Constructor> = T extends {
 /**********************************************************************************/
 
 export interface Plugin<TFn = (element: any) => any> {
-  (): TFn
+  (context: Context): TFn
 }
 
 export interface PluginFn {
@@ -398,7 +398,7 @@ export interface PluginFn {
 
   // Setup function
   setup<TSetupContext extends object>(
-    setupFn: () => TSetupContext,
+    setupFn: (context: Context) => TSetupContext,
   ): {
     then: {
       // With setup - one argument (global)

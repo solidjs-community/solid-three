@@ -61,8 +61,7 @@ const GlobalPlugin = plugin(element => ({
 
 // Example with setup - plugin that needs context from setup function
 const ContextPlugin = plugin
-  .setup(() => {
-    const context = useThree()
+  .setup((context) => {
     return { scene: context.scene }
   })
   .then((element, context) => ({

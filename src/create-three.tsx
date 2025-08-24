@@ -252,7 +252,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
       if (result) {
         return result
       }
-      result = plugin()
+      result = plugin(context)
       pluginMap.set(plugin, result)
       return result
     },

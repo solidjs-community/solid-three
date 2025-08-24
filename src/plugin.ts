@@ -1,5 +1,5 @@
 import type { Accessor } from "solid-js"
-import type { Plugin, PluginFn } from "./types.ts"
+import type { Context, Plugin, PluginFn } from "./types.ts"
 
 /**
  * Creates a plugin that extends solid-three components with additional functionality.
@@ -36,9 +36,8 @@ import type { Plugin, PluginFn } from "./types.ts"
  * @example
  * // Plugin with setup context
  * const ContextPlugin = plugin
- *   .setup(() => {
- *     const scene = useThree().scene
- *     return { scene }
+ *   .setup((context) => {
+ *     return { scene: context.scene }
  *   })
  *   .then([THREE.Object3D], (element, context) => ({
  *     addToScene: () => context.scene.add(element)
@@ -49,7 +48,7 @@ export const plugin: PluginFn = Object.assign(
   (filterArgOrMethods?: any, methods?: any): any => {
     // Single argument case - global plugin (apply to all elements)
     if (methods === undefined) {
-      const plugin: Plugin<any> = () => {
+      const plugin: Plugin<any> = (_context: Context) => {
         return (element: any) => {
           return filterArgOrMethods(element)
         }
@@ -64,23 +63,23 @@ export const plugin: PluginFn = Object.assign(
     /**
      * Creates a plugin with access to a setup context.
      *
-     * The setup function runs once when the plugin is initialized and can access
-     * hooks like useThree(). The returned context is passed to all plugin methods.
+     * The setup function runs once when the plugin is initialized and receives
+     * the Three.js context as its argument. The returned data is passed to all
+     * plugin methods.
      *
-     * @param setupFn - Function that returns context data to be shared with plugin methods
+     * @param setupFn - Function that receives the Three.js context and returns data to share
      * @returns An object with a `then` method to define the plugin behavior
      *
      * @example
      * const plugin = plugin
-     *   .setup(() => {
-     *     const gl = useThree().gl
-     *     return { renderer: gl }
+     *   .setup((context) => {
+     *     return { renderer: context.gl }
      *   })
      *   .then((element, context) => ({
      *     render: () => context.renderer.render(...)
      *   }))
      */
-    setup<TSetupContext extends object>(setupFn: Accessor<TSetupContext>) {
+    setup<TSetupContext extends object>(setupFn: (context: Context) => TSetupContext) {
       return {
         /**
          * Defines the plugin methods after setup.
@@ -92,10 +91,10 @@ export const plugin: PluginFn = Object.assign(
         then(filterArgOrMethods: any, methods?: any) {
           // Single argument case - global plugin with setup
           if (methods === undefined) {
-            const plugin: Plugin<any> = () => {
-              const context = setupFn()
+            const plugin: Plugin<any> = (context: Context) => {
+              const setupContext = setupFn(context)
               return (element: any) => {
-                return filterArgOrMethods(element, context)
+                return filterArgOrMethods(element, setupContext)
               }
             }
             return plugin
@@ -110,27 +109,27 @@ export const plugin: PluginFn = Object.assign(
 )
 
 function filteredPlugin(
-  setup: Accessor<any> | undefined,
+  setup: ((context: Context) => any) | undefined,
   filterArg: any,
   methods: any,
 ): Plugin<any> {
-  const plugin: Plugin<any> = () => {
+  const plugin: Plugin<any> = (context: Context) => {
     // Run setup once if provided and store result as context
-    const context = setup ? setup() : undefined
+    const setupContext = setup ? setup(context) : undefined
 
     return (element: any) => {
       // Handle array of constructors
       if (Array.isArray(filterArg)) {
         for (const Constructor of filterArg) {
           if (element instanceof Constructor) {
-            return methods(element, context)
+            return methods(element, setupContext)
           }
         }
       }
       // Handle type guard function
       else if (typeof filterArg === "function") {
         if (filterArg(element)) {
-          return methods(element, context)
+          return methods(element, setupContext)
         }
       }
 
