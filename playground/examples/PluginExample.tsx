@@ -1,38 +1,76 @@
-import type { InferPluginsFromT } from "create-t.tsx"
 import * as THREE from "three"
-import type { InferPluginProps, Plugin } from "types.ts"
+import type { Meta, Plugin } from "types.ts"
 import { createT, Resource, useFrame, useThree } from "../../src/index.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
-const Plugin1 = (() => {
-  return function <U>(element: U) {
-    return {
-      lookAt: (target: THREE.Object3D) => {
-        useFrame(() => {
-          ;(element as THREE.Object3D).lookAt(target.position)
-        })
-      },
-    }
+// LookAt plugin - works for all Object3D elements
+interface LookAtPluginFn {
+  (element: THREE.Object3D): {
+    lookAt(target: THREE.Object3D | [number, number, number]): void
   }
-}) satisfies Plugin
+  (element: any): {}
+}
 
-const { T, Canvas } = createT(THREE, [Plugin1 /* EventPlugin */])
+const LookAtPlugin: Plugin<LookAtPluginFn> = () => {
+  return ((element: any) => {
+    if (element instanceof THREE.Object3D) {
+      return {
+        lookAt: (target: THREE.Object3D | [number, number, number]) => {
+          useFrame(() => {
+            if (Array.isArray(target)) {
+              element.lookAt(...target)
+            } else {
+              element.lookAt(target.position)
+            }
+          })
+        },
+      }
+    }
+    return {}
+  }) as LookAtPluginFn
+}
 
-type X = InferPluginsFromT<typeof T>
-type Y = InferPluginProps<THREE.Mesh, X>
+// Shake plugin - works only for Camera elements
+interface ShakePluginFn {
+  (element: THREE.Camera): {
+    shake(intensity?: number): void
+  }
+  (element: any): {}
+}
+
+const ShakePlugin: Plugin<ShakePluginFn> = () => {
+  return ((element: any) => {
+    if (element instanceof THREE.Camera) {
+      return {
+        shake: (intensity = 0.1) => {
+          const originalPosition = element.position.clone()
+          useFrame(() => {
+            element.position.x = originalPosition.x + (Math.random() - 0.5) * intensity
+            element.position.y = originalPosition.y + (Math.random() - 0.5) * intensity
+            element.position.z = originalPosition.z + (Math.random() - 0.5) * intensity
+          })
+        },
+      }
+    }
+    return {}
+  }) as ShakePluginFn
+}
+
+const { T, Canvas } = createT(THREE, [LookAtPlugin, ShakePlugin])
 
 export function PluginExample() {
+  let cubeRef: Meta<THREE.Mesh>
+  let cameraRef: Meta<THREE.PerspectiveCamera>
+
   return (
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
     >
       <OrbitControls />
-      <T.Mesh
-        lookAt={useThree().currentCamera}
-        // onMouseMove={event => console.info("mousemove!", event)}
-        // onMouseDown={event => console.info("mousedown!", event)}
-      >
+
+      {/* Mesh with lookAt (from LookAtPlugin) */}
+      <T.Mesh ref={cubeRef!} position={[0, 0, 0]} lookAt={useThree().currentCamera}>
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
           <Resource
@@ -43,6 +81,19 @@ export function PluginExample() {
           />
         </T.MeshStandardMaterial>
       </T.Mesh>
+
+      {/* Camera with shake (from ShakePlugin) */}
+      <T.PerspectiveCamera ref={cameraRef!} position={[10, 10, 10]} shake={0.05} />
+
+      {/* 
+        These would cause TypeScript errors:
+        <T.Mesh shake={0.1} />         // ❌ Mesh doesn't have shake
+        <T.DirectionalLight shake={0.1} />  // ❌ Light doesn't have shake  
+        <T.DirectionalLight lookAt={cubeRef} />  // ❌ Light doesn't inherit from Object3D in our type system
+      */}
+
+      <T.DirectionalLight position={[5, 5, 5]} intensity={1} />
+      <T.AmbientLight intensity={0.5} />
     </Canvas>
   )
 }

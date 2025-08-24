@@ -287,14 +287,69 @@ export type Matrix4 = Representation<ThreeMatrix4>
 
 type PluginEntity<T, U> = (entity: T) => U
 
-export interface Plugin<T extends Record<string, any> = object> {
-  (): <U>(element: U) => T
+export interface Plugin<TFn = (element: any) => any> {
+  (): TFn
 }
 
 export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
   [TKey in keyof TPlugins]: TPlugins[TKey] extends () => (element: any) => infer U
     ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
     : never
+}>
+
+/**
+ * Helper type to resolve overloaded function returns
+ * Matches overloads from most specific to least specific
+ */
+type ResolveOverload<F, T> = 
+  F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3; (element: infer P4): infer R4; (element: infer P5): infer R5 }
+    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : T extends P4 ? R4 : T extends P5 ? R5 : never
+  : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3; (element: infer P4): infer R4 }
+    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : T extends P4 ? R4 : never
+  : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2; (element: infer P3): infer R3 }
+    ? T extends P1 ? R1 : T extends P2 ? R2 : T extends P3 ? R3 : never
+  : F extends { (element: infer P1): infer R1; (element: infer P2): infer R2 }
+    ? T extends P1 ? R1 : T extends P2 ? R2 : never
+  : F extends { (element: infer P): infer R }
+    ? T extends P ? R : never
+  : never
+
+/**
+ * Resolves what a plugin returns for a specific element type T
+ * Handles both simple functions and overloaded functions
+ */
+type ResolvePluginReturn<TPlugin, T> = TPlugin extends Plugin<infer TFn>
+  ? TFn extends (...args: any[]) => any
+    ? ResolveOverload<TFn, T> extends never
+      ? TFn extends (element: T) => infer R
+        ? R
+        : TFn extends (element: any) => infer R
+        ? R
+        : {}
+      : ResolveOverload<TFn, T>
+    : {}
+  : TPlugin extends () => infer PluginFn
+  ? ResolveOverload<PluginFn, T> extends never
+    ? PluginFn extends (element: T) => infer R
+      ? R
+      : PluginFn extends (element: any) => infer R
+      ? R
+      : {}
+    : ResolveOverload<PluginFn, T>
+  : {}
+
+/**
+ * Resolves plugin props for a specific element type T
+ * This allows plugins to provide conditional methods based on the actual element type
+ */
+export type ResolvePluginPropsForType<T, TPlugins extends Plugin[]> = Merge<{
+  [K in keyof TPlugins]: ResolvePluginReturn<TPlugins[K], T> extends infer Methods
+    ? Methods extends Record<string, any>
+      ? {
+          [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never
+        }
+      : {}
+    : {}
 }>
 
 export type Meta<T = unknown> = T & {
@@ -335,6 +390,7 @@ export type Props<T, TPlugins extends Plugin[] | undefined = Plugin[]> = Partial
         raycastable: boolean
         plugins: TPlugins
       },
+      TPlugins extends Plugin[] ? ResolvePluginPropsForType<InstanceOf<T>, TPlugins> : {},
     ]
   >
 >

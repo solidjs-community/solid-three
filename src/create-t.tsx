@@ -25,14 +25,8 @@ export function createT<
           [K in keyof TCatalogue]: <const TPlugins extends Plugin[] | undefined>(
             props: { plugins?: TPlugins } & Partial<
               TPlugins extends Plugin[]
-                ? Merge<
-                    [
-                      Props<TCatalogue[K], TPlugins>,
-                      InferPluginProps<TCataloguePlugins>,
-                      InferPluginProps<TPlugins>,
-                    ]
-                  >
-                : Merge<[Props<TCatalogue[K], TPlugins>, InferPluginProps<TCataloguePlugins>]>
+                ? Props<TCatalogue[K], [...TCataloguePlugins, ...TPlugins]>
+                : Props<TCatalogue[K], TCataloguePlugins>
             >,
           ) => JSXElement
         } & { [$S3C]: TCataloguePlugins }
