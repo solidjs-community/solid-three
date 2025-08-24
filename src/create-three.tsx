@@ -1,6 +1,5 @@
 import { ReactiveMap } from "@solid-primitives/map"
 import {
-  children,
   createEffect,
   createMemo,
   createRenderEffect,
@@ -24,8 +23,7 @@ import {
   VSMShadowMap,
   WebGLRenderer,
 } from "three"
-import type { CanvasProps } from "./canvas.tsx"
-import { Stack } from "./data-structure/stack.ts"
+import type { CanvasProps } from "./create-canvas.tsx"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
@@ -38,14 +36,16 @@ import {
   meta,
   removeElementFromArray,
   useRef,
+  withContext,
   withMultiContexts,
 } from "./utils.ts"
+import { Stack } from "./utils/stack.ts"
 import { useMeasure } from "./utils/use-measure.ts"
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
- * camera, renderer, raycaster, and scene, manages the scene graph, setups up an event system
- * and rendering loop based on the provided properties.
+ * camera, renderer, raycaster, and scene, manages the scene graph, setups up a rendering loop
+ * based on the provided properties.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugins: Plugin[]) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
@@ -206,22 +206,24 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
+  const glProp = createMemo(() => props.gl)
   const gl = createMemo(() => {
-    const gl =
-      props.gl instanceof WebGLRenderer
-        ? // props.gl can be a WebGLRenderer provided by the user
-          props.gl
-        : typeof props.gl === "function"
+    const _glProp = glProp()
+    return meta(
+      _glProp instanceof WebGLRenderer
+        ? // _glProp can be a WebGLRenderer provided by the user
+          _glProp
+        : typeof _glProp === "function"
         ? // or a callback that returns a Renderer
-          props.gl(canvas)
-        : // if props.gl is not defined we default to a WebGLRenderer
-          new WebGLRenderer({ canvas })
-
-    return meta(gl, {
-      get props() {
-        return props.gl || {}
+          _glProp(canvas)
+        : // if _glProp is not defined we default to a WebGLRenderer
+          new WebGLRenderer({ canvas }),
+      {
+        get props() {
+          return glProp() || {}
+        },
       },
-    })
+    )
   })
 
   const measure = useMeasure()
@@ -297,92 +299,98 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
   /*                                                                                */
   /**********************************************************************************/
 
-  withMultiContexts(() => {
-    createRenderEffect(() => {
-      if (props.frameloop === "never") {
-        context.clock.stop()
-        context.clock.elapsedTime = 0
-      } else {
-        context.clock.start()
-      }
-    })
-
-    // Manage camera
-    createRenderEffect(() => {
-      if (cameraStack.peek()) return
-      if (!props.defaultCamera || props.defaultCamera instanceof Camera) return
-      useProps(defaultCamera, props.defaultCamera)
-      // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
-      //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-      defaultCamera().updateMatrixWorld(true)
-    })
-
-    // Manage scene
-    createRenderEffect(() => {
-      if (!props.scene || props.scene instanceof Scene) return
-      useProps(scene, props.scene)
-    })
-
-    // Manage raycaster
-    createRenderEffect(() => {
-      if (!props.defaultRaycaster || props.defaultRaycaster instanceof Raycaster) return
-      useProps(defaultRaycaster, props.defaultRaycaster)
-    })
-
-    // Manage gl
-    createRenderEffect(() => {
-      // Set shadow-map
+  withContext(
+    () => {
       createRenderEffect(() => {
-        const _gl = gl()
-        if (_gl.shadowMap) {
-          const oldEnabled = _gl.shadowMap.enabled
-          const oldType = _gl.shadowMap.type
-          _gl.shadowMap.enabled = !!props.shadows
-
-          if (typeof props.shadows === "boolean") {
-            _gl.shadowMap.type = PCFSoftShadowMap
-          } else if (typeof props.shadows === "string") {
-            const types = {
-              basic: BasicShadowMap,
-              percentage: PCFShadowMap,
-              soft: PCFSoftShadowMap,
-              variance: VSMShadowMap,
-            }
-            _gl.shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
-          } else if (typeof props.shadows === "object") {
-            Object.assign(_gl.shadowMap, props.shadows)
-          }
-
-          if (oldEnabled !== _gl.shadowMap.enabled || oldType !== _gl.shadowMap.type)
-            _gl.shadowMap.needsUpdate = true
+        if (props.frameloop === "never") {
+          context.clock.stop()
+          context.clock.elapsedTime = 0
+        } else {
+          context.clock.start()
         }
       })
 
-      createEffect(() => {
-        const renderer = gl()
-        // Connect to xr if property exists
-        if (renderer.xr) context.xr.connect()
+      // Manage camera
+      createRenderEffect(() => {
+        if (cameraStack.peek()) return
+        if (!props.defaultCamera || props.defaultCamera instanceof Camera) return
+        useProps(defaultCamera, props.defaultCamera)
+        // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
+        //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
+        defaultCamera().updateMatrixWorld(true)
       })
 
-      // Set color space and tonemapping preferences
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      // Color management and tone-mapping
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
-        },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
-        },
+      // Manage scene
+      createRenderEffect(() => {
+        if (!props.scene || props.scene instanceof Scene) return
+        useProps(scene, props.scene)
       })
 
-      // Manage props
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
-        useProps(gl, props.gl)
-      }
-    })
-  }, [[threeContext, context]])
+      // Manage raycaster
+      createRenderEffect(() => {
+        if (!props.defaultRaycaster || props.defaultRaycaster instanceof Raycaster) return
+        useProps(defaultRaycaster, props.defaultRaycaster)
+      })
+
+      // Manage gl
+      createRenderEffect(() => {
+        // Set shadow-map
+        createRenderEffect(() => {
+          const _gl = gl()
+
+          if (_gl.shadowMap) {
+            const oldEnabled = _gl.shadowMap.enabled
+            const oldType = _gl.shadowMap.type
+            _gl.shadowMap.enabled = !!props.shadows
+
+            if (typeof props.shadows === "boolean") {
+              _gl.shadowMap.type = PCFSoftShadowMap
+            } else if (typeof props.shadows === "string") {
+              const types = {
+                basic: BasicShadowMap,
+                percentage: PCFShadowMap,
+                soft: PCFSoftShadowMap,
+                variance: VSMShadowMap,
+              }
+              _gl.shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
+            } else if (typeof props.shadows === "object") {
+              Object.assign(_gl.shadowMap, props.shadows)
+            }
+
+            if (oldEnabled !== _gl.shadowMap.enabled || oldType !== _gl.shadowMap.type)
+              _gl.shadowMap.needsUpdate = true
+          }
+        })
+
+        createEffect(() => {
+          const renderer = gl()
+          // Connect to xr if property exists
+          if (renderer.xr) context.xr.connect()
+        })
+
+        // Set color space and tonemapping preferences
+        const LinearEncoding = 3000
+        const sRGBEncoding = 3001
+        // Color management and tone-mapping
+        useProps(gl, {
+          get outputEncoding() {
+            return props.linear ? LinearEncoding : sRGBEncoding
+          },
+          get toneMapping() {
+            return props.flat ? NoToneMapping : ACESFilmicToneMapping
+          },
+        })
+
+        // Manage props
+        const _glProp = glProp()
+        if (_glProp && !(_glProp instanceof WebGLRenderer)) {
+          useProps(gl, _glProp)
+        }
+      })
+    },
+    threeContext,
+    context,
+  )
 
   /**********************************************************************************/
   /*                                                                                */
@@ -408,20 +416,16 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
   /*                                                                                */
   /**********************************************************************************/
 
-  const c = children(() => (
-    <pluginContext.Provider value={plugins}>
-      <frameContext.Provider value={addFrameListener}>
-        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-      </frameContext.Provider>
-    </pluginContext.Provider>
-  ))
-
   useSceneGraph(
     context.scene,
     mergeProps(props, {
-      get children() {
-        return c()
-      },
+      children: (
+        <pluginContext.Provider value={plugins}>
+          <frameContext.Provider value={addFrameListener}>
+            <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
+          </frameContext.Provider>
+        </pluginContext.Provider>
+      ),
     }),
   )
 

@@ -1,6 +1,6 @@
 import { createMemo, type Component, type JSX, type JSXElement, type MergeProps } from "solid-js"
-import { createCanvas } from "./canvas.tsx"
 import { $S3C } from "./constants.ts"
+import { createCanvas } from "./create-canvas.tsx"
 import { useProps } from "./props.ts"
 import type { Plugin, Props } from "./types.ts"
 import { meta } from "./utils.ts"

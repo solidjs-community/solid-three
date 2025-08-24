@@ -1,8 +1,23 @@
 import { onCleanup } from "solid-js"
 import { Object3D, type Intersection } from "three"
 import { plugin } from "./plugin.ts"
-import { type Context, type Intersect, type Meta, type Prettify } from "./types.ts"
+import { type Context, type Intersect, type Meta, type Prettify, type When } from "./types.ts"
 import { getMeta } from "./utils.ts"
+
+const EVENT_NAME_MAP = {
+  onClick: "click",
+  onContextMenu: "contextmenu",
+  onDoubleClick: "dblclick",
+  onMouseDown: "mousedown",
+  onMouseMove: "mousemove",
+  onMouseUp: "mouseup",
+  onMouseLeave: "mouseleave",
+  onPointerUp: "pointerup",
+  onPointerDown: "pointerdown",
+  onPointerMove: "pointermove",
+  onPointerLeave: "pointerleave",
+  onWheel: "wheel",
+} as const
 
 /**********************************************************************************/
 /*                                                                                */
@@ -10,33 +25,33 @@ import { getMeta } from "./utils.ts"
 /*                                                                                */
 /**********************************************************************************/
 
-export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
-
 export type Event<
   TEvent,
   TConfig extends { stoppable?: boolean; intersections?: boolean } = {
     stoppable: true
     intersections: true
   },
-> = Intersect<
-  [
-    { nativeEvent: TEvent },
-    When<
-      TConfig["stoppable"],
-      {
-        stopped: boolean
-        stopPropagation: () => void
-      }
-    >,
-    When<
-      TConfig["intersections"],
-      {
-        currentIntersection: Intersection
-        intersection: Intersection
-        intersections: Intersection[]
-      }
-    >,
-  ]
+> = Prettify<
+  Intersect<
+    [
+      { nativeEvent: TEvent },
+      When<
+        TConfig["stoppable"],
+        {
+          stopped: boolean
+          stopPropagation: () => void
+        }
+      >,
+      When<
+        TConfig["intersections"],
+        {
+          currentIntersection: Intersection
+          intersection: Intersection
+          intersections: Intersection[]
+        }
+      >,
+    ]
+  >
 >
 
 type EventHandlersMap = {
@@ -63,71 +78,28 @@ export type EventHandlers = {
   [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
 }
 
+export type EventListeners = {
+  [TKey in keyof EventHandlersMap]: (cb: (event: EventHandlersMap[TKey]) => void) => void
+}
+
 export type CanvasEventHandlers = {
   [TKey in keyof EventHandlersMap]: (
     event: Prettify<Omit<EventHandlersMap[TKey], "currentIntersection">>,
   ) => void
 }
 
-/** The names of all `EventHandlers` */
 export type EventName = keyof EventHandlersMap
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                  Event Plugin                                  */
+/*                                   Create Event                                 */
 /*                                                                                */
 /**********************************************************************************/
 
-const EVENT_NAME_MAP = {
-  onClick: "click",
-  onContextMenu: "contextmenu",
-  onDoubleClick: "dblclick",
-  onMouseDown: "mousedown",
-  onMouseMove: "mousemove",
-  onMouseUp: "mouseup",
-  onMouseLeave: "mouseleave",
-  onPointerUp: "pointerup",
-  onPointerDown: "pointerdown",
-  onPointerMove: "pointermove",
-  onPointerLeave: "pointerleave",
-  onWheel: "wheel",
-} as const
-
-function createRegistry<T>() {
-  const array: T[] = []
-
-  return {
-    array,
-    add(instance: T) {
-      array.push(instance)
-      return () => {
-        array.splice(
-          array.findIndex(_instance => _instance === instance),
-          1,
-        )
-      }
-    },
-  }
-}
-
-/**
- * Checks if a given string is a valid event type within the system.
- *
- * @param type - The type of the event to check.
- * @returns `true` if the type is a recognized `EventType`, otherwise `false`.
- */
-export const isEventType = (type: string): type is EventName =>
-  /^on(Pointer|Click|DoubleClick|ContextMenu|Wheel|Mouse)/.test(type)
-
-/**********************************************************************************/
-/*                                                                                */
-/*                                      Events                                    */
-/*                                                                                */
-/**********************************************************************************/
 //
 /** Creates a `ThreeEvent` (intersection excluded) from the current `MouseEvent` | `WheelEvent`. */
-function createThreeEvent<
-  TEvent extends Event,
+function createEvent<
+  TEvent extends globalThis.Event,
   TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
 >(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {}) {
   const event: Record<string, any> = stoppable
@@ -203,6 +175,29 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
 
 /**********************************************************************************/
 /*                                                                                */
+/*                                   Auto Registry                                */
+/*                                                                                */
+/**********************************************************************************/
+
+function createAutoRegistry<T>() {
+  const array: T[] = []
+
+  return {
+    array,
+    add(instance: T) {
+      array.push(instance)
+      onCleanup(() => {
+        array.splice(
+          array.findIndex(_instance => _instance === instance),
+          1,
+        )
+      })
+    },
+  }
+}
+
+/**********************************************************************************/
+/*                                                                                */
 /*                           Create Missable Event Registry                       */
 /*                                                                                */
 /**********************************************************************************/
@@ -217,7 +212,7 @@ function createMissableEventRegistry(
   type: "onClick" | "onDoubleClick" | "onContextMenu",
   context: Context,
 ) {
-  const registry = createRegistry<Object3D>()
+  const registry = createAutoRegistry<Object3D>()
 
   context.canvas.addEventListener(EVENT_NAME_MAP[type], nativeEvent => {
     if (registry.array.length === 0) return
@@ -230,7 +225,7 @@ function createMissableEventRegistry(
     // Phase #1 - Process normal click events
     const intersections = raycast(context, registry.array, nativeEvent)
 
-    const stoppableEvent = createThreeEvent(nativeEvent, { intersections })
+    const stoppableEvent = createEvent(nativeEvent, { intersections })
 
     for (const intersection of intersections) {
       // Update currentIntersection
@@ -242,10 +237,7 @@ function createMissableEventRegistry(
       while (node && !stoppableEvent.stopped && !visitedObjects.has(node)) {
         missedObjects.delete(node)
         visitedObjects.add(node)
-        getMeta(node)?.props[type]?.(
-          // @ts-expect-error TODO: fix type-error
-          stoppableEvent,
-        )
+        getMeta(node)?.props[type]?.(stoppableEvent)
         node = node.parent
       }
     }
@@ -256,6 +248,8 @@ function createMissableEventRegistry(
       // Remove currentIntersection
       // @ts-expect-error TODO: fix type-error
       delete stoppableEvent.currentIntersection
+
+      // @ts-expect-error TODO: fix type-error
       context.props[type]?.(stoppableEvent)
     }
 
@@ -278,13 +272,14 @@ function createMissableEventRegistry(
     }
 
     // Phase #3 - Fire missed event-handler on missed objects
-    const missedEvent = createThreeEvent(nativeEvent, { stoppable: false })
+    const missedEvent = createEvent(nativeEvent, { stoppable: false })
 
     for (const object of missedObjects) {
       getMeta(object)?.props[missedType]?.(missedEvent)
     }
 
     if (visitedObjects.size > 0) {
+      // @ts-expect-error TODO: fix type-error
       context.props[`${type}Missed`]?.(missedEvent)
     }
   })
@@ -310,7 +305,7 @@ function createMissableEventRegistry(
  *    - `onPointerLeave`
  */
 function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
-  const registry = createRegistry<Object3D>()
+  const registry = createAutoRegistry<Object3D>()
   let hoveredSet = new Set<Object3D>()
   let intersections: Intersection<Meta<Object3D>>[] = []
   let hoveredCanvas = false
@@ -319,7 +314,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
     intersections = raycast(context, registry.array, nativeEvent)
 
     // Phase #1 - Enter
-    const enterEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
+    const enterEvent = createEvent(nativeEvent, { stoppable: false, intersections })
     const enterSet = new Set<Object3D>()
 
     for (const intersection of intersections) {
@@ -332,10 +327,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
       while (current && !enterSet.has(current)) {
         enterSet.add(current)
         if (!hoveredSet.has(current)) {
-          getMeta(current)?.props[`on${type}Enter`]?.(
-            // @ts-expect-error TODO: fix type-error
-            enterEvent,
-          )
+          getMeta(current)?.props[`on${type}Enter`]?.(enterEvent)
         }
 
         // We bubble a layer down.
@@ -344,15 +336,13 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
     }
 
     if (hoveredCanvas === false) {
-      context.props[`on${type}Enter`]?.(
-        // @ts-expect-error TODO: fix type-error
-        enterEvent,
-      )
+      // @ts-expect-error TODO: fix type-error
+      context.props[`on${type}Enter`]?.(enterEvent)
       hoveredCanvas = true
     }
 
     // Phase #2 - Move
-    const moveEvent = createThreeEvent(nativeEvent, { intersections })
+    const moveEvent = createEvent(nativeEvent, { intersections })
     const moveSet = new Set()
 
     for (const intersection of intersections) {
@@ -367,10 +357,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         moveSet.add(current)
         const meta = getMeta(current)
         if (meta) {
-          meta.props[`on${type}Move`]?.(
-            // @ts-expect-error TODO: fix type-error
-            moveEvent,
-          )
+          meta.props[`on${type}Move`]?.(moveEvent)
           // Break if event was
           if (moveEvent.stopped) {
             break
@@ -385,14 +372,12 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
       // Remove currentIntersection
       // @ts-expect-error TODO: fix type-error
       delete moveEvent.currentIntersection
-      context.props[`on${type}Move`]?.(
-        // @ts-expect-error TODO: fix type-error
-        moveEvent,
-      )
+      // @ts-expect-error TODO: fix type-error
+      context.props[`on${type}Move`]?.(moveEvent)
     }
 
     // Handle leave-event
-    const leaveEvent = createThreeEvent(nativeEvent, { intersections, stoppable: false })
+    const leaveEvent = createEvent(nativeEvent, { intersections, stoppable: false })
     const leaveSet = hoveredSet.difference(enterSet)
     hoveredSet = enterSet
 
@@ -402,16 +387,13 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
   })
 
   context.canvas.addEventListener(EVENT_NAME_MAP[`on${type}Leave`], nativeEvent => {
-    const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false })
+    const leaveEvent = createEvent(nativeEvent, { stoppable: false })
     // @ts-expect-error TODO: fix type-error
     context.props[`on${type}Leave`]?.(leaveEvent)
     hoveredCanvas = false
 
     for (const object of hoveredSet) {
-      getMeta(object)?.props[`on${type}Leave`]?.(
-        // @ts-expect-error TODO: fix type-error
-        leaveEvent,
-      )
+      getMeta(object)?.props[`on${type}Leave`]?.(leaveEvent)
     }
     hoveredSet.clear()
   })
@@ -438,13 +420,13 @@ function createDefaultEventRegistry(
   context: Context,
   options?: AddEventListenerOptions,
 ) {
-  const registry = createRegistry<Object3D>()
+  const registry = createAutoRegistry<Object3D>()
 
   context.canvas.addEventListener(
     EVENT_NAME_MAP[type],
     nativeEvent => {
-      const intersections = raycast(context, registry.array, nativeEvent) /* [0]] */
-      const event = createThreeEvent(nativeEvent, { intersections })
+      const intersections = raycast(context, registry.array, nativeEvent)
+      const event = createEvent(nativeEvent, { intersections })
 
       const visitedNodes = new Set()
 
@@ -457,10 +439,7 @@ function createDefaultEventRegistry(
         let node: Object3D | null = intersection.object
 
         while (node && !event.stopped && !visitedNodes.has(node)) {
-          getMeta(node)?.props[type]?.(
-            // @ts-expect-error TODO: fix type-error
-            event,
-          )
+          getMeta(node)?.props[type]?.(event)
           visitedNodes.add(node)
           node = node.parent
         }
@@ -491,108 +470,93 @@ function createDefaultEventRegistry(
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
 export const EventPlugin = plugin
-  .setup((context) => {
+  .setup(context => ({
     // onMouseMove/onMouseEnter/onMouseLeave
-    const hoverMouseRegistry = createHoverEventRegistry("Mouse", context)
+    hoverMouses: createHoverEventRegistry("Mouse", context),
     // onPointerMove/onPointerEnter/onPointerLeave
-    const hoverPointerRegistry = createHoverEventRegistry("Pointer", context)
-
+    hoverPointers: createHoverEventRegistry("Pointer", context),
     // onClick/onClickMissed
-    const missableClickRegistry = createMissableEventRegistry("onClick", context)
+    missableClicks: createMissableEventRegistry("onClick", context),
     // onContextMenu/onContextMenuMissed
-    const missableContextMenuRegistry = createMissableEventRegistry("onContextMenu", context)
+    missableContextMenus: createMissableEventRegistry("onContextMenu", context),
     // onDoubleClick/onDoubleClickMissed
-    const missableDoubleClickRegistry = createMissableEventRegistry("onDoubleClick", context)
-
+    missableDoubleClicks: createMissableEventRegistry("onDoubleClick", context),
     // Default mouse-events
-    const mouseDownRegistry = createDefaultEventRegistry("onMouseDown", context)
-    const mouseUpRegistry = createDefaultEventRegistry("onMouseUp", context)
+    mouseDowns: createDefaultEventRegistry("onMouseDown", context),
+    mouseUps: createDefaultEventRegistry("onMouseUp", context),
     // Default pointer-events
-    const pointerDownRegistry = createDefaultEventRegistry("onPointerDown", context)
-    const pointerUpRegistry = createDefaultEventRegistry("onPointerUp", context)
+    pointerDowns: createDefaultEventRegistry("onPointerDown", context),
+    pointerUps: createDefaultEventRegistry("onPointerUp", context),
     // Default wheel-event
-    const wheelRegistry = createDefaultEventRegistry("onWheel", context, { passive: true })
-
-    return {
-      hoverMouseRegistry,
-      hoverPointerRegistry,
-      missableClickRegistry,
-      missableContextMenuRegistry,
-      missableDoubleClickRegistry,
-      mouseDownRegistry,
-      mouseUpRegistry,
-      pointerDownRegistry,
-      pointerUpRegistry,
-      wheelRegistry,
-    }
-  })
+    wheels: createDefaultEventRegistry("onWheel", context, { passive: true }),
+  }))
   .then(
     (
       object,
       {
-        hoverMouseRegistry,
-        hoverPointerRegistry,
-        missableClickRegistry,
-        missableContextMenuRegistry,
-        missableDoubleClickRegistry,
-        mouseDownRegistry,
-        mouseUpRegistry,
-        pointerDownRegistry,
-        pointerUpRegistry,
-        wheelRegistry,
+        hoverMouses,
+        hoverPointers,
+        missableClicks,
+        missableContextMenus,
+        missableDoubleClicks,
+        mouseDowns,
+        mouseUps,
+        pointerDowns,
+        pointerUps,
+        wheels,
       },
-    ) => {
+    ): EventListeners => {
       return {
-        onClick(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableClickRegistry.add(object))
+        onClick() {
+          missableClicks.add(object)
         },
-        onClickMissed(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableClickRegistry.add(object))
+        onClickMissed() {
+          missableClicks.add(object)
         },
-        onDoubleClick(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableDoubleClickRegistry.add(object))
+        onDoubleClick() {
+          missableDoubleClicks.add(object)
         },
-        onDoubleClickMissed(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableDoubleClickRegistry.add(object))
+        onDoubleClickMissed() {
+          missableDoubleClicks.add(object)
         },
-        onContextMenu(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableContextMenuRegistry.add(object))
+        onContextMenu() {
+          missableContextMenus.add(object)
         },
-        onContextMenuMissed(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(missableContextMenuRegistry.add(object))
+        onContextMenuMissed() {
+          missableContextMenus.add(object)
         },
-        onMouseDown(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(mouseDownRegistry.add(object))
+        onMouseDown() {
+          mouseDowns.add(object)
         },
-        onMouseUp(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(mouseUpRegistry.add(object))
+        onMouseUp() {
+          mouseUps.add(object)
         },
-        onMouseMove(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(hoverMouseRegistry.add(object))
+        onMouseMove() {
+          hoverMouses.add(object)
         },
-        onMouseEnter(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(hoverMouseRegistry.add(object))
+        onMouseEnter() {
+          hoverMouses.add(object)
         },
-        onMouseLeave(callback: (event: Event<MouseEvent>) => void) {
-          onCleanup(hoverMouseRegistry.add(object))
+        onMouseLeave() {
+          hoverMouses.add(object)
         },
-        onPointerDown(callback: (event: Event<PointerEvent>) => void) {
-          onCleanup(pointerDownRegistry.add(object))
+        onPointerDown() {
+          pointerDowns.add(object)
         },
-        onPointerUp(callback: (event: Event<PointerEvent>) => void) {
-          onCleanup(pointerUpRegistry.add(object))
+        onPointerUp() {
+          pointerUps.add(object)
         },
-        onPointerMove(callback: (event: Event<PointerEvent>) => void) {
-          onCleanup(hoverPointerRegistry.add(object))
+        onPointerMove() {
+          hoverPointers.add(object)
         },
-        onPointerEnter(callback: (event: Event<PointerEvent>) => void) {
-          onCleanup(hoverPointerRegistry.add(object))
+        onPointerEnter() {
+          hoverPointers.add(object)
         },
-        onPointerLeave(callback: (event: Event<PointerEvent>) => void) {
-          onCleanup(hoverMouseRegistry.add(object))
+        onPointerLeave() {
+          hoverMouses.add(object)
         },
-        onwheel(callback: (event: Event<WheelEvent>) => void) {
-          onCleanup(wheelRegistry.add(object))
+        onWheel() {
+          wheels.add(object)
         },
       }
     },

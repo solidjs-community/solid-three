@@ -1,8 +1,7 @@
-import type { Accessor, JSX, Ref } from "solid-js"
+import type { Accessor, JSX } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
-  Intersection,
   OrthographicCamera,
   PerspectiveCamera,
   Raycaster,
@@ -18,9 +17,8 @@ import type {
   Vector4 as ThreeVector4,
   WebGLRenderer,
 } from "three"
-import type { Intersect } from "../playground/controls/type-utils.ts"
-import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
+import type { CanvasProps } from "./create-canvas.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -56,6 +54,8 @@ export type Intersect<T extends any[]> = T extends [infer U, ...infer Rest]
     : U & Intersect<Rest>
   : T
 
+export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
+
 /**********************************************************************************/
 /*                                                                                */
 /*                                       Meta                                     */
@@ -68,7 +68,7 @@ export type Meta<T = unknown> = T & {
 
 /** Metadata of a `solid-three` instance. */
 export type Data<T> = {
-  props: Props<InstanceOf<T>>
+  props: Props<InstanceOf<T>> & Record<string, any>
   parent: any
   children: Set<Meta<any>>
   plugins: Plugin[]
@@ -134,80 +134,12 @@ export type FrameListener = (
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                      Event                                     */
-/*                                                                                */
-/**********************************************************************************/
-
-export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
-
-export type Event<
-  TEvent,
-  TConfig extends { stoppable?: boolean; intersections?: boolean } = {
-    stoppable: true
-    intersections: true
-  },
-> = Intersect<
-  [
-    { nativeEvent: TEvent },
-    When<
-      TConfig["stoppable"],
-      {
-        stopped: boolean
-        stopPropagation: () => void
-      }
-    >,
-    When<
-      TConfig["intersections"],
-      {
-        currentIntersection: Intersection
-        intersection: Intersection
-        intersections: Intersection[]
-      }
-    >,
-  ]
->
-
-type EventHandlersMap = {
-  onClick: Prettify<Event<MouseEvent>>
-  onClickMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
-  onDoubleClick: Prettify<Event<MouseEvent>>
-  onDoubleClickMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
-  onContextMenu: Prettify<Event<MouseEvent>>
-  onContextMenuMissed: Prettify<Event<MouseEvent, { stoppable: false; intersections: false }>>
-  onMouseDown: Prettify<Event<MouseEvent>>
-  onMouseEnter: Prettify<Event<MouseEvent, { stoppable: false }>>
-  onMouseLeave: Prettify<Event<MouseEvent, { stoppable: false }>>
-  onMouseMove: Prettify<Event<MouseEvent>>
-  onMouseUp: Prettify<Event<MouseEvent>>
-  onPointerUp: Prettify<Event<PointerEvent>>
-  onPointerDown: Prettify<Event<PointerEvent>>
-  onPointerMove: Prettify<Event<PointerEvent>>
-  onPointerEnter: Prettify<Event<PointerEvent, { stoppable: false }>>
-  onPointerLeave: Prettify<Event<PointerEvent, { stoppable: false }>>
-  onWheel: Prettify<Event<WheelEvent>>
-}
-
-export type EventHandlers = {
-  [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
-}
-
-export type CanvasEventHandlers = {
-  [TKey in keyof EventHandlersMap]: (
-    event: Prettify<Omit<EventHandlersMap[TKey], "currentIntersection">>,
-  ) => void
-}
-
-/** The names of all `EventHandlers` */
-export type EventName = keyof EventHandlersMap
-
-/**********************************************************************************/
-/*                                                                                */
 /*                                  Representations                               */
 /*                                                                                */
 /**********************************************************************************/
 
 /** Maps properties of given type to their `solid-three` representations. */
-type MapToRepresentation<T> = {
+export type MapToRepresentation<T> = {
   [TKey in keyof T]: Representation<T[TKey]>
 }
 
@@ -254,7 +186,7 @@ export type Props<T, TPlugins extends Plugin[] | undefined = Plugin[]> = Partial
         children: JSX.Element
         key?: string
         onUpdate: (self: Meta<InstanceOf<T>>) => void
-        ref: Ref<Meta<InstanceOf<T>>>
+        // ref: Ref<Meta<InstanceOf<T>>>
         /**
          * Prevents the Object3D from being cast by the ray.
          * Object3D can still receive events via propagation from its descendants.

@@ -10,12 +10,12 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Plugin, Props } from "./types.ts"
+import type { Context, Plugin, PluginPropsOf, Props } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
+export interface CanvasProps extends ParentProps {
   ref?: Ref<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
@@ -55,64 +55,8 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @param props - Configuration options include camera settings, style, and children elements.
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
-export function Canvas(props: ParentProps<CanvasProps>) {
-  let canvas: HTMLCanvasElement = null!
-  let container: HTMLDivElement = null!
-
-  onMount(() => {
-    const context = createThree(canvas, props)
-
-    // Resize observer for the canvas to adjust camera and renderer on size change
-    createResizeObserver(container, function onResize() {
-      const { width, height } = container.getBoundingClientRect()
-      context.gl.setSize(width, height)
-      context.gl.setPixelRatio(globalThis.devicePixelRatio)
-
-      if (context.currentCamera instanceof OrthographicCamera) {
-        context.currentCamera.left = width / -2
-        context.currentCamera.right = width / 2
-        context.currentCamera.top = height / 2
-        context.currentCamera.bottom = height / -2
-      } else {
-        context.currentCamera.aspect = width / height
-      }
-
-      context.currentCamera.updateProjectionMatrix()
-      context.render(performance.now())
-    })
-  })
-
-  return (
-    <div
-      ref={container!}
-      style={{
-        position: "relative",
-        width: "100%",
-        height: "100%",
-        overflow: "hidden",
-        contain: "strict",
-        display: "flex",
-        ...props.style,
-      }}
-      class={props.class}
-    >
-      <canvas ref={canvas!} />
-    </div>
-  )
-}
-
-/**
- * Serves as the root component for all 3D scenes created with `solid-three`. It initializes
- * the Three.js rendering context, including a WebGL renderer, a scene, and a camera.
- * All `<T/>`-components must be children of this Canvas. Hooks such as `useThree` and
- * `useFrame` should only be used within this component to ensure proper context.
- *
- * @function Canvas
- * @param props - Configuration options include camera settings, style, and children elements.
- * @returns A div element containing the WebGL canvas configured to occupy the full available space.
- */
-export function createCanvas<TPlugins extends Plugin[] = $3.Plugins>(plugins: TPlugins) {
-  return function (props: ParentProps<CanvasProps>) {
+export function createCanvas<TPlugins extends Plugin[] = Plugin[]>(plugins: TPlugins) {
+  return function (props: ParentProps<CanvasProps> & Partial<PluginPropsOf<Scene, TPlugins>>) {
     let canvas: HTMLCanvasElement = null!
     let container: HTMLDivElement = null!
 

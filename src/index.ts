@@ -1,6 +1,6 @@
-export { Canvas, type CanvasProps } from "./canvas.tsx"
 export { Entity, Portal, Resource } from "./components.tsx"
 export { $S3C } from "./constants.ts"
+export { type CanvasProps } from "./create-canvas.tsx"
 export { createEntity, createT } from "./create-t.tsx"
 export { EventPlugin } from "./event-plugin.ts"
 export { useFrame, useThree } from "./hooks.ts"

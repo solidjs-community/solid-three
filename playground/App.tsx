@@ -1,14 +1,14 @@
 import { A, Route, Router } from "@solidjs/router"
 import type { ParentProps } from "solid-js"
 import * as THREE from "three"
-import { Canvas, createT, Entity } from "../src/index.ts"
+import { createT, Entity } from "../src/index.ts"
 import { EnvironmentExample } from "./examples/EnvironmentExample.tsx"
 import { PluginExample } from "./examples/PluginExample.tsx"
 import { PortalExample } from "./examples/PortalExample.tsx"
 import { SolarExample } from "./examples/SolarExample.tsx"
 import "./index.css"
 
-const { T } = createT({ ...THREE, Entity })
+const { T, Canvas } = createT({ ...THREE, Entity })
 
 function Layout(props: ParentProps) {
   return (

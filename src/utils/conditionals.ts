@@ -1,4 +1,5 @@
-import { type Accessor, createEffect, createMemo, type Resource } from "solid-js"
+import { type Accessor, createEffect, createMemo } from "solid-js"
+import { resolve } from "../utils.ts"
 
 export function check<
   T,
@@ -105,7 +106,7 @@ export function every<
     const values = new Array(accessors.length)
 
     for (let i = 0; i < accessors.length; i++) {
-      const _value = typeof accessors[i] === "function" ? (accessors[i] as () => T)() : accessors[i]
+      const _value = resolve(accessors[i])
       if (!_value) return undefined
       values[i] = _value
     }
@@ -113,12 +114,6 @@ export function every<
     return values as TValues
   }
   return callback
-}
-
-export function wrapNullableResource<T extends Resource<any>>(
-  value: T,
-): Accessor<false | [ReturnType<T>]> {
-  return () => value.state === "ready" && [value()]
 }
 
 export function whenEffect<

@@ -10,16 +10,7 @@ import {
   Vector3,
 } from "three"
 import { $S3C } from "./constants.ts"
-import type {
-  CameraKind,
-  Constructor,
-  Data,
-  InstanceOf,
-  Loader,
-  Meta,
-  Plugin,
-  Props,
-} from "./types.ts"
+import type { CameraKind, Constructor, Data, Loader, Meta, Plugin } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
@@ -53,7 +44,7 @@ export function autodispose<T extends { dispose?: () => void }>(object: T): T {
 /**********************************************************************************/
 
 interface MetaOptions<T extends object> {
-  props?: Props<InstanceOf<T>>
+  props?: Record<string, any>
   plugins?: Plugin[]
 }
 
@@ -369,6 +360,12 @@ export function getCurrentViewport(
   const w = h * (width / height)
   return { width: w, height: h, top, left, factor: width / w, distance, aspect }
 }
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                  Binary Search                                 */
+/*                                                                                */
+/**********************************************************************************/
 
 // Find where to insert target to keep array sorted
 export function binarySearch(array: number[], target: number) {

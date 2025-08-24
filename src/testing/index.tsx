@@ -1,5 +1,5 @@
 import { type Accessor, type JSX, createRoot, mergeProps } from "solid-js"
-import type { CanvasProps } from "../canvas.tsx"
+import type { CanvasProps } from "../create-canvas.tsx"
 import { createThree } from "../create-three.tsx"
 import { useRef } from "../utils.ts"
 import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts"
