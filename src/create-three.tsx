@@ -25,7 +25,7 @@ import {
 } from "three"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
-import { useProps, useSceneGraph } from "./props.ts"
+import { createPluginMethods, useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
 import type { CanvasProps, EventRaycaster } from "./types.tsx"
@@ -316,9 +316,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
     return result
   }
 
-  const pluginMethods = createMemo(() =>
-    mergeProps(...plugins.map(init => () => registerPlugin(init)(canvas))),
-  )
+  const pluginMethods = createPluginMethods(canvas, plugins, context)
 
   /**********************************************************************************/
   /*                                                                                */

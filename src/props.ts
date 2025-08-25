@@ -7,9 +7,7 @@ import {
   createSelector,
   type JSXElement,
   mapArray,
-  mergeProps,
   onCleanup,
-  splitProps,
   untrack,
 } from "solid-js"
 import {
@@ -24,21 +22,26 @@ import {
 } from "three"
 import { useThree } from "./hooks.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
-import { getMeta, hasColorSpace, resolve } from "./utils.ts"
+import { getMeta, hasColorSpace, processProps, resolve } from "./utils.ts"
 
-const WRITABLE_CACHE = new WeakMap()
+const PROPERTY_DESCRIPTOR_CACHE = new WeakMap<object, Map<string, PropertyDescriptor | undefined>>()
 
 function isWritable(object: object, propertyName: string) {
-  const cache = WRITABLE_CACHE.get(object.constructor)
+  let cacheMap = PROPERTY_DESCRIPTOR_CACHE.get(object.constructor)
+
+  if (!cacheMap) {
+    cacheMap = new Map()
+    PROPERTY_DESCRIPTOR_CACHE.set(object.constructor, cacheMap)
+  }
+
+  const cache = cacheMap.get(propertyName)
 
   if (cache) {
-    console.log("cached result!", cache?.writable)
-    return cache?.writable
+    return cache.writable
   }
 
   const result = Object.getOwnPropertyDescriptor(object, propertyName)
-
-  WRITABLE_CACHE.set(object.constructor, result)
+  cacheMap.set(propertyName, result)
 
   return result?.writable
 }
@@ -183,8 +186,6 @@ function applyProp<T extends Record<string, any>>(
   type: string,
   value: any,
 ) {
-  console.log("apply prop", source, type, value)
-
   if (!source) {
     console.error("error while applying prop", source, type, value)
     return
@@ -305,11 +306,11 @@ function applyProp<T extends Record<string, any>>(
 export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
   props: Record<string, any>,
-  plugins?: Plugin[],
+  plugins: Plugin[] = [],
 ) {
   const context = useThree()
 
-  const [local, instanceProps] = splitProps(props, [
+  const [local, instanceProps] = processProps(props, { plugins: [] }, [
     "ref",
     "args",
     "object",
@@ -318,17 +319,9 @@ export function useProps<T extends Record<string, any>>(
     "plugins",
   ])
 
-  const pluginMethods = createMemo(() =>
-    mergeProps(
-      ...[...(plugins ?? []), ...(props.plugins ?? [])].map(
-        init => () => context.registerPlugin(init)(resolve(accessor)),
-      ),
-    ),
-  )
-  const isKeyAPluginMethod = createSelector(
-    pluginMethods,
-    (prop: string, methods) => prop in methods,
-  )
+  const pluginMethods = createPluginMethods(accessor, () => [...plugins, ...local.plugins])
+
+  const isPluginMethod = createSelector(pluginMethods, (prop: string, methods) => prop in methods)
 
   useSceneGraph(accessor, props)
 
@@ -351,7 +344,7 @@ export function useProps<T extends Record<string, any>>(
         // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
         const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
         createRenderEffect(() => {
-          if (isKeyAPluginMethod(key)) {
+          if (isPluginMethod(key)) {
             pluginMethods()[key]!(props[key])
             return
           }
@@ -361,7 +354,7 @@ export function useProps<T extends Record<string, any>>(
           // NOTE:  Discuss - is this expected behavior? Feature or a bug?
           //        Should it be according to order of update instead?
           for (const subKey of subKeys) {
-            if (isKeyAPluginMethod(subKey)) {
+            if (isPluginMethod(subKey)) {
               pluginMethods()[subKey]!(props[key])
               continue
             }
@@ -373,5 +366,30 @@ export function useProps<T extends Record<string, any>>(
       // NOTE: see "onUpdate should not update itself"-test
       untrack(() => props.onUpdate)?.(object)
     })
+  })
+}
+
+export function createPluginMethods(
+  target: AccessorMaybe<object | undefined>,
+  plugins: AccessorMaybe<Plugin[]>,
+  { registerPlugin } = useThree(),
+) {
+  return createMemo(() => {
+    const pluginResults = resolve(plugins).map(init => registerPlugin(init)(resolve(target)))
+
+    const merged: Record<string, any> = {}
+
+    for (const result of pluginResults) {
+      for (const key in result) {
+        const descriptor = Object.getOwnPropertyDescriptor(result, key)
+        if (descriptor?.get || descriptor?.set) {
+          Object.defineProperty(merged, key, descriptor)
+        } else {
+          merged[key] = result[key]
+        }
+      }
+    }
+
+    return merged
   })
 }
