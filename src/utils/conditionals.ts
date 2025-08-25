@@ -1,4 +1,10 @@
-import { type Accessor, createEffect, createMemo } from "solid-js"
+import {
+  type Accessor,
+  createComputed,
+  createEffect,
+  createMemo,
+  createRenderEffect,
+} from "solid-js"
 import { resolve } from "../utils.ts"
 
 export function check<
@@ -125,6 +131,28 @@ export function whenEffect<
   const TResult,
 >(accessor: TAccessor, callback: (value: TValues) => TResult) {
   createEffect(when(accessor, callback))
+}
+
+export function whenRenderEffect<
+  T,
+  const TAccessor extends Accessor<T> | T,
+  const TValues extends TAccessor extends ((...args: any[]) => any) | undefined
+    ? Exclude<ReturnType<Exclude<TAccessor, undefined>>, null | undefined | false>
+    : Exclude<TAccessor, null | undefined | false>,
+  const TResult,
+>(accessor: TAccessor, callback: (value: TValues) => TResult) {
+  createRenderEffect(when(accessor, callback))
+}
+
+export function whenComputed<
+  T,
+  const TAccessor extends Accessor<T> | T,
+  const TValues extends TAccessor extends ((...args: any[]) => any) | undefined
+    ? Exclude<ReturnType<Exclude<TAccessor, undefined>>, null | undefined | false>
+    : Exclude<TAccessor, null | undefined | false>,
+  const TResult,
+>(accessor: TAccessor, callback: (value: TValues) => TResult) {
+  createComputed(when(accessor, callback))
 }
 
 export function whenMemo<

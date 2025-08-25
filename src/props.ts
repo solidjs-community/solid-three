@@ -1,10 +1,8 @@
 import {
   type Accessor,
   children,
-  createComputed,
   createMemo,
   createRenderEffect,
-  createSelector,
   type JSXElement,
   mapArray,
   onCleanup,
@@ -23,6 +21,7 @@ import {
 import { useThree } from "./hooks.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import { getMeta, hasColorSpace, processProps, resolve } from "./utils.ts"
+import { whenRenderEffect } from "./utils/conditionals.ts"
 
 const PROPERTY_DESCRIPTOR_CACHE = new WeakMap<object, Map<string, PropertyDescriptor | undefined>>()
 
@@ -136,11 +135,11 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const c = children(() => props.children)
-  createComputed(
+  createRenderEffect(
     mapArray(
       () => c.toArray() as unknown as (Meta<object> | undefined)[],
       _child =>
-        createComputed(() => {
+        createRenderEffect(() => {
           const parent = resolve(_parent)
           if (!parent) return
           const child = resolve(_child)
@@ -185,7 +184,12 @@ function applyProp<T extends Record<string, any>>(
   source: T,
   type: string,
   value: any,
+  pluginMethods: Record<string, (value: any) => void>,
 ) {
+  if (type in pluginMethods) {
+    pluginMethods[type](value)
+  }
+
   if (!source) {
     console.error("error while applying prop", source, type, value)
     return
@@ -198,7 +202,7 @@ function applyProp<T extends Record<string, any>>(
   if (type.indexOf("-") > -1) {
     const [property, ...rest] = type.split("-")
 
-    applyProp(context, source[property], rest.join("-"), value)
+    applyProp(context, source[property], rest.join("-"), value, pluginMethods)
     return
   }
 
@@ -308,8 +312,6 @@ export function useProps<T extends Record<string, any>>(
   props: Record<string, any>,
   plugins: Plugin[] = [],
 ) {
-  const context = useThree()
-
   const [local, instanceProps] = processProps(props, { plugins: [] }, [
     "ref",
     "args",
@@ -321,15 +323,10 @@ export function useProps<T extends Record<string, any>>(
 
   const pluginMethods = createPluginMethods(accessor, () => [...plugins, ...local.plugins])
 
-  const isPluginMethod = createSelector(pluginMethods, (prop: string, methods) => prop in methods)
-
+  const context = useThree()
   useSceneGraph(accessor, props)
 
-  createRenderEffect(() => {
-    const object = resolve(accessor)
-
-    if (!object) return
-
+  whenRenderEffect(accessor, object => {
     // Assign ref
     createRenderEffect(() => {
       if (local.ref instanceof Function) local.ref(object)
@@ -343,22 +340,15 @@ export function useProps<T extends Record<string, any>>(
         // An array of sub-property-keys:
         // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
         const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
-        createRenderEffect(() => {
-          if (isPluginMethod(key)) {
-            pluginMethods()[key]!(props[key])
-            return
-          }
 
-          applyProp(context, object, key, props[key])
+        createRenderEffect(() => {
+          applyProp(context, object, key, props[key], pluginMethods())
           // If property updates, apply its sub-properties immediately after.
+
           // NOTE:  Discuss - is this expected behavior? Feature or a bug?
           //        Should it be according to order of update instead?
           for (const subKey of subKeys) {
-            if (isPluginMethod(subKey)) {
-              pluginMethods()[subKey]!(props[key])
-              continue
-            }
-            applyProp(context, object, subKey, props[subKey])
+            applyProp(context, object, subKey, props[subKey], pluginMethods())
           }
         })
       }
