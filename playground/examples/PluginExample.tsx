@@ -61,7 +61,7 @@ const GlobalPlugin = plugin(element => ({
 
 // Example with setup - plugin that needs context from setup function
 const ContextPlugin = plugin
-  .setup((context) => {
+  .setup(context => {
     return { scene: context.scene }
   })
   .then((element, context) => ({
@@ -88,6 +88,7 @@ export function PluginExample() {
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
       defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
+      onClick={() => console.info("click missed")}
     >
       <OrbitControls />
       <Entity from={THREE.Mesh} />
@@ -99,7 +100,7 @@ export function PluginExample() {
         lookAt={useThree().currentCamera}
         log="Mesh rendered!"
         shake={0.1}
-        onMouseDown={event => console.info("ok")}
+        onClick={event => event.stopPropagation()}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

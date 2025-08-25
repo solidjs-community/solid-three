@@ -89,7 +89,9 @@ export interface Context {
   dpr: number
   gl: Meta<WebGLRenderer>
   props: CanvasProps
-  registerPlugin(plugin: Plugin): (element: any) => void
+  registerPlugin(
+    plugin: Plugin,
+  ): (element: any) => Record<string, undefined | ((args: any) => void)>
   render: (delta: number) => void
   requestRender: () => void
   scene: Meta<Scene>

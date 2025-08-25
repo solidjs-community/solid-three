@@ -23,6 +23,7 @@ import {
   VSMShadowMap,
   WebGLRenderer,
 } from "three"
+import { processProps } from "../playground/controls/process-props.ts"
 import type { CanvasProps } from "./create-canvas.tsx"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
@@ -31,7 +32,6 @@ import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
 import {
   binarySearch,
-  defaultProps,
   getCurrentViewport,
   meta,
   removeElementFromArray,
@@ -48,7 +48,22 @@ import { useMeasure } from "./utils/use-measure.ts"
  * based on the provided properties.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugins: Plugin[]) {
-  const canvasProps = defaultProps(props, { frameloop: "always" })
+  const [canvasProps, rest] = processProps(props, { frameloop: "always" }, [
+    "children",
+    "frameloop",
+    "class",
+    "defaultCamera",
+    "defaultRaycaster",
+    "fallback",
+    "flat",
+    "frameloop",
+    "gl",
+    "linear",
+    "orthographic",
+    "scene",
+    "shadows",
+    "style",
+  ])
 
   /**********************************************************************************/
   /*                                                                                */
@@ -237,8 +252,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
   const clock = new Clock()
   clock.start()
 
-  const pluginMap = new ReactiveMap<Plugin, ReturnType<Plugin>>()
-
   const context: Context = {
     get bounds() {
       return measure.bounds()
@@ -249,15 +262,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
       return this.gl.getPixelRatio()
     },
     props,
-    registerPlugin(plugin) {
-      let result = pluginMap.get(plugin)
-      if (result) {
-        return result
-      }
-      result = plugin(context)
-      pluginMap.set(plugin, result)
-      return result
-    },
+    registerPlugin,
     render,
     requestRender,
     get viewport() {
@@ -295,6 +300,28 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
   /**********************************************************************************/
   /*                                                                                */
+  /*                                     Plugins                                    */
+  /*                                                                                */
+  /**********************************************************************************/
+
+  const pluginMap = new ReactiveMap<Plugin, ReturnType<Plugin>>()
+
+  function registerPlugin(plugin: Plugin) {
+    let result = pluginMap.get(plugin)
+    if (result) {
+      return result
+    }
+    result = plugin(context)
+    pluginMap.set(plugin, result)
+    return result
+  }
+
+  const pluginMethods = createMemo(() =>
+    mergeProps(...plugins.map(init => () => registerPlugin(init)(canvas))),
+  )
+
+  /**********************************************************************************/
+  /*                                                                                */
   /*                                     Effects                                    */
   /*                                                                                */
   /**********************************************************************************/
@@ -307,6 +334,16 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
           context.clock.elapsedTime = 0
         } else {
           context.clock.start()
+        }
+      })
+
+      // Manage props resolved to plugins
+      createRenderEffect(() => {
+        const _pluginMethods = pluginMethods()
+        for (const key in canvasProps) {
+          if (key in _pluginMethods) {
+            _pluginMethods[key]?.(canvasProps[key as keyof typeof canvasProps])
+          }
         }
       })
 
