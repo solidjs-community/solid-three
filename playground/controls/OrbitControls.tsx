@@ -1,4 +1,4 @@
-import { createEffect, createMemo, onCleanup, type Ref } from "solid-js"
+import { createEffect, createMemo, onCleanup } from "solid-js"
 import type { Event } from "three"
 import { OrbitControls as ThreeOrbitControls } from "three-stdlib"
 import { useFrame, useThree, type S3 } from "../../src/index.ts"
@@ -7,7 +7,6 @@ import { whenEffect } from "../../src/utils/conditionals.ts"
 import { processProps } from "./process-props.ts"
 
 export interface OrbitControlsProps extends S3.Props<typeof ThreeOrbitControls> {
-  ref?: Ref<ThreeOrbitControls>
   camera?: S3.CameraKind
   domElement?: HTMLElement
   enableDamping?: boolean

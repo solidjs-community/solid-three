@@ -1,5 +1,6 @@
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor, JSX, ParentProps, Ref } from "solid-js"
 import type {
+  Camera,
   Clock,
   ColorRepresentation,
   OrthographicCamera,
@@ -18,9 +19,6 @@ import type {
   WebGLRenderer,
 } from "three"
 import type { $S3C } from "./constants.ts"
-import type { CanvasProps } from "./create-canvas.tsx"
-import type { EventRaycaster } from "./raycasters.tsx"
-import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -34,7 +32,7 @@ export type AccessorMaybe<T> = T | Accessor<T>
 export type Constructor<T = any> = new (...args: any[]) => T
 
 /** Extracts the instance from a constructor. */
-export type InstanceOf<T> = T extends Constructor<infer TObject> ? TObject : T
+export type InstanceOfMaybe<T> = T extends Constructor<infer TObject> ? TObject : T
 
 export type Overwrite<T extends unknown[]> = T extends [infer First, ...infer Rest]
   ? Rest extends []
@@ -56,6 +54,34 @@ export type Intersect<T extends any[]> = T extends [infer U, ...infer Rest]
 
 export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
 
+export type Args<T> = T extends new (...args: any) => any ? ConstructorParameters<T> : T
+
+export type Mandatory<T, K extends keyof T> = T & { [P in K]-?: T[P] }
+
+export type KeyOfOptionals<T> = keyof {
+  [K in keyof T as T extends Record<K, T[K]> ? never : K]: T[K]
+}
+
+/** Allows using a TS v4 labeled tuple even with older typescript versions */
+export type NamedArrayTuple<T extends (...args: any) => any> = Parameters<T>
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                       Misc                                     */
+/*                                                                                */
+/**********************************************************************************/
+
+export interface Measure {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+  readonly left: number
+}
+
 /**********************************************************************************/
 /*                                                                                */
 /*                                       Meta                                     */
@@ -63,15 +89,66 @@ export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
 /**********************************************************************************/
 
 export type Meta<T = unknown> = T & {
-  [$S3C]: Data<T>
+  [$S3C]: Data
 }
 
 /** Metadata of a `solid-three` instance. */
-export type Data<T> = {
-  props: Props<InstanceOf<T>> & Record<string, any>
+export type Data = {
+  props: Record<string, any>
   parent: any
   children: Set<Meta<any>>
   plugins: Plugin[]
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Raycaster                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+export type RayEvent = PointerEvent | MouseEvent | WheelEvent
+
+export interface EventRaycaster extends Raycaster {
+  update(event: RayEvent, context: Context): void
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                   Canvas Props                                 */
+/*                                                                                */
+/**********************************************************************************/
+
+/**
+ * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
+ */
+export interface CanvasProps extends ParentProps {
+  ref?: Ref<Context>
+  class?: string
+  /** Configuration for the camera used in the scene. */
+  defaultCamera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
+  /** Configuration for the Raycaster used for mouse and pointer events. */
+  defaultRaycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
+  /** Element to render while the main content is loading asynchronously.  */
+  fallback?: JSX.Element
+  /** Toggles flat interpolation for texture filtering. */
+  flat?: boolean
+  /** Controls the rendering loop's operation mode. */
+  frameloop?: "never" | "demand" | "always"
+  /** Options for the WebGLRenderer or a function returning a customized renderer. */
+  gl?:
+    | Partial<Props<WebGLRenderer>>
+    | ((canvas: HTMLCanvasElement) => WebGLRenderer)
+    | WebGLRenderer
+  /** Toggles linear interpolation for texture filtering. */
+  linear?: boolean
+  /** Toggles between Orthographic and Perspective camera. */
+  orthographic?: boolean
+  /** Configuration for the Scene instance. */
+  scene?: Partial<Props<Scene>> | Scene
+  /** Enables and configures shadows in the scene. */
+  shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
+  /** Custom CSS styles for the canvas container. */
+  style?: JSX.CSSProperties
 }
 
 /**********************************************************************************/
@@ -177,26 +254,31 @@ export type Matrix4 = Representation<ThreeMatrix4>
 /*                                                                                */
 /**********************************************************************************/
 
+export type InferPluginProps<TPlugins extends Plugin[]> = Merge<{
+  [TKey in keyof TPlugins]: TPlugins[TKey] extends (context?: any) => (element: any) => infer U
+    ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
+    : never
+}>
+
 /** Generic `solid-three` props of a given class. */
-export type Props<T, TPlugins extends Plugin[] | undefined = Plugin[]> = Partial<
+export type Props<T, TPlugins extends Plugin[] = Plugin[]> = Partial<
   Overwrite<
     [
-      MapToRepresentation<InstanceOf<T>>,
+      MapToRepresentation<InstanceOfMaybe<T>>,
       {
         args: T extends Constructor ? ConstructorOverloadParameters<T> : undefined
-        attach: string | ((parent: object, self: Meta<InstanceOf<T>>) => () => void)
+        attach: string | ((parent: object, self: Meta<InstanceOfMaybe<T>>) => () => void)
         children: JSX.Element
-        key?: string
-        onUpdate: (self: Meta<InstanceOf<T>>) => void
-        // ref: Ref<Meta<InstanceOf<T>>>
+        key: string
+        onUpdate: (self: Meta<InstanceOfMaybe<T>>) => void
+        ref: InstanceOfMaybe<T> | ((element: Meta<InstanceOfMaybe<T>>) => void)
         /**
          * Prevents the Object3D from being cast by the ray.
          * Object3D can still receive events via propagation from its descendants.
          */
         raycastable: boolean
-        plugins: TPlugins
       },
-      TPlugins extends Plugin[] ? InferPluginProps<InstanceOf<T>, TPlugins> : {},
+      InferPluginProps<TPlugins>,
     ]
   >
 >
@@ -245,7 +327,7 @@ type Override<T, U> = T extends any
  * type ExampleParameters = ConstructorOverloadParameters<typeof Example>;
  * // ExampleParameters will be equivalent to: [string] | [number, boolean]
  */
-type ConstructorOverloadParameters<T extends Constructor> = T extends {
+export type ConstructorOverloadParameters<T extends Constructor> = T extends {
   new (...o: infer U): void
   new (...o: infer U2): void
   new (...o: infer U3): void
@@ -443,20 +525,20 @@ export interface PluginFn {
   }
 }
 
-type PluginReturn<TPlugin, TKind> = TPlugin extends Plugin<infer TFn>
-  ? TFn extends { (element: infer P): infer R }
-    ? TKind extends P
-      ? R
+type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
+  ? TFn extends { (element: infer TElement): infer TReturnType }
+    ? TKind extends TElement
+      ? TReturnType
       : {}
     : {}
   : {}
 
 /**
- * Resolves plugin props for a specific element type T
+ * Resolves plugin props for a specific element type TKind
  * This allows plugins to provide conditional methods based on the actual element type
  */
-export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
-  [K in keyof TPlugins]: PluginReturn<TPlugins[K], T> extends infer Methods extends Record<
+export type PluginPropsOf<TKind, TPlugins extends Plugin[]> = Merge<{
+  [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
     string,
     any
   >

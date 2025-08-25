@@ -1,11 +1,5 @@
 import { Raycaster, Vector2 } from "three"
-import type { Context } from "./types"
-
-type RayEvent = PointerEvent | MouseEvent | WheelEvent
-
-export interface EventRaycaster extends Raycaster {
-  update(event: RayEvent, context: Context): void
-}
+import type { Context, EventRaycaster, RayEvent } from "./types"
 
 export class CursorRaycaster extends Raycaster implements EventRaycaster {
   pointer = new Vector2()

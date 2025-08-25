@@ -23,17 +23,17 @@ import {
   VSMShadowMap,
   WebGLRenderer,
 } from "three"
-import { processProps } from "../playground/controls/process-props.ts"
-import type { CanvasProps } from "./create-canvas.tsx"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
-import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
+import { CursorRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
+import type { CanvasProps, EventRaycaster } from "./types.tsx"
 import {
   binarySearch,
   getCurrentViewport,
   meta,
+  processProps,
   removeElementFromArray,
   useRef,
   withContext,
@@ -47,7 +47,7 @@ import { useMeasure } from "./utils/use-measure.ts"
  * camera, renderer, raycaster, and scene, manages the scene graph, setups up a rendering loop
  * based on the provided properties.
  */
-export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugins: Plugin[]) {
+export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugins: Plugin[] = []) {
   const [canvasProps, rest] = processProps(props, { frameloop: "always" }, [
     "children",
     "frameloop",

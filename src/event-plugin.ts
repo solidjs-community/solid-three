@@ -101,7 +101,8 @@ export type EventName = keyof EventHandlersMap
 function createEvent<
   TEvent extends globalThis.Event,
   TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
->(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {}) {
+>(nativeEvent: TEvent, config?: TConfig) {
+  const { stoppable = true, intersections } = config ?? {}
   const event: Record<string, any> = stoppable
     ? {
         nativeEvent,

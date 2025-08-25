@@ -1,5 +1,12 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createRenderEffect, type MergeProps, mergeProps, onCleanup, type Ref } from "solid-js"
+import {
+  createRenderEffect,
+  type MergeProps,
+  mergeProps,
+  onCleanup,
+  type Ref,
+  splitProps,
+} from "solid-js"
 import {
   Camera,
   Material,
@@ -10,8 +17,16 @@ import {
   Vector3,
 } from "three"
 import { $S3C } from "./constants.ts"
-import type { CameraKind, Constructor, Data, Loader, Meta, Plugin } from "./types.ts"
-import type { Measure } from "./utils/use-measure.ts"
+import type {
+  CameraKind,
+  Constructor,
+  Data,
+  KeyOfOptionals,
+  Loader,
+  Measure,
+  Meta,
+  Plugin,
+} from "./types.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -76,8 +91,8 @@ export function meta<T extends object>(
   return _instance
 }
 
-export function getMeta<T = any>(value: Meta<T>): Data<T>
-export function getMeta<T = any>(value: object | Meta<T>): Data<T> | undefined
+export function getMeta<T = any>(value: Meta<T>): Data
+export function getMeta<T = any>(value: object | Meta<T>): Data | undefined
 export function getMeta(value: any) {
   return hasMeta(value) ? value[$S3C] : undefined
 }
@@ -106,24 +121,6 @@ export function buildGraph(object: Object3D): ObjectMap {
     }
   })
   return data
-}
-
-/**********************************************************************************/
-/*                                                                                */
-/*                                  Default Props                                 */
-/*                                                                                */
-/**********************************************************************************/
-
-/** Extracts the keys of the optional properties in T. */
-type KeyOfOptionals<T> = keyof {
-  [K in keyof T as T extends Record<K, T[K]> ? never : K]: T[K]
-}
-
-export function defaultProps<T, K extends KeyOfOptionals<T>>(
-  props: T,
-  defaults: Required<Pick<T, K>>,
-): MergeProps<[Required<Pick<T, K>>, T]> {
-  return mergeProps(defaults, props)
 }
 
 /**********************************************************************************/
@@ -383,4 +380,25 @@ export function binarySearch(array: number[], target: number) {
   }
 
   return left // Insertion point
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Prop Utils                                  */
+/*                                                                                */
+/**********************************************************************************/
+
+export function processProps<
+  const TProps,
+  const TKey extends KeyOfOptionals<TProps>,
+  const TSplit extends readonly (keyof TProps)[],
+>(props: TProps, defaults: Required<Pick<TProps, TKey>>, split?: TSplit) {
+  return splitProps(defaultProps(props, defaults), split ?? [])
+}
+
+export function defaultProps<T, K extends KeyOfOptionals<T>>(
+  props: T,
+  defaults: Required<Pick<T, K>>,
+): MergeProps<[Required<Pick<T, K>>, T]> {
+  return mergeProps(defaults, props)
 }

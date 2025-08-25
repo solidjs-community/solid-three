@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js"
 import * as THREE from "three"
 import { createT, EventPlugin, Resource } from "../../src/index.ts"
 import { OrbitControls } from "../controls/OrbitControls.tsx"
@@ -5,6 +6,10 @@ import { OrbitControls } from "../controls/OrbitControls.tsx"
 const { T, Canvas } = createT(THREE, [EventPlugin])
 
 export function EnvironmentExample() {
+  const [position, setPosition] = createSignal(0)
+
+  setInterval(() => setPosition(position => position + 1), 500)
+
   return (
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
@@ -15,6 +20,10 @@ export function EnvironmentExample() {
       onPointerEnter={event => console.debug("canvas pointer enter", event)}
     >
       <OrbitControls />
+      <T.Mesh position={new THREE.Vector3(position(), 0, 0)}>
+        <T.BoxGeometry args={[1, 0.5, 128, 32]} />
+        <T.MeshBasicMaterial color="red" />
+      </T.Mesh>
       <T.Mesh>
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

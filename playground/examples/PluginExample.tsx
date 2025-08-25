@@ -101,12 +101,13 @@ export function PluginExample() {
         position={[0, 0, 0]}
         highlight="red"
         lookAt={useThree().currentCamera}
+        plugins={[LookAtPlugin, MaterialPlugin]}
         log="Mesh rendered!"
         shake={0.1}
         onClick={event => event.stopPropagation()}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
-        <T.MeshStandardMaterial metalness={1} roughness={0} color="white" log={0}>
+        <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
           <Resource
             loader={THREE.CubeTextureLoader}
             attach="envMap"
@@ -115,6 +116,12 @@ export function PluginExample() {
           />
         </T.MeshStandardMaterial>
       </T.Mesh>
+      <Entity
+        from={THREE.Mesh}
+        highlight="red"
+        position={new THREE.Vector3()}
+        plugins={[MaterialPlugin] as const}
+      />
       {/* Camera with shake (from ShakePlugin) */}
       <T.PerspectiveCamera ref={cameraRef!} position={[10, 10, 10]} shake={0.05} />
 

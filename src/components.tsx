@@ -12,8 +12,8 @@ import {
 import { Object3D } from "three"
 import { threeContext, useThree } from "./hooks.ts"
 import { useProps } from "./props.ts"
-import type { Constructor, InferPluginProps, Loader, Meta, Plugin, Props } from "./types.ts"
-import { type InstanceOf } from "./types.ts"
+import type { Constructor, Loader, Meta, Plugin, Props } from "./types.ts"
+import { type InstanceOfMaybe } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, load, meta, withContext } from "./utils.ts"
 import { whenMemo } from "./utils/conditionals.ts"
 
@@ -24,7 +24,7 @@ import { whenMemo } from "./utils/conditionals.ts"
 /**********************************************************************************/
 
 type PortalProps<T extends Object3D> = ParentProps<{
-  element?: InstanceOf<T> | Meta<T>
+  element?: InstanceOfMaybe<T> | Meta<T>
   onUpdate?(value: T): void
 }>
 /**
@@ -86,20 +86,27 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
 export function Entity<
   const T extends object | Constructor<object> = object,
   const TPlugins extends Plugin[] = Plugin[],
->(
-  props:
-    | Props<T>
-    | { from: T; children?: JSXElement; plugins?: TPlugins }
-    | InferPluginProps<T, TPlugins>,
-) {
-  const [config, rest] = splitProps(props, ["from", "args"])
+>(props: { from: T; children?: JSXElement; plugins?: TPlugins } & Props<T, TPlugins>) {
+  const [config, rest] = splitProps(props, [
+    "from",
+    // @ts-expect-error TODO: fix type error
+    "args",
+  ])
   const memo = whenMemo(
     () => config.from,
     from => {
       // listen to key changes
+      // @ts-expect-error TODO: fix type error
       props.key
       const instance = meta(
-        isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
+        isConstructor(from)
+          ? autodispose(
+              new from(
+                ...// @ts-expect-error TODO: fix type error
+                (config.args ?? []),
+              ),
+            )
+          : from,
         {
           props,
           get plugins() {

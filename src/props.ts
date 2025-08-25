@@ -4,6 +4,7 @@ import {
   createComputed,
   createMemo,
   createRenderEffect,
+  createSelector,
   type JSXElement,
   mapArray,
   mergeProps,
@@ -25,8 +26,21 @@ import { useThree } from "./hooks.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import { getMeta, hasColorSpace, resolve } from "./utils.ts"
 
+const WRITABLE_CACHE = new WeakMap()
+
 function isWritable(object: object, propertyName: string) {
-  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
+  const cache = WRITABLE_CACHE.get(object.constructor)
+
+  if (cache) {
+    console.log("cached result!", cache?.writable)
+    return cache?.writable
+  }
+
+  const result = Object.getOwnPropertyDescriptor(object, propertyName)
+
+  WRITABLE_CACHE.set(object.constructor, result)
+
+  return result?.writable
 }
 
 function applySceneGraph(parent: object, child: object) {
@@ -48,7 +62,7 @@ function applySceneGraph(parent: object, child: object) {
 
   // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
-    const cleanup = attachProp(parent, child as Meta)
+    const cleanup = attachProp(parent, child as unknown as Meta<object>)
     onCleanup(cleanup)
     return
   }
@@ -169,6 +183,8 @@ function applyProp<T extends Record<string, any>>(
   type: string,
   value: any,
 ) {
+  console.log("apply prop", source, type, value)
+
   if (!source) {
     console.error("error while applying prop", source, type, value)
     return
@@ -288,7 +304,7 @@ function applyProp<T extends Record<string, any>>(
  */
 export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
-  props: { plugins?: Plugin[] } & Record<string, any>,
+  props: Record<string, any>,
   plugins?: Plugin[],
 ) {
   const context = useThree()
@@ -309,6 +325,11 @@ export function useProps<T extends Record<string, any>>(
       ),
     ),
   )
+  const isKeyAPluginMethod = createSelector(
+    pluginMethods,
+    (prop: string, methods) => prop in methods,
+  )
+
   useSceneGraph(accessor, props)
 
   createRenderEffect(() => {
@@ -330,8 +351,8 @@ export function useProps<T extends Record<string, any>>(
         // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
         const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
         createRenderEffect(() => {
-          if (key in pluginMethods()) {
-            pluginMethods()[key](props[key])
+          if (isKeyAPluginMethod(key)) {
+            pluginMethods()[key]!(props[key])
             return
           }
 
@@ -340,6 +361,10 @@ export function useProps<T extends Record<string, any>>(
           // NOTE:  Discuss - is this expected behavior? Feature or a bug?
           //        Should it be according to order of update instead?
           for (const subKey of subKeys) {
+            if (isKeyAPluginMethod(subKey)) {
+              pluginMethods()[subKey]!(props[key])
+              continue
+            }
             applyProp(context, object, subKey, props[subKey])
           }
         })
