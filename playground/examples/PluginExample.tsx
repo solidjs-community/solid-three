@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import type { Meta } from "types.ts"
+import type { Meta, Plugin } from "types.ts"
 import {
   createT,
   Entity,
@@ -53,8 +53,11 @@ const MaterialPlugin = plugin(
 )
 
 // Global plugin - applies to all elements using single argument
-const GlobalPlugin = plugin(element => ({
-  log: (message: string) => {
+const GlobalPlugin: Plugin<{
+  (element: THREE.Material): { log(message: number): void }
+  (element: THREE.Mesh): { log(message: string): void }
+}> = plugin(element => ({
+  log: (message: string | number) => {
     console.info(`[${element.constructor.name}] ${message}`)
   },
 }))
@@ -103,7 +106,7 @@ export function PluginExample() {
         onClick={event => event.stopPropagation()}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
-        <T.MeshStandardMaterial metalness={1} roughness={0} color="white">
+        <T.MeshStandardMaterial metalness={1} roughness={0} color="white" log={0}>
           <Resource
             loader={THREE.CubeTextureLoader}
             attach="envMap"

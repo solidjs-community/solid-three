@@ -90,7 +90,7 @@ export function Entity<
   props:
     | Props<T>
     | { from: T; children?: JSXElement; plugins?: TPlugins }
-    | InferPluginProps<TPlugins>,
+    | InferPluginProps<T, TPlugins>,
 ) {
   const [config, rest] = splitProps(props, ["from", "args"])
   const memo = whenMemo(

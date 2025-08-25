@@ -114,7 +114,7 @@ export interface Viewport {
   aspect: number
 }
 
-/** Possible camera types. */
+/** Possible camera kinds. */
 export type CameraKind = PerspectiveCamera | OrthographicCamera
 
 export type Loader<TSource, TResult extends object> = {
@@ -196,7 +196,7 @@ export type Props<T, TPlugins extends Plugin[] | undefined = Plugin[]> = Partial
         raycastable: boolean
         plugins: TPlugins
       },
-      TPlugins extends Plugin[] ? PluginPropsOf<InstanceOf<T>, TPlugins> : {},
+      TPlugins extends Plugin[] ? InferPluginProps<InstanceOf<T>, TPlugins> : {},
     ]
   >
 >
@@ -306,42 +306,117 @@ export interface Plugin<TFn = (element: any) => any> {
   (context: Context): TFn
 }
 
+/**
+ * Plugin function interface that defines all possible plugin creation patterns.
+ *
+ * Plugins extend solid-three components with additional functionality and can be:
+ * - Global: apply to all elements
+ * - Filtered: apply only to specific element types (via constructor array or type guard)
+ * - With setup: access to the Three.js context during initialization
+ *
+ * @example
+ * // Global plugin
+ * const LogPlugin = plugin(element => ({
+ *   log: (message: string) => console.log(`[${element.type}] ${message}`)
+ * }))
+ *
+ * @example
+ * // Filtered plugin with constructor array
+ * const ShakePlugin = plugin([THREE.Camera, THREE.Mesh], element => ({
+ *   shake: (intensity = 0.1) => {
+ *     useFrame(() => {
+ *       element.position.x += (Math.random() - 0.5) * intensity
+ *     })
+ *   }
+ * }))
+ *
+ * @example
+ * // Filtered plugin with type guard
+ * const MaterialPlugin = plugin(
+ *   (element): element is THREE.Mesh => element instanceof THREE.Mesh,
+ *   element => ({
+ *     setColor: (color: string) => element.material.color.set(color)
+ *   })
+ * )
+ *
+ * @example
+ * // Plugin with setup context
+ * const ContextPlugin = plugin
+ *   .setup((context) => ({ scene: context.scene }))
+ *   .then([THREE.Object3D], (element, context) => ({
+ *     addToScene: () => context.scene.add(element)
+ *   }))
+ */
 export interface PluginFn {
-  // No setup - direct usage with one argument (global)
-  <Methods extends Record<string, any>>(methods: (element: any) => Methods): Plugin<
+  /**
+   * Creates a global plugin that applies to all elements.
+   *
+   * @param methods - Function that receives an element and returns plugin methods
+   * @returns Plugin that applies to all elements
+   */
+  <const Methods extends Record<string, any>>(methods: (element: any) => Methods): Plugin<
     (element: any) => Methods
   >
 
-  // No setup - direct usage with two arguments (array of constructors)
-  <T extends readonly Constructor[], Methods extends Record<string, any>>(
+  /**
+   * Creates a filtered plugin that applies only to specific constructor types.
+   *
+   * @param Constructors - Array of constructor functions to filter by
+   * @param methods - Function that receives a filtered element and returns plugin methods
+   * @returns Plugin that applies only to matching constructor types
+   */
+  <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
     Constructors: T,
     methods: (element: T extends readonly Constructor<infer U>[] ? U : never) => Methods,
   ): Plugin<{
     (element: T extends readonly Constructor<infer U>[] ? U : never): Methods
-    (element: any): {}
   }>
 
-  // No setup - direct usage with two arguments (type guard)
-  <T, Methods extends Record<string, any>>(
+  /**
+   * Creates a filtered plugin that applies only to elements matching a type guard.
+   *
+   * @param condition - Type guard function that determines if plugin applies
+   * @param methods - Function that receives a filtered element and returns plugin methods
+   * @returns Plugin that applies only to elements matching the type guard
+   */
+  <const T, const Methods extends Record<string, any>>(
     condition: (element: unknown) => element is T,
     methods: (element: T) => Methods,
   ): Plugin<{
     (element: T): Methods
-    (element: any): {}
   }>
 
-  // Setup function
-  setup<TSetupContext extends object>(
+  /**
+   * Creates a plugin with access to setup context.
+   *
+   * The setup function runs once when the plugin is initialized and receives
+   * the Three.js context. The returned data is passed to all plugin methods.
+   *
+   * @param setupFn - Function that receives the Three.js context and returns setup data
+   * @returns Object with 'then' method to define the plugin behavior
+   */
+  setup<const TSetupContext extends object>(
     setupFn: (context: Context) => TSetupContext,
   ): {
     then: {
-      // With setup - one argument (global)
-      <Methods extends Record<string, any>>(
+      /**
+       * Creates a global plugin with setup context.
+       *
+       * @param methods - Function that receives element and setup context, returns plugin methods
+       * @returns Plugin that applies to all elements with setup context
+       */
+      <const Methods extends Record<string, any>>(
         methods: (element: any, context: TSetupContext) => Methods,
       ): Plugin<(element: any) => Methods>
 
-      // With setup - two arguments (array of constructors)
-      <T extends readonly Constructor[], Methods extends Record<string, any>>(
+      /**
+       * Creates a filtered plugin with setup context using constructor array.
+       *
+       * @param Constructors - Array of constructor functions to filter by
+       * @param methods - Function that receives filtered element and setup context, returns plugin methods
+       * @returns Plugin that applies only to matching constructor types with setup context
+       */
+      <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
         Constructors: T,
         methods: (
           element: T extends readonly Constructor<infer U>[] ? U : never,
@@ -349,102 +424,29 @@ export interface PluginFn {
         ) => Methods,
       ): Plugin<{
         (element: T extends readonly Constructor<infer U>[] ? U : never): Methods
-        (element: any): {}
       }>
 
-      // With setup - two arguments (type guard)
-      <T, Methods extends Record<string, any>>(
+      /**
+       * Creates a filtered plugin with setup context using type guard.
+       *
+       * @param condition - Type guard function that determines if plugin applies
+       * @param methods - Function that receives filtered element and setup context, returns plugin methods
+       * @returns Plugin that applies only to elements matching the type guard with setup context
+       */
+      <const T, const Methods extends Record<string, any>>(
         condition: (element: unknown) => element is T,
         methods: (element: T, context: TSetupContext) => Methods,
       ): Plugin<{
         (element: T): Methods
-        (element: any): {}
       }>
     }
   }
 }
 
-export type InferPluginProps<TPlugins extends Plugin[]> = Merge<{
-  [TKey in keyof TPlugins]: TPlugins[TKey] extends () => (element: any) => infer U
-    ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
-    : never
-}>
-
-/**
- * Helper type to resolve overloaded function returns
- * Matches overloads from most specific to least specific
- */
-type ResolvePluginReturn<TFn, TTarget> = TFn extends {
-  (element: infer P1): infer R1
-  (element: infer P2): infer R2
-  (element: infer P3): infer R3
-  (element: infer P4): infer R4
-  (element: infer P5): infer R5
-}
-  ? TTarget extends P1
-    ? R1
-    : TTarget extends P2
-    ? R2
-    : TTarget extends P3
-    ? R3
-    : TTarget extends P4
-    ? R4
-    : TTarget extends P5
-    ? R5
-    : never
-  : TFn extends {
-      (element: infer P1): infer R1
-      (element: infer P2): infer R2
-      (element: infer P3): infer R3
-      (element: infer P4): infer R4
-    }
-  ? TTarget extends P1
-    ? R1
-    : TTarget extends P2
-    ? R2
-    : TTarget extends P3
-    ? R3
-    : TTarget extends P4
-    ? R4
-    : never
-  : TFn extends {
-      (element: infer P1): infer R1
-      (element: infer P2): infer R2
-      (element: infer P3): infer R3
-    }
-  ? TTarget extends P1
-    ? R1
-    : TTarget extends P2
-    ? R2
-    : TTarget extends P3
-    ? R3
-    : never
-  : TFn extends { (element: infer P1): infer R1; (element: infer P2): infer R2 }
-  ? TTarget extends P1
-    ? R1
-    : TTarget extends P2
-    ? R2
-    : never
-  : TFn extends { (element: infer P): infer R }
-  ? TTarget extends P
-    ? R
-    : never
-  : never
-
-/**
- * Resolves what a plugin returns for a specific element type T
- * Handles both simple functions and overloaded functions
- */
 type PluginReturn<TPlugin, TKind> = TPlugin extends Plugin<infer TFn>
-  ? TFn extends (...args: any[]) => any
-    ? ResolvePluginReturn<TFn, TKind> extends infer TResult
-      ? TResult extends never
-        ? TFn extends (element: TKind) => infer R
-          ? R
-          : TFn extends (element: any) => infer R
-          ? R
-          : {}
-        : TResult
+  ? TFn extends { (element: infer P): infer R }
+    ? TKind extends P
+      ? R
       : {}
     : {}
   : {}
@@ -453,12 +455,13 @@ type PluginReturn<TPlugin, TKind> = TPlugin extends Plugin<infer TFn>
  * Resolves plugin props for a specific element type T
  * This allows plugins to provide conditional methods based on the actual element type
  */
-export type PluginPropsOf<T, TPlugins extends Plugin[]> = Merge<{
-  [K in keyof TPlugins]: PluginReturn<TPlugins[K], T> extends infer Methods
-    ? Methods extends Record<string, any>
-      ? {
-          [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never
-        }
-      : {}
+export type InferPluginProps<T, TPlugins extends Plugin[]> = Merge<{
+  [K in keyof TPlugins]: PluginReturn<TPlugins[K], T> extends infer Methods extends Record<
+    string,
+    any
+  >
+    ? {
+        [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never
+      }
     : {}
 }>

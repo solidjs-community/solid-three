@@ -10,7 +10,7 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { Context, Plugin, PluginPropsOf, Props } from "./types.ts"
+import type { Context, InferPluginProps, Plugin, Props } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -56,7 +56,7 @@ export interface CanvasProps extends ParentProps {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function createCanvas<TPlugins extends Plugin[] = Plugin[]>(plugins: TPlugins) {
-  return function (props: ParentProps<CanvasProps> & Partial<PluginPropsOf<Scene, TPlugins>>) {
+  return function (props: ParentProps<CanvasProps> & Partial<InferPluginProps<Scene, TPlugins>>) {
     let canvas: HTMLCanvasElement = null!
     let container: HTMLDivElement = null!
 
