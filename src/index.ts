@@ -1,7 +1,7 @@
 export { Entity, Portal, Resource } from "./components.tsx"
 export { $S3C } from "./constants.ts"
 export { createEntity, createT } from "./create-t.tsx"
-export { EventPlugin } from "./event-plugin.ts"
+export { EventPlugin } from "./event-plugin.tsx"
 export { useFrame, useThree } from "./hooks.ts"
 export { plugin } from "./plugin.ts"
 export { useProps } from "./props.ts"

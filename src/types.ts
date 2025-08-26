@@ -1,4 +1,4 @@
-import type { Accessor, JSX, ParentProps, Ref } from "solid-js"
+import type { Accessor, Component, JSX, ParentProps, Ref } from "solid-js"
 import type {
   Camera,
   Clock,
@@ -124,6 +124,7 @@ export interface EventRaycaster extends Raycaster {
 export interface CanvasProps extends ParentProps {
   ref?: Ref<Context>
   class?: string
+  contexts?: { Provider: Component<ParentProps> }[]
   /** Configuration for the camera used in the scene. */
   defaultCamera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
   /** Configuration for the Raycaster used for mouse and pointer events. */
@@ -166,9 +167,6 @@ export interface Context {
   dpr: number
   gl: Meta<WebGLRenderer>
   props: CanvasProps
-  registerPlugin(
-    plugin: Plugin,
-  ): (element: any) => Record<string, undefined | ((args: any) => void)>
   render: (delta: number) => void
   requestRender: () => void
   scene: Meta<Scene>
@@ -255,7 +253,7 @@ export type Matrix4 = Representation<ThreeMatrix4>
 /**********************************************************************************/
 
 export type InferPluginProps<TPlugins extends Plugin[]> = Merge<{
-  [TKey in keyof TPlugins]: TPlugins[TKey] extends (context?: any) => (element: any) => infer U
+  [TKey in keyof TPlugins]: TPlugins[TKey] extends (element: any) => infer U
     ? { [TKey in keyof U]: U[TKey] extends (callback: infer V) => any ? V : never }
     : never
 }>
@@ -384,9 +382,7 @@ export type ConstructorOverloadParameters<T extends Constructor> = T extends {
 /*                                                                                */
 /**********************************************************************************/
 
-export interface Plugin<TFn = (element: any) => any> {
-  (context: Context): TFn
-}
+export type Plugin<TFn = (element: any) => any> = TFn
 
 /**
  * Plugin function interface that defines all possible plugin creation patterns.
@@ -467,62 +463,6 @@ export interface PluginFn {
   ): Plugin<{
     (element: T): Methods
   }>
-
-  /**
-   * Creates a plugin with access to setup context.
-   *
-   * The setup function runs once when the plugin is initialized and receives
-   * the Three.js context. The returned data is passed to all plugin methods.
-   *
-   * @param setupFn - Function that receives the Three.js context and returns setup data
-   * @returns Object with 'then' method to define the plugin behavior
-   */
-  setup<const TSetupContext extends object>(
-    setupFn: (context: Context) => TSetupContext,
-  ): {
-    then: {
-      /**
-       * Creates a global plugin with setup context.
-       *
-       * @param methods - Function that receives element and setup context, returns plugin methods
-       * @returns Plugin that applies to all elements with setup context
-       */
-      <const Methods extends Record<string, any>>(
-        methods: (element: any, context: TSetupContext) => Methods,
-      ): Plugin<(element: any) => Methods>
-
-      /**
-       * Creates a filtered plugin with setup context using constructor array.
-       *
-       * @param Constructors - Array of constructor functions to filter by
-       * @param methods - Function that receives filtered element and setup context, returns plugin methods
-       * @returns Plugin that applies only to matching constructor types with setup context
-       */
-      <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
-        Constructors: T,
-        methods: (
-          element: T extends readonly Constructor<infer U>[] ? U : never,
-          context: TSetupContext,
-        ) => Methods,
-      ): Plugin<{
-        (element: T extends readonly Constructor<infer U>[] ? U : never): Methods
-      }>
-
-      /**
-       * Creates a filtered plugin with setup context using type guard.
-       *
-       * @param condition - Type guard function that determines if plugin applies
-       * @param methods - Function that receives filtered element and setup context, returns plugin methods
-       * @returns Plugin that applies only to elements matching the type guard with setup context
-       */
-      <const T, const Methods extends Record<string, any>>(
-        condition: (element: unknown) => element is T,
-        methods: (element: T, context: TSetupContext) => Methods,
-      ): Plugin<{
-        (element: T): Methods
-      }>
-    }
-  }
 }
 
 type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>

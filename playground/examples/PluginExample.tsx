@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import type { Meta, Plugin } from "types.ts"
+import type { Meta } from "types.ts"
 import {
   createT,
   Entity,
@@ -12,17 +12,19 @@ import {
 import { OrbitControls } from "../controls/OrbitControls.tsx"
 
 // LookAt plugin - works for all Object3D elements
-const LookAtPlugin = plugin([THREE.Object3D], element => ({
-  lookAt: (target: THREE.Object3D | [number, number, number]) => {
-    useFrame(() => {
-      if (Array.isArray(target)) {
-        element.lookAt(...target)
-      } else {
-        element.lookAt(target.position)
-      }
-    })
-  },
-}))
+const LookAtPlugin = plugin([THREE.Object3D], element => {
+  return {
+    lookAt: (target: THREE.Object3D | [number, number, number]) => {
+      useFrame(() => {
+        if (Array.isArray(target)) {
+          element.lookAt(...target)
+        } else {
+          element.lookAt(target.position)
+        }
+      })
+    },
+  }
+})
 
 // Shake plugin - works for both Camera and Light elements using array syntax
 const ShakePlugin = plugin([THREE.Camera, THREE.DirectionalLight, THREE.Mesh], element => ({
@@ -53,26 +55,14 @@ const MaterialPlugin = plugin(
 )
 
 // Global plugin - applies to all elements using single argument
-const GlobalPlugin: Plugin<{
+const GlobalPlugin: {
   (element: THREE.Material): { log(message: number): void }
   (element: THREE.Mesh): { log(message: string): void }
-}> = plugin(element => ({
+} = plugin(element => ({
   log: (message: string | number) => {
     console.info(`[${element.constructor.name}] ${message}`)
   },
 }))
-
-// Example with setup - plugin that needs context from setup function
-const ContextPlugin = plugin
-  .setup(context => {
-    return { scene: context.scene }
-  })
-  .then((element, context) => ({
-    addToScene: () => {
-      // This plugin has access to the context from setup
-      console.info("Adding to scene", element, context.scene)
-    },
-  }))
 
 const { T, Canvas } = createT(THREE, [
   LookAtPlugin,
@@ -80,7 +70,6 @@ const { T, Canvas } = createT(THREE, [
   EventPlugin,
   MaterialPlugin,
   GlobalPlugin,
-  ContextPlugin,
 ])
 
 export function PluginExample() {
@@ -90,8 +79,8 @@ export function PluginExample() {
   return (
     <Canvas
       style={{ width: "100vw", height: "100vh" }}
-      defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
-      onClick={() => console.info("click missed")}
+      defaultCamera={{ position: new THREE.Vector3(0, 0, 5) }}
+      contexts={[EventPlugin]}
     >
       <OrbitControls />
       <Entity from={THREE.Mesh} />
@@ -104,7 +93,7 @@ export function PluginExample() {
         plugins={[LookAtPlugin, MaterialPlugin]}
         log="Mesh rendered!"
         shake={0.1}
-        onClick={event => event.stopPropagation()}
+        onClick={event => console.log("clicked mesh!")}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

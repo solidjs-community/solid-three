@@ -188,6 +188,7 @@ function applyProp<T extends Record<string, any>>(
 ) {
   if (type in pluginMethods) {
     pluginMethods[type](value)
+    return
   }
 
   if (!source) {
@@ -308,7 +309,7 @@ function applyProp<T extends Record<string, any>>(
  *                and special properties like `ref` and `children`.
  */
 export function useProps<T extends Record<string, any>>(
-  accessor: T | undefined | Accessor<T | undefined>,
+  accessor: T | Accessor<T>,
   props: Record<string, any>,
   plugins: Plugin[] = [],
 ) {
@@ -321,7 +322,9 @@ export function useProps<T extends Record<string, any>>(
     "plugins",
   ])
 
-  const pluginMethods = createPluginMethods(accessor, () => [...plugins, ...local.plugins])
+  const pluginMethods = createMemo(() =>
+    mergePluginMethods(resolve(accessor), [...plugins, ...local.plugins]),
+  )
 
   const context = useThree()
   useSceneGraph(accessor, props)
@@ -359,27 +362,21 @@ export function useProps<T extends Record<string, any>>(
   })
 }
 
-export function createPluginMethods(
-  target: AccessorMaybe<object | undefined>,
-  plugins: AccessorMaybe<Plugin[]>,
-  { registerPlugin } = useThree(),
-) {
-  return createMemo(() => {
-    const pluginResults = resolve(plugins).map(init => registerPlugin(init)(resolve(target)))
+export function mergePluginMethods(target: object, plugins: Plugin[]) {
+  const pluginResults = resolve(plugins).map(plugin => plugin(resolve(target)))
 
-    const merged: Record<string, any> = {}
+  const merged: Record<string, any> = {}
 
-    for (const result of pluginResults) {
-      for (const key in result) {
-        const descriptor = Object.getOwnPropertyDescriptor(result, key)
-        if (descriptor?.get || descriptor?.set) {
-          Object.defineProperty(merged, key, descriptor)
-        } else {
-          merged[key] = result[key]
-        }
+  for (const result of pluginResults) {
+    for (const key in result) {
+      const descriptor = Object.getOwnPropertyDescriptor(result, key)
+      if (descriptor?.get || descriptor?.set) {
+        Object.defineProperty(merged, key, descriptor)
+      } else {
+        merged[key] = result[key]
       }
     }
+  }
 
-    return merged
-  })
+  return merged
 }

@@ -1,5 +1,6 @@
-import { onCleanup } from "solid-js"
+import { createContext, onCleanup, useContext, type ParentProps } from "solid-js"
 import { Object3D, type Intersection } from "three"
+import { useThree } from "./hooks.ts"
 import { plugin } from "./plugin.ts"
 import { type Context, type Intersect, type Meta, type Prettify, type When } from "./types.ts"
 import { getMeta } from "./utils.ts"
@@ -180,7 +181,12 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
 /*                                                                                */
 /**********************************************************************************/
 
-function createAutoRegistry<T>() {
+type AutoRegistry<T> = {
+  array: T[]
+  add(instance: T): void
+}
+
+function createAutoRegistry<T>(): AutoRegistry<T> {
   const array: T[] = []
 
   return {
@@ -467,98 +473,114 @@ function createDefaultEventRegistry(
 /*                                                                                */
 /**********************************************************************************/
 
+const EventContext = createContext<{
+  hoverMouses: AutoRegistry<Object3D>
+  hoverPointers: AutoRegistry<Object3D>
+  missableClicks: AutoRegistry<Object3D>
+  missableContextMenus: AutoRegistry<Object3D>
+  missableDoubleClicks: AutoRegistry<Object3D>
+  mouseDowns: AutoRegistry<Object3D>
+  mouseUps: AutoRegistry<Object3D>
+  pointerDowns: AutoRegistry<Object3D>
+  pointerUps: AutoRegistry<Object3D>
+  wheels: AutoRegistry<Object3D>
+}>()
+
 /**
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
-export const EventPlugin = plugin
-  .setup(context => ({
-    // onMouseMove/onMouseEnter/onMouseLeave
-    hoverMouses: createHoverEventRegistry("Mouse", context),
-    // onPointerMove/onPointerEnter/onPointerLeave
-    hoverPointers: createHoverEventRegistry("Pointer", context),
-    // onClick/onClickMissed
-    missableClicks: createMissableEventRegistry("onClick", context),
-    // onContextMenu/onContextMenuMissed
-    missableContextMenus: createMissableEventRegistry("onContextMenu", context),
-    // onDoubleClick/onDoubleClickMissed
-    missableDoubleClicks: createMissableEventRegistry("onDoubleClick", context),
-    // Default mouse-events
-    mouseDowns: createDefaultEventRegistry("onMouseDown", context),
-    mouseUps: createDefaultEventRegistry("onMouseUp", context),
-    // Default pointer-events
-    pointerDowns: createDefaultEventRegistry("onPointerDown", context),
-    pointerUps: createDefaultEventRegistry("onPointerUp", context),
-    // Default wheel-event
-    wheels: createDefaultEventRegistry("onWheel", context, { passive: true }),
-  }))
-  .then(
-    (
-      object,
-      {
-        hoverMouses,
-        hoverPointers,
-        missableClicks,
-        missableContextMenus,
-        missableDoubleClicks,
-        mouseDowns,
-        mouseUps,
-        pointerDowns,
-        pointerUps,
-        wheels,
+export const EventPlugin = Object.assign(
+  plugin([Object3D], (object): EventListeners => {
+    const context = useContext(EventContext)
+
+    if (!context) {
+      throw "Solid Three entities with EventPlugin should be declared inside <EventPlugin.Provider/>"
+    }
+
+    return {
+      onClick() {
+        context.missableClicks.add(object)
       },
-    ): EventListeners => {
-      return {
-        onClick() {
-          missableClicks.add(object)
-        },
-        onClickMissed() {
-          missableClicks.add(object)
-        },
-        onDoubleClick() {
-          missableDoubleClicks.add(object)
-        },
-        onDoubleClickMissed() {
-          missableDoubleClicks.add(object)
-        },
-        onContextMenu() {
-          missableContextMenus.add(object)
-        },
-        onContextMenuMissed() {
-          missableContextMenus.add(object)
-        },
-        onMouseDown() {
-          mouseDowns.add(object)
-        },
-        onMouseUp() {
-          mouseUps.add(object)
-        },
-        onMouseMove() {
-          hoverMouses.add(object)
-        },
-        onMouseEnter() {
-          hoverMouses.add(object)
-        },
-        onMouseLeave() {
-          hoverMouses.add(object)
-        },
-        onPointerDown() {
-          pointerDowns.add(object)
-        },
-        onPointerUp() {
-          pointerUps.add(object)
-        },
-        onPointerMove() {
-          hoverPointers.add(object)
-        },
-        onPointerEnter() {
-          hoverPointers.add(object)
-        },
-        onPointerLeave() {
-          hoverMouses.add(object)
-        },
-        onWheel() {
-          wheels.add(object)
-        },
-      }
+      onClickMissed() {
+        context.missableClicks.add(object)
+      },
+      onDoubleClick() {
+        context.missableDoubleClicks.add(object)
+      },
+      onDoubleClickMissed() {
+        context.missableDoubleClicks.add(object)
+      },
+      onContextMenu() {
+        context.missableContextMenus.add(object)
+      },
+      onContextMenuMissed() {
+        context.missableContextMenus.add(object)
+      },
+      onMouseDown() {
+        context.mouseDowns.add(object)
+      },
+      onMouseUp() {
+        context.mouseUps.add(object)
+      },
+      onMouseMove() {
+        context.hoverMouses.add(object)
+      },
+      onMouseEnter() {
+        context.hoverMouses.add(object)
+      },
+      onMouseLeave() {
+        context.hoverMouses.add(object)
+      },
+      onPointerDown() {
+        context.pointerDowns.add(object)
+      },
+      onPointerUp() {
+        context.pointerUps.add(object)
+      },
+      onPointerMove() {
+        context.hoverPointers.add(object)
+      },
+      onPointerEnter() {
+        context.hoverPointers.add(object)
+      },
+      onPointerLeave() {
+        context.hoverMouses.add(object)
+      },
+      onWheel() {
+        context.wheels.add(object)
+      },
+    }
+  }),
+  {
+    Provider(props: ParentProps) {
+      const context = useThree()
+
+      return (
+        <EventContext.Provider
+          value={{
+            // onMouseMove/onMouseEnter/onMouseLeave
+            hoverMouses: createHoverEventRegistry("Mouse", context),
+            // onPointerMove/onPointerEnter/onPointerLeave
+            hoverPointers: createHoverEventRegistry("Pointer", context),
+            // onClick/onClickMissed
+            missableClicks: createMissableEventRegistry("onClick", context),
+            // onContextMenu/onContextMenuMissed
+            missableContextMenus: createMissableEventRegistry("onContextMenu", context),
+            // onDoubleClick/onDoubleClickMissed
+            missableDoubleClicks: createMissableEventRegistry("onDoubleClick", context),
+            // Default mouse-events
+            mouseDowns: createDefaultEventRegistry("onMouseDown", context),
+            mouseUps: createDefaultEventRegistry("onMouseUp", context),
+            // Default pointer-events
+            pointerDowns: createDefaultEventRegistry("onPointerDown", context),
+            pointerUps: createDefaultEventRegistry("onPointerUp", context),
+            // Default wheel-event
+            wheels: createDefaultEventRegistry("onWheel", context, { passive: true }),
+          }}
+        >
+          {props.children}
+        </EventContext.Provider>
+      )
     },
-  )
+  },
+)

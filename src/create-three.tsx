@@ -1,5 +1,11 @@
-import { ReactiveMap } from "@solid-primitives/map"
-import { createMemo, createRenderEffect, createRoot, mergeProps, onCleanup } from "solid-js"
+import {
+  createMemo,
+  createRenderEffect,
+  createRoot,
+  mergeProps,
+  onCleanup,
+  type Context as SolidContext,
+} from "solid-js"
 import {
   ACESFilmicToneMapping,
   BasicShadowMap,
@@ -18,7 +24,7 @@ import {
 } from "three"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
-import { createPluginMethods, useProps, useSceneGraph } from "./props.ts"
+import { mergePluginMethods, useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback, Plugin } from "./types.ts"
 import type { CanvasProps, EventRaycaster } from "./types.tsx"
@@ -239,7 +245,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
       return this.gl.getPixelRatio()
     },
     props,
-    registerPlugin,
     render,
     requestRender,
     get viewport() {
@@ -277,26 +282,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
   /**********************************************************************************/
   /*                                                                                */
-  /*                                     Plugins                                    */
-  /*                                                                                */
-  /**********************************************************************************/
-
-  const pluginMap = new ReactiveMap<Plugin, ReturnType<Plugin>>()
-
-  function registerPlugin(plugin: Plugin) {
-    let result = pluginMap.get(plugin)
-    if (result) {
-      return result
-    }
-    result = plugin(context)
-    pluginMap.set(plugin, result)
-    return result
-  }
-
-  const pluginMethods = createPluginMethods(canvas, plugins, context)
-
-  /**********************************************************************************/
-  /*                                                                                */
   /*                                     Effects                                    */
   /*                                                                                */
   /**********************************************************************************/
@@ -314,7 +299,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
       // Manage props resolved to plugins
       createRenderEffect(() => {
-        const _pluginMethods = pluginMethods()
+        const _pluginMethods = mergePluginMethods(canvas, plugins)
         for (const key in config) {
           if (key in _pluginMethods) {
             _pluginMethods[key]?.(config[key as keyof typeof config])
@@ -431,18 +416,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
   /*                                                                                */
   /**********************************************************************************/
 
-  useSceneGraph(
-    context.scene,
-    mergeProps(props, {
-      children: (
-        <pluginContext.Provider value={plugins}>
-          <frameContext.Provider value={addFrameListener}>
-            <threeContext.Provider value={context}>{config.children}</threeContext.Provider>
-          </frameContext.Provider>
-        </pluginContext.Provider>
-      ),
-    }),
-  )
+  createRenderEffect(() => {
+    withMultiContexts(
+      () => useSceneGraph(context.scene, props),
+      [
+        ...(props.contexts?.map(
+          context => [context, null] as unknown as readonly [SolidContext<unknown>, unknown],
+        ) ?? []),
+        [threeContext, context],
+        [pluginContext, plugins],
+        [frameContext, addFrameListener],
+      ],
+    )
+  })
 
   // Return context merged with `addFrameListeners``
   // This is used in `@solid-three/testing`
