@@ -9,11 +9,11 @@ import {
   type MergeProps,
   type ParentProps,
 } from "solid-js"
-import { OrthographicCamera } from "three"
+import { OrthographicCamera, Scene } from "three"
 import { $S3C } from "./constants.ts"
 import { createThree } from "./create-three.tsx"
 import { useProps } from "./props.ts"
-import type { CanvasProps, Plugin, Props } from "./types.ts"
+import type { CanvasProps, Plugin, PluginPropsOf, Props } from "./types.ts"
 import { meta } from "./utils.ts"
 
 /**********************************************************************************/
@@ -30,9 +30,7 @@ export function createT<
 >(catalogue: TCatalogue, plugins?: TCataloguePlugins) {
   const cache = new Map<string, Component<any>>()
   return {
-    Canvas(
-      props: ParentProps<CanvasProps> /* & Partial<PluginPropsOf<Scene, TCataloguePlugins>> */,
-    ) {
+    Canvas(props: ParentProps<CanvasProps> & Partial<PluginPropsOf<Scene, TCataloguePlugins>>) {
       let canvas: HTMLCanvasElement = null!
       let container: HTMLDivElement = null!
 

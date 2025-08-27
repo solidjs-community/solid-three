@@ -1,5 +1,5 @@
 import { createContext, onCleanup, useContext, type ParentProps } from "solid-js"
-import { Object3D, type Intersection } from "three"
+import { Mesh, Object3D, Scene, type Intersection } from "three"
 import { useThree } from "./hooks.ts"
 import { plugin } from "./plugin.ts"
 import { type Context, type Intersect, type Meta, type Prettify, type When } from "./types.ts"
@@ -490,7 +490,7 @@ const EventContext = createContext<{
  * Initializes and manages event handling for all `Instance<Object3D>`.
  */
 export const EventPlugin = Object.assign(
-  plugin([Object3D], (object): EventListeners => {
+  plugin([Scene, Mesh], (object): EventListeners => {
     const context = useContext(EventContext)
 
     if (!context) {

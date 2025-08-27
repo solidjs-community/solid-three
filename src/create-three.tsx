@@ -2,6 +2,7 @@ import {
   createMemo,
   createRenderEffect,
   createRoot,
+  createSelector,
   mergeProps,
   onCleanup,
   type Context as SolidContext,
@@ -22,6 +23,7 @@ import {
   VSMShadowMap,
   WebGLRenderer,
 } from "three"
+import { LinearEncoding, sRGBEncoding } from "./constants.ts"
 import { frameContext, threeContext } from "./hooks.ts"
 import { pluginContext } from "./internal-context.ts"
 import { mergePluginMethods, useProps, useSceneGraph } from "./props.ts"
@@ -34,7 +36,6 @@ import {
   meta,
   removeElementFromArray,
   useRef,
-  withContext,
   withMultiContexts,
 } from "./utils.ts"
 import { whenRenderEffect } from "./utils/conditionals.ts"
@@ -282,12 +283,40 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
   /**********************************************************************************/
   /*                                                                                */
+  /*                                   Render Loop                                  */
+  /*                                                                                */
+  /**********************************************************************************/
+
+  let pendingLoopRequest: number | undefined
+  function loop(value: number) {
+    pendingLoopRequest = requestAnimationFrame(loop)
+    context.render(value)
+  }
+  createRenderEffect(() => {
+    if (config.frameloop === "always") {
+      pendingLoopRequest = requestAnimationFrame(loop)
+    }
+    onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
+  })
+
+  /**********************************************************************************/
+  /*                                                                                */
   /*                                     Effects                                    */
   /*                                                                                */
   /**********************************************************************************/
 
-  withContext(
-    () => {
+  createRenderEffect(() => {
+    withMultiContexts(() => {
+      const pluginMethods = createMemo(() => mergePluginMethods(scene(), plugins))
+      const hasPluginMethod = createSelector(
+        pluginMethods,
+        (key: keyof CanvasProps, methods) => key in methods,
+      )
+
+      // Handle scene graph
+      useSceneGraph(context.scene, props)
+
+      // Manage clock
       createRenderEffect(() => {
         if (config.frameloop === "never") {
           context.clock.stop()
@@ -298,18 +327,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
       })
 
       // Manage props resolved to plugins
-      createRenderEffect(() => {
-        const _pluginMethods = mergePluginMethods(canvas, plugins)
+      whenRenderEffect(pluginMethods, pluginMethods => {
         for (const key in config) {
-          if (key in _pluginMethods) {
-            _pluginMethods[key]?.(config[key as keyof typeof config])
+          if (key in pluginMethods) {
+            pluginMethods[key]?.(config[key as keyof typeof config])
           }
         }
       })
 
       // Manage camera
       whenRenderEffect(
-        () => !(config.defaultCamera instanceof Camera) && config.defaultCamera,
+        () =>
+          !hasPluginMethod("defaultCamera") &&
+          !(config.defaultCamera instanceof Camera) &&
+          config.defaultCamera,
         propsCamera => {
           useProps(defaultCamera, propsCamera)
           // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
@@ -320,23 +351,24 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
       // Manage scene
       whenRenderEffect(
-        () => !(config.scene instanceof Scene) && config.scene,
+        () => !hasPluginMethod("scene") && !(config.scene instanceof Scene) && config.scene,
         propsScene => useProps(scene, propsScene),
       )
 
       // Manage raycaster
       whenRenderEffect(
-        () => !(config.defaultRaycaster instanceof Raycaster) && config.defaultRaycaster,
+        () =>
+          !hasPluginMethod("defaultRaycaster") &&
+          !(config.defaultRaycaster instanceof Raycaster) &&
+          config.defaultRaycaster,
         raycaster => useProps(defaultRaycaster, raycaster),
       )
 
       // Manage gl
-      createRenderEffect(() => {
-        const _gl = gl()
-
+      whenRenderEffect(gl, gl => {
         // Set shadow-map
         whenRenderEffect(
-          () => _gl.shadowMap,
+          () => gl.shadowMap,
           shadowMap => {
             const oldEnabled = shadowMap.enabled
             const oldType = shadowMap.type
@@ -364,70 +396,42 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps, plugi
 
         // Manage connecting XR
         whenRenderEffect(
-          () => _gl.xr,
+          () => gl.xr,
           () => context.xr.connect(),
         )
 
         // Manage Props
-        whenRenderEffect(config.gl, glProp => {
-          if (glProp instanceof WebGLRenderer) {
-            return
-          }
-          useProps(gl, glProp)
-        })
+        whenRenderEffect(
+          () => !hasPluginMethod("gl") && !(config.gl instanceof WebGLRenderer) && config.gl,
+          prop => useProps(gl, prop),
+        )
 
-        // Color management and tone-mapping
+        // Set color space and tonemapping preferences
         useProps(gl, {
           get outputEncoding() {
-            // Set color space and tonemapping preferences
-            return config.linear ? /* LinearEncoding */ 3000 : /* sRGBEncoding */ 3001
+            return hasPluginMethod("linear")
+              ? undefined
+              : config.linear
+              ? LinearEncoding
+              : sRGBEncoding
           },
           get toneMapping() {
-            return config.flat ? NoToneMapping : ACESFilmicToneMapping
+            return hasPluginMethod("flat")
+              ? undefined
+              : config.flat
+              ? NoToneMapping
+              : ACESFilmicToneMapping
           },
         })
       })
-    },
-    threeContext,
-    context,
-  )
-
-  /**********************************************************************************/
-  /*                                                                                */
-  /*                                   Render Loop                                  */
-  /*                                                                                */
-  /**********************************************************************************/
-
-  let pendingLoopRequest: number | undefined
-  function loop(value: number) {
-    pendingLoopRequest = requestAnimationFrame(loop)
-    context.render(value)
-  }
-  createRenderEffect(() => {
-    if (config.frameloop === "always") {
-      pendingLoopRequest = requestAnimationFrame(loop)
-    }
-    onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
-  })
-
-  /**********************************************************************************/
-  /*                                                                                */
-  /*                                   Scene Graph                                  */
-  /*                                                                                */
-  /**********************************************************************************/
-
-  createRenderEffect(() => {
-    withMultiContexts(
-      () => useSceneGraph(context.scene, props),
-      [
-        ...(props.contexts?.map(
-          context => [context, null] as unknown as readonly [SolidContext<unknown>, unknown],
-        ) ?? []),
-        [threeContext, context],
-        [pluginContext, plugins],
-        [frameContext, addFrameListener],
-      ],
-    )
+    }, [
+      ...(props.contexts?.map(
+        context => [context, null] as unknown as readonly [SolidContext<unknown>, unknown],
+      ) ?? []),
+      [threeContext, context],
+      [pluginContext, plugins],
+      [frameContext, addFrameListener],
+    ])
   })
 
   // Return context merged with `addFrameListeners``

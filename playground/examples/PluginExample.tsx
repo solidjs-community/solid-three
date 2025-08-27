@@ -81,6 +81,7 @@ export function PluginExample() {
       style={{ width: "100vw", height: "100vh" }}
       defaultCamera={{ position: new THREE.Vector3(0, 0, 5) }}
       contexts={[EventPlugin]}
+      onClickMissed={() => console.info("missed!")}
     >
       <OrbitControls />
       <Entity from={THREE.Mesh} />
@@ -90,10 +91,9 @@ export function PluginExample() {
         position={[0, 0, 0]}
         highlight="red"
         lookAt={useThree().currentCamera}
-        plugins={[LookAtPlugin, MaterialPlugin]}
         log="Mesh rendered!"
         shake={0.1}
-        onClick={event => console.log("clicked mesh!")}
+        onClick={event => console.info("clicked mesh!")}
       >
         <T.TorusKnotGeometry args={[1, 0.5, 128, 32]} />
         <T.MeshStandardMaterial metalness={1} roughness={0} color="white">

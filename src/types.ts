@@ -276,7 +276,7 @@ export type Props<T, TPlugins extends Plugin[] = Plugin[]> = Partial<
          */
         raycastable: boolean
       },
-      InferPluginProps<TPlugins>,
+      PluginPropsOf<InstanceOfMaybe<T>, TPlugins>,
     ]
   >
 >
