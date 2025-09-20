@@ -6,6 +6,7 @@ import { EnvironmentExample } from "./examples/EnvironmentExample.tsx"
 import { PluginExample } from "./examples/PluginExample.tsx"
 import { PortalExample } from "./examples/PortalExample.tsx"
 import { SolarExample } from "./examples/SolarExample.tsx"
+import { VanillaExample } from "./examples/VanillaExample.tsx"
 import "./index.css"
 
 const { T, Canvas } = createT({ ...THREE, Entity })
@@ -79,6 +80,17 @@ function Layout(props: ParentProps) {
         >
           Plugins
         </A>
+        <A
+          href="/vanilla"
+          style={{
+            color: "white",
+            "text-decoration": "none",
+            padding: "5px 10px",
+            display: "block",
+          }}
+        >
+          Vanilla
+        </A>
       </nav>
       {props.children}
     </>
@@ -92,6 +104,7 @@ export function App() {
       <Route path="/portal" component={PortalExample} />
       <Route path="/environment" component={EnvironmentExample} />
       <Route path="/plugin" component={PluginExample} />
+      <Route path="/vanilla" component={VanillaExample} />
       <Route
         path="/"
         component={() => (
