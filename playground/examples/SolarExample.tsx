@@ -125,6 +125,7 @@ export function SolarExample() {
       onClickMissed={event => console.info("canvas click missed", event)}
       onPointerLeave={event => console.info("canvas pointer leave", event)}
       onPointerEnter={event => console.info("canvas pointer enter", event)}
+      contexts={[EventPlugin]}
     >
       <OrbitControls />
       <T.AmbientLight intensity={0.2} />
