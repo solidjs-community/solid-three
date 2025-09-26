@@ -1,3 +1,16 @@
 packages:
-  - 'playground'
-  - 'src'
+  - "site"
+catalog:
+  "@kobalte/solidbase": ^0.6.3
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+# Pin two transitive deps to versions published before the CI's
+# minimumReleaseAge cutoff. Drop these once the cutoff moves past 2026-05-26.
+overrides:
+  "@swc/helpers": "0.5.21"
+  "electron-to-chromium": "1.5.361"
+  "@solidjs/start": "https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2152"
+  "@solidjs/vite-plugin-nitro-2": "https://pkg.pr.new/solidjs/solid-start/@solidjs/vite-plugin-nitro-2@2152"
+  "@solidjs/router": "^0.16.1"
+  "@kobalte/solidbase": "github:bigmistqke/solidbase#f48198d"

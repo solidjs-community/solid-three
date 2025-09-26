@@ -1,14 +1,19 @@
 {
   "name": "solid-three",
-  "version": "0.2.0",
+  "version": "0.3.0-next.12",
   "description": "SolidJS bindings for ThreeJS",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
-  "module": "./dist/index.mjs",
+  "type": "module",
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "pnpm": ">=11.3.0"
+  },
+  "module": "./dist/index.js",
   "main": "./dist/index.js",
-  "types": "./types/index.d.ts",
+  "types": "./dist/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
   "files": [
@@ -17,48 +22,107 @@
     "README.md"
   ],
   "scripts": {
-    "test": "vitest",
-    "build:lib": "BUILD_MODE=lib vite build",
-    "build": "vite build",
-    "types": "tsc --emitDeclarationOnly --declarationDir types",
-    "dev": "vite",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist"
+    "build": "tsup",
+    "build:site": "pnpm -C site build",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
+    "dev:site": "pnpm -C site dev",
+    "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
+    "lint:circular": "dpdm -T src",
+    "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
+    "lint:types": "tsc --noEmit",
+    "prepublishOnly": "pnpm lint && pnpm build",
+    "test": "vitest run",
+    "types": "tsc --emitDeclarationOnly --declarationDir types"
   },
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs.js"
+      "solid": {
+        "development": "./dist/index.dev.solid.jsx",
+        "import": "./dist/index.dev.js"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/index.dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./testing": {
+      "solid": {
+        "development": "./dist/testing.dev.solid.jsx",
+        "import": "./dist/testing.dev.js"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/testing.d.ts",
+          "default": "./dist/testing.dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing.js"
+      }
     }
   },
+  "typesVersions": {
+    "*": {
+      "testing": [
+        "./dist/testing/index.d.ts"
+      ]
+    }
+  },
+  "dependencies": {
+    "@bigmistqke/solid-whenever": "^0.1.0",
+    "@solid-primitives/resize-observer": "^2.0.25",
+    "debounce": "^2.1.0",
+    "vite-tsconfig-paths": "^5.1.4"
+  },
   "devDependencies": {
-    "@types/node": "^18.11.18",
-    "@types/three": "0.149.0",
-    "@vinxi/tsconfig": "0.0.3",
-    "esbuild": "^0.16.16",
-    "esbuild-register": "^3.4.2",
+    "@bigmistqke/repl": "link:../repl",
+    "@solidjs/router": "^0.15.3",
+    "@solidjs/testing-library": "^0.8.8",
+    "@types/three": "^0.181.0",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "@vitest/browser": "^4.1.7",
+    "@vitest/browser-playwright": "^4.1.7",
+    "dpdm": "^3.14.0",
+    "esbuild": "^0.21.4",
+    "esbuild-plugin-solid": "^0.6.0",
+    "esbuild-register": "^3.5.0",
+    "eslint": "^9.32.0",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-no-only-tests": "^3.3.0",
+    "jest": "^29.7.0",
+    "jiti": "^2.5.1",
+    "playwright": "^1.60.0",
     "remark-gfm": "^3.0.1",
-    "rollup": "^3.9.1",
-    "rollup-plugin-dts": "^5.1.1",
+    "rollup": "^4.18.0",
+    "rollup-plugin-dts": "^6.1.1",
     "solid-app-router": "^0.1.14",
-    "solid-js": "^1.7.0",
-    "three": "0.149.0",
+    "solid-js": "^1.8.17",
+    "three": "^0.181.2",
+    "three-stdlib": "^2.36.0",
     "tsm": "^2.3.0",
-    "tsup": "^6.5.0",
-    "typescript": "^4.9.4",
-    "vite": "4.1.1",
-    "vite-plugin-inspect": "0.7.14",
-    "vite-plugin-solid": "2.5.0"
+    "tsup": "^8.0.2",
+    "tsup-preset-solid": "^2.2.0",
+    "typescript": "^5.4.5",
+    "vite": "6.4.2",
+    "vite-plugin-inspect": "0.8.4",
+    "vite-plugin-solid": "2.11.12",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
+    "@types/three": "*",
     "solid-js": "*",
     "three": "*"
   },
   "jest": {
     "preset": "scripts/jest/node"
-  },
-  "dependencies": {
-    "@types/three": "0.149.0",
-    "zustand": "^3.7.2"
-  },
-  "packageManager": "pnpm@7.26.0"
+  }
 }

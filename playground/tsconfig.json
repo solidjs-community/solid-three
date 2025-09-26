@@ -1,5 +1,0 @@
-{
-  "extends": "@vinxi/tsconfig/vite-solid.json",
-  "include": ["./"],
-  "exclude": ["dist", "build", "node_modules"]
-}
