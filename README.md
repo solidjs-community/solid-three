@@ -88,7 +88,7 @@ const Box = () => {
 
 const App: Component = () => {
   return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
+    <Canvas defaultCamera={{ position: [0, 0, 5] }}>
       <Entity from={THREE.AmbientLight} args={[0.5]} />
       <Entity from={THREE.PointLight} position={[10, 10, 10]} />
       <Box />
@@ -127,7 +127,7 @@ const Box = () => {
 
 const App: Component = () => {
   return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
+    <Canvas defaultCamera={{ position: [0, 0, 5] }}>
       <T.AmbientLight intensity={0.5} />
       <T.PointLight position={[10, 10, 10]} />
       <Box />
