@@ -2,9 +2,7 @@ import {
   type Accessor,
   createContext,
   createMemo,
-  createResource,
-  mergeProps,
-  type Resource,
+  merge,
   useContext,
 } from "solid-js"
 import { type Loader } from "three"
@@ -187,8 +185,8 @@ export function useLoader<
   constructor: AccessorMaybe<Constructor<TLoader>>,
   url: AccessorMaybe<TInput>,
   options?: UseLoaderOptions<TLoader, TInput>,
-): Resource<LoadOutput<TLoader, TInput>> {
-  const config = mergeProps({ cache: true }, options)
+): Accessor<LoadOutput<TLoader, TInput>> {
+  const config = merge({ cache: true }, options ?? {})
 
   const loader = createMemo(() => {
     const _constructor = resolve(constructor)
@@ -253,20 +251,16 @@ export function useLoader<
     return load(loader(), url)
   }
 
-  const [resource] = createResource(
-    () => [resolve(url), options?.base, loader()] as const,
-    async ([url, base, loader]) => {
-      config.onBeforeLoad?.(loader)
-
-      url = base ? resolveUrls(base, url) : url
-
-      const result = await loadUrl(url)
-
-      config.onLoad?.(result)
-
-      return result
-    },
-  )
+  const resource = createMemo(async () => {
+    const _url = resolve(url)
+    const _loader = loader()
+    const base = options?.base
+    config.onBeforeLoad?.(_loader)
+    const resolvedUrl = base ? resolveUrls(base, _url) : _url
+    const result = await loadUrl(resolvedUrl)
+    config.onLoad?.(result)
+    return result
+  })
 
   return resource
 }
