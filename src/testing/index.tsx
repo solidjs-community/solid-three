@@ -1,8 +1,21 @@
-import { type Accessor, type JSX, createRoot, mergeProps } from "solid-js"
+import { type Accessor, type JSX, createRoot, merge, onSettled } from "solid-js"
 import type { CanvasProps } from "../canvas.tsx"
 import { createThree } from "../create-three.tsx"
 import { useRef } from "../utils.ts"
 import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts"
+
+/**
+ * Waits for the Solid reactive graph to fully settle (sync and async chains).
+ * Use in tests: call `await settled()` after triggering reactive state changes
+ * before making assertions.
+ *
+ * IMPORTANT: Do NOT call inside a reactive computation (createMemo, createEffect, etc.)
+ * as onSettled fires when the sync graph settles — calling it inside an async memo
+ * can produce infinite awaits.
+ */
+export function settled(): Promise<void> {
+  return new Promise<void>(resolve => onSettled(() => resolve()))
+}
 
 /**
  * Initializes a testing enviromnent for `solid-three`.
@@ -28,7 +41,7 @@ export function test(
     unmount = dispose
     context = createThree(
       canvas,
-      mergeProps(
+      merge(
         {
           get children() {
             return children()
@@ -37,7 +50,7 @@ export function test(
             position: [0, 0, 5] as [number, number, number],
           },
         },
-        props,
+        props ?? {},
       ),
     )
   })
@@ -47,7 +60,7 @@ export function test(
       const cleanup = context.addFrameListener(() => (cleanup(), resolve()))
     })
 
-  return mergeProps(context, {
+  return merge(context, {
     unmount,
     waitTillNextFrame,
   })
