@@ -125,6 +125,11 @@ const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
   canvas.width = width
   canvas.height = height
 
+  // JSDOM's getBoundingClientRect always returns zeros, which breaks the raycaster.
+  // Override it to return the canvas's logical dimensions.
+  canvas.getBoundingClientRect = () =>
+    ({ width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0 } as DOMRect)
+
   // eslint-disable-next-line
   if (globalThis.HTMLCanvasElement) {
     const getContext = HTMLCanvasElement.prototype.getContext

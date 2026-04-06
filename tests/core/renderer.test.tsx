@@ -4,13 +4,13 @@ import {
   createSignal,
   For,
   onCleanup,
-  onMount,
+  onSettled,
   Show,
 } from "solid-js"
 import * as THREE from "three"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
-import { test } from "../../src/testing/index.tsx"
+import { settled, test } from "../../src/testing/index.tsx"
 import type { Context, Meta } from "../../src/types.ts"
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>
@@ -174,6 +174,7 @@ describe("renderer", () => {
     ).toEqual("basicMat")
 
     setType("MeshStandardMaterial")
+    await settled()
 
     expect(
       (scene.children[0] as THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>).material
@@ -263,6 +264,7 @@ describe("renderer", () => {
       expect((scene.children[0] as HasObject3dMethods).detachedObj3d).toBeUndefined()
 
       setVisible(false)
+      await settled()
 
       const detachedMesh = (scene.children[0] as HasObject3dMethods).detachedObj3d
       expect(detachedMesh).toBe(attachedMesh)
@@ -288,6 +290,7 @@ describe("renderer", () => {
       expect(scene.children[0].children.length).toBe(0)
 
       setVisible(false)
+      await settled()
 
       expect(detachedMesh).toBe(attachedMesh)
     })
@@ -297,7 +300,7 @@ describe("renderer", () => {
     const log: string[] = []
     // @ts-expect-error TODO: fix type-error
     const Log = props => {
-      onMount(() => log.push("mount " + props.name))
+      onSettled(() => log.push("mount " + props.name))
       onCleanup(() => log.push("unmount " + props.name))
       log.push("render " + props.name)
       return <T.Group />
@@ -305,6 +308,7 @@ describe("renderer", () => {
 
     const { unmount: dispose } = test(() => <Log name="Foo" />)
 
+    await settled()
     dispose()
 
     expect(log).toEqual(["render Foo", "mount Foo", "unmount Foo"])
@@ -370,6 +374,7 @@ describe("renderer", () => {
     expect(state.scene.children[0].children[0]).toBeDefined()
 
     setFirst(false)
+    await settled()
 
     instances.push({
       uuid: state.scene.children[0].uuid,
@@ -410,6 +415,7 @@ describe("renderer", () => {
     expect((state.scene.children[0] as any).test).toBeInstanceOf(THREE.Group)
 
     setN(2)
+    await settled()
 
     // Swapped to object 2, does not copy old children, copies attachments
     expect(state.scene.children[0]).toBe(o2)
@@ -440,6 +446,7 @@ describe("renderer", () => {
     const reversedArray = [...array().reverse()]
 
     setArray(reversedArray)
+    await settled()
 
     expect(state.scene.children[0]).toBe(d)
     expect(state.scene.children[1]).toBe(c)
@@ -449,6 +456,7 @@ describe("renderer", () => {
     const mixedArray = [b, a, d, c]
 
     setArray(mixedArray)
+    await settled()
 
     expect(state.scene.children[0]).toBe(b)
     expect(state.scene.children[1]).toBe(a)
@@ -607,6 +615,7 @@ describe("renderer", () => {
 
     setLinear(true)
     setFlat(true)
+    await settled()
 
     // @ts-expect-error TODO: fix type-error
     expect(gl.outputEncoding).toBe(LinearEncoding)
@@ -623,10 +632,12 @@ describe("renderer", () => {
     texture.colorSpace = ""
 
     setLinear(false)
+    await settled()
     expect(gl.outputColorSpace).toBe(SRGBColorSpace)
     expect(texture.colorSpace).toBe(SRGBColorSpace)
 
     setLinear(true)
+    await settled()
     expect(gl.outputColorSpace).toBe(LinearSRGBColorSpace)
     expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
   })
@@ -724,6 +735,7 @@ describe("renderer", () => {
     const prevUUID = group()!.uuid
 
     setKey(key => key + 1)
+    await settled()
 
     expect(group()).toBeDefined()
     expect(prevUUID).not.toBe(group()!.uuid)
@@ -750,6 +762,7 @@ describe("renderer", () => {
     expect(texture1.name).toBe("test")
 
     setSignal(2)
+    await settled()
 
     expect(material!.map).toBe(texture2)
     expect(texture2.needsUpdate).toBe(true)
@@ -762,7 +775,7 @@ describe("renderer", () => {
 
     function Test() {
       const [scale, setScale] = createSignal(true)
-      createRenderEffect(() => void setScale(false), [])
+      createRenderEffect(() => null, () => void setScale(false))
       // @ts-ignore TODO: fix type-error
       return <T.Mesh ref={ref} scale={scale() ? 0.5 : undefined} />
     }
@@ -783,6 +796,7 @@ describe("renderer", () => {
     test(() => <Test onUpdate={updateType() === "one" ? one : two} />)
 
     setUpdateType("two")
+    await settled()
 
     expect(one).toBeCalledTimes(1)
     expect(two).toBeCalledTimes(0)
@@ -849,12 +863,14 @@ describe("renderer", () => {
 
     // Update
     setObject(object2)
+    await settled()
     expect(ref).toBe(object2)
     expect(ref!.children).toStrictEqual([child2, child])
     expect(ref!.userData.attach).toBe(attachedChild)
 
     // Revert
     setObject(object1)
+    await settled()
     expect(ref).toBe(object1)
     expect(ref!.children).toStrictEqual([child1, child])
     expect(ref!.userData.attach).toBe(attachedChild)

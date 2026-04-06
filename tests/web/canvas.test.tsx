@@ -1,5 +1,4 @@
-// use default export for jest.spyOn
-import { render } from "@solidjs/testing-library"
+import { render } from "../../libs/testing-library.ts"
 import * as THREE from "three"
 import { describe, expect, it } from "vitest"
 import { createT } from "../../src/index.ts"

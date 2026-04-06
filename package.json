@@ -27,7 +27,7 @@
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
     "lint:types": "tsc --noEmit",
     "prepublishOnly": "pnpm lint && pnpm build",
-    "test": "vitest",
+    "test": "vitest run",
     "types": "tsc --emitDeclarationOnly --declarationDir types"
   },
   "exports": {
@@ -72,13 +72,13 @@
     }
   },
   "dependencies": {
-    "@solid-primitives/resize-observer": "^2.0.25",
     "debounce": "^2.1.0",
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
     "@solidjs/router": "^0.15.3",
     "@solidjs/testing-library": "^0.8.10",
+    "@solidjs/web": "2.0.0-experimental.16",
     "@types/three": "^0.164.1",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
@@ -104,10 +104,10 @@
     "tsup": "^8.0.2",
     "tsup-preset-solid": "^2.2.0",
     "typescript": "^5.4.5",
-    "vite": "5.2.12",
+    "vite": "8.0.5",
     "vite-plugin-inspect": "0.8.4",
     "vite-plugin-solid": "next",
-    "vitest": "^1.6.0"
+    "vitest": "^4.1.2"
   },
   "peerDependencies": {
     "@types/three": "*",

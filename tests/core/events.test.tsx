@@ -1,9 +1,9 @@
-import { fireEvent } from "@solidjs/testing-library"
+import { fireEvent } from "../../libs/testing-library.ts"
 import { Show, createSignal } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/index.ts"
-import { test } from "../../src/testing/index.tsx"
+import { settled, test } from "../../src/testing/index.tsx"
 
 const T = createT(THREE)
 
@@ -17,6 +17,8 @@ describe("events", () => {
         <T.MeshBasicMaterial />
       </T.Mesh>
     ))
+
+    await settled()
 
     const evt = new Event("mousedown")
     Object.defineProperty(evt, "offsetX", { get: () => 640 })
@@ -156,6 +158,8 @@ describe("events", () => {
       </T.Mesh>
     ))
 
+    await settled()
+
     const evt1 = new Event("pointermove")
     Object.defineProperty(evt1, "offsetX", { get: () => 577 })
     Object.defineProperty(evt1, "offsetY", { get: () => 480 })
@@ -193,6 +197,8 @@ describe("events", () => {
       </>
     ))
 
+    await settled()
+
     const evt1 = new Event("pointermove")
     Object.defineProperty(evt1, "offsetX", { get: () => 577 })
     Object.defineProperty(evt1, "offsetY", { get: () => 480 })
@@ -226,6 +232,8 @@ describe("events", () => {
         </T.Mesh>
       </>
     ))
+
+    await settled()
 
     const down = new Event("pointerdown")
     Object.defineProperty(down, "offsetX", { get: () => 577 })
@@ -288,6 +296,8 @@ describe("events", () => {
       // S3:   we do not have a replacement for rerender
       const { canvas } = test(() => <PointerCaptureTest hasMesh={hasMesh()} />)
 
+      await settled()
+
       canvas.setPointerCapture = vi.fn()
       canvas.releasePointerCapture = vi.fn()
 
@@ -306,6 +316,7 @@ describe("events", () => {
 
       /* Now remove the T.Mesh */
       setHasMesh(false)
+      await settled()
 
       expect(canvas.releasePointerCapture).toHaveBeenCalledWith(pointerId)
 
@@ -322,6 +333,8 @@ describe("events", () => {
 
     it("should not leave when captured", async () => {
       const { canvas } = test(() => <PointerCaptureTest hasMesh manualRelease />)
+
+      await settled()
 
       canvas.setPointerCapture = vi.fn()
       canvas.releasePointerCapture = vi.fn()

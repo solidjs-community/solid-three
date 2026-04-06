@@ -1,5 +1,10 @@
-import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { createRoot, onSettled, type JSX, type ParentProps, type Ref } from "solid-js"
+import { createRoot, onCleanup, onSettled, type JSX, type ParentProps, type Ref } from "solid-js"
+
+function createResizeObserver(target: Element, callback: () => void) {
+  const observer = new ResizeObserver(callback)
+  observer.observe(target)
+  onCleanup(() => observer.disconnect())
+}
 import {
   Camera,
   OrthographicCamera,
