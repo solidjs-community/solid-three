@@ -1,10 +1,9 @@
-import { whenMemo } from "@bigmistqke/solid-whenever"
 import {
+  Loading,
   Show,
-  createEffect,
   createMemo,
-  mergeProps,
-  splitProps,
+  omit,
+  merge,
   type Accessor,
   type JSX,
   type JSXElement,
@@ -15,7 +14,7 @@ import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hook
 import { useProps } from "./props.ts"
 import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
-import { autodispose, hasMeta, isConstructor, meta, withContext, type LoadOutput } from "./utils.ts"
+import { autodispose, hasMeta, isConstructor, meta, whenMemo, withContext, type LoadOutput } from "./utils.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -56,7 +55,7 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
           () => props.children as unknown as Meta | Meta[],
           // @ts-expect-error TODO: fix type-error
           threeContext,
-          mergeProps(context, {
+          merge(context, {
             get scene() {
               return element()
             },
@@ -93,14 +92,14 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
  */
 export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
-  const [config, rest] = splitProps(props, ["from", "args"])
+  const rest = omit(props, "from", "args")
   const memo = whenMemo(
-    () => config.from,
+    () => props.from,
     from => {
       // listen to key changes
       props.key
       const instance = meta(
-        isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
+        isConstructor(from) ? autodispose(new from(...(props.args ?? []))) : from,
         {
           props,
         },
@@ -182,25 +181,26 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
  * ```
  */
 export function Resource<const TLoader extends Loader<object, any>>(props: ResourceProps<TLoader>) {
-  const [options, config, rest] = splitProps(
-    props,
-    ["base", "cache", "onBeforeLoad", "onLoad"],
-    ["loader", "url", "children"],
-  )
+  const rest = omit(props, "base", "cache", "onBeforeLoad", "onLoad", "loader", "url", "children")
 
   const resource = useLoader(
-    () => config.loader,
-    () => config.url,
-    options,
+    () => props.loader,
+    () => props.url,
+    {
+      get base() { return props.base },
+      get cache() { return props.cache },
+      get onBeforeLoad() { return props.onBeforeLoad },
+      get onLoad() { return props.onLoad },
+    },
   )
-
-  createEffect(() => console.log("resource", resource()))
 
   useProps(resource, rest)
 
   return (
-    <Show when={"children" in config && resource()} fallback={resource()}>
-      {resource => props.children?.(resource)}
-    </Show>
+    <Loading>
+      <Show when={"children" in props && resource()} fallback={resource() as unknown as JSX.Element}>
+        {r => props.children?.(r)}
+      </Show>
+    </Loading>
   )
 }
