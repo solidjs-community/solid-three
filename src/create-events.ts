@@ -59,7 +59,7 @@ export const isEventType = (type: string): type is EventName =>
 function createThreeEvent<
   TEvent extends Event,
   TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
->(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {}) {
+>(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {} as TConfig) {
   const event: Record<string, any> = stoppable
     ? {
         nativeEvent,

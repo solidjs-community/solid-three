@@ -227,7 +227,7 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
     return child
   }
   if (typeof child === "function") {
-    const value = child()
+    const value = (child as Accessor<T>)()
     if (recursive) {
       return resolve(value)
     }
@@ -351,7 +351,7 @@ export async function load<
   TInput extends LoadInput<TLoader>,
 >(loader: TLoader, input: TInput): Promise<LoadOutput<TLoader, TInput>> {
   if (isRecord(input)) {
-    return await awaitMapObject(input, path => load(loader, path))
+    return await awaitMapObject(input, path => load(loader, path)) as unknown as Promise<LoadOutput<TLoader, TInput>>
   }
   return new Promise((resolve, reject) => loader.load(input, resolve, undefined, reject))
 }
