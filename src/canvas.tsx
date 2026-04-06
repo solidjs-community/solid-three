@@ -1,5 +1,5 @@
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { onMount, type JSX, type ParentProps, type Ref } from "solid-js"
+import { createRoot, onSettled, type JSX, type ParentProps, type Ref } from "solid-js"
 import {
   Camera,
   OrthographicCamera,
@@ -59,27 +59,30 @@ export function Canvas(props: ParentProps<CanvasProps>) {
   let canvas: HTMLCanvasElement = null!
   let container: HTMLDivElement = null!
 
-  onMount(() => {
-    const context = createThree(canvas, props)
+  onSettled(() => {
+    createRoot(() => {
+      const context = createThree(canvas, props)
 
-    // Resize observer for the canvas to adjust camera and renderer on size change
-    createResizeObserver(container, function onResize() {
-      const { width, height } = container.getBoundingClientRect()
-      context.gl.setSize(width, height)
-      context.gl.setPixelRatio(globalThis.devicePixelRatio)
+      // Resize observer for the canvas to adjust camera and renderer on size change
+      createResizeObserver(container, function onResize() {
+        const { width, height } = container.getBoundingClientRect()
+        context.gl.setSize(width, height)
+        context.gl.setPixelRatio(globalThis.devicePixelRatio)
 
-      if (context.camera instanceof OrthographicCamera) {
-        context.camera.left = width / -2
-        context.camera.right = width / 2
-        context.camera.top = height / 2
-        context.camera.bottom = height / -2
-      } else {
-        context.camera.aspect = width / height
-      }
+        if (context.camera instanceof OrthographicCamera) {
+          context.camera.left = width / -2
+          context.camera.right = width / 2
+          context.camera.top = height / 2
+          context.camera.bottom = height / -2
+        } else {
+          context.camera.aspect = width / height
+        }
 
-      context.camera.updateProjectionMatrix()
-      context.render(performance.now())
+        context.camera.updateProjectionMatrix()
+        context.render(performance.now())
+      })
     })
+    // createRoot autodisposes when the Canvas component's owner disposes
   })
 
   return (
