@@ -89,6 +89,69 @@ This also affects the imperative `withContext` / `withMultiContexts` utilities i
 
 ---
 
+## Additional Solid 2.0 changes relevant to solid-three
+
+### `batch` is removed — `flush()` exists but must never be relied on
+
+`batch()` no longer exists. All signal writes auto-batch by default (microtask). `flush()` forces a synchronous flush but only settles synchronous chains — do not rely on it (see section 1 above).
+
+### `For` children now receive **accessors**
+
+In Solid 2.0, `<For>` passes accessor functions to the child render function:
+
+```tsx
+// before
+<For each={items()}>{(item, index) => <Row item={item} index={index} />}</For>
+
+// after
+<For each={items()}>{(item, index) => <Row item={item()} index={index()} />}</For>
+```
+
+`mapArray` (used in `src/props.ts`) follows the same convention — child callbacks receive `Accessor<T>` not `T`. The existing `useSceneGraph` code already uses `_child` as an accessor, so the `mapArray` call itself is unaffected, but any `<For>` usage in tests or playground files must be updated.
+
+`Index` is removed — use `<For keyed={false}>` instead.
+
+### Effect cleanup: return form preferred
+
+In Solid 2.0, the preferred way to register cleanup in an effect is to **return** a cleanup function from the effectFn, rather than calling `onCleanup()`:
+
+```ts
+// both work, but return form is preferred
+createRenderEffect(
+  () => element(),
+  el => {
+    const observer = new ResizeObserver(...)
+    observer.observe(el)
+    return () => observer.disconnect()   // ✅ preferred
+  }
+)
+```
+
+`onCleanup()` still works and is appropriate in non-effect contexts (e.g. inside `createRoot`).
+
+### `isPending` — revalidation state for `useLoader`
+
+`isPending(fn)` is a new API that returns `true` when an async expression is **revalidating with a stale value** (i.e. not the initial load). Consumers of `useLoader` that want a "refreshing" indicator without hiding the existing content should use this:
+
+```tsx
+<Show when={isPending(() => resource())}>Refreshing…</Show>
+<Loading fallback={<Spinner />}>
+  <Mesh map={resource()} />
+</Loading>
+```
+
+`isPending` returns `false` during the initial `<Loading>` fallback (no stale value yet).
+
+### `untrack` dev warnings
+
+In Solid 2.0 dev mode, top-level reactive reads inside a component body (outside effects/memos) produce a warning. Wrap intentional untracked reads in `untrack()`. This is unlikely to affect solid-three's internal code but may surface in tests or playground components.
+
+### `createRoot` — owned by parent by default
+
+Confirmed: `createRoot` is now owned by the parent scope and autodisposes when the parent disposes. To create a deliberately detached root (1.x behavior), use `runWithOwner(null, () => createRoot(...))`.
+
+---
+
 ## File-by-file changes
 
 ### `package.json`
@@ -299,8 +362,21 @@ Consumers of `useLoader` that used `.loading` or `.error` must migrate to `isPen
 2. `splitProps` → `omit` + direct prop access
 3. `Resource` component: wrap with `<Loading>` since `resource()` now throws `NotReadyError` when pending
 4. Remove debug `createEffect(() => console.log(...))` — or update to split form
-5. `whenMemo` (from `@bigmistqke/solid-whenever`) — inline as `createMemo(() => { const v = accessor(); return v ? fn(v) : undefined })`
+5. `whenMemo` (from `@bigmistqke/solid-whenever`) — extract to a shared util (see note below)
 6. `Portal`: `mergeProps(context, { get scene() { return element() } })` → `merge(context, { get scene() { return element() } })`
+
+**`whenMemo` util** — add to `src/utils.ts` rather than inlining at every call site:
+```ts
+export function whenMemo<T, U>(
+  accessor: Accessor<T | undefined | null | false>,
+  fn: (value: T) => U
+): Accessor<U | undefined> {
+  return createMemo(() => {
+    const v = accessor()
+    return v ? fn(v) : undefined
+  })
+}
+```
 
 ```tsx
 // Resource component — add Loading boundary
@@ -503,6 +579,7 @@ No changes needed — only use `createSignal`, `onCleanup`, `getOwner`, `untrack
 - `renderer.test.tsx` line 300: `onMount` import and usage in test component must be replaced with `onSettled` (wrapped in `createRoot` if nested primitives are created inside)
 - `<Suspense>` → `<Loading>` in test wrappers
 - `<ErrorBoundary>` → `<Errored>` in test wrappers
+- `<For>` child callbacks: update any `(item, index)` that uses `item`/`index` directly to `item()`/`index()` (now accessors)
 
 ---
 
@@ -530,12 +607,14 @@ No changes needed — only use `createSignal`, `onCleanup`, `getOwner`, `untrack
 
 ```ts
 // removed from solid-js
-import { createComputed, createResource, mergeProps, onMount, splitProps } from "solid-js"
+import { batch, createComputed, createResource, mergeProps, onMount, splitProps } from "solid-js"
 // ❌ these no longer exist
 
 // replacements
-import { merge, omit, onCleanup, onSettled } from "@solidjs/signals"  // via solid-js re-export
+import { merge, omit, isPending, onCleanup, onSettled } from "@solidjs/signals"  // via solid-js re-export
 import { createMemo, createRenderEffect, createRoot } from "solid-js"
+// For: Index removed → use <For keyed={false}>
+// Suspense → Loading, ErrorBoundary → Errored (from solid-js)
 ```
 
 Context providers in JSX:
