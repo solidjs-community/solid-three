@@ -1,5 +1,5 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createRenderEffect, mergeProps, onCleanup, type Ref } from "solid-js"
+import { createMemo, createRenderEffect, merge, onCleanup, type Ref } from "solid-js"
 import {
   Camera,
   Loader,
@@ -174,7 +174,8 @@ export function defaultProps<
   const T,
   const TDefaults extends Partial<Required<Pick<T, KeyOfOptionals<T>>>>,
 >(props: T, defaults: TDefaults): Prettify<TDefaults & Omit<T, keyof TDefaults>> {
-  return mergeProps(defaults, props)
+  // @ts-expect-error merge return type differs from declared Prettify<TDefaults & Omit<T, keyof TDefaults>>
+  return merge(defaults, props)
 }
 
 /**********************************************************************************/
@@ -273,7 +274,7 @@ export function withContext<T, TResult>(
 ) {
   let result: TResult
 
-  context.Provider({
+  context({
     value,
     children: (() => {
       result = children()
@@ -319,7 +320,7 @@ export function withMultiContexts<TResult, T extends readonly [unknown?, ...unkn
   let result: TResult
   ;(values as [Context<any>, any]).reduce((acc, [context, value], index) => {
     return () =>
-      context.Provider({
+      context({
         value,
         children: () => {
           if (index === 0) result = acc()
@@ -362,18 +363,36 @@ export async function load<
 /**********************************************************************************/
 
 export function useRef<T>(props: { ref?: Ref<T> }, value: T | Accessor<T>) {
-  createRenderEffect(() => {
-    const result =
-      typeof value === "function"
-        ? // @ts-expect-error
-          value()
-        : value
-    if (typeof props.ref === "function") {
-      // @ts-expect-error
-      props.ref(result)
-    } else {
-      props.ref = result
-    }
+  createRenderEffect(
+    () => (typeof value === "function" ? (value as Accessor<T>)() : value),
+    (result: T) => {
+      if (typeof props.ref === "function") {
+        // @ts-expect-error
+        props.ref(result)
+      } else {
+        props.ref = result
+      }
+    },
+  )
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                   When Memo                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+/**
+ * Returns a memo that evaluates `fn(value)` when `accessor` is truthy, `undefined` otherwise.
+ * Inlined replacement for `whenMemo` from `@bigmistqke/solid-whenever`.
+ */
+export function whenMemo<T, U>(
+  accessor: Accessor<T | undefined | null | false>,
+  fn: (value: T) => U,
+): Accessor<U | undefined> {
+  return createMemo(() => {
+    const v = accessor()
+    return v ? fn(v) : undefined
   })
 }
 
