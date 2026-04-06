@@ -20,13 +20,15 @@ This document covers every file that needs to change and why.
 
 In Solid 2.0 all signal writes are microtask-batched by default. `batch` is removed. `flush()` exists but **must never be relied on** — it only settles synchronous chains. Any async memo downstream (e.g. `useLoader`'s `createMemo(async () => ...)`) will not be settled after `flush()`.
 
-**The only safe pattern** for waiting on settled state — in tests and in code — is `onSettled`:
+**The only safe pattern** for waiting on settled state — in tests and in imperative setup code — is `onSettled`:
 
 ```ts
 await new Promise<void>(resolve => onSettled(() => resolve()))
 ```
 
 This works for both sync and async chains.
+
+**Do not call this inside a reactive computation.** Calling `await settled()` inside a `createMemo(async () => ...)` is dangerous: the async memo is itself a pending computation. `onSettled` fires when the synchronous graph settles (not when async memos complete), so the memo may resume, write signals, trigger a new batch, and the pattern can produce infinite awaits or unpredictable behavior. Keep `settled()` strictly in test/imperative code outside of any reactive scope.
 
 **Impact on solid-three:**
 - The render loop runs via `requestAnimationFrame`, which always runs after microtask queue drains → no issue with stale reads in the render loop.
