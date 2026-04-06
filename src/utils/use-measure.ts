@@ -1,5 +1,4 @@
-import { when, whenEffect } from "@bigmistqke/solid-whenever"
-import { createEffect, createMemo, createSignal, mergeProps, onCleanup } from "solid-js"
+import { createMemo, createRenderEffect, createSignal, merge } from "solid-js"
 import { debounce as createDebounce } from "./debounce.ts"
 
 declare type ResizeObserverCallback = (entries: any[], observer: ResizeObserver) => void
@@ -32,13 +31,13 @@ export type UseMeasureOptions = {
 }
 
 export function useMeasure(options?: UseMeasureOptions) {
-  const config = mergeProps(
+  const config = merge(
     {
       debounce: 0,
       scroll: false,
       offsetSize: false,
     },
-    options,
+    options ?? {},
   )
 
   const ResizeObserver =
@@ -77,9 +76,12 @@ export function useMeasure(options?: UseMeasureOptions) {
     return forceRefresh
   }
 
-  const forceRefresh = when(element, element => {
+  function forceRefresh() {
+    const el = element()
+    if (!el) return
+
     const { left, top, width, height, bottom, right, x, y } =
-      element.getBoundingClientRect() as unknown as Measure
+      el.getBoundingClientRect() as unknown as Measure
 
     const bounds = {
       left,
@@ -92,9 +94,9 @@ export function useMeasure(options?: UseMeasureOptions) {
       y,
     }
 
-    if (element instanceof HTMLElement && config.offsetSize) {
-      bounds.height = element.offsetHeight
-      bounds.width = element.offsetWidth
+    if (el instanceof HTMLElement && config.offsetSize) {
+      bounds.height = el.offsetHeight
+      bounds.width = el.offsetWidth
     }
 
     Object.freeze(bounds)
@@ -103,47 +105,56 @@ export function useMeasure(options?: UseMeasureOptions) {
       lastBounds = bounds
       setBounds(bounds)
     }
-  })
+  }
 
-  createEffect(() => {
-    const onScroll = getDebounce("scroll")
+  createRenderEffect(
+    () => {
+      const onScroll = getDebounce("scroll")
 
-    createEffect(() => {
-      if (!config.scroll) return
-      globalThis.addEventListener("scroll", onScroll, { capture: true, passive: true })
-      onCleanup(() => globalThis.removeEventListener("scroll", onScroll, true))
-    })
-
-    whenEffect(scrollContainers, scrollContainers => {
-      if (!config.scroll) return
-
-      scrollContainers.forEach(scrollContainer =>
-        scrollContainer.addEventListener("scroll", onScroll, {
-          capture: true,
-          passive: true,
-        }),
+      // Global scroll listener — child created in compute phase ✓
+      createRenderEffect(
+        () => config.scroll,
+        scroll => {
+          if (!scroll) return
+          globalThis.addEventListener("scroll", onScroll, { capture: true, passive: true })
+          return () => globalThis.removeEventListener("scroll", onScroll, true)
+        },
       )
 
-      onCleanup(() => {
-        scrollContainers.forEach(element => {
-          element.removeEventListener("scroll", onScroll, true)
-        })
-      })
-    })
-  })
+      // Per-container scroll listeners — child created in compute phase ✓
+      createRenderEffect(
+        () => scrollContainers(),
+        containers => {
+          if (!config.scroll || !containers) return
+          containers.forEach(c =>
+            c.addEventListener("scroll", onScroll, { capture: true, passive: true }),
+          )
+          return () => containers.forEach(c => c.removeEventListener("scroll", onScroll, true))
+        },
+      )
+    },
+    () => {},
+  )
 
-  createEffect(() => {
-    const onResize = getDebounce("resize")
+  // Global resize listener — tracks debounce config changes
+  createRenderEffect(
+    () => getDebounce("resize"),
+    onResize => {
+      globalThis.addEventListener("resize", onResize)
+      return () => globalThis.removeEventListener("resize", onResize)
+    },
+  )
 
-    globalThis.addEventListener("resize", onResize)
-    onCleanup(() => globalThis.removeEventListener("resize", onResize))
-
-    whenEffect(element, element => {
+  // Element resize observer — re-runs when element or debounce config changes
+  createRenderEffect(
+    () => ({ el: element(), onResize: getDebounce("resize") }),
+    ({ el, onResize }) => {
+      if (!el) return
       const observer = new ResizeObserver(onResize)
-      observer.observe(element)
-      onCleanup(() => observer.disconnect())
-    })
-  })
+      observer.observe(el)
+      return () => observer.disconnect()
+    },
+  )
 
   return {
     setElement: (source: HTMLOrSVGElement | null) => {
