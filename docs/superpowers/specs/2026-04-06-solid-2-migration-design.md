@@ -193,9 +193,10 @@ onSettled(() => {
 **Changes:**
 
 1. `mergeProps` → `merge` (from `@solidjs/signals`)
-2. `withContext` — `context.Provider({...})` → `context({...})`
-3. `withMultiContexts` — same: `context.Provider({...})` → `context({...})`
-4. `useRef` — split `createRenderEffect` into compute/effectFn:
+2. `defaultProps` — internally calls `mergeProps(defaults, props)` (line 177). Update to `merge(defaults, props)`. The `undefined`-override semantic of `merge` matches the intent here (user props override defaults), so this is a safe mechanical swap.
+3. `withContext` — `context.Provider({...})` → `context({...})`
+4. `withMultiContexts` — same: `context.Provider({...})` → `context({...})`
+5. `useRef` — split `createRenderEffect` into compute/effectFn:
 
 ```ts
 // before
@@ -414,7 +415,7 @@ const rest = omit(props, "from", "args")
 
 **Changes:**
 
-1. `mergeProps` → `merge`
+1. `mergeProps` → `merge`. This file uses `mergeProps` in multiple places: the `canvasProps` default merge (line 51 via `defaultProps`), plus direct `mergeProps` calls on lines 419 and 428. All must be updated.
 2. `children` — unchanged
 3. Context providers: `<X.Provider value={...}>` → `<X value={...}>`. This applies to the JSX block at lines 409–414 that wraps children in `eventContext.Provider`, `frameContext.Provider`, and `threeContext.Provider`:
    ```tsx
@@ -432,7 +433,7 @@ const rest = omit(props, "from", "args")
      </frameContext>
    </eventContext>
    ```
-4. Nested `createRenderEffect` at lines 322–374 — restructure to split compute/effectFn with nesting in compute. **Note on XR effect:** the existing code uses `createEffect` (not `createRenderEffect`) for the XR connection because XR initialization is a DOM side effect that should not run in the render phase. Keep it as `createEffect` (split form) in the after version.
+4. Nested `createRenderEffect` at lines 322–374 — restructure to split compute/effectFn with nesting in compute. **Note on XR effect:** the existing code uses `createEffect` (not `createRenderEffect`) for the XR connection because XR initialization is a DOM side effect that should not run in the render phase. Keep it as `createEffect` (split form) in the after version. **Note:** the restructured block must also preserve the `useProps(gl, props.gl)` call that handles user-supplied renderer options — do not drop it.
 
 The doubly-nested block managing shadows + XR + color space:
 
@@ -477,7 +478,10 @@ createRenderEffect(
 
 **Changes:**
 
-1. `mergeProps` → `merge`. Watch for `mergeProps(context, { addFrameListener })` — verify `merge` behavior when `context` object fields may be `undefined`.
+1. `mergeProps` → `merge`. This file has three `mergeProps` call sites:
+   - Line 31: inside `test()` helper — `mergeProps(context, ...)` for the base context merge
+   - Line 50: `mergeProps(context, { addFrameListener })` — watch for `merge` behavior when `context` fields may be `undefined`
+   - Return value of `test()`: `mergeProps(context, { unmount, waitTillNextFrame })` — all three must be updated
 2. All test assertion helpers that currently use synchronous checks after state changes must wrap in `onSettled` promise:
 
 ```ts
