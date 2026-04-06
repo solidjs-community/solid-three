@@ -1,12 +1,11 @@
 import {
   type Accessor,
   children,
-  createComputed,
   createRenderEffect,
   type JSXElement,
   mapArray,
+  omit,
   onCleanup,
-  splitProps,
   untrack,
 } from "solid-js"
 import {
@@ -119,19 +118,21 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const c = children(() => props.children)
-  createComputed(
-    mapArray(
-      () => c.toArray() as unknown as (Meta<object> | undefined)[],
-      _child =>
-        createComputed(() => {
-          const parent = resolve(_parent)
-          if (!parent) return
-          const child = resolve(_child)
-          if (!child) return
-          applySceneGraph(parent, child)
-          props.onUpdate?.(parent)
-        }),
-    ),
+  createRenderEffect(
+    () =>
+      mapArray(
+        () => c.toArray() as unknown as (Meta<object> | undefined)[],
+        _child =>
+          createRenderEffect(
+            () => ({ parent: resolve(_parent), child: resolve(_child) }),
+            ({ parent, child }) => {
+              if (!parent || !child) return
+              applySceneGraph(parent, child)
+              untrack(() => props.onUpdate)?.(parent as T)
+            },
+          ),
+      )(), // call the mapArray accessor in compute to track the array
+    () => {},
   )
 }
 
@@ -249,30 +250,6 @@ function applyProp<T extends Record<string, any>>(
     else {
       // @ts-expect-error TODO: fix type-error
       source[type] = value
-
-      // Auto-convert sRGB textures, for now ...
-      // https://github.com/pmndrs/react-three-fiber/issues/344
-      if (
-        source[type] instanceof Texture &&
-        // sRGB textures must be RGBA8 since r137 https://github.com/mrdoob/three.js/pull/23129
-        source[type].format === RGBAFormat &&
-        source[type].type === UnsignedByteType
-      ) {
-        createRenderEffect(() => {
-          // Subscribe manually to linear and flat-prop.
-          context.props.linear
-          context.props.flat
-
-          const texture = source[type] as Texture
-
-          if (hasColorSpace(texture) && hasColorSpace(context.gl)) {
-            texture.colorSpace = context.gl.outputColorSpace
-          } else {
-            // @ts-expect-error TODO: fix type-error
-            texture.encoding = context.gl.outputEncoding
-          }
-        })
-      }
     }
   } finally {
     if ("needsUpdate" in source) {
@@ -306,41 +283,80 @@ export function useProps<T extends Record<string, any>>(
   props: any,
   context: Pick<Context, "requestRender" | "gl" | "props"> = useThree(),
 ) {
-  const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
+  const instanceProps = omit(props, "ref", "args", "object", "attach", "children")
 
   useSceneGraph(accessor, props)
 
-  createRenderEffect(() => {
-    const object = resolve(accessor)
+  createRenderEffect(
+    () => {
+      const object = resolve(accessor)
+      if (!object) return undefined
 
-    if (!object) return
+      // Ref effect — created in compute phase ✓
+      createRenderEffect(
+        () => props.ref,
+        ref => {
+          if (ref instanceof Function) ref(object)
+          else props.ref = object
+        },
+      )
 
-    // Assign ref
-    createRenderEffect(() => {
-      if (local.ref instanceof Function) local.ref(object)
-      else local.ref = object
-    })
+      // Per-key prop effects — created in compute phase ✓
+      createRenderEffect(
+        () => {
+          const keys = Object.keys(instanceProps)
+          for (const key of keys) {
+            // An array of sub-property-keys:
+            // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
+            const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
+            createRenderEffect(
+              () => props[key],
+              value => {
+                applyProp(context, object, key, value)
+                // If property updates, apply its sub-properties immediately after.
+                // NOTE:  Discuss - is this expected behavior? Feature or a bug?
+                //        Should it be according to order of update instead?
+                for (const subKey of subKeys) {
+                  applyProp(context, object, subKey, props[subKey])
+                }
+              },
+            )
 
-    // Apply the props to THREE-instance
-    createRenderEffect(() => {
-      const keys = Object.keys(instanceProps)
-      for (const key of keys) {
-        // An array of sub-property-keys:
-        // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
-        const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
-        createRenderEffect(() => {
-          applyProp(context, object, key, props[key])
-          // If property updates, apply its sub-properties immediately after.
-          // NOTE:  Discuss - is this expected behavior? Feature or a bug?
-          //        Should it be according to order of update instead?
-          for (const subKey of subKeys) {
-            applyProp(context, object, subKey, props[subKey])
+            // Texture color space tracking — created in compute phase ✓
+            // (was previously created inside applyProp's effectFn — invalid in Solid 2.0)
+            createRenderEffect(
+              () => {
+                const value = props[key]
+                if (
+                  value instanceof Texture &&
+                  value.format === RGBAFormat &&
+                  value.type === UnsignedByteType
+                ) {
+                  return { texture: value as Texture, linear: context.props.linear, gl: context.gl }
+                }
+                return null
+              },
+              result => {
+                if (!result) return
+                const { texture, gl } = result
+                if (hasColorSpace(texture) && hasColorSpace(gl)) {
+                  texture.colorSpace = gl.outputColorSpace
+                } else {
+                  // @ts-expect-error TODO: fix type-error
+                  texture.encoding = gl.outputEncoding
+                }
+              },
+            )
           }
-        })
-      }
+        },
+        () => {},
+      )
 
+      return object
+    },
+    object => {
       // NOTE: see "onUpdate should not update itself"-test
-      untrack(() => props.onUpdate)?.(object)
-    })
-  })
+      if (object) untrack(() => props.onUpdate)?.(object)
+    },
+  )
 }
