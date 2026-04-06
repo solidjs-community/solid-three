@@ -4,7 +4,7 @@ import {
   createMemo,
   createRenderEffect,
   createRoot,
-  mergeProps,
+  merge,
   onCleanup,
 } from "solid-js"
 import {
@@ -69,30 +69,34 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const addFrameListener: FrameListener = (callback, options) => {
     return createRoot(dispose => {
-      createRenderEffect(() => {
-        const { stage = "before", priority = 0 } = options ?? {}
+      createRenderEffect(
+        () => {
+          const { stage = "before", priority = 0 } = options ?? {}
+          return { stage, priority }
+        },
+        ({ stage, priority }) => {
+          const listeners = frameListeners[stage]
 
-        const listeners = frameListeners[stage]
+          let array = listeners.map.get(priority)
 
-        let array = listeners.map.get(priority)
-
-        if (!array) {
-          array = []
-          listeners.map.set(priority, array)
-          const index = binarySearch(listeners.priorities, priority)
-          listeners.priorities.splice(index, 0, priority)
-        }
-
-        array.push(callback)
-
-        onCleanup(() => {
-          removeElementFromArray(array, callback)
-          if (array.length === 0) {
-            listeners.map.delete(priority)
-            listeners.priorities.splice(listeners.priorities.indexOf(priority), 1)
+          if (!array) {
+            array = []
+            listeners.map.set(priority, array)
+            const index = binarySearch(listeners.priorities, priority)
+            listeners.priorities.splice(index, 0, priority)
           }
-        })
-      })
+
+          array.push(callback)
+
+          onCleanup(() => {
+            removeElementFromArray(array, callback)
+            if (array.length === 0) {
+              listeners.map.delete(priority)
+              listeners.priorities.splice(listeners.priorities.indexOf(priority), 1)
+            }
+          })
+        },
+      )
 
       return dispose
     })
@@ -115,7 +119,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   // Handle frame behavior in WebXR
   const handleXRFrame: XRFrameRequestCallback = (timestamp: number, frame?: XRFrame) => {
-    if (canvasProps.frameloop === "never") return
+    if ((canvasProps.frameloop as string) === "never") return
     render(timestamp, frame)
   }
   // Toggle render switching on session
@@ -287,90 +291,106 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   withMultiContexts(() => {
-    createRenderEffect(() => {
-      if (props.frameloop === "never") {
-        context.clock.stop()
-        context.clock.elapsedTime = 0
-      } else {
-        context.clock.start()
-      }
-    })
+    createRenderEffect(
+      () => props.frameloop,
+      frameloop => {
+        if (frameloop === "never") {
+          context.clock.stop()
+          context.clock.elapsedTime = 0
+        } else {
+          context.clock.start()
+        }
+      },
+    )
 
     // Manage camera
-    createRenderEffect(() => {
-      if (cameraStack.peek()) return
-      if (!props.defaultCamera || props.defaultCamera instanceof Camera) return
-      useProps(defaultCamera, props.defaultCamera)
-      // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
-      //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-      defaultCamera().updateMatrixWorld(true)
-    })
+    createRenderEffect(
+      () => ({
+        peek: cameraStack.peek(),
+        defaultCamera: props.defaultCamera,
+      }),
+      ({ peek, defaultCamera: dc }) => {
+        if (peek) return
+        if (!dc || dc instanceof Camera) return
+        useProps(defaultCamera, dc)
+        // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
+        //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
+        defaultCamera().updateMatrixWorld(true)
+      },
+    )
 
     // Manage scene
-    createRenderEffect(() => {
-      if (!props.scene || props.scene instanceof Scene) return
-      useProps(scene, props.scene)
-    })
+    createRenderEffect(
+      () => props.scene,
+      scene_ => {
+        if (!scene_ || scene_ instanceof Scene) return
+        useProps(scene, scene_)
+      },
+    )
 
     // Manage raycaster
-    createRenderEffect(() => {
-      if (!props.defaultRaycaster || props.defaultRaycaster instanceof Raycaster) return
-      useProps(defaultRaycaster, props.defaultRaycaster)
-    })
+    createRenderEffect(
+      () => props.defaultRaycaster,
+      raycaster => {
+        if (!raycaster || raycaster instanceof Raycaster) return
+        useProps(defaultRaycaster, raycaster)
+      },
+    )
 
     // Manage gl
-    createRenderEffect(() => {
-      // Set shadow-map
-      createRenderEffect(() => {
-        const _gl = gl()
-        if (_gl.shadowMap) {
-          const oldEnabled = _gl.shadowMap.enabled
-          const oldType = _gl.shadowMap.type
-          _gl.shadowMap.enabled = !!props.shadows
-
-          if (typeof props.shadows === "boolean") {
-            _gl.shadowMap.type = PCFSoftShadowMap
-          } else if (typeof props.shadows === "string") {
-            const types = {
-              basic: BasicShadowMap,
-              percentage: PCFShadowMap,
-              soft: PCFSoftShadowMap,
-              variance: VSMShadowMap,
+    createRenderEffect(
+      () => {
+        // Shadow map — child created in compute phase ✓
+        createRenderEffect(
+          () => ({
+            enabled: !!props.shadows,
+            type:
+              typeof props.shadows === "string"
+                ? ({ basic: BasicShadowMap, percentage: PCFShadowMap, soft: PCFSoftShadowMap, variance: VSMShadowMap } as const)[props.shadows] ?? PCFSoftShadowMap
+                : PCFSoftShadowMap,
+            shadowsObj: typeof props.shadows === "object" ? props.shadows : undefined,
+            gl: gl(),
+          }),
+          ({ enabled, type, shadowsObj, gl: _gl }) => {
+            if (!_gl.shadowMap) return
+            const changed = _gl.shadowMap.enabled !== enabled || _gl.shadowMap.type !== type
+            _gl.shadowMap.enabled = enabled
+            if (shadowsObj) {
+              Object.assign(_gl.shadowMap, shadowsObj)
+            } else {
+              _gl.shadowMap.type = type
             }
-            _gl.shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
-          } else if (typeof props.shadows === "object") {
-            Object.assign(_gl.shadowMap, props.shadows)
-          }
+            if (changed) _gl.shadowMap.needsUpdate = true
+          },
+        )
 
-          if (oldEnabled !== _gl.shadowMap.enabled || oldType !== _gl.shadowMap.type)
-            _gl.shadowMap.needsUpdate = true
+        // XR connect — intentionally createEffect (DOM side effect, not render phase) ✓
+        createEffect(
+          () => gl(),
+          renderer => {
+            if (renderer.xr) context.xr.connect()
+          },
+        )
+
+        // Color space and tone mapping
+        const LinearEncoding = 3000
+        const sRGBEncoding = 3001
+        useProps(gl, {
+          get outputEncoding() {
+            return props.linear ? LinearEncoding : sRGBEncoding
+          },
+          get toneMapping() {
+            return props.flat ? NoToneMapping : ACESFilmicToneMapping
+          },
+        })
+
+        // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
+        if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+          useProps(gl, props.gl)
         }
-      })
-
-      createEffect(() => {
-        const renderer = gl()
-        // Connect to xr if property exists
-        if (renderer.xr) context.xr.connect()
-      })
-
-      // Set color space and tonemapping preferences
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      // Color management and tone-mapping
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
-        },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
-        },
-      })
-
-      // Manage props
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
-        useProps(gl, props.gl)
-      }
-    })
+      },
+      () => {},
+    )
   }, [[threeContext, context]])
 
   /**********************************************************************************/
@@ -384,12 +404,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     pendingLoopRequest = requestAnimationFrame(loop)
     context.render(value)
   }
-  createRenderEffect(() => {
-    if (canvasProps.frameloop === "always") {
-      pendingLoopRequest = requestAnimationFrame(loop)
-    }
-    onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
-  })
+  createRenderEffect(
+    () => canvasProps.frameloop,
+    frameloop => {
+      if (frameloop === "always") {
+        pendingLoopRequest = requestAnimationFrame(loop)
+      }
+      onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
+    },
+  )
 
   /**********************************************************************************/
   /*                                                                                */
@@ -406,17 +429,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
+  const EventContext = eventContext
+  const FrameContext = frameContext
+  const ThreeContext = threeContext
   const c = children(() => (
-    <eventContext.Provider value={addEventListener}>
-      <frameContext.Provider value={addFrameListener}>
-        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-      </frameContext.Provider>
-    </eventContext.Provider>
+    <EventContext value={addEventListener}>
+      <FrameContext value={addFrameListener}>
+        <ThreeContext value={context}>{canvasProps.children}</ThreeContext>
+      </FrameContext>
+    </EventContext>
   ))
 
   useSceneGraph(
     context.scene,
-    mergeProps(props, {
+    merge(props, {
       get children() {
         return c()
       },
@@ -425,5 +451,5 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   // Return context merged with `addFrameListeners``
   // This is used in `@solid-three/testing`
-  return mergeProps(context, { addFrameListener })
+  return merge(context, { addFrameListener })
 }
