@@ -65,12 +65,13 @@ createRenderEffect(
 
 ```ts
 onSettled(() => {
-  return createRoot(dispose => {
+  createRoot(() => {
     createThree(canvas, props)
-    return dispose  // returned as cleanup
   })
 })
 ```
+
+In Solid 2.0, `createRoot` autodisposes when its owner disposes — no need to return or call `dispose` manually.
 
 ### 4. Context is the provider
 
@@ -114,11 +115,11 @@ onMount(() => {
 
 // after
 onSettled(() => {
-  return createRoot(dispose => {
+  createRoot(() => {
     const context = createThree(canvas, props)
     createResizeObserver(container, ...)
-    return dispose
   })
+  // createRoot autodisposes when owner disposes — no manual cleanup needed
 })
 ```
 
@@ -518,7 +519,7 @@ No changes needed — only use `createSignal`, `onCleanup`, `getOwner`, `untrack
 | Area | Risk | Mitigation |
 |---|---|---|
 | `@bigmistqke/solid-whenever` (`when`, `whenEffect`, `whenMemo`) | Not Solid 2.0 compatible — remove package | Inline all usages: `whenMemo` → `createMemo` with conditional, `whenEffect` → `createRenderEffect` with null-check in effectFn, `when` → plain function with null-check |
-| `onSettled` + `createRoot` in Canvas | `createRoot` inside `onSettled` may have edge cases | Verify ownership and cleanup are correct in tests |
+| `onSettled` + `createRoot` in Canvas | `createRoot` autodisposes with owner — no manual dispose needed | Verify in tests that canvas teardown correctly disposes the root |
 | `useLoader` return type change | Callers using `.loading`/`.error` break | Audit all call sites; wrap in `<Loading>` |
 | `omit` vs `splitProps` semantics | `merge` treats `undefined` as a real value (overrides) | Audit all `mergeProps` call sites for undefined-coalescing patterns |
 | Tests timing with `onSettled` | Async test infrastructure changes | Build `settled()` helper early; use throughout |
