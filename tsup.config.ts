@@ -29,6 +29,7 @@ export default defineConfig(config => {
         clean: i === 0,
         dts: j === 0,
         entry: { [outFilename]: entry },
+        external: ["solid-js", "@solidjs/signals", "@solidjs/web", "three"],
         treeshake: watching ? undefined : { preset: "safest" },
         replaceNodeEnv: true,
         esbuildOptions(options) {

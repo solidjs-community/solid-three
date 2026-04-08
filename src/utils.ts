@@ -1,6 +1,5 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
-import { setContext } from "@solidjs/signals"
+import { children as resolveChildren, createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
 import {
   Camera,
   Loader,
@@ -273,8 +272,20 @@ export function withContext<T, TResult>(
   context: Context<T>,
   value: T,
 ) {
-  setContext(context as any, value)
-  return children()
+  // In Solid 2.x the context object IS the provider component (no .Provider).
+  // The provider calls setContext from the correct signals version internally.
+  // It returns a lazy children() memo — we must force evaluation so our callback runs.
+  let result: TResult
+  const memo = (context as any)({
+    value,
+    children: (() => {
+      result = children()
+      return ""
+    }) as any as JSX.Element,
+  })
+  // Force lazy children memo to evaluate (triggers flatten → calls our fn)
+  if (typeof memo === "function") memo()
+  return result!
 }
 
 /**********************************************************************************/
@@ -303,19 +314,34 @@ export function withContext<T, TResult>(
  * ```
  */
 
-const debugCtx = createDebug("utils:withMultiContexts", true)
-
 export function withMultiContexts<TResult, T extends readonly [unknown?, ...unknown[]]>(
   children: () => TResult,
   values: {
     [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]]
   },
 ) {
-  debugCtx("enter", { owner: getOwner(), ownerChain: describeOwnerChain() }, { trace: true })
-  for (const [context, value] of values as [Context<any>, any][]) {
-    setContext(context as any, value)
-  }
-  return children()
+  // Nest context providers (no .Provider in Solid 2.x — context IS the provider).
+  // Each provider returns a lazy memo — we force the outermost to evaluate.
+  let result: TResult
+  const memo = (values as [Context<any>, any][]).reduce(
+    (acc, [context, value], index) => {
+      return () => {
+        const m = (context as any)({
+          value,
+          children: (() => {
+            if (index === 0) result = acc()
+            else acc()
+            return ""
+          }) as any as JSX.Element,
+        })
+        if (typeof m === "function") m()
+        return m
+      }
+    },
+    children as () => any,
+  )()
+  if (typeof memo === "function") memo()
+  return result!
 }
 
 /**********************************************************************************/
