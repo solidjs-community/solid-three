@@ -88,13 +88,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
           array.push(callback)
 
-          onCleanup(() => {
+          return () => {
             removeElementFromArray(array, callback)
             if (array.length === 0) {
               listeners.map.delete(priority)
               listeners.priorities.splice(listeners.priorities.indexOf(priority), 1)
             }
-          })
+          }
         },
       )
 
@@ -303,38 +303,41 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     )
 
-    // Manage camera
+    // Manage camera — useProps must be in compute phase (creates reactive nodes)
     createRenderEffect(
-      () => ({
-        peek: cameraStack.peek(),
-        defaultCamera: props.defaultCamera,
-      }),
-      ({ peek, defaultCamera: dc }) => {
+      () => {
+        const peek = cameraStack.peek()
+        const dc = props.defaultCamera
         if (peek) return
         if (!dc || dc instanceof Camera) return
         useProps(defaultCamera, dc)
-        // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
-        //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-        defaultCamera().updateMatrixWorld(true)
+        return defaultCamera()
+      },
+      camera => {
+        // Manually update camera's matrix with updateMatrixWorld is needed.
+        // Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
+        camera?.updateMatrixWorld(true)
       },
     )
 
-    // Manage scene
+    // Manage scene — useProps must be in compute phase (creates reactive nodes)
     createRenderEffect(
-      () => props.scene,
-      scene_ => {
+      () => {
+        const scene_ = props.scene
         if (!scene_ || scene_ instanceof Scene) return
         useProps(scene, scene_)
       },
+      () => {},
     )
 
-    // Manage raycaster
+    // Manage raycaster — useProps must be in compute phase (creates reactive nodes)
     createRenderEffect(
-      () => props.defaultRaycaster,
-      raycaster => {
+      () => {
+        const raycaster = props.defaultRaycaster
         if (!raycaster || raycaster instanceof Raycaster) return
         useProps(defaultRaycaster, raycaster)
       },
+      () => {},
     )
 
     // Manage gl

@@ -1,5 +1,6 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, merge, onCleanup, type Ref } from "solid-js"
+import { createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import { setContext } from "@solidjs/signals"
 import {
   Camera,
   Loader,
@@ -272,17 +273,8 @@ export function withContext<T, TResult>(
   context: Context<T>,
   value: T,
 ) {
-  let result: TResult
-
-  context({
-    value,
-    children: (() => {
-      result = children()
-      return ""
-    }) as any as JSX.Element,
-  })
-
-  return result!
+  setContext(context as any, value)
+  return children()
 }
 
 /**********************************************************************************/
@@ -311,25 +303,19 @@ export function withContext<T, TResult>(
  * ```
  */
 
+const debugCtx = createDebug("utils:withMultiContexts", true)
+
 export function withMultiContexts<TResult, T extends readonly [unknown?, ...unknown[]]>(
   children: () => TResult,
   values: {
     [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]]
   },
 ) {
-  let result: TResult
-  ;(values as [Context<any>, any]).reduce((acc, [context, value], index) => {
-    return () =>
-      context({
-        value,
-        children: () => {
-          if (index === 0) result = acc()
-          else acc()
-        },
-      })
-  }, children)()
-
-  return result!
+  debugCtx("enter", { owner: getOwner(), ownerChain: describeOwnerChain() }, { trace: true })
+  for (const [context, value] of values as [Context<any>, any][]) {
+    setContext(context as any, value)
+  }
+  return children()
 }
 
 /**********************************************************************************/
@@ -453,4 +439,62 @@ export function binarySearch(array: number[], target: number) {
   }
 
   return left // Insertion point
+}
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                    Debug                                       */
+/*                                                                                */
+/**********************************************************************************/
+
+type DebugOptions = { trace?: boolean }
+
+/**
+ * Returns a debug function. When `enabled` is false, the debug function is a no-op.
+ * Usage: const debug = createDebug("my-module", true)
+ *        debug("topic", data)
+ *        debug("topic", data, { trace: true })  // also prints full call stack
+ */
+export function createDebug(title: string, enabled: boolean) {
+  if (!enabled) return (_topic: string, ..._args: any[]) => {}
+  return (topic: string, data?: any, options?: DebugOptions) => {
+    console.log(`[${title}] ${topic}`, ...(data !== undefined ? [data] : []))
+    if (options?.trace) {
+      const prev = (Error as any).stackTraceLimit
+      ;(Error as any).stackTraceLimit = 50
+      const stack = new Error().stack?.split("\n").slice(2).join("\n")
+      ;(Error as any).stackTraceLimit = prev
+      console.log(`[${title}] stack:\n${stack}`)
+    }
+  }
+}
+
+/**
+ * Returns a string describing the current reactive owner chain from getOwner() upward.
+ * Each node shows: name, number of context keys, and transparent flag.
+ */
+export function describeOwnerChain(): string {
+  let o = getOwner() as any
+  if (!o) return "(no owner)"
+  const parts: string[] = []
+  while (o) {
+    const ctxKeys = o._context ? Object.getOwnPropertySymbols(o._context).length : -1
+    const transparent = o._transparent ? "(T)" : ""
+    const name = o._name || o._component?.name || "(anon)"
+    parts.push(`${name}[${ctxKeys}ctx]${transparent}`)
+    o = o._parent
+  }
+  return parts.join(" -> ")
+}
+
+/**
+ * Returns whether a given context id is present anywhere in the owner chain.
+ */
+export function hasContextInChain(contextId: symbol): boolean {
+  let o = getOwner() as any
+  while (o) {
+    if (o._context && o._context[contextId] !== undefined) return true
+    o = o._parent
+  }
+  return false
 }

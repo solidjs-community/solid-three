@@ -8,6 +8,10 @@ import {
   onCleanup,
   untrack,
 } from "solid-js"
+import { createDebug } from "./utils.ts"
+
+const debugSG = createDebug("props:applySceneGraph", false)
+const debugProps = createDebug("props:useProps", false)
 import {
   BufferGeometry,
   Color,
@@ -83,10 +87,16 @@ function applySceneGraph(parent: object, child: object) {
   }
 
   // If no attach-prop is defined, add the child to the parent.
-  if (child instanceof Object3D && parent instanceof Object3D && !parent.children.includes(child)) {
-    parent.add(child)
-    onCleanup(() => parent.remove(child))
-    return child
+  if (child instanceof Object3D && parent instanceof Object3D) {
+    if (!parent.children.includes(child)) {
+      debugSG(`add child ${(child as any).type} to parent ${(parent as any).type}`, undefined, { trace: true })
+      parent.add(child)
+      onCleanup(() => parent.remove(child))
+      return child
+    } else {
+      debugSG(`DOUBLE-ADD: child ${(child as any).type} already in parent ${(parent as any).type}`, undefined, { trace: true })
+    }
+    return
   }
 
   console.error(
@@ -118,21 +128,55 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const c = children(() => props.children)
+  // mapArray(...) is created once and passed directly as the compute to createRenderEffect.
+  // In Solid 2.x the compute fn is called on each re-run; passing the mapArray accessor
+  // (not a lambda that calls mapArray) means the same instance persists across updates,
+  // so item lifecycle (add/remove) is managed by mapArray's internal owners — not recreated.
   createRenderEffect(
-    () =>
-      mapArray(
-        () => c.toArray() as unknown as (Meta<object> | undefined)[],
-        _child =>
-          createRenderEffect(
-            () => ({ parent: resolve(_parent), child: resolve(_child) }),
-            ({ parent, child }) => {
-              if (!parent || !child) return
-              applySceneGraph(parent, child)
-              untrack(() => props.onUpdate)?.(parent as T)
-            },
-          ),
-      )(), // call the mapArray accessor in compute to track the array
-    () => {},
+    mapArray(
+      () => c.toArray() as unknown as (Meta<object> | undefined)[],
+      _child => {
+        createRenderEffect(
+          () => ({ parent: resolve(_parent), child: resolve(_child) }),
+          ({ parent, child }) => {
+            if (!parent || !child) return
+            applySceneGraph(parent, child)
+            untrack(() => props.onUpdate)?.(parent as T)
+          },
+        )
+        return _child
+      },
+    ),
+    childAccessors => {
+      if (!childAccessors?.length) return
+      const parent = untrack(() => resolve(_parent))
+      if (!(parent instanceof Object3D)) return
+      const managedChildren: Object3D[] = []
+      for (const a of childAccessors) {
+        const c = resolve(a)
+        if (c instanceof Object3D) managedChildren.push(c)
+      }
+      if (!managedChildren.length) return
+      // Only reorder when managed children exist and their relative order differs
+      const indices = managedChildren.map(c => parent.children.indexOf(c)).filter(i => i !== -1)
+      if (indices.length < 2) return
+      let ordered = true
+      for (let i = 1; i < indices.length; i++) {
+        if (indices[i] <= indices[i - 1]) { ordered = false; break }
+      }
+      if (ordered) return
+      // Reorder: splice each managed child into its expected position
+      let insertPos = 0
+      for (const child of managedChildren) {
+        const currentPos = parent.children.indexOf(child)
+        if (currentPos === -1) continue
+        if (currentPos !== insertPos) {
+          parent.children.splice(currentPos, 1)
+          parent.children.splice(insertPos, 0, child)
+        }
+        insertPos++
+      }
+    },
   )
 }
 
@@ -207,20 +251,9 @@ function applyProp<T extends Record<string, any>>(
     }
   }
 
-  if (isEventType(type)) {
-    if (source instanceof Object3D && hasMeta(source)) {
-      const cleanup = addToEventListeners(source, type)
-      onCleanup(cleanup)
-    } else {
-      console.error(
-        "Event handlers can only be added to Three elements extending from Object3D. Ignored event-type:",
-        type,
-        "from element",
-        source,
-      )
-    }
-    return
-  }
+  // Event registration is handled in useProps compute phase (needs reactive owner for useContext).
+  // applyProp just skips event types — no work needed here.
+  if (isEventType(type)) return
 
   const target = source[type]
 
@@ -282,10 +315,11 @@ export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
   props: any,
   context: Pick<Context, "requestRender" | "gl" | "props"> = useThree(),
+  options?: { skipSceneGraph?: boolean },
 ) {
   const instanceProps = omit(props, "ref", "args", "object", "attach", "children")
 
-  useSceneGraph(accessor, props)
+  if (!options?.skipSceneGraph) useSceneGraph(accessor, props)
 
   createRenderEffect(
     () => {
@@ -299,6 +333,22 @@ export function useProps<T extends Record<string, any>>(
           if (ref instanceof Function) ref(object)
           else props.ref = object
         },
+      )
+
+      // Event handler registration — must be in compute phase to access eventContext ✓
+      // (useContext requires an active owner, which is only available during compute)
+      createRenderEffect(
+        () => {
+          const keys = Object.keys(instanceProps)
+          for (const key of keys) {
+            if (isEventType(key) && object instanceof Object3D && hasMeta(object)) {
+              debugProps(`register event: ${key}`, undefined, { trace: true })
+              const cleanup = addToEventListeners(object, key)
+              onCleanup(cleanup)
+            }
+          }
+        },
+        () => {},
       )
 
       // Per-key prop effects — created in compute phase ✓

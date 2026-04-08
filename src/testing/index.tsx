@@ -29,30 +29,38 @@ export function settled(): Promise<void> {
  * await testScene.waitTillNextFrame();
  * testScene.unmount();
  */
-export function test(
+export async function test(
   children: Accessor<JSX.Element>,
   props?: Omit<CanvasProps, "children">,
-): TestApi {
+): Promise<TestApi> {
   const canvas = createTestCanvas()
   let context: ReturnType<typeof createThree> = null!
   let unmount: () => void = null!
 
-  createRoot(dispose => {
-    unmount = dispose
-    context = createThree(
-      canvas,
-      merge(
-        {
-          get children() {
-            return children()
+  await new Promise<void>(resolve => {
+    createRoot(dispose => {
+      unmount = dispose
+      // onSettled must be called BEFORE createThree so that the trackedEffect it creates
+      // ends up at the TAIL of test_root._firstChild. When a trackedEffect re-runs,
+      // Solid 2.x calls disposeChildren(node, false) which sets _nextSibling = null —
+      // if the node is at the HEAD, that breaks the chain and prevents disposal of
+      // all subsequent nodes (including those from createThree) on unmount.
+      onSettled(() => resolve())
+      context = createThree(
+        canvas,
+        merge(
+          {
+            get children() {
+              return children()
+            },
+            defaultCamera: {
+              position: [0, 0, 5] as [number, number, number],
+            },
           },
-          camera: {
-            position: [0, 0, 5] as [number, number, number],
-          },
-        },
-        props ?? {},
-      ),
-    )
+          props ?? {},
+        ),
+      )
+    })
   })
 
   const waitTillNextFrame = () =>

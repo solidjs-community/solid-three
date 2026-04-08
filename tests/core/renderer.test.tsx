@@ -60,7 +60,7 @@ describe("renderer", () => {
         <T.MeshBasicMaterial />
       </T.Mesh>
     )
-    const scene = test(() => <Mesh />).scene
+    const scene = (await test(() => <Mesh />)).scene
 
     expect(scene.children[0].type).toEqual("Mesh")
     expect((scene.children[0] as ComponentMesh).geometry.type).toEqual("BoxGeometry")
@@ -73,7 +73,7 @@ describe("renderer", () => {
 
   it("renders an empty scene", async () => {
     const Empty = () => null
-    const scene = test(() => <Empty />).scene
+    const scene = (await test(() => <Empty />)).scene
 
     expect(scene.type).toEqual("Scene")
     expect(scene.children).toEqual([])
@@ -98,7 +98,7 @@ describe("renderer", () => {
       )
     }
 
-    const scene = test(() => <Parent />).scene
+    const scene = (await test(() => <Parent />)).scene
 
     expect(scene.children[0].type).toEqual("Group")
     expect((scene.children[0] as ObjectWithBackground).background.getStyle()).toEqual("rgb(0,0,0)")
@@ -141,7 +141,7 @@ describe("renderer", () => {
       return null
     }
 
-    const scene = test(() => <Component />).scene
+    const scene = (await test(() => <Component />)).scene
 
     expect(scene.children[0].position.x).toEqual(7)
     expect(renders).toBe(3)
@@ -152,7 +152,7 @@ describe("renderer", () => {
       "MeshBasicMaterial",
     )
 
-    const scene = test(() => (
+    const scene = (await test(() => (
       <T.Mesh>
         {type() === "MeshBasicMaterial" ? (
           <T.MeshBasicMaterial name="basicMat">
@@ -164,7 +164,7 @@ describe("renderer", () => {
           </T.MeshStandardMaterial>
         )}
       </T.Mesh>
-    )).scene
+    ))).scene
 
     expect(
       (scene.children[0] as THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>).material.type,
@@ -210,11 +210,11 @@ describe("renderer", () => {
   })
 
   it("attaches Object3D children that use attach", async () => {
-    const scene = test(() => (
+    const scene = (await test(() => (
       <T.HasObject3dMember>
         <T.Mesh attach="attachment" />
       </T.HasObject3dMember>
-    )).scene
+    ))).scene
 
     const attachedMesh = (scene.children[0] as HasObject3dMember).attachment
     expect(attachedMesh).toBeDefined()
@@ -224,11 +224,11 @@ describe("renderer", () => {
   })
 
   it("can attach a Scene", async () => {
-    const scene = test(() => (
+    const scene = (await test(() => (
       <T.HasObject3dMember>
         <T.Scene attach="attachment" />
       </T.HasObject3dMember>
-    )).scene
+    ))).scene
 
     const attachedScene = (scene.children[0] as HasObject3dMember).attachment
     expect(attachedScene).toBeDefined()
@@ -241,7 +241,7 @@ describe("renderer", () => {
     it("attachFns with cleanup", async () => {
       const [visible, setVisible] = createSignal(true)
 
-      const scene = test(() => (
+      const scene = (await test(() => (
         <T.HasObject3dMethods>
           <Show when={visible()}>
             <T.Mesh
@@ -251,7 +251,7 @@ describe("renderer", () => {
             />
           </Show>
         </T.HasObject3dMethods>
-      )).scene
+      ))).scene
 
       const attachedMesh = (scene.children[0] as HasObject3dMethods).attachedObj3d
 
@@ -276,13 +276,13 @@ describe("renderer", () => {
 
       const [visible, setVisible] = createSignal(true)
 
-      const scene = test(() => (
+      const scene = (await test(() => (
         <T.HasObject3dMethods>
           <Show when={visible()}>
             <T.Mesh attach={parent => ((attachedMesh = parent), () => (detachedMesh = parent))} />
           </Show>
         </T.HasObject3dMethods>
-      )).scene
+      ))).scene
 
       expect(attachedMesh).toBeDefined()
       expect(attachedMesh?.type).toBe("Object3D")
@@ -300,13 +300,13 @@ describe("renderer", () => {
     const log: string[] = []
     // @ts-expect-error TODO: fix type-error
     const Log = props => {
-      onSettled(() => log.push("mount " + props.name))
+      onSettled(() => { log.push("mount " + props.name) })
       onCleanup(() => log.push("unmount " + props.name))
       log.push("render " + props.name)
       return <T.Group />
     }
 
-    const { unmount: dispose } = test(() => <Log name="Foo" />)
+    const { unmount: dispose } = await test(() => <Log name="Foo" />)
 
     await settled()
     dispose()
@@ -325,7 +325,7 @@ describe("renderer", () => {
   //     </Show>
   //   );
 
-  //   const { eventRegistry, waitTillNextFrame } = test(() => <EventfulComponent />);
+  //   const { eventRegistry, waitTillNextFrame } = await test(() => <EventfulComponent />);
 
   //   // Test initial mount without events
   //   setMounted(true);
@@ -363,7 +363,7 @@ describe("renderer", () => {
       </Entity>
     )
 
-    const state = test(() => <Test first={first()} />)
+    const state = await test(() => <Test first={first()} />)
 
     instances.push({
       uuid: state.scene.children[0].uuid,
@@ -407,7 +407,7 @@ describe("renderer", () => {
       </Entity>
     )
 
-    const state = test(() => <Test n={n()} />)
+    const state = await test(() => <Test n={n()} />)
 
     // Initial object is added with children and attachments
     expect(state.scene.children[0]).toBe(o1)
@@ -436,7 +436,7 @@ describe("renderer", () => {
       </>
     )
 
-    const state = test(() => <Test array={array()} />)
+    const state = await test(() => <Test array={array()} />)
 
     expect(state.scene.children[0]).toBe(a)
     expect(state.scene.children[1]).toBe(b)
@@ -467,10 +467,10 @@ describe("renderer", () => {
   it("will make an Orthographic Camera & set the position", async () => {
     let camera: THREE.Camera = null!
 
-    camera = test(() => <T.Group />, {
+    camera = (await test(() => <T.Group />, {
       orthographic: true,
       defaultCamera: { position: [0, 0, 5] },
-    }).camera
+    })).camera
 
     expect(camera.type).toEqual("OrthographicCamera")
     expect(camera.position.z).toEqual(5)
@@ -479,7 +479,7 @@ describe("renderer", () => {
   // TODO:  implement performance configuration
 
   // it("should handle an performance changing functions", async () => {
-  //   let state = test(() => <T.Group />, { dpr: [1, 2], performance: { min: 0.2 } });
+  //   let state = await test(() => <T.Group />, { dpr: [1, 2], performance: { min: 0.2 } });
 
   //   expect(state.viewport.initialDpr).toEqual(2);
   //   expect(state.performance.min).toEqual(0.2);
@@ -504,20 +504,19 @@ describe("renderer", () => {
   // });
 
   it("should set PCFSoftShadowMap as the default shadow map", async () => {
-    let state = test(() => <T.Group />, { shadows: true })
+    let state = await test(() => <T.Group />, { shadows: true })
     expect(state.gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
   })
 
-  it("should set tonemapping to ACESFilmicToneMapping and outputEncoding to sRGBEncoding if linear is false", async () => {
-    let state = test(() => <T.Group />, { linear: false })
+  it("should set tonemapping to ACESFilmicToneMapping and outputColorSpace to sRGB if linear is false", async () => {
+    let state = await test(() => <T.Group />, { linear: false })
 
     expect(state.gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(state.gl.outputEncoding).toBe(THREE.sRGBEncoding)
+    expect((state.gl as unknown as { outputColorSpace: string }).outputColorSpace).toBe("srgb")
   })
 
   it("should toggle render mode in xr", async () => {
-    const state = test(() => <T.Group />)
+    const state = await test(() => <T.Group />)
 
     state.gl.xr.isPresenting = true
     state.gl.xr.dispatchEvent({ type: "sessionstart" })
@@ -539,7 +538,7 @@ describe("renderer", () => {
       })
       return <T.Group />
     }
-    const state = test(() => <TestGroup />, { frameloop: "never" })
+    const state = await test(() => <TestGroup />, { frameloop: "never" })
     state.gl.xr.isPresenting = true
     state.gl.xr.dispatchEvent({ type: "sessionstart" })
 
@@ -559,13 +558,13 @@ describe("renderer", () => {
 
   it("should set renderer props via gl prop", async () => {
     // @ts-expect-error TODO: fix type-error
-    const gl = test(() => <T.Group />, { gl: { physicallyCorrectLights: true } }).gl
+    const gl = (await test(() => <T.Group />, { gl: { physicallyCorrectLights: true } })).gl
     // @ts-expect-error TODO: fix type-error
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
   it("should update scene via scene prop", async () => {
-    const scene = test(() => <T.Group />, { scene: { name: "test" } }).scene
+    const scene = (await test(() => <T.Group />, { scene: { name: "test" } })).scene
 
     expect(scene.name).toBe("test")
   })
@@ -573,7 +572,7 @@ describe("renderer", () => {
   it("should set a custom scene via scene prop", async () => {
     const prop = new THREE.Scene()
 
-    const scene = test(() => <T.Group />, { scene: prop }).scene
+    const scene = (await test(() => <T.Group />, { scene: prop })).scene
 
     expect(prop).toBe(scene)
   })
@@ -581,7 +580,7 @@ describe("renderer", () => {
   it("should set a renderer via gl callback", async () => {
     class Renderer extends THREE.WebGLRenderer {}
 
-    const gl = test(() => <T.Group />, { gl: canvas => new Renderer({ canvas }) }).gl
+    const gl = (await test(() => <T.Group />, { gl: canvas => new Renderer({ canvas }) })).gl
 
     expect(gl instanceof Renderer).toBe(true)
   })
@@ -598,34 +597,29 @@ describe("renderer", () => {
     const [linear, setLinear] = createSignal(false)
     const [flat, setFlat] = createSignal(false)
 
-    const gl = test(() => <Test />, {
+    const gl = (await test(() => <Test />, {
       get linear() {
         return linear()
       },
       get flat() {
         return flat()
       },
-    }).gl as unknown as THREE.WebGLRenderer & { outputColorSpace: string }
+    })).gl as unknown as THREE.WebGLRenderer & { outputColorSpace: string }
 
-    // @ts-expect-error TODO: fix type-error
-    expect(gl.outputEncoding).toBe(sRGBEncoding)
+    const SRGBColorSpace = "srgb"
+    const LinearSRGBColorSpace = "srgb-linear"
+
+    expect(gl.outputColorSpace).toBe(SRGBColorSpace)
     expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(texture.encoding).toBe(sRGBEncoding)
+    expect(texture.colorSpace).toBe(SRGBColorSpace)
 
     setLinear(true)
     setFlat(true)
     await settled()
 
-    // @ts-expect-error TODO: fix type-error
-    expect(gl.outputEncoding).toBe(LinearEncoding)
+    expect(gl.outputColorSpace).toBe(LinearSRGBColorSpace)
     expect(gl.toneMapping).toBe(THREE.NoToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(texture.encoding).toBe(LinearEncoding)
-
-    // Sets outputColorSpace since r152
-    const SRGBColorSpace = "srgb"
-    const LinearSRGBColorSpace = "srgb-linear"
+    expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
 
     // @ts-expect-error TODO: fix type-error
     gl.outputColorSpace = "test"
@@ -729,7 +723,7 @@ describe("renderer", () => {
       )
     }
 
-    test(() => (key() ? <Test /> : undefined))
+    await test(() => (key() ? <Test /> : undefined))
 
     expect(group()).toBeDefined()
     const prevUUID = group()!.uuid
@@ -816,7 +810,7 @@ describe("renderer", () => {
 
   //   const [cameraName, setCameraName] = createSignal<string | undefined>(undefined);
 
-  //   const store = test(() => <Test />, {
+  //   const store = await test(() => <Test />, {
   //     camera: {
   //       get name() {
   //         return cameraName();

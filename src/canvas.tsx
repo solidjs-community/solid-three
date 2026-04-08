@@ -1,4 +1,7 @@
-import { createRoot, onCleanup, onSettled, type JSX, type ParentProps, type Ref } from "solid-js"
+import { getOwner, onCleanup, type JSX, type ParentProps, type Ref } from "solid-js"
+import { createDebug, describeOwnerChain } from "./utils.ts"
+
+const debug = createDebug("canvas:Canvas", true)
 
 function createResizeObserver(target: Element, callback: () => void) {
   const observer = new ResizeObserver(callback)
@@ -61,38 +64,10 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function Canvas(props: ParentProps<CanvasProps>) {
-  let canvas: HTMLCanvasElement = null!
-  let container: HTMLDivElement = null!
-
-  onSettled(() => {
-    createRoot(() => {
-      const context = createThree(canvas, props)
-
-      // Resize observer for the canvas to adjust camera and renderer on size change
-      createResizeObserver(container, function onResize() {
-        const { width, height } = container.getBoundingClientRect()
-        context.gl.setSize(width, height)
-        context.gl.setPixelRatio(globalThis.devicePixelRatio)
-
-        if (context.camera instanceof OrthographicCamera) {
-          context.camera.left = width / -2
-          context.camera.right = width / 2
-          context.camera.top = height / 2
-          context.camera.bottom = height / -2
-        } else {
-          context.camera.aspect = width / height
-        }
-
-        context.camera.updateProjectionMatrix()
-        context.render(performance.now())
-      })
-    })
-    // createRoot autodisposes when the Canvas component's owner disposes
-  })
-
-  return (
+  debug("Canvas body", { owner: getOwner(), ownerChain: describeOwnerChain() }, { trace: true })
+  const canvas = (<canvas />) as HTMLCanvasElement
+  const container = (
     <div
-      ref={container!}
       style={{
         position: "relative",
         width: "100%",
@@ -104,7 +79,29 @@ export function Canvas(props: ParentProps<CanvasProps>) {
       }}
       class={props.class}
     >
-      <canvas ref={canvas!} />
+      {canvas}
     </div>
-  )
+  ) as HTMLDivElement
+
+  const context = createThree(canvas, props)
+
+  createResizeObserver(container, function onResize() {
+    const { width, height } = container.getBoundingClientRect()
+    context.gl.setSize(width, height)
+    context.gl.setPixelRatio(globalThis.devicePixelRatio)
+
+    if (context.camera instanceof OrthographicCamera) {
+      context.camera.left = width / -2
+      context.camera.right = width / 2
+      context.camera.top = height / 2
+      context.camera.bottom = height / -2
+    } else {
+      context.camera.aspect = width / height
+    }
+
+    context.camera.updateProjectionMatrix()
+    context.render(performance.now())
+  })
+
+  return container
 }

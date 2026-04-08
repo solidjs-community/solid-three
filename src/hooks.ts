@@ -2,6 +2,7 @@ import {
   type Accessor,
   createContext,
   createMemo,
+  getOwner,
   merge,
   useContext,
 } from "solid-js"
@@ -17,12 +18,16 @@ import type {
 } from "./types.ts"
 import {
   awaitMapObject,
+  createDebug,
+  describeOwnerChain,
   isRecord,
   load,
   type LoadInput,
   type LoadOutput,
   resolve,
 } from "./utils.ts"
+
+const debug = createDebug("hooks:useThree", false)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -67,8 +72,11 @@ export const threeContext = createContext<Context>(null!)
 export function useThree(): Context
 export function useThree<T>(callback: (value: Context) => T): Accessor<T>
 export function useThree(callback?: (value: Context) => any) {
+  // Guard: outside reactive context (e.g. Vitest deepClone traversing $S3C.props.children getter)
+  if (!getOwner()) return (callback ? () => undefined : undefined) as any
   const store = useContext(threeContext)
   if (!store) {
+    debug("FAILED owner chain:", describeOwnerChain(), { trace: true })
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
   if (callback) return () => callback(store)
@@ -172,9 +180,9 @@ function resolveUrls<T>(base: string, url: T): T {
  * const textures = useLoader(TextureLoader, theme)
  *
  * return (
- *   <Suspense>
+ *   <Loading>
  *     <T.MeshStandardMaterial map={textures()?.diffuse} normalMap={textures()?.normal} />
- *   </Suspense>
+ *   </Loading>
  * )
  * ```
  */
@@ -254,7 +262,7 @@ export function useLoader<
   const resource = createMemo(async () => {
     const _url = resolve(url)
     const _loader = loader()
-    const base = options?.base
+    const base = config.base
     config.onBeforeLoad?.(_loader)
     const resolvedUrl = base ? resolveUrls(base, _url) : _url
     const result = await loadUrl(resolvedUrl)
@@ -289,7 +297,7 @@ export function useLoader<
  * function App(){
  *    const [visible, setVisible] = createSignal(true)
  *
- *    onMount(() => {
+ *    onSettled(() => {
  *      // ❌ Texture will not be disposed because it is still referenced
  *      useLoader.cache.disposeFreeList()
  *

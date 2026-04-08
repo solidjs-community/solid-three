@@ -1,7 +1,9 @@
 import { createMemo, type Component, type JSX } from "solid-js"
 import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
-import { meta } from "./utils.ts"
+import { createDebug, describeOwnerChain, meta } from "./utils.ts"
+
+const debug = createDebug("create-t:createEntity", false)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -43,6 +45,11 @@ export function createEntity<TConstructor>(
   Constructor: TConstructor,
 ): Component<Props<TConstructor>> {
   return (props: Props<TConstructor>) => {
+    const chain = describeOwnerChain()
+    const isNullContext = chain === "(anon)[0ctx](T)"
+    debug(`component body: ${(Constructor as any)?.name} owner chain: ${chain}`, undefined, {
+      trace: isNullContext,
+    })
     const memo = createMemo(() => {
       // listen to key changes
       props.key

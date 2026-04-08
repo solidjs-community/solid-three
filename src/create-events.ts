@@ -1,6 +1,8 @@
 import { Object3D, type Intersection } from "three"
 import type { Context, EventName, Meta, Prettify, ThreeEvent } from "./types.ts"
-import { getMeta } from "./utils.ts"
+import { createDebug, getMeta } from "./utils.ts"
+
+const debugEvents = createDebug("events:raycast", false)
 
 const eventNameMap = {
   onClick: "click",
@@ -128,7 +130,9 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     stack.push(...object.children)
   }
 
-  return context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
+  const results = context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
+  debugEvents(`registry=${registry.length} nodes=${nodeSet.size} intersections=${results.length} bounds=${JSON.stringify(context.bounds)} camera=${context.camera?.position?.toArray()}`)
+  return results
 }
 
 /**********************************************************************************/
@@ -388,7 +392,7 @@ function createDefaultEventRegistry(
         let node: Object3D | null = intersection.object
 
         while (node && !event.stopped) {
-          getMeta(intersection.object)?.props[type]?.(
+          getMeta(node)?.props[type]?.(
             // @ts-expect-error TODO: fix type-error
             event,
           )

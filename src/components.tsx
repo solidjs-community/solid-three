@@ -11,7 +11,7 @@ import {
 } from "solid-js"
 import { Loader, Object3D } from "three"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
-import { useProps } from "./props.ts"
+import { useProps, useSceneGraph } from "./props.ts"
 import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, meta, whenMemo, withContext, type LoadOutput } from "./utils.ts"
@@ -104,10 +104,17 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
           props,
         },
       ) as Meta<T>
-      useProps(instance, rest)
+      // Apply props (ref, instance properties, onUpdate) inside whenMemo
+      // so they are re-created per instance — skipSceneGraph since it's managed below.
+      useProps(instance, rest, undefined, { skipSceneGraph: true })
       return instance
     },
   )
+  // useSceneGraph is called outside whenMemo so that children (scene graph) persist
+  // when `from` changes — the same child instances are re-attached to the new parent
+  // rather than being destroyed and recreated.
+  // @ts-expect-error TODO: fix type — onUpdate signature mismatch between EntityProps and useSceneGraph
+  useSceneGraph(memo, rest)
   return memo as unknown as JSX.Element
 }
 
@@ -128,10 +135,10 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
   }
 
 /**
- * A component for loading Three.js resources (textures, models, etc.) with automatic caching and Suspense integration.
+ * A component for loading Three.js resources (textures, models, etc.) with automatic caching and Loading boundary integration.
  *
  * The Resource component wraps the `useLoader` hook in a declarative component API, making it easy to load
- * and use Three.js assets within your scene. It integrates with Solid's Suspense system for handling loading states.
+ * and use Three.js assets within your scene. It integrates with Solid's Loading boundary for handling loading states.
  *
  * When no children prop is provided, Resource automatically renders the loaded resource as an Entity,
  * passing through any additional props to the loaded object. This allows for direct property assignment

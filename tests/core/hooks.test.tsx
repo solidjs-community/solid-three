@@ -47,7 +47,7 @@ describe("hooks", () => {
       )
     }
 
-    const { scene, waitTillNextFrame, requestRender } = test(() => <Component />, {
+    const { scene, waitTillNextFrame, requestRender } = await test(() => <Component />, {
       frameloop: "never",
     })
     requestRender()
