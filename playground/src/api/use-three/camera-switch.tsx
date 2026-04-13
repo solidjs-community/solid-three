@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup } from "solid-js"
+import { createEffect, createSignal } from "solid-js"
 import * as THREE from "three"
 import { Canvas, createT, useThree } from "../../../../src/index.ts"
 
@@ -81,18 +81,17 @@ export default function () {
         {(() => {
           const three = useThree()
 
-          createEffect(() => {
-            if (useOrtho()) {
+          createEffect(
+            () => useOrtho(),
+            ortho => {
+              if (!ortho) return
               const orthoCamera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000)
               orthoCamera.position.set(0, 0, 5)
 
-              // Push ortho camera onto stack
-              const restore = three.setCamera(orthoCamera)
-
-              // Cleanup automatically restores previous camera
-              onCleanup(restore)
-            }
-          })
+              // Push ortho camera onto stack; cleanup restores previous camera.
+              return three.setCamera(orthoCamera)
+            },
+          )
 
           return null!
         })()}

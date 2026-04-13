@@ -157,7 +157,11 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     nodes: nodeSet.size,
     intersections: results.length,
   })
-  return results
+  // nodeSet only contains objects that already have $S3C metadata (see the
+  // traversal above — `meta && meta.props.raycastable !== false`), so every
+  // intersected object is Meta<Object3D>. Three.js's Intersection type doesn't
+  // know this, hence the cast.
+  return results as Intersection<Meta<Object3D>>[]
 }
 
 /**********************************************************************************/

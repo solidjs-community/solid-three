@@ -68,19 +68,20 @@ function CelestialBody(
   const [hovered, setHovered] = createSignal(false)
   let ref: Meta<THREE.Mesh> = null!
 
-  createEffect(() => {
-    if (!props.orbit) return
-    useFrame(state => {
-      if (!props.orbit) return
+  createEffect(
+    () => props.orbit,
+    orbit => {
+      if (!orbit) return
+      useFrame(state => {
+        // Earth orbits around sun in an ellipse
+        const time = state.clock.getElapsedTime()
+        const [a, b] = orbit // semi-major axis
 
-      // Earth orbits around sun in an ellipse
-      const time = state.clock.getElapsedTime()
-      const [a, b] = props.orbit // semi-major axis
-
-      ref.position.y = a * Math.cos(time * (props.speed ?? 0.25))
-      ref.position.x = b * Math.sin(time * (props.speed ?? 0.25))
-    })
-  })
+        ref.position.y = a * Math.cos(time * (props.speed ?? 0.25))
+        ref.position.x = b * Math.sin(time * (props.speed ?? 0.25))
+      })
+    },
+  )
 
   return (
     <>

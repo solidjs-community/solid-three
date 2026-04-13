@@ -279,7 +279,12 @@ describe("renderer", () => {
       const scene = (await test(() => (
         <T.HasObject3dMethods>
           <Show when={visible()}>
-            <T.Mesh attach={parent => ((attachedMesh = parent), () => (detachedMesh = parent))} />
+            <T.Mesh
+              attach={parent => {
+                attachedMesh = parent as THREE.Object3D
+                return () => (detachedMesh = parent as THREE.Object3D)
+              }}
+            />
           </Show>
         </T.HasObject3dMethods>
       ))).scene

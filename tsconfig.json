@@ -16,6 +16,7 @@
     "sourceMap": true,
     "strict": true,
     "target": "ESNext",
+    "types": ["vite/client"],
     "verbatimModuleSyntax": true
   },
   "exclude": ["dist", "build", "node_modules"]
