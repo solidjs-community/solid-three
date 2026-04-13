@@ -1,4 +1,4 @@
-import { createSignal, Index } from "solid-js"
+import { createSignal, Repeat } from "solid-js"
 import * as THREE from "three"
 import { autodispose, Canvas, createT, Entity } from "../../../../src/index.ts"
 
@@ -49,14 +49,14 @@ export default function () {
       <Canvas defaultCamera={{ position: [0, 0, 5] }} style={{ width: "100%", height: "100%" }}>
         <T.AmbientLight intensity={0.5} />
         <T.PointLight position={[10, 10, 10]} intensity={0.8} />
-        <Index each={Array.from({ length: instanceCount() })}>
-          {(_, i) => (
+        <Repeat count={instanceCount()}>
+          {i => (
             <T.Mesh position={[(i - instanceCount() / 2) * 0.8, 0, 0]}>
               <Entity from={geometry} />
               <Entity from={material} />
             </T.Mesh>
           )}
-        </Index>
+        </Repeat>
       </Canvas>
     </div>
   )

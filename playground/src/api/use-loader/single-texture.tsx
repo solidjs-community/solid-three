@@ -1,4 +1,4 @@
-import { Suspense } from "solid-js"
+import { Loading } from "solid-js"
 import * as THREE from "three"
 import { Canvas, createT, useLoader } from "../../../../src/index.ts"
 
@@ -16,13 +16,15 @@ function SkyboxSphere() {
       "https://threejs.org/examples/textures/cube/SwedishRoyalCastle/pz.jpg", // positive z
       "https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nz.jpg", // negative z
     ],
-    // CubeTextureLoader properties
     {
-      mapping: THREE.CubeReflectionMapping,
-      wrapS: THREE.ClampToEdgeWrapping,
-      wrapT: THREE.ClampToEdgeWrapping,
-      magFilter: THREE.LinearFilter,
-      minFilter: THREE.LinearMipmapLinearFilter,
+      // Configure the CubeTexture once it loads.
+      onLoad(tex) {
+        tex.mapping = THREE.CubeReflectionMapping
+        tex.wrapS = THREE.ClampToEdgeWrapping
+        tex.wrapT = THREE.ClampToEdgeWrapping
+        tex.magFilter = THREE.LinearFilter
+        tex.minFilter = THREE.LinearMipmapLinearFilter
+      },
     },
   )
 
@@ -71,7 +73,7 @@ export default function () {
       <Canvas defaultCamera={{ position: [0, 0, 3] }} style={{ width: "100%", height: "100%" }}>
         <T.AmbientLight intensity={0.2} />
 
-        <Suspense
+        <Loading
           fallback={
             <>
               <T.Scene background={new THREE.Color(0x222222)} />
@@ -83,7 +85,7 @@ export default function () {
           }
         >
           <SkyboxSphere />
-        </Suspense>
+        </Loading>
       </Canvas>
     </div>
   )

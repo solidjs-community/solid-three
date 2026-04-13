@@ -355,9 +355,14 @@ export type LoadInput<TLoader extends Loader<any, any>> =
   | Record<string, LoaderUrl<TLoader>>
 
 export type LoadOutput<TLoader extends Loader<any, any>, TUrl> =
-  TUrl extends Record<string, any>
-    ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
-    : LoaderData<TLoader>
+  // Check single-URL form first so tuple/array URLs (e.g. CubeTextureLoader's
+  // `string[]`) don't fall through to the Record branch — a tuple technically
+  // extends `Record<string, any>` because of its numeric keys.
+  TUrl extends LoaderUrl<TLoader>
+    ? LoaderData<TLoader>
+    : TUrl extends Record<string, LoaderUrl<TLoader>>
+      ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
+      : never
 
 export async function load<
   const TLoader extends Loader<any, any>,
@@ -409,6 +414,24 @@ export function whenMemo<T, U>(
     const v = accessor()
     return v ? fn(v) : undefined
   })
+}
+
+/**
+ * Runs `fn(value)` in a render effect only when `accessor` is truthy.
+ * `fn` may return a cleanup function. Inlined replacement for `whenEffect`
+ * from `@bigmistqke/solid-whenever`.
+ */
+export function whenEffect<T>(
+  accessor: Accessor<T | undefined | null | false>,
+  fn: (value: T) => void | (() => void),
+) {
+  createRenderEffect(
+    () => accessor(),
+    value => {
+      if (!value) return
+      return fn(value)
+    },
+  )
 }
 
 /**********************************************************************************/

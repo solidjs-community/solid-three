@@ -1,4 +1,4 @@
-import { createMemo, createSignal, mergeProps } from "solid-js"
+import { createMemo, createSignal, merge } from "solid-js"
 import * as THREE from "three"
 import { Canvas, createT, Entity, S3, useProps } from "../../../../src/index.ts"
 
@@ -15,7 +15,7 @@ function CustomMesh(props: S3.Props<THREE.Mesh>) {
     return new THREE.Mesh(geom, material)
   })
 
-  const config = mergeProps(props, {
+  const config = merge(props, {
     onClick() {
       setGeometry(g => (g === "box" ? "sphere" : "box"))
     },

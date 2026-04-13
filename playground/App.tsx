@@ -61,7 +61,7 @@ function Layout(props: ParentProps) {
           <button
             id="api-tab"
             role="tab"
-            aria-selected={activeTab() === "api"}
+            aria-selected={activeTab() === "api" ? "true" : "false"}
             aria-controls="api-panel"
             tabindex={activeTab() === "api" ? 0 : -1}
             onClick={() => setActiveTab("api")}
@@ -72,7 +72,7 @@ function Layout(props: ParentProps) {
           <button
             id="examples-tab"
             role="tab"
-            aria-selected={activeTab() === "examples"}
+            aria-selected={activeTab() === "examples" ? "true" : "false"}
             aria-controls="examples-panel"
             tabindex={activeTab() === "examples" ? 0 : -1}
             onClick={() => setActiveTab("examples")}
@@ -91,14 +91,14 @@ function Layout(props: ParentProps) {
           class="nav-tabpanel"
         >
           <For each={Object.entries(apiStructure)}>
-            {([category, items]) => (
+            {entry => (
               <div class="nav-category">
-                <h4 class="nav-category-title">{category}</h4>
-                <For each={items}>
+                <h4 class="nav-category-title">{entry()[0]}</h4>
+                <For each={entry()[1]}>
                   {item => (
-                    <A href={item.route} class="nav-item-link">
-                      {item.name
-                        .split("-")
+                    <A href={item().route} class="nav-item-link">
+                      {item()
+                        .name.split("-")
                         .map(value => `${value[0].toUpperCase()}${value.slice(1)}`)
                         .join(" ")}
                     </A>
@@ -120,8 +120,8 @@ function Layout(props: ParentProps) {
           <h4 class="nav-examples-title">Demo Examples</h4>
           <For each={examplesList}>
             {item => (
-              <A href={item.route} class="nav-example-link">
-                {item.name}
+              <A href={item().route} class="nav-example-link">
+                {item().name}
               </A>
             )}
           </For>
@@ -133,13 +133,13 @@ function Layout(props: ParentProps) {
 }
 
 export function App() {
-  const router = (
+  return (
     <Router root={Layout}>
       <For each={[...Object.entries(apiModules), ...Object.entries(exampleModules)]}>
-        {([route, component]) => (
+        {entry => (
           <Route
-            path={route.replace("./src/", "").replace(".tsx", "")}
-            component={lazy(component)}
+            path={entry()[0].replace("./src/", "").replace(".tsx", "")}
+            component={lazy(entry()[1])}
           />
         )}
       </For>
@@ -171,6 +171,4 @@ export function App() {
       />
     </Router>
   )
-  console.log(router.toArray())
-  return router
 }

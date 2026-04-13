@@ -1,8 +1,7 @@
-import { whenEffect } from "@bigmistqke/solid-whenever"
 import { createEffect, createMemo, onCleanup, type Ref } from "solid-js"
 import type { Event } from "three"
 import { OrbitControls as ThreeOrbitControls } from "three-stdlib"
-import { useFrame, useThree, type S3 } from "../../src/index.ts"
+import { useFrame, useThree, whenEffect, type S3 } from "../../src/index.ts"
 import { useProps } from "../../src/props.ts"
 import { processProps } from "./process-props.ts"
 
@@ -48,27 +47,30 @@ export function OrbitControls(props: OrbitControlsProps) {
 
   whenEffect(controls, controls => controls.connect(props.domElement ?? three.gl.domElement))
 
-  createEffect(() => {
-    const callback = config.onStart
-    if (!callback) return
-    const _controls = controls()
-    _controls.addEventListener("start", callback)
-    onCleanup(() => _controls.removeEventListener("start", callback))
-  })
-  createEffect(() => {
-    const callback = config.onChange
-    if (!callback) return
-    const _controls = controls()
-    _controls.addEventListener("change", callback)
-    onCleanup(() => _controls.removeEventListener("change", callback))
-  })
-  createEffect(() => {
-    const callback = config.onEnd
-    if (!callback) return
-    const _controls = controls()
-    _controls.addEventListener("end", callback)
-    onCleanup(() => _controls.removeEventListener("end", callback))
-  })
+  createEffect(
+    () => ({ callback: config.onStart, _controls: controls() }),
+    ({ callback, _controls }) => {
+      if (!callback) return
+      _controls.addEventListener("start", callback)
+      return () => _controls.removeEventListener("start", callback)
+    },
+  )
+  createEffect(
+    () => ({ callback: config.onChange, _controls: controls() }),
+    ({ callback, _controls }) => {
+      if (!callback) return
+      _controls.addEventListener("change", callback)
+      return () => _controls.removeEventListener("change", callback)
+    },
+  )
+  createEffect(
+    () => ({ callback: config.onEnd, _controls: controls() }),
+    ({ callback, _controls }) => {
+      if (!callback) return
+      _controls.addEventListener("end", callback)
+      return () => _controls.removeEventListener("end", callback)
+    },
+  )
 
   useProps(controls, rest)
 

@@ -1,4 +1,4 @@
-import { Suspense } from "solid-js"
+import { Loading } from "solid-js"
 import * as THREE from "three"
 import { Canvas, createT, useLoader } from "../../../../src/index.ts"
 
@@ -58,7 +58,7 @@ export default function () {
         <T.AmbientLight intensity={0.3} />
         <T.DirectionalLight position={[5, 5, 5]} intensity={1} />
 
-        <Suspense
+        <Loading
           fallback={
             <T.Mesh>
               <T.BoxGeometry args={[2, 2, 2]} />
@@ -67,7 +67,7 @@ export default function () {
           }
         >
           <TextureRecord />
-        </Suspense>
+        </Loading>
       </Canvas>
     </div>
   )
