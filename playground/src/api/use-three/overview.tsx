@@ -1,4 +1,4 @@
-import { Portal } from "solid-js/web"
+import { Portal } from "@solidjs/web"
 import * as THREE from "three"
 import { Canvas, createT, useThree } from "../../../../src/index.ts"
 

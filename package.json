@@ -72,11 +72,10 @@
     }
   },
   "dependencies": {
-    "debounce": "^2.1.0",
-    "vite-tsconfig-paths": "^5.1.4"
+    "debounce": "^2.1.0"
   },
   "devDependencies": {
-    "@solidjs/router": "^0.15.3",
+    "@solidjs/router": "0.17.0-next.1",
     "@solidjs/testing-library": "^0.8.10",
     "@solidjs/web": "2.0.0-experimental.16",
     "@types/three": "^0.164.1",

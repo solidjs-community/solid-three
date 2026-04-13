@@ -1,5 +1,5 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { children as resolveChildren, createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import { createMemo, createRenderEffect, getOwner, merge, onCleanup, type Ref } from "solid-js"
 import {
   Camera,
   Loader,
@@ -354,16 +354,19 @@ export type LoadInput<TLoader extends Loader<any, any>> =
   | LoaderUrl<TLoader>
   | Record<string, LoaderUrl<TLoader>>
 
-export type LoadOutput<TLoader extends Loader<any, any>, TUrl> = TUrl extends Record<string, any>
-  ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
-  : LoaderData<TLoader>
+export type LoadOutput<TLoader extends Loader<any, any>, TUrl> =
+  TUrl extends Record<string, any>
+    ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
+    : LoaderData<TLoader>
 
 export async function load<
   const TLoader extends Loader<any, any>,
   TInput extends LoadInput<TLoader>,
 >(loader: TLoader, input: TInput): Promise<LoadOutput<TLoader, TInput>> {
   if (isRecord(input)) {
-    return await awaitMapObject(input, path => load(loader, path)) as unknown as Promise<LoadOutput<TLoader, TInput>>
+    return (await awaitMapObject(input, path => load(loader, path))) as unknown as Promise<
+      LoadOutput<TLoader, TInput>
+    >
   }
   return new Promise((resolve, reject) => loader.load(input, resolve, undefined, reject))
 }
@@ -523,4 +526,10 @@ export function hasContextInChain(contextId: symbol): boolean {
     o = o._parent
   }
   return false
+}
+
+export function createResizeObserver(target: Element, callback: ResizeObserverCallback) {
+  const observer = new ResizeObserver(callback)
+  observer.observe(target)
+  onCleanup(() => observer.disconnect())
 }

@@ -1,13 +1,8 @@
-import { getOwner, onCleanup, type JSX, type ParentProps, type Ref } from "solid-js"
-import { createDebug, describeOwnerChain } from "./utils.ts"
+import { getOwner, type JSX, type ParentProps, type Ref } from "solid-js"
+import { createDebug, createResizeObserver, describeOwnerChain } from "./utils.ts"
 
 const debug = createDebug("canvas:Canvas", true)
 
-function createResizeObserver(target: Element, callback: () => void) {
-  const observer = new ResizeObserver(callback)
-  observer.observe(target)
-  onCleanup(() => observer.disconnect())
-}
 import {
   Camera,
   OrthographicCamera,
@@ -65,6 +60,7 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  */
 export function Canvas(props: ParentProps<CanvasProps>) {
   debug("Canvas body", { owner: getOwner(), ownerChain: describeOwnerChain() }, { trace: true })
+
   const canvas = (<canvas />) as HTMLCanvasElement
   const container = (
     <div

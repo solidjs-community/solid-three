@@ -178,8 +178,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       props.defaultCamera instanceof Camera
         ? (props.defaultCamera as OrthographicCamera | PerspectiveCamera)
         : props.orthographic
-        ? new OrthographicCamera()
-        : new PerspectiveCamera(),
+          ? new OrthographicCamera()
+          : new PerspectiveCamera(),
       {
         get props() {
           return props.defaultCamera || {}
@@ -216,10 +216,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         ? // props.gl can be a WebGLRenderer provided by the user
           props.gl
         : typeof props.gl === "function"
-        ? // or a callback that returns a Renderer
-          props.gl(canvas)
-        : // if props.gl is not defined we default to a WebGLRenderer
-          new WebGLRenderer({ canvas, alpha: true })
+          ? // or a callback that returns a Renderer
+            props.gl(canvas)
+          : // if props.gl is not defined we default to a WebGLRenderer
+            new WebGLRenderer({ canvas, alpha: true })
 
     return meta(gl, {
       get props() {
@@ -349,7 +349,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             enabled: !!props.shadows,
             type:
               typeof props.shadows === "string"
-                ? ({ basic: BasicShadowMap, percentage: PCFShadowMap, soft: PCFSoftShadowMap, variance: VSMShadowMap } as const)[props.shadows] ?? PCFSoftShadowMap
+                ? ((
+                    {
+                      basic: BasicShadowMap,
+                      percentage: PCFShadowMap,
+                      soft: PCFSoftShadowMap,
+                      variance: VSMShadowMap,
+                    } as const
+                  )[props.shadows] ?? PCFSoftShadowMap)
                 : PCFSoftShadowMap,
             shadowsObj: typeof props.shadows === "object" ? props.shadows : undefined,
             gl: gl(),
@@ -413,7 +420,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       if (frameloop === "always") {
         pendingLoopRequest = requestAnimationFrame(loop)
       }
-      onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
+      return () => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest)
     },
   )
 
