@@ -480,23 +480,27 @@ type DebugOptions = { trace?: boolean }
 
 /**
  * Returns a debug function. When `enabled` is false, the debug function is a no-op.
- * Usage: const debug = createDebug("my-module", true)
+ * Usage: const debug = createDebug("my-module:function", true)
  *        debug("topic", data)
  *        debug("topic", data, { trace: true })  // also prints full call stack
  */
-export function createDebug(title: string, enabled: boolean) {
-  if (!enabled) return (_topic: string, ..._args: any[]) => {}
-  return (topic: string, data?: any, options?: DebugOptions) => {
-    console.log(`[${title}] ${topic}`, ...(data !== undefined ? [data] : []))
-    if (options?.trace) {
-      const prev = (Error as any).stackTraceLimit
-      ;(Error as any).stackTraceLimit = 50
-      const stack = new Error().stack?.split("\n").slice(2).join("\n")
-      ;(Error as any).stackTraceLimit = prev
-      console.log(`[${title}] stack:\n${stack}`)
+export const createDebug = !import.meta.env.DEV
+  ? (title: string, enabled: boolean) => (topic: string, data?: any, options?: DebugOptions) => {}
+  : (title: string, enabled: boolean) => {
+      return (topic: string, data?: any, options?: DebugOptions) => {
+        if (!enabled) {
+          return
+        }
+        console.log(`[${title}] ${topic}`, ...(data !== undefined ? [data] : []))
+        if (options?.trace) {
+          const prev = (Error as any).stackTraceLimit
+          ;(Error as any).stackTraceLimit = 50
+          const stack = new Error().stack?.split("\n").slice(2).join("\n")
+          ;(Error as any).stackTraceLimit = prev
+          console.log(`[${title}] stack:\n${stack}`)
+        }
+      }
     }
-  }
-}
 
 /**
  * Returns a string describing the current reactive owner chain from getOwner() upward.

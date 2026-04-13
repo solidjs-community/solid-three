@@ -1,8 +1,11 @@
 import { getOwner, onCleanup } from "solid-js"
 import type { Loader } from "three"
 import type { LoaderData, LoaderUrl, PromiseMaybe } from "../types.ts"
-import { isRecord } from "../utils.ts"
+import { SHOULD_DEBUG } from "../constants.ts"
+import { createDebug, isRecord } from "../utils.ts"
 import { TreeRegistry } from "./tree-registry.ts"
+
+const debugCache = createDebug("loader-cache", SHOULD_DEBUG)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -263,6 +266,7 @@ class CacheNode<TLoader extends Loader<any, any>> {
     }
 
     this.count++
+    debugCache("tracked", { path: this.path, count: this.count })
 
     if (!getOwner()) {
       console.warn(
@@ -274,6 +278,7 @@ class CacheNode<TLoader extends Loader<any, any>> {
         this.count -= 1
         if (this.count <= 0) {
           this.free.add(this.data)
+          debugCache("freed", { path: this.path, count: this.count })
         }
       })
     }
@@ -290,7 +295,12 @@ class CacheNode<TLoader extends Loader<any, any>> {
         "Attempted to update already set resource. To overwrite and dispose of current resource, use { force: true } instead.",
       )
     } else {
-      this.#dispose()
+      if (this.data === data) {
+        debugCache("updated", { path: this.path, reason: "same-data" })
+      } else {
+        debugCache("updated", { path: this.path, reason: "force-replace" })
+        this.#dispose()
+      }
       this.#set(data)
       this.registry.set(this.path, this)
     }

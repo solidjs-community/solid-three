@@ -1,5 +1,9 @@
 import { createMemo, createRenderEffect, createSignal, merge } from "solid-js"
+import { SHOULD_DEBUG } from "../constants.ts"
+import { createDebug } from "../utils.ts"
 import { debounce as createDebounce } from "./debounce.ts"
+
+const debug = createDebug("useMeasure", SHOULD_DEBUG)
 
 declare type ResizeObserverCallback = (entries: any[], observer: ResizeObserver) => void
 declare class ResizeObserver {
@@ -47,6 +51,7 @@ export function useMeasure(options?: UseMeasureOptions) {
       : (globalThis as any).ResizeObserver)
 
   if (!ResizeObserver) {
+    debug("observer", { action: "unsupported" })
     throw new Error(
       "This browser does not support ResizeObserver out of the box. See: https://github.com/react-spring/react-use-measure/#resize-observer-polyfills",
     )
@@ -72,7 +77,11 @@ export function useMeasure(options?: UseMeasureOptions) {
         ? config.debounce
         : config.debounce[type]
       : null
-    if (debounce) return createDebounce(forceRefresh, debounce)
+    if (debounce) {
+      debug("debounce", { type, mode: "debounced", ms: debounce })
+      return createDebounce(forceRefresh, debounce)
+    }
+    debug("debounce", { type, mode: "immediate" })
     return forceRefresh
   }
 
@@ -104,6 +113,7 @@ export function useMeasure(options?: UseMeasureOptions) {
     if (!lastBounds || !areBoundsEqual(lastBounds, bounds)) {
       lastBounds = bounds
       setBounds(bounds)
+      debug("bounds", { width: bounds.width, height: bounds.height })
     }
   }
 
@@ -115,7 +125,11 @@ export function useMeasure(options?: UseMeasureOptions) {
       createRenderEffect(
         () => config.scroll,
         scroll => {
-          if (!scroll) return
+          if (!scroll) {
+            debug("scroll", { action: "disabled" })
+            return
+          }
+          debug("scroll", { action: "attached" })
           globalThis.addEventListener("scroll", onScroll, { capture: true, passive: true })
           return () => globalThis.removeEventListener("scroll", onScroll, true)
         },
@@ -125,7 +139,11 @@ export function useMeasure(options?: UseMeasureOptions) {
       createRenderEffect(
         () => scrollContainers(),
         containers => {
-          if (!config.scroll || !containers) return
+          if (!config.scroll || !containers) {
+            debug("scroll-containers", { action: "skip", reason: !config.scroll ? "disabled" : "no containers" })
+            return
+          }
+          debug("scroll-containers", { action: "attached", count: containers.length })
           containers.forEach(c =>
             c.addEventListener("scroll", onScroll, { capture: true, passive: true }),
           )
@@ -149,7 +167,11 @@ export function useMeasure(options?: UseMeasureOptions) {
   createRenderEffect(
     () => ({ el: element(), onResize: getDebounce("resize") }),
     ({ el, onResize }) => {
-      if (!el) return
+      if (!el) {
+        debug("observer", { action: "skipped", reason: "no element" })
+        return
+      }
+      debug("observer", { action: "attached" })
       const observer = new ResizeObserver(onResize)
       observer.observe(el)
       return () => observer.disconnect()
@@ -158,7 +180,10 @@ export function useMeasure(options?: UseMeasureOptions) {
 
   return {
     setElement: (source: HTMLOrSVGElement | null) => {
-      if (!source || source === element()) return
+      if (!source || source === element()) {
+        debug("setElement", { action: "skip", reason: !source ? "no source" : "same element" })
+        return
+      }
       setElement(source)
     },
     bounds,

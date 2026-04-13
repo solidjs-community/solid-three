@@ -8,10 +8,6 @@ import {
   onCleanup,
   untrack,
 } from "solid-js"
-import { createDebug } from "./utils.ts"
-
-const debugSG = createDebug("props:applySceneGraph", false)
-const debugProps = createDebug("props:useProps", false)
 import {
   BufferGeometry,
   Color,
@@ -22,17 +18,26 @@ import {
   Texture,
   UnsignedByteType,
 } from "three"
+import { SHOULD_DEBUG } from "./constants.ts"
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
 import { addToEventListeners } from "./internal-context.ts"
 import type { AccessorMaybe, Context, Meta } from "./types.ts"
-import { getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
+import { createDebug, getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
+
+const debugSceneGraph = createDebug("props:useSceneGraph", SHOULD_DEBUG)
+const debugAttach = createDebug("props:applySceneGraph", SHOULD_DEBUG)
+const debugApplyProp = createDebug("props:applyProp", SHOULD_DEBUG)
+const debugUseProps = createDebug("props:useProps", SHOULD_DEBUG)
 
 function isWritable(object: object, propertyName: string) {
   return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
 }
 
 function applySceneGraph(parent: object, child: object) {
+  const parentType = (parent as any).type ?? (parent as any).constructor?.name
+  const childType = (child as any).type ?? (child as any).constructor?.name
+
   const parentMeta = getMeta(parent)
   if (parentMeta) {
     // Update parent's augmented children-property.
@@ -51,20 +56,35 @@ function applySceneGraph(parent: object, child: object) {
 
   // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
+    debugAttach("attached", { via: "callback", parentType, childType })
     const cleanup = attachProp(parent, child as Meta<object>)
     onCleanup(cleanup)
     return
   }
 
   // Defaults for Material, BufferGeometry and Fog.
+  let defaultedFrom: string | undefined
   if (!attachProp) {
-    if (child instanceof Material) attachProp = "material"
-    else if (child instanceof BufferGeometry) attachProp = "geometry"
-    else if (child instanceof Fog) attachProp = "fog"
+    if (child instanceof Material) {
+      attachProp = "material"
+      defaultedFrom = "Material"
+    } else if (child instanceof BufferGeometry) {
+      attachProp = "geometry"
+      defaultedFrom = "BufferGeometry"
+    } else if (child instanceof Fog) {
+      attachProp = "fog"
+      defaultedFrom = "Fog"
+    }
   }
 
   // If an attachProp is defined, attach the child to the parent.
   if (attachProp) {
+    debugAttach("attached", {
+      via: defaultedFrom ? `default:${defaultedFrom}` : "prop",
+      attachProp,
+      parentType,
+      childType,
+    })
     let target = parent
     let property: string | undefined
 
@@ -89,21 +109,16 @@ function applySceneGraph(parent: object, child: object) {
   // If no attach-prop is defined, add the child to the parent.
   if (child instanceof Object3D && parent instanceof Object3D) {
     if (!parent.children.includes(child)) {
-      debugSG(`add child ${(child as any).type} to parent ${(parent as any).type}`, undefined, { trace: true })
+      debugAttach("attached", { via: "add", parentType, childType })
       parent.add(child)
       onCleanup(() => parent.remove(child))
       return child
-    } else {
-      debugSG(`DOUBLE-ADD: child ${(child as any).type} already in parent ${(parent as any).type}`, undefined, { trace: true })
     }
+    debugAttach("skipped", { reason: "already-attached", parentType, childType }, { trace: true })
     return
   }
 
-  console.error(
-    "Error while connecting/attaching child: child does not have attach-props defined and is not an Object3D",
-    parent,
-    child,
-  )
+  debugAttach("failed", { reason: "not-Object3D, no attach prop", childType })
 }
 
 /**********************************************************************************/
@@ -139,7 +154,10 @@ export const useSceneGraph = <T extends object>(
         createRenderEffect(
           () => ({ parent: resolve(_parent), child: resolve(_child) }),
           ({ parent, child }) => {
-            if (!parent || !child) return
+            if (!parent || !child) {
+              debugSceneGraph("skipped", { reason: !parent ? "no parent" : "no child" })
+              return
+            }
             applySceneGraph(parent, child)
             untrack(() => props.onUpdate)?.(parent as T)
           },
@@ -162,9 +180,16 @@ export const useSceneGraph = <T extends object>(
       if (indices.length < 2) return
       let ordered = true
       for (let i = 1; i < indices.length; i++) {
-        if (indices[i] <= indices[i - 1]) { ordered = false; break }
+        if (indices[i] <= indices[i - 1]) {
+          ordered = false
+          break
+        }
       }
       if (ordered) return
+      debugSceneGraph("reorder", {
+        parentType: (parent as any).type ?? parent.constructor.name,
+        count: managedChildren.length,
+      })
       // Reorder: splice each managed child into its expected position
       let insertPos = 0
       for (const child of managedChildren) {
@@ -215,17 +240,21 @@ function applyProp<T extends Record<string, any>>(
   value: any,
 ) {
   if (!source) {
+    debugApplyProp("failed", { reason: "no source", key: type })
     console.error("error while applying prop", source, type, value)
     return
   }
 
   // Ignore setting undefined props
-  if (value === undefined) return
+  if (value === undefined) {
+    debugApplyProp("skipped", { reason: "undefined value", key: type })
+    return
+  }
 
   /* If the key contains a hyphen, we're setting a sub property. */
   if (type.indexOf("-") > -1) {
     const [property, ...rest] = type.split("-")
-
+    debugApplyProp("nested", { key: type })
     applyProp(context, source[property], rest.join("-"), value)
     return
   }
@@ -243,25 +272,43 @@ function applyProp<T extends Record<string, any>>(
     const LinearSRGBColorSpace = "srgb-linear"
 
     if (type === "encoding") {
+      const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+      debugApplyProp("remapped", { from: "encoding", to: "colorSpace", value: remapped })
       type = "colorSpace"
-      value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+      value = remapped
     } else if (type === "outputEncoding") {
+      const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+      debugApplyProp("remapped", {
+        from: "outputEncoding",
+        to: "outputColorSpace",
+        value: remapped,
+      })
       type = "outputColorSpace"
-      value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+      value = remapped
     }
   }
 
   // Event registration is handled in useProps compute phase (needs reactive owner for useContext).
   // applyProp just skips event types — no work needed here.
-  if (isEventType(type)) return
+  if (isEventType(type)) {
+    debugApplyProp("skipped", { reason: "event type (registered in useProps)", key: type })
+    return
+  }
 
   const target = source[type]
+  const sourceType = (source as any).type ?? source.constructor.name
 
   try {
     // Copy if properties match signatures
     if (target?.copy && target?.constructor === value?.constructor && !isWritable(source, type)) {
+      debugApplyProp("applied", { via: "copy", sourceType, key: type })
       target.copy(value)
     } else if (target?.set && Array.isArray(value)) {
+      debugApplyProp("applied", {
+        via: target.fromArray ? "fromArray" : "set-spread",
+        sourceType,
+        key: type,
+      })
       if (target.fromArray) target.fromArray(value)
       else target.set(...value)
     }
@@ -272,15 +319,18 @@ function applyProp<T extends Record<string, any>>(
 
       // Allow setting array scalars
       if (!isColor && target.setScalar && typeof value === "number") {
+        debugApplyProp("applied", { via: "setScalar", sourceType, key: type })
         target.setScalar(value)
       }
       // Otherwise just set ...
       else if (value !== undefined) {
+        debugApplyProp("applied", { via: "set", sourceType, key: type })
         target.set(value)
       }
     }
     // Else, just overwrite the value
     else {
+      debugApplyProp("applied", { via: "assign", sourceType, key: type })
       // @ts-expect-error TODO: fix type-error
       source[type] = value
     }
@@ -318,13 +368,21 @@ export function useProps<T extends Record<string, any>>(
   options?: { skipSceneGraph?: boolean },
 ) {
   const instanceProps = omit(props, "ref", "args", "object", "attach", "children")
+  debugUseProps("call", {
+    keys: Object.keys(instanceProps),
+    sceneGraph: options?.skipSceneGraph ? "skipped" : "managed",
+  })
 
   if (!options?.skipSceneGraph) useSceneGraph(accessor, props)
 
   createRenderEffect(
     () => {
       const object = resolve(accessor)
-      if (!object) return undefined
+      if (!object) {
+        debugUseProps("skipped", { reason: "no object resolved" })
+        return undefined
+      }
+      debugUseProps("resolved", { objectType: object.constructor.name })
 
       // Ref effect — created in compute phase ✓
       createRenderEffect(
@@ -342,7 +400,7 @@ export function useProps<T extends Record<string, any>>(
           const keys = Object.keys(instanceProps)
           for (const key of keys) {
             if (isEventType(key) && object instanceof Object3D && hasMeta(object)) {
-              debugProps(`register event: ${key}`, undefined, { trace: true })
+              debugUseProps("event registered", { key, objectType: object.constructor.name })
               const cleanup = addToEventListeners(object, key)
               onCleanup(cleanup)
             }
@@ -390,8 +448,16 @@ export function useProps<T extends Record<string, any>>(
                 if (!result) return
                 const { texture, gl } = result
                 if (hasColorSpace(texture) && hasColorSpace(gl)) {
+                  debugUseProps("texture color space", {
+                    via: "colorSpace",
+                    value: gl.outputColorSpace,
+                  })
                   texture.colorSpace = gl.outputColorSpace
                 } else {
+                  debugUseProps("texture color space", {
+                    via: "encoding (legacy)",
+                    value: (gl as any).outputEncoding,
+                  })
                   // @ts-expect-error TODO: fix type-error
                   texture.encoding = gl.outputEncoding
                 }

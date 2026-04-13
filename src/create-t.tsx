@@ -1,9 +1,11 @@
 import { createMemo, type Component, type JSX } from "solid-js"
+import { SHOULD_DEBUG } from "./constants.ts"
 import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
 import { createDebug, describeOwnerChain, meta } from "./utils.ts"
 
-const debug = createDebug("create-t:createEntity", false)
+const debugCatalogue = createDebug("create-t:createT", SHOULD_DEBUG)
+const debug = createDebug("create-t:createEntity", SHOULD_DEBUG)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -23,8 +25,12 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
         const constructor = catalogue[name]
 
         /* If no constructor is found, return undefined. */
-        if (!constructor) return undefined
+        if (!constructor) {
+          debugCatalogue("missing", { name })
+          return undefined
+        }
 
+        debugCatalogue("resolved", { name })
         /* Otherwise, create and memoize a component for that constructor. */
         cache.set(name, createEntity(constructor))
       }
@@ -44,12 +50,16 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
 export function createEntity<TConstructor>(
   Constructor: TConstructor,
 ): Component<Props<TConstructor>> {
+  const name = (Constructor as any)?.name
+  debug("factory", { constructor: name })
   return (props: Props<TConstructor>) => {
     const chain = describeOwnerChain()
     const isNullContext = chain === "(anon)[0ctx](T)"
-    debug(`component body: ${(Constructor as any)?.name} owner chain: ${chain}`, undefined, {
-      trace: isNullContext,
-    })
+    if (isNullContext) {
+      debug("null context", { constructor: name, ownerChain: chain }, { trace: true })
+    } else {
+      debug("mount", { constructor: name })
+    }
     const memo = createMemo(() => {
       // listen to key changes
       props.key

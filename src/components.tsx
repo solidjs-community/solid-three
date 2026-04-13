@@ -2,19 +2,33 @@ import {
   Loading,
   Show,
   createMemo,
-  omit,
   merge,
+  omit,
   type Accessor,
   type JSX,
   type JSXElement,
   type ParentProps,
 } from "solid-js"
 import { Loader, Object3D } from "three"
+import { SHOULD_DEBUG } from "./constants.ts"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
-import { autodispose, hasMeta, isConstructor, meta, whenMemo, withContext, type LoadOutput } from "./utils.ts"
+import {
+  autodispose,
+  createDebug,
+  hasMeta,
+  isConstructor,
+  meta,
+  whenMemo,
+  withContext,
+  type LoadOutput,
+} from "./utils.ts"
+
+const debugPortal = createDebug("components:Portal", SHOULD_DEBUG)
+const debugEntity = createDebug("components:Entity", SHOULD_DEBUG)
+const debugResource = createDebug("components:Resource", SHOULD_DEBUG)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -35,6 +49,7 @@ type PortalProps<T extends Object3D> = ParentProps<{
  * @returns An empty JSX element.
  */
 export function Portal<T extends Object3D>(props: PortalProps<T>) {
+  debugPortal("mount", { target: props.element ? "custom" : "scene" })
   const context = useThree()
 
   const element = createMemo(() => {
@@ -92,6 +107,10 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
  */
 export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
+  debugEntity("mount", {
+    fromType: !props.from ? "none" : isConstructor(props.from) ? "constructor" : "instance",
+    hasArgs: !!props.args?.length,
+  })
   const rest = omit(props, "from", "args")
   const memo = whenMemo(
     () => props.from,
@@ -188,16 +207,29 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
  * ```
  */
 export function Resource<const TLoader extends Loader<object, any>>(props: ResourceProps<TLoader>) {
+  debugResource("mount", {
+    urlShape:
+      typeof props.url === "string" ? "string" : Array.isArray(props.url) ? "array" : "record",
+    hasRenderFn: "children" in props,
+  })
   const rest = omit(props, "base", "cache", "onBeforeLoad", "onLoad", "loader", "url", "children")
 
   const resource = useLoader(
     () => props.loader,
     () => props.url,
     {
-      get base() { return props.base },
-      get cache() { return props.cache },
-      get onBeforeLoad() { return props.onBeforeLoad },
-      get onLoad() { return props.onLoad },
+      get base() {
+        return props.base
+      },
+      get cache() {
+        return props.cache
+      },
+      get onBeforeLoad() {
+        return props.onBeforeLoad
+      },
+      get onLoad() {
+        return props.onLoad
+      },
     },
   )
 
@@ -205,7 +237,10 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
 
   return (
     <Loading>
-      <Show when={"children" in props && resource()} fallback={resource() as unknown as JSX.Element}>
+      <Show
+        when={"children" in props && resource()}
+        fallback={resource() as unknown as JSX.Element}
+      >
         {r => props.children?.(r)}
       </Show>
     </Loading>

@@ -1,8 +1,11 @@
-import { getOwner, type JSX, type ParentProps, type Ref } from "solid-js"
-import { createDebug, createResizeObserver, describeOwnerChain } from "./utils.ts"
-
-const debug = createDebug("canvas:Canvas", true)
-
+import {
+  createEffect,
+  getOwner,
+  runWithOwner,
+  type JSX,
+  type ParentProps,
+  type Ref,
+} from "solid-js"
 import {
   Camera,
   OrthographicCamera,
@@ -11,9 +14,13 @@ import {
   Scene,
   WebGLRenderer,
 } from "three"
+import { SHOULD_DEBUG } from "./constants.ts"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type { CanvasEventHandlers, Context, Props } from "./types.ts"
+import { createDebug, createResizeObserver, describeOwnerChain } from "./utils.ts"
+
+const debug = createDebug("canvas:Canvas", SHOULD_DEBUG)
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -59,11 +66,45 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function Canvas(props: ParentProps<CanvasProps>) {
-  debug("Canvas body", { owner: getOwner(), ownerChain: describeOwnerChain() }, { trace: true })
+  debug("mount", { ownerChain: describeOwnerChain() })
 
-  const canvas = (<canvas />) as HTMLCanvasElement
-  const container = (
+  const owner = getOwner()
+  let canvas: HTMLCanvasElement = null!
+  let container: HTMLDivElement = null!
+
+  createEffect(
+    () => {},
+    () => {
+      runWithOwner(owner, () => {
+        const context = createThree(canvas, props)
+
+        createResizeObserver(container, function onResize() {
+          const { width, height } = container.getBoundingClientRect()
+          const cameraKind =
+            context.camera instanceof OrthographicCamera ? "orthographic" : "perspective"
+          debug("resize", { width, height, camera: cameraKind })
+          context.gl.setSize(width, height)
+          context.gl.setPixelRatio(globalThis.devicePixelRatio)
+
+          if (context.camera instanceof OrthographicCamera) {
+            context.camera.left = width / -2
+            context.camera.right = width / 2
+            context.camera.top = height / 2
+            context.camera.bottom = height / -2
+          } else {
+            context.camera.aspect = width / height
+          }
+
+          context.camera.updateProjectionMatrix()
+          context.render(performance.now())
+        })
+      })
+    },
+  )
+
+  return (
     <div
+      ref={container}
       style={{
         position: "relative",
         width: "100%",
@@ -75,29 +116,7 @@ export function Canvas(props: ParentProps<CanvasProps>) {
       }}
       class={props.class}
     >
-      {canvas}
+      <canvas ref={canvas} />
     </div>
-  ) as HTMLDivElement
-
-  const context = createThree(canvas, props)
-
-  createResizeObserver(container, function onResize() {
-    const { width, height } = container.getBoundingClientRect()
-    context.gl.setSize(width, height)
-    context.gl.setPixelRatio(globalThis.devicePixelRatio)
-
-    if (context.camera instanceof OrthographicCamera) {
-      context.camera.left = width / -2
-      context.camera.right = width / 2
-      context.camera.top = height / 2
-      context.camera.bottom = height / -2
-    } else {
-      context.camera.aspect = width / height
-    }
-
-    context.camera.updateProjectionMatrix()
-    context.render(performance.now())
-  })
-
-  return container
+  )
 }

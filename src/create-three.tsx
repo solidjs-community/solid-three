@@ -24,6 +24,7 @@ import {
   WebGLRenderer,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
+import { SHOULD_DEBUG } from "./constants.ts"
 import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
@@ -33,6 +34,7 @@ import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
 import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
 import {
   binarySearch,
+  createDebug,
   defaultProps,
   getCurrentViewport,
   meta,
@@ -42,6 +44,13 @@ import {
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
 
+const debug = createDebug("create-three:createThree", SHOULD_DEBUG)
+const debugFrame = createDebug("create-three:frameListeners", SHOULD_DEBUG)
+const debugXR = createDebug("create-three:XR", SHOULD_DEBUG)
+const debugRender = createDebug("create-three:render", SHOULD_DEBUG)
+const debugContext = createDebug("create-three:context", SHOULD_DEBUG)
+const debugEffects = createDebug("create-three:effects", SHOULD_DEBUG)
+
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
  * camera, renderer, raycaster, and scene, manages the scene graph, setups up an event system
@@ -49,6 +58,13 @@ import { useMeasure } from "./utils/use-measure.ts"
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
+  debug("init", {
+    frameloop: canvasProps.frameloop,
+    orthographic: !!props.orthographic,
+    shadows: !!props.shadows,
+    linear: !!props.linear,
+    flat: !!props.flat,
+  })
 
   /**********************************************************************************/
   /*                                                                                */
@@ -84,6 +100,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             listeners.map.set(priority, array)
             const index = binarySearch(listeners.priorities, priority)
             listeners.priorities.splice(index, 0, priority)
+            debugFrame("registered", { stage, priority, first: true })
+          } else {
+            debugFrame("registered", { stage, priority })
           }
 
           array.push(callback)
@@ -93,6 +112,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             if (array.length === 0) {
               listeners.map.delete(priority)
               listeners.priorities.splice(listeners.priorities.indexOf(priority), 1)
+              debugFrame("empty", { stage, priority })
             }
           }
         },
@@ -119,21 +139,31 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   // Handle frame behavior in WebXR
   const handleXRFrame: XRFrameRequestCallback = (timestamp: number, frame?: XRFrame) => {
-    if ((canvasProps.frameloop as string) === "never") return
+    if ((canvasProps.frameloop as string) === "never") {
+      debugXR("frame skipped", { reason: "frameloop=never" })
+      return
+    }
+    debugXR("frame", { timestamp })
     render(timestamp, frame)
   }
   // Toggle render switching on session
   function handleSessionChange() {
+    debugXR("session", {
+      presenting: context.gl.xr.isPresenting,
+      enabled: context.gl.xr.enabled,
+    })
     context.gl.xr.enabled = context.gl.xr.isPresenting
     context.gl.xr.setAnimationLoop(context.gl.xr.isPresenting ? handleXRFrame : null)
   }
   // WebXR session-manager
   const xr = {
     connect() {
+      debugXR("connect")
       context.gl.xr.addEventListener("sessionstart", handleSessionChange)
       context.gl.xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
+      debugXR("disconnect")
       context.gl.xr.removeEventListener("sessionstart", handleSessionChange)
       context.gl.xr.removeEventListener("sessionend", handleSessionChange)
     },
@@ -149,20 +179,32 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   function render(timestamp: number, frame?: XRFrame) {
     if (!context.gl) {
+      debugRender("skipped", { reason: "no gl" })
       return
     }
     if (props.frameloop === "never") {
+      debugRender("clock override", { elapsedTime: timestamp })
       context.clock.elapsedTime = timestamp
     }
     pendingRenderRequest = undefined
 
     const delta = context.clock.getDelta()
+    debugRender("tick", {
+      timestamp,
+      delta,
+      frame: !!frame,
+      sceneChildren: context.scene.children.length,
+    })
     updateFrameListeners("before", delta, frame)
     context.gl.render(context.scene, context.camera)
     updateFrameListeners("after", delta, frame)
   }
   function requestRender() {
-    if (pendingRenderRequest) return
+    if (pendingRenderRequest) {
+      debugRender("queued", { coalesced: true })
+      return
+    }
+    debugRender("queued", { coalesced: false })
     pendingRenderRequest = requestAnimationFrame(render)
   }
   onCleanup(() => pendingRenderRequest && cancelAnimationFrame(pendingRenderRequest))
@@ -173,55 +215,68 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  const defaultCamera = createMemo(() =>
-    meta(
-      props.defaultCamera instanceof Camera
-        ? (props.defaultCamera as OrthographicCamera | PerspectiveCamera)
-        : props.orthographic
-          ? new OrthographicCamera()
-          : new PerspectiveCamera(),
-      {
-        get props() {
-          return props.defaultCamera || {}
-        },
-      },
-    ),
-  )
+  const defaultCamera = createMemo(() => {
+    if (props.defaultCamera instanceof Camera) {
+      debugContext("camera", { source: "custom" })
+      return props.defaultCamera as OrthographicCamera | PerspectiveCamera
+    }
+    if (props.orthographic) {
+      debugContext("camera", { source: "new OrthographicCamera" })
+      return new OrthographicCamera()
+    }
+    debugContext("camera", { source: "new PerspectiveCamera" })
+    return new PerspectiveCamera()
+  })
   const cameraStack = new Stack<CameraKind>("camera")
 
-  const scene = createMemo(() =>
-    meta(props.scene instanceof Scene ? props.scene : new Scene(), {
+  const scene = createMemo(() => {
+    let sceneInstance: Scene
+    if (props.scene instanceof Scene) {
+      debugContext("scene", { source: "custom" })
+      sceneInstance = props.scene
+    } else {
+      debugContext("scene", { source: "new Scene" })
+      sceneInstance = new Scene()
+    }
+    return meta(sceneInstance, {
       get props() {
         return props.scene || {}
       },
-    }),
-  )
+    })
+  })
 
-  const defaultRaycaster = createMemo(() =>
-    meta<Raycaster | EventRaycaster>(
-      props.defaultRaycaster instanceof Raycaster ? props.defaultRaycaster : new CursorRaycaster(),
-      {
-        get props() {
-          return props.defaultRaycaster || {}
-        },
+  const defaultRaycaster = createMemo(() => {
+    let instance: Raycaster | EventRaycaster
+    if (props.defaultRaycaster instanceof Raycaster) {
+      debugContext("raycaster", { source: "custom" })
+      instance = props.defaultRaycaster
+    } else {
+      debugContext("raycaster", { source: "new CursorRaycaster" })
+      instance = new CursorRaycaster()
+    }
+    return meta<Raycaster | EventRaycaster>(instance, {
+      get props() {
+        return props.defaultRaycaster || {}
       },
-    ),
-  )
+    })
+  })
 
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const gl =
-      props.gl instanceof WebGLRenderer
-        ? // props.gl can be a WebGLRenderer provided by the user
-          props.gl
-        : typeof props.gl === "function"
-          ? // or a callback that returns a Renderer
-            props.gl(canvas)
-          : // if props.gl is not defined we default to a WebGLRenderer
-            new WebGLRenderer({ canvas, alpha: true })
+    let rendererInstance: WebGLRenderer
+    if (props.gl instanceof WebGLRenderer) {
+      debugContext("gl", { source: "custom" })
+      rendererInstance = props.gl
+    } else if (typeof props.gl === "function") {
+      debugContext("gl", { source: "factory" })
+      rendererInstance = props.gl(canvas)
+    } else {
+      debugContext("gl", { source: "default" })
+      rendererInstance = new WebGLRenderer({ canvas, alpha: true })
+    }
 
-    return meta(gl, {
+    return meta(rendererInstance, {
       get props() {
         return props.gl || {}
       },
@@ -275,6 +330,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return gl()
     },
   }
+  debug("context ready", { contextKeys: Object.keys(context) })
 
   withMultiContexts(
     () => useRef(props, context),
@@ -295,9 +351,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       () => props.frameloop,
       frameloop => {
         if (frameloop === "never") {
+          debugEffects("clock", { action: "stop", reason: "frameloop=never" })
           context.clock.stop()
           context.clock.elapsedTime = 0
         } else {
+          debugEffects("clock", { action: "start", frameloop: frameloop ?? "always" })
           context.clock.start()
         }
       },
@@ -308,8 +366,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       () => {
         const peek = cameraStack.peek()
         const dc = props.defaultCamera
-        if (peek) return
-        if (!dc || dc instanceof Camera) return
+        if (peek) {
+          debugEffects("camera", { action: "skip", reason: "stack-peek" })
+          return
+        }
+        if (!dc || dc instanceof Camera) {
+          debugEffects("camera", { action: "skip", reason: !dc ? "no-default" : "instance" })
+          return
+        }
+        debugEffects("camera", { action: "apply" })
         useProps(defaultCamera, dc)
         return defaultCamera()
       },
@@ -324,7 +389,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     createRenderEffect(
       () => {
         const scene_ = props.scene
-        if (!scene_ || scene_ instanceof Scene) return
+        if (!scene_ || scene_ instanceof Scene) {
+          debugEffects("scene", { action: "skip", reason: !scene_ ? "no-default" : "instance" })
+          return
+        }
+        debugEffects("scene", { action: "apply" })
         useProps(scene, scene_)
       },
       () => {},
@@ -334,7 +403,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     createRenderEffect(
       () => {
         const raycaster = props.defaultRaycaster
-        if (!raycaster || raycaster instanceof Raycaster) return
+        if (!raycaster || raycaster instanceof Raycaster) {
+          debugEffects("raycaster", {
+            action: "skip",
+            reason: !raycaster ? "no-default" : "instance",
+          })
+          return
+        }
+        debugEffects("raycaster", { action: "apply" })
         useProps(defaultRaycaster, raycaster)
       },
       () => {},
@@ -362,7 +438,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             gl: gl(),
           }),
           ({ enabled, type, shadowsObj, gl: _gl }) => {
-            if (!_gl.shadowMap) return
+            if (!_gl.shadowMap) {
+              debugEffects("shadow", { action: "skip", reason: "no-shadowmap" })
+              return
+            }
             const changed = _gl.shadowMap.enabled !== enabled || _gl.shadowMap.type !== type
             _gl.shadowMap.enabled = enabled
             if (shadowsObj) {
@@ -370,7 +449,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             } else {
               _gl.shadowMap.type = type
             }
-            if (changed) _gl.shadowMap.needsUpdate = true
+            if (changed) {
+              _gl.shadowMap.needsUpdate = true
+              debugEffects("shadow", { action: "changed", enabled, type, custom: !!shadowsObj })
+            }
           },
         )
 
@@ -378,7 +460,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         createEffect(
           () => gl(),
           renderer => {
-            if (renderer.xr) context.xr.connect()
+            if (renderer.xr) {
+              debugEffects("xr connect", { hasXR: true })
+              context.xr.connect()
+            } else {
+              debugEffects("xr connect", { action: "skip", reason: "no xr on renderer" })
+            }
           },
         )
 
@@ -396,6 +483,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
         // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
         if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+          debugEffects("gl", { action: "apply", type: "user-options" })
           useProps(gl, props.gl)
         }
       },
@@ -418,7 +506,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     () => canvasProps.frameloop,
     frameloop => {
       if (frameloop === "always") {
+        debugRender("loop", { action: "start" })
         pendingLoopRequest = requestAnimationFrame(loop)
+      } else {
+        debugRender("loop", { action: "idle", mode: frameloop })
       }
       return () => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest)
     },
