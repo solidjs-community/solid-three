@@ -4,7 +4,6 @@ import {
   createMemo,
   createRenderEffect,
   getOwner,
-  latest,
   merge,
   onCleanup,
   type Ref,
@@ -236,7 +235,7 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
     return child
   }
   if (typeof child === "function") {
-    const value = latest(child as Accessor<T>)
+    const value = (child as Accessor<T>)()
     if (recursive) {
       return resolve(value)
     }
@@ -244,6 +243,7 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
   }
   return child
 }
+
 
 /**********************************************************************************/
 /*                                                                                */

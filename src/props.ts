@@ -1,11 +1,13 @@
 import {
   type Accessor,
   children,
+  createMemo,
   createRenderEffect,
   type JSXElement,
   mapArray,
   omit,
   onCleanup,
+  runWithOwner,
   untrack,
 } from "solid-js"
 import {
@@ -142,14 +144,17 @@ export const useSceneGraph = <T extends object>(
   _parent: AccessorMaybe<T | undefined>,
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
-  const c = children(() => props.children)
-  // mapArray(...) is created once and passed directly as the compute to createRenderEffect.
-  // In Solid 2.x the compute fn is called on each re-run; passing the mapArray accessor
-  // (not a lambda that calls mapArray) means the same instance persists across updates,
-  // so item lifecycle (add/remove) is managed by mapArray's internal owners — not recreated.
+  const kids = children(() => props.children)
+  const filteredKids = createMemo(() =>
+    kids
+      .toArray()
+      .map(kid => resolve(kid))
+      .filter(kid => kid instanceof Object3D),
+  )
+
   createRenderEffect(
     mapArray(
-      () => c.toArray() as unknown as (Meta<object> | undefined)[],
+      () => kids.toArray() as unknown as (Meta<object> | undefined)[],
       _child => {
         createRenderEffect(
           () => ({ parent: resolve(_parent), child: resolve(_child) }),
@@ -162,21 +167,23 @@ export const useSceneGraph = <T extends object>(
             untrack(() => props.onUpdate)?.(parent as T)
           },
         )
-        return _child
       },
     ),
-    childAccessors => {
-      if (!childAccessors?.length) return
-      const parent = untrack(() => resolve(_parent))
+    () => {},
+  )
+  
+  // mapArray(...) is created once and passed directly as the compute to createRenderEffect.
+  // In Solid 2.x the compute fn is called on each re-run; passing the mapArray accessor
+  // (not a lambda that calls mapArray) means the same instance persists across updates,
+  // so item lifecycle (add/remove) is managed by mapArray's internal owners — not recreated.
+  createRenderEffect(
+    () => [filteredKids(), resolve(_parent)] as const,
+    ([kids, parent]) => {
+      if (!kids.length) return
       if (!(parent instanceof Object3D)) return
-      const managedChildren: Object3D[] = []
-      for (const a of childAccessors) {
-        const c = resolve(a)
-        if (c instanceof Object3D) managedChildren.push(c)
-      }
-      if (!managedChildren.length) return
+
       // Only reorder when managed children exist and their relative order differs
-      const indices = managedChildren.map(c => parent.children.indexOf(c)).filter(i => i !== -1)
+      const indices = kids.map(c => parent.children.indexOf(c)).filter(i => i !== -1)
       if (indices.length < 2) return
       let ordered = true
       for (let i = 1; i < indices.length; i++) {
@@ -188,11 +195,11 @@ export const useSceneGraph = <T extends object>(
       if (ordered) return
       debugSceneGraph("reorder", {
         parentType: (parent as any).type ?? parent.constructor.name,
-        count: managedChildren.length,
+        count: kids.length,
       })
       // Reorder: splice each managed child into its expected position
       let insertPos = 0
-      for (const child of managedChildren) {
+      for (const child of kids) {
         const currentPos = parent.children.indexOf(child)
         if (currentPos === -1) continue
         if (currentPos !== insertPos) {
@@ -385,11 +392,15 @@ export function useProps<T extends Record<string, any>>(
       debugUseProps("resolved", { objectType: object.constructor.name })
 
       // Ref effect — created in compute phase ✓
+      // runWithOwner(null) sets context=null so signal writes (ref(object) / props.ref=object)
+      // don't trigger "signal written in owned scope" warnings from the synchronous first-run.
       createRenderEffect(
         () => props.ref,
         ref => {
-          if (ref instanceof Function) ref(object)
-          else props.ref = object
+          runWithOwner(null, () => {
+            if (ref instanceof Function) ref(object)
+            else props.ref = object
+          })
         },
       )
 

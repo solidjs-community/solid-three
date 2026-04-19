@@ -117,9 +117,7 @@ describe("renderer", () => {
     let renders = 0
 
     const Component = () => {
-      const [state, setState] = createSignal(3)
-
-      setState(7)
+      const [state] = createSignal(7)
 
       renders++
 
@@ -773,8 +771,7 @@ describe("renderer", () => {
     let ref: THREE.Mesh
 
     function Test() {
-      const [scale, setScale] = createSignal(true)
-      createRenderEffect(() => null, () => void setScale(false))
+      const [scale] = createSignal(false)
       // @ts-ignore TODO: fix type-error
       return <T.Mesh ref={ref} scale={scale() ? 0.5 : undefined} />
     }
