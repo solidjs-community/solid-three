@@ -1,4 +1,7 @@
-import { bubbleUp } from "../utils.ts"
+import { SHOULD_DEBUG } from "../constants.ts"
+import { bubbleUp, createDebug } from "../utils.ts"
+
+const debugTree = createDebug("tree-registry", SHOULD_DEBUG)
 
 type TreeMap<T> = Map<string, TreeNode<T>>
 
@@ -72,9 +75,11 @@ export class TreeRegistry<T> implements TreeBase<T> {
 
       if (!node) {
         if (!autocreate) {
+          debugTree("resolve", { action: "not-found", path: paths[i] })
           return undefined
         }
 
+        debugTree("resolve", { action: "create", path: paths[i] })
         node = new TreeNode(paths[i], current)
         current.children.set(paths[i], node)
       }
@@ -101,9 +106,11 @@ export class TreeRegistry<T> implements TreeBase<T> {
       if (warn) {
         console.warn("Invalid path", input)
       }
+      debugTree("get", { input, found: false })
       return undefined
     }
 
+    debugTree("get", { input, found: true })
     return node.data
   }
 
@@ -117,7 +124,10 @@ export class TreeRegistry<T> implements TreeBase<T> {
     const node = this.#resolve(input, true)
 
     if (!node.data) {
+      debugTree("set", { input, action: "new" })
       bubbleUp(node, node => node.count++)
+    } else {
+      debugTree("set", { input, action: "update" })
     }
 
     node.data = data
@@ -132,13 +142,16 @@ export class TreeRegistry<T> implements TreeBase<T> {
     const node = this.#resolve(input, false)
 
     if (!node) {
+      debugTree("delete", { input, found: false })
       console.warn("Invalid path", input)
       return
     }
 
+    debugTree("delete", { input, found: true })
     bubbleUp(node, node => {
       node.count--
       if (node instanceof TreeNode && node.count === 0) {
+        debugTree("delete", { action: "pruned", key: node.key })
         node.delete()
       }
     })

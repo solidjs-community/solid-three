@@ -1,7 +1,10 @@
 import type { Accessor } from "solid-js"
+import { SHOULD_DEBUG } from "../constants.ts"
 import type { Meta } from "../types.ts"
-import { meta } from "../utils.ts"
+import { createDebug, meta } from "../utils.ts"
 import { Stack } from "./stack.ts"
+
+const debugAugStack = createDebug("augmented-stack", SHOULD_DEBUG)
 
 /** A generic stack data structure. It augments each value before pushing it onto the stack. */
 export class AugmentedStack<T> {
@@ -19,10 +22,11 @@ export class AugmentedStack<T> {
    * @returns A cleanup function to manually remove the value from the stack.
    */
   push(value: T | Accessor<T>) {
-    const cleanup =
-      typeof value === "function"
-        ? this.#stack.push(() => meta((value as Accessor<T>)()))
-        : this.#stack.push(meta(value))
-    return cleanup
+    if (typeof value === "function") {
+      debugAugStack("push", { stack: this.name, via: "accessor" })
+      return this.#stack.push(() => meta((value as Accessor<T>)()))
+    }
+    debugAugStack("push", { stack: this.name, via: "value" })
+    return this.#stack.push(meta(value))
   }
 }

@@ -53,11 +53,16 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
   const context = useThree()
 
   const element = createMemo(() => {
-    return props.element
-      ? hasMeta(props.element)
-        ? props.element
-        : meta(props.element, { props: {} })
-      : context.scene
+    if (!props.element) {
+      debugPortal("element", { source: "scene" })
+      return context.scene
+    }
+    if (hasMeta(props.element)) {
+      debugPortal("element", { source: "custom", hasMeta: true })
+      return props.element
+    }
+    debugPortal("element", { source: "custom", hasMeta: false })
+    return meta(props.element, { props: {} })
   })
 
   useProps(element, {
@@ -117,6 +122,11 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
     from => {
       // listen to key changes
       props.key
+      if (isConstructor(from)) {
+        debugEntity("instance", { via: "constructor", args: props.args?.length ?? 0 })
+      } else {
+        debugEntity("instance", { via: "existing" })
+      }
       const instance = meta(
         isConstructor(from) ? autodispose(new from(...(props.args ?? []))) : from,
         {

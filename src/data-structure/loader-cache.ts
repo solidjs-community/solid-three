@@ -99,6 +99,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
+    debugCache("delete", { action: "dispose", force: !!force })
     node.dispose()
   }
 
@@ -107,6 +108,7 @@ export class LoaderCache implements LoaderRegistry {
    * Should be called periodically to clean up unused resources.
    */
   disposeFreeList() {
+    debugCache("disposeFreeList", { count: this.freeList.size })
     this.freeList.forEach(resource => this.#dataMap.get(resource)?.dispose())
   }
 
@@ -123,6 +125,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
+    debugCache("disposeResource", { found: true, force: !!options?.force })
     this.#delete(node, options)
   }
 
@@ -144,6 +147,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
+    debugCache("delete", { url, force: !!options?.force })
     this.#delete(node, options)
   }
 
@@ -161,8 +165,12 @@ export class LoaderCache implements LoaderRegistry {
   ): PromiseMaybe<LoaderData<TLoader>> | undefined {
     const node = this.#registry(loader).get(url, warn)
 
-    if (!node) return undefined
+    if (!node) {
+      debugCache("get", { url, hit: false })
+      return undefined
+    }
 
+    debugCache("get", { url, hit: true })
     return node.data
   }
 
@@ -184,8 +192,10 @@ export class LoaderCache implements LoaderRegistry {
     let node = registry.get(path, false)
 
     if (node) {
+      debugCache("set", { path, action: "update" })
       node.update(data, options)
     } else {
+      debugCache("set", { path, action: "create" })
       node = new CacheNode(this.freeList, registry, path, data)
       this.#dataMap.set(data, node)
       registry.set(path, node)
@@ -262,6 +272,7 @@ class CacheNode<TLoader extends Loader<any, any>> {
    */
   track() {
     if (this.count === 0) {
+      debugCache("track", { path: this.path, action: "removed from free list" })
       this.free.delete(this.data)
     }
 

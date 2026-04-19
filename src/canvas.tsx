@@ -87,11 +87,13 @@ export function Canvas(props: ParentProps<CanvasProps>) {
           context.gl.setPixelRatio(globalThis.devicePixelRatio)
 
           if (context.camera instanceof OrthographicCamera) {
+            debug("resize", { camera: "orthographic", width, height })
             context.camera.left = width / -2
             context.camera.right = width / 2
             context.camera.top = height / 2
             context.camera.bottom = height / -2
           } else {
+            debug("resize", { camera: "perspective", aspect: width / height })
             context.camera.aspect = width / height
           }
 

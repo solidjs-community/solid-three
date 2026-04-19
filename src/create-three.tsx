@@ -113,6 +113,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
               listeners.map.delete(priority)
               listeners.priorities.splice(listeners.priorities.indexOf(priority), 1)
               debugFrame("empty", { stage, priority })
+            } else {
+              debugFrame("removed", { stage, priority, remaining: array.length })
             }
           }
         },
@@ -378,9 +380,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         return defaultCamera()
       },
       camera => {
-        // Manually update camera's matrix with updateMatrixWorld is needed.
-        // Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-        camera?.updateMatrixWorld(true)
+        if (camera) {
+          // Manually update camera's matrix with updateMatrixWorld is needed.
+          // Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
+          debugEffects("camera", { action: "updateMatrixWorld" })
+          camera.updateMatrixWorld(true)
+        } else {
+          debugEffects("camera", { action: "skip", reason: "no camera" })
+        }
       },
     )
 
@@ -444,13 +451,17 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             const changed = _gl.shadowMap.enabled !== enabled || _gl.shadowMap.type !== type
             _gl.shadowMap.enabled = enabled
             if (shadowsObj) {
+              debugEffects("shadow", { action: "apply", via: "object" })
               Object.assign(_gl.shadowMap, shadowsObj)
             } else {
+              debugEffects("shadow", { action: "apply", via: "type", type })
               _gl.shadowMap.type = type
             }
             if (changed) {
               _gl.shadowMap.needsUpdate = true
               debugEffects("shadow", { action: "changed", enabled, type, custom: !!shadowsObj })
+            } else {
+              debugEffects("shadow", { action: "unchanged" })
             }
           },
         )
@@ -484,6 +495,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         if (props.gl && !(props.gl instanceof WebGLRenderer)) {
           debugEffects("gl", { action: "apply", type: "user-options" })
           useProps(gl, props.gl)
+        } else {
+          debugEffects("gl", {
+            action: "skip",
+            reason: !props.gl ? "no gl prop" : "gl is WebGLRenderer instance",
+          })
         }
       },
       () => {},

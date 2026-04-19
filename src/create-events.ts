@@ -223,6 +223,8 @@ function createMissableEventRegistry(
       }
       if (stoppableEvent.stopped) {
         debugMissable("bubble-stopped", { type, bubbledLevels: bubbledCount })
+      } else {
+        debugMissable("bubble-completed", { type, bubbledLevels: bubbledCount })
       }
     }
     debugMissable("intersections-processed", { type, count: processedIntersections })
@@ -249,6 +251,9 @@ function createMissableEventRegistry(
       // if they haven't been visited before:
       // - add object to visitedObjects
       // - remove from remainingObjects,
+      if (intersections.length === 0) {
+        debugMissable("phase2-no-intersections", { type })
+      }
       let phase2IntersectionCount = 0
       for (const { object } of intersections) {
         phase2IntersectionCount++
@@ -272,6 +277,8 @@ function createMissableEventRegistry(
 
     if (visitedObjects.size > 0) {
       debugMissable("missed-fired", { type, missedType, visitedCount: visitedObjects.size })
+    } else {
+      debugMissable("missed-none", { type, reason: "no objects visited" })
     }
   })
 
@@ -331,6 +338,11 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
             // @ts-expect-error TODO: fix type-error
             enterEvent,
           )
+        } else {
+          debugHover("enter-skipped", {
+            object: (current as any).type || "unknown",
+            reason: "already hovered",
+          })
         }
 
         // We bubble a layer down.
@@ -345,6 +357,8 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         enterEvent,
       )
       hoveredCanvas = true
+    } else {
+      debugHover("canvas-already-entered", { type })
     }
 
     // Phase #2 - Move
@@ -381,6 +395,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         current = current.parent
       }
     }
+    debugHover("enter-processed", { type, newEnters: enterCount })
     debugHover("move-processed", { type, count: moveCount })
 
     if (!moveEvent.stopped) {
@@ -487,6 +502,8 @@ function createDefaultEventRegistry(
         }
         if (event.stopped) {
           debugDefault("bubble-stopped", { type, bubbledLevels: bubbledCount })
+        } else {
+          debugDefault("bubble-completed", { type, bubbledLevels: bubbledCount })
         }
       }
       debugDefault("intersections-processed", { type, count: processedCount })

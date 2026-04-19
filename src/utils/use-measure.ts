@@ -89,7 +89,10 @@ export function useMeasure(options?: UseMeasureOptions) {
 
   function forceRefresh() {
     const el = element()
-    if (!el) return
+    if (!el) {
+      debug("forceRefresh", { action: "skip", reason: "no element" })
+      return
+    }
 
     const { left, top, width, height, bottom, right, x, y } =
       el.getBoundingClientRect() as unknown as Measure
@@ -106,6 +109,7 @@ export function useMeasure(options?: UseMeasureOptions) {
     }
 
     if (el instanceof HTMLElement && config.offsetSize) {
+      debug("forceRefresh", { action: "offset-size override" })
       bounds.height = el.offsetHeight
       bounds.width = el.offsetWidth
     }
@@ -116,6 +120,8 @@ export function useMeasure(options?: UseMeasureOptions) {
       lastBounds = bounds
       setBounds(bounds)
       debug("bounds", { width: bounds.width, height: bounds.height })
+    } else {
+      debug("bounds", { action: "unchanged" })
     }
   }
 
@@ -189,6 +195,7 @@ export function useMeasure(options?: UseMeasureOptions) {
         debug("setElement", { action: "skip", reason: !source ? "no source" : "same element" })
         return
       }
+      debug("setElement", { action: "set" })
       setElement(source)
     },
     bounds,
@@ -199,10 +206,13 @@ export function useMeasure(options?: UseMeasureOptions) {
 // Returns a list of scroll offsets
 function findScrollContainers(element: HTMLOrSVGElement | null): HTMLOrSVGElement[] {
   const result: HTMLOrSVGElement[] = []
-  if (!element || element === document.body) return result
+  if (!element || element === document.body) {
+    return result
+  }
   const { overflow, overflowX, overflowY } = globalThis.getComputedStyle(element)
-  if ([overflow, overflowX, overflowY].some(prop => prop === "auto" || prop === "scroll"))
+  if ([overflow, overflowX, overflowY].some(prop => prop === "auto" || prop === "scroll")) {
     result.push(element)
+  }
   return [...result, ...findScrollContainers(element.parentElement)]
 }
 

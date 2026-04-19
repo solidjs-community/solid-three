@@ -1,4 +1,8 @@
 import { type Accessor, type Setter, createSignal, getOwner, onCleanup, untrack } from "solid-js"
+import { SHOULD_DEBUG } from "../constants.ts"
+import { createDebug } from "../utils.ts"
+
+const debugStack = createDebug("stack", SHOULD_DEBUG)
 
 /** Class representing a stack data structure. */
 export class Stack<T = any> {
@@ -34,7 +38,10 @@ export class Stack<T = any> {
   push(value: T | Accessor<T>) {
     this.#setArray(array => {
       const index = array.indexOf(value)
-      if (index !== -1) array.splice(index, 1)
+      if (index !== -1) {
+        debugStack("push", { stack: this.name, action: "deduplicated", index })
+        array.splice(index, 1)
+      }
       array.push(value)
       return array
     })
@@ -66,7 +73,11 @@ Remember to remove the element from the stack by calling the returned cleanup-fu
   remove(value: T | Accessor<T>) {
     this.#setArray(array => {
       const index = array.indexOf(value)
-      if (index === -1) return array
+      if (index === -1) {
+        debugStack("remove", { stack: this.name, action: "not-found" })
+        return array
+      }
+      debugStack("remove", { stack: this.name, action: "removed", index })
       array.splice(index, 1)
       return array
     })

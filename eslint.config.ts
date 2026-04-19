@@ -60,6 +60,7 @@ export default defineConfig([
       "no-debugger": "warn",
       "no-only-tests/no-only-tests": "warn",
       "prefer-const": "warn",
+      "curly": ["error", "all"],
     },
   },
 ])

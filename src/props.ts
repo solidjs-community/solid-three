@@ -44,14 +44,24 @@ function applySceneGraph(parent: object, child: object) {
   if (parentMeta) {
     // Update parent's augmented children-property.
     parentMeta.children.add(child)
-    onCleanup(() => parentMeta.children.delete(child))
+    onCleanup(() => {
+      debugAttach("cleanup", { action: "remove from parent children", parentType, childType })
+      parentMeta.children.delete(child)
+    })
+  } else {
+    debugAttach("no-parent-meta", { parentType })
   }
 
   const childMeta = getMeta(child)
   if (childMeta) {
     // Update parent's augmented children-property.
     childMeta.parent = parent
-    onCleanup(() => (childMeta.parent = undefined))
+    onCleanup(() => {
+      debugAttach("cleanup", { action: "unset child parent", childType })
+      childMeta.parent = undefined
+    })
+  } else {
+    debugAttach("no-child-meta", { childType })
   }
 
   let attachProp = childMeta?.props.attach
@@ -68,14 +78,19 @@ function applySceneGraph(parent: object, child: object) {
   let defaultedFrom: string | undefined
   if (!attachProp) {
     if (child instanceof Material) {
+      debugAttach("default", { type: "Material", childType })
       attachProp = "material"
       defaultedFrom = "Material"
     } else if (child instanceof BufferGeometry) {
+      debugAttach("default", { type: "BufferGeometry", childType })
       attachProp = "geometry"
       defaultedFrom = "BufferGeometry"
     } else if (child instanceof Fog) {
+      debugAttach("default", { type: "Fog", childType })
       attachProp = "fog"
       defaultedFrom = "Fog"
+    } else {
+      debugAttach("no-default", { childType })
     }
   }
 
@@ -94,12 +109,18 @@ function applySceneGraph(parent: object, child: object) {
 
     while ((property = path.shift())) {
       if (path.length === 0) {
+        debugAttach("attach-assign", { property, parentType, childType })
         // @ts-expect-error TODO: fix type-error
         target[property] = child
         // @ts-expect-error TODO: fix type-error
-        onCleanup(() => (target[property] = undefined))
+        onCleanup(() => {
+          debugAttach("cleanup", { action: "unset attach prop", property, parentType, childType })
+          // @ts-expect-error TODO: fix type-error
+          target[property] = undefined
+        })
         break
       } else {
+        debugAttach("attach-traverse", { property, parentType })
         // @ts-expect-error TODO: fix type-error
         target = target[property]
       }
@@ -113,7 +134,10 @@ function applySceneGraph(parent: object, child: object) {
     if (!parent.children.includes(child)) {
       debugAttach("attached", { via: "add", parentType, childType })
       parent.add(child)
-      onCleanup(() => parent.remove(child))
+      onCleanup(() => {
+        debugAttach("cleanup", { action: "remove Object3D", parentType, childType })
+        parent.remove(child)
+      })
       return child
     }
     debugAttach("skipped", { reason: "already-attached", parentType, childType }, { trace: true })
@@ -164,14 +188,19 @@ export const useSceneGraph = <T extends object>(
               return
             }
             applySceneGraph(parent, child)
-            untrack(() => props.onUpdate)?.(parent as T)
+            if (props.onUpdate) {
+              debugSceneGraph("onUpdate", { parentType: (parent as any).type ?? (parent as any).constructor?.name })
+              untrack(() => props.onUpdate)?.(parent)
+            } else {
+              debugSceneGraph("onUpdate-skipped", { reason: "no onUpdate" })
+            }
           },
         )
       },
     ),
     () => {},
   )
-  
+
   // mapArray(...) is created once and passed directly as the compute to createRenderEffect.
   // In Solid 2.x the compute fn is called on each re-run; passing the mapArray accessor
   // (not a lambda that calls mapArray) means the same instance persists across updates,
@@ -179,12 +208,21 @@ export const useSceneGraph = <T extends object>(
   createRenderEffect(
     () => [filteredKids(), resolve(_parent)] as const,
     ([kids, parent]) => {
-      if (!kids.length) return
-      if (!(parent instanceof Object3D)) return
+      if (!kids.length) {
+        debugSceneGraph("reorder-skipped", { reason: "no kids" })
+        return
+      }
+      if (!(parent instanceof Object3D)) {
+        debugSceneGraph("reorder-skipped", { reason: "parent not Object3D" })
+        return
+      }
 
       // Only reorder when managed children exist and their relative order differs
       const indices = kids.map(c => parent.children.indexOf(c)).filter(i => i !== -1)
-      if (indices.length < 2) return
+      if (indices.length < 2) {
+        debugSceneGraph("reorder-skipped", { reason: "fewer than 2 indexed children" })
+        return
+      }
       let ordered = true
       for (let i = 1; i < indices.length; i++) {
         if (indices[i] <= indices[i - 1]) {
@@ -192,7 +230,10 @@ export const useSceneGraph = <T extends object>(
           break
         }
       }
-      if (ordered) return
+      if (ordered) {
+        debugSceneGraph("reorder-skipped", { reason: "already ordered" })
+        return
+      }
       debugSceneGraph("reorder", {
         parentType: (parent as any).type ?? parent.constructor.name,
         count: kids.length,
@@ -201,10 +242,18 @@ export const useSceneGraph = <T extends object>(
       let insertPos = 0
       for (const child of kids) {
         const currentPos = parent.children.indexOf(child)
-        if (currentPos === -1) continue
+        if (currentPos === -1) {
+          debugSceneGraph("reorder-child-not-found", {
+            childType: (child as any).type ?? child.constructor.name,
+          })
+          continue
+        }
         if (currentPos !== insertPos) {
+          debugSceneGraph("reorder-move", { from: currentPos, to: insertPos })
           parent.children.splice(currentPos, 1)
           parent.children.splice(insertPos, 0, child)
+        } else {
+          debugSceneGraph("reorder-in-place", { pos: currentPos })
         }
         insertPos++
       }
@@ -266,9 +315,14 @@ function applyProp<T extends Record<string, any>>(
     return
   }
 
-  if (NEEDS_UPDATE.includes(type) && ((!source[type] && value) || (source[type] && !value))) {
-    // @ts-expect-error
-    source.needsUpdate = true
+  if (NEEDS_UPDATE.includes(type)) {
+    if ((!source[type] && value) || (source[type] && !value)) {
+      debugApplyProp("needsUpdate", { key: type })
+      // @ts-expect-error
+      source.needsUpdate = true
+    } else {
+      debugApplyProp("needsUpdate-skipped", { key: type, reason: "no transition" })
+    }
   }
 
   // Alias (output)encoding => (output)colorSpace (since r152)
@@ -292,7 +346,11 @@ function applyProp<T extends Record<string, any>>(
       })
       type = "outputColorSpace"
       value = remapped
+    } else {
+      debugApplyProp("colorspace-check", { action: "no remap needed", key: type })
     }
+  } else {
+    debugApplyProp("colorspace-check", { action: "skip", reason: "no colorSpace on source", key: type })
   }
 
   // Event registration is handled in useProps compute phase (needs reactive owner for useContext).
@@ -316,8 +374,11 @@ function applyProp<T extends Record<string, any>>(
         sourceType,
         key: type,
       })
-      if (target.fromArray) target.fromArray(value)
-      else target.set(...value)
+      if (target.fromArray) {
+        target.fromArray(value)
+      } else {
+        target.set(...value)
+      }
     }
     // Set literal types, ignore undefined
     // https://github.com/pmndrs/react-three-fiber/issues/274
@@ -343,11 +404,17 @@ function applyProp<T extends Record<string, any>>(
     }
   } finally {
     if ("needsUpdate" in source) {
+      debugApplyProp("needsUpdate-set", { key: type })
       // @ts-expect-error
       source.needsUpdate = true
+    } else {
+      debugApplyProp("needsUpdate-set-skipped", { key: type, reason: "no needsUpdate on source" })
     }
     if (context.props.frameloop === "demand") {
+      debugApplyProp("requestRender", { key: type })
       context.requestRender()
+    } else {
+      debugApplyProp("requestRender-skipped", { key: type, frameloop: context.props.frameloop })
     }
   }
 }
@@ -380,7 +447,9 @@ export function useProps<T extends Record<string, any>>(
     sceneGraph: options?.skipSceneGraph ? "skipped" : "managed",
   })
 
-  if (!options?.skipSceneGraph) useSceneGraph(accessor, props)
+  if (!options?.skipSceneGraph) {
+    useSceneGraph(accessor, props)
+  }
 
   createRenderEffect(
     () => {
@@ -389,6 +458,7 @@ export function useProps<T extends Record<string, any>>(
         debugUseProps("skipped", { reason: "no object resolved" })
         return undefined
       }
+
       debugUseProps("resolved", { objectType: object.constructor.name })
 
       // Ref effect — created in compute phase ✓
@@ -398,8 +468,13 @@ export function useProps<T extends Record<string, any>>(
         () => props.ref,
         ref => {
           runWithOwner(null, () => {
-            if (ref instanceof Function) ref(object)
-            else props.ref = object
+            if (ref instanceof Function) {
+              debugUseProps("ref", { via: "callback" })
+              ref(object)
+            } else {
+              debugUseProps("ref", { via: "assign" })
+              props.ref = object
+            }
           })
         },
       )
@@ -413,7 +488,12 @@ export function useProps<T extends Record<string, any>>(
             if (isEventType(key) && object instanceof Object3D && hasMeta(object)) {
               debugUseProps("event registered", { key, objectType: object.constructor.name })
               const cleanup = addToEventListeners(object, key)
-              onCleanup(cleanup)
+              onCleanup(() => {
+                debugUseProps("event cleanup", { key, objectType: object.constructor.name })
+                cleanup()
+              })
+            } else if (isEventType(key)) {
+              debugUseProps("event skipped", { key, reason: !(object instanceof Object3D) ? "not Object3D" : "no meta" })
             }
           }
         },
@@ -451,12 +531,18 @@ export function useProps<T extends Record<string, any>>(
                   value.format === RGBAFormat &&
                   value.type === UnsignedByteType
                 ) {
-                  return { texture: value as Texture, linear: context.props.linear, gl: context.gl }
+                  return { texture: value, linear: context.props.linear, gl: context.gl }
                 }
                 return null
               },
               result => {
-                if (!result) return
+                if (!result) {
+                  debugUseProps("texture color space", {
+                    action: "skip",
+                    reason: "not a matching texture",
+                  })
+                  return
+                }
                 const { texture, gl } = result
                 if (hasColorSpace(texture) && hasColorSpace(gl)) {
                   debugUseProps("texture color space", {
@@ -483,7 +569,12 @@ export function useProps<T extends Record<string, any>>(
     },
     object => {
       // NOTE: see "onUpdate should not update itself"-test
-      if (object) untrack(() => props.onUpdate)?.(object)
+      if (object) {
+        debugUseProps("onUpdate", { objectType: object.constructor.name })
+        untrack(() => props.onUpdate)?.(object)
+      } else {
+        debugUseProps("onUpdate-skipped", { reason: "no object" })
+      }
     },
   )
 }
