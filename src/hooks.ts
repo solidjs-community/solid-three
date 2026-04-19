@@ -74,6 +74,7 @@ export function useThree(callback?: (value: Context) => any) {
   // Guard: outside reactive context (e.g. Vitest deepClone traversing $S3C.props.children getter)
   if (!getOwner()) {
     debugUseThree("skipped", { reason: "no owner" })
+
     return (callback ? () => undefined : undefined) as any
   }
   const store = useContext(threeContext)
@@ -83,10 +84,15 @@ export function useThree(callback?: (value: Context) => any) {
       { reason: "no context", ownerChain: describeOwnerChain() },
       { trace: true },
     )
+
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
+
   debugUseThree("call", { shape: callback ? "selector" : "direct" })
-  if (callback) return () => callback(store)
+
+  if (callback) {
+    return () => callback(store)
+  }
   return store
 }
 
@@ -140,14 +146,17 @@ export interface UseLoaderOptions<
 function resolveUrls<T>(base: string, url: T): T {
   if (Array.isArray(url)) {
     debugResolveUrls("resolved", { kind: "array", count: url.length })
+
     return url.map(url => new URL(url, base).href) as T
   } else if (isRecord(url)) {
     debugResolveUrls("resolved", { kind: "record", count: Object.keys(url).length })
+
     return Object.fromEntries(
       Object.entries(url).map(([key, url]) => [key, resolveUrls(base, url)] as const),
     ) as T
   } else if (typeof url === "string") {
     debugResolveUrls("resolved", { kind: "string" })
+    
     return new URL(url, base).href as T
   }
   throw new Error("Unexpected type")

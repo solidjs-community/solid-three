@@ -4,8 +4,8 @@ import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
 import { createDebug, describeOwnerChain, meta } from "./utils.ts"
 
-const debugCatalogue = createDebug("create-t:createT", SHOULD_DEBUG)
-const debug = createDebug("create-t:createEntity", SHOULD_DEBUG)
+const debugCreateT = createDebug("create-t:createT", SHOULD_DEBUG)
+const debugCreateEntity = createDebug("create-t:createEntity", SHOULD_DEBUG)
 
 /**********************************************************************************/
 /*                                                                                */
@@ -26,11 +26,12 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
 
         /* If no constructor is found, return undefined. */
         if (!constructor) {
-          debugCatalogue("missing", { name })
+          debugCreateT("missing", { name })
           return undefined
         }
 
-        debugCatalogue("resolved", { name })
+        debugCreateT("resolved", { name })
+        
         /* Otherwise, create and memoize a component for that constructor. */
         cache.set(name, createEntity(constructor))
       }
@@ -51,15 +52,19 @@ export function createEntity<TConstructor>(
   Constructor: TConstructor,
 ): Component<Props<TConstructor>> {
   const name = (Constructor as any)?.name
-  debug("factory", { constructor: name })
+
+  debugCreateEntity("factory", { constructor: name })
+
   return (props: Props<TConstructor>) => {
     const chain = describeOwnerChain()
     const isNullContext = chain === "(anon)[0ctx](T)"
+
     if (isNullContext) {
-      debug("null context", { constructor: name, ownerChain: chain }, { trace: true })
+      debugCreateEntity("null context", { constructor: name, ownerChain: chain }, { trace: true })
     } else {
-      debug("mount", { constructor: name })
+      debugCreateEntity("mount", { constructor: name })
     }
+
     const memo = createMemo(() => {
       // listen to key changes
       props.key
@@ -70,6 +75,7 @@ export function createEntity<TConstructor>(
         throw new Error("")
       }
     })
+
     useProps(memo, props)
     return memo as unknown as JSX.Element
   }

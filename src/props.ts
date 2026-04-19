@@ -42,6 +42,7 @@ function applySceneGraph(parent: object, child: object) {
 
   const parentMeta = getMeta(parent)
   if (parentMeta) {
+    debugAttach("track-child", { action: "add to parent children", parentType, childType })
     // Update parent's augmented children-property.
     parentMeta.children.add(child)
     onCleanup(() => {
@@ -54,6 +55,7 @@ function applySceneGraph(parent: object, child: object) {
 
   const childMeta = getMeta(child)
   if (childMeta) {
+    debugAttach("track-parent", { action: "set child parent", childType, parentType })
     // Update parent's augmented children-property.
     childMeta.parent = parent
     onCleanup(() => {
@@ -77,6 +79,7 @@ function applySceneGraph(parent: object, child: object) {
   // Defaults for Material, BufferGeometry and Fog.
   let defaultedFrom: string | undefined
   if (!attachProp) {
+    debugAttach("check-defaults", { childType })
     if (child instanceof Material) {
       debugAttach("default", { type: "Material", childType })
       attachProp = "material"
@@ -112,7 +115,6 @@ function applySceneGraph(parent: object, child: object) {
         debugAttach("attach-assign", { property, parentType, childType })
         // @ts-expect-error TODO: fix type-error
         target[property] = child
-        // @ts-expect-error TODO: fix type-error
         onCleanup(() => {
           debugAttach("cleanup", { action: "unset attach prop", property, parentType, childType })
           // @ts-expect-error TODO: fix type-error
@@ -131,6 +133,7 @@ function applySceneGraph(parent: object, child: object) {
 
   // If no attach-prop is defined, add the child to the parent.
   if (child instanceof Object3D && parent instanceof Object3D) {
+    debugAttach("check-add", { parentType, childType })
     if (!parent.children.includes(child)) {
       debugAttach("attached", { via: "add", parentType, childType })
       parent.add(child)
@@ -180,6 +183,9 @@ export const useSceneGraph = <T extends object>(
     mapArray(
       () => kids.toArray() as unknown as (Meta<object> | undefined)[],
       _child => {
+        debugSceneGraph("child-added", {
+          child: (_child as any)?.type ?? (_child as any)?.constructor?.name ?? "unknown",
+        })
         createRenderEffect(
           () => ({ parent: resolve(_parent), child: resolve(_child) }),
           ({ parent, child }) => {
@@ -189,7 +195,9 @@ export const useSceneGraph = <T extends object>(
             }
             applySceneGraph(parent, child)
             if (props.onUpdate) {
-              debugSceneGraph("onUpdate", { parentType: (parent as any).type ?? (parent as any).constructor?.name })
+              debugSceneGraph("onUpdate", {
+                parentType: (parent as any).type ?? (parent as any).constructor?.name,
+              })
               untrack(() => props.onUpdate)?.(parent)
             } else {
               debugSceneGraph("onUpdate-skipped", { reason: "no onUpdate" })
@@ -286,43 +294,47 @@ const NEEDS_UPDATE = [
  * It efficiently manages property assignments with appropriate handling for different data types and structures.
  *
  * @param source - The target object for property application.
- * @param type - The property name, which can include nested paths indicated by hyphens.
+ * @param key - The property name, which can include nested paths indicated by hyphens.
  * @param value - The value to be assigned to the property; can be of any appropriate type.
  */
 function applyProp<T extends Record<string, any>>(
   context: Pick<Context, "requestRender" | "gl" | "props">,
   source: T,
-  type: string,
+  key: string,
   value: any,
 ) {
   if (!source) {
-    debugApplyProp("failed", { reason: "no source", key: type })
-    console.error("error while applying prop", source, type, value)
+    console.error("error while applying prop", source, key, value)
     return
   }
 
   // Ignore setting undefined props
   if (value === undefined) {
-    debugApplyProp("skipped", { reason: "undefined value", key: type })
+    debugApplyProp("skipped", { reason: "undefined value", key })
+
     return
   }
 
   /* If the key contains a hyphen, we're setting a sub property. */
-  if (type.indexOf("-") > -1) {
-    const [property, ...rest] = type.split("-")
-    debugApplyProp("nested", { key: type })
+  if (key.indexOf("-") > -1) {
+    const [property, ...rest] = key.split("-")
+
+    debugApplyProp("nested", { key, property, rest })
+
     applyProp(context, source[property], rest.join("-"), value)
     return
   }
 
-  if (NEEDS_UPDATE.includes(type)) {
-    if ((!source[type] && value) || (source[type] && !value)) {
-      debugApplyProp("needsUpdate", { key: type })
+  if (NEEDS_UPDATE.includes(key)) {
+    if ((!source[key] && value) || (source[key] && !value)) {
+      debugApplyProp("needsUpdate", { key })
       // @ts-expect-error
       source.needsUpdate = true
     } else {
-      debugApplyProp("needsUpdate-skipped", { key: type, reason: "no transition" })
+      debugApplyProp("needsUpdate-skipped", { key, reason: "no transition" })
     }
+  } else {
+    debugApplyProp("needsUpdate-not-applicable", { key })
   }
 
   // Alias (output)encoding => (output)colorSpace (since r152)
@@ -332,51 +344,54 @@ function applyProp<T extends Record<string, any>>(
     const SRGBColorSpace = "srgb"
     const LinearSRGBColorSpace = "srgb-linear"
 
-    if (type === "encoding") {
+    if (key === "encoding") {
       const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
       debugApplyProp("remapped", { from: "encoding", to: "colorSpace", value: remapped })
-      type = "colorSpace"
+
+      key = "colorSpace"
       value = remapped
-    } else if (type === "outputEncoding") {
+    } else if (key === "outputEncoding") {
       const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
+
       debugApplyProp("remapped", {
         from: "outputEncoding",
         to: "outputColorSpace",
         value: remapped,
       })
-      type = "outputColorSpace"
+
+      key = "outputColorSpace"
       value = remapped
     } else {
-      debugApplyProp("colorspace-check", { action: "no remap needed", key: type })
+      debugApplyProp("colorspace-check", { action: "no remap needed", key })
     }
   } else {
-    debugApplyProp("colorspace-check", { action: "skip", reason: "no colorSpace on source", key: type })
+    debugApplyProp("colorspace-check", { action: "skip", reason: "no colorSpace on source", key })
   }
 
   // Event registration is handled in useProps compute phase (needs reactive owner for useContext).
   // applyProp just skips event types — no work needed here.
-  if (isEventType(type)) {
-    debugApplyProp("skipped", { reason: "event type (registered in useProps)", key: type })
+  if (isEventType(key)) {
+    debugApplyProp("skipped", { reason: "event type (registered in useProps)", key })
     return
   }
 
-  const target = source[type]
+  const target = source[key]
   const sourceType = (source as any).type ?? source.constructor.name
 
   try {
     // Copy if properties match signatures
-    if (target?.copy && target?.constructor === value?.constructor && !isWritable(source, type)) {
-      debugApplyProp("applied", { via: "copy", sourceType, key: type })
+    if (target?.copy && target?.constructor === value?.constructor && !isWritable(source, key)) {
+      debugApplyProp("applied", { via: "copy", sourceType, key })
+
       target.copy(value)
     } else if (target?.set && Array.isArray(value)) {
-      debugApplyProp("applied", {
-        via: target.fromArray ? "fromArray" : "set-spread",
-        sourceType,
-        key: type,
-      })
       if (target.fromArray) {
+        debugApplyProp("apply-fromArray", { sourceType, key })
+
         target.fromArray(value)
       } else {
+        debugApplyProp("apply-set-spread", { sourceType, key })
+
         target.set(...value)
       }
     }
@@ -384,37 +399,43 @@ function applyProp<T extends Record<string, any>>(
     // https://github.com/pmndrs/react-three-fiber/issues/274
     else if (target?.set && typeof value !== "object") {
       const isColor = target instanceof Color
+      debugApplyProp("set-literal", { isColor, sourceType, key })
 
       // Allow setting array scalars
       if (!isColor && target.setScalar && typeof value === "number") {
-        debugApplyProp("applied", { via: "setScalar", sourceType, key: type })
+        debugApplyProp("applied", { via: "setScalar", sourceType, key })
+
         target.setScalar(value)
       }
       // Otherwise just set ...
       else if (value !== undefined) {
-        debugApplyProp("applied", { via: "set", sourceType, key: type })
+        debugApplyProp("applied", { via: "set", sourceType, key })
+
         target.set(value)
       }
     }
     // Else, just overwrite the value
     else {
-      debugApplyProp("applied", { via: "assign", sourceType, key: type })
+      debugApplyProp("applied", { via: "assign", sourceType, key })
+
       // @ts-expect-error TODO: fix type-error
-      source[type] = value
+      source[key] = value
     }
   } finally {
     if ("needsUpdate" in source) {
-      debugApplyProp("needsUpdate-set", { key: type })
+      debugApplyProp("needsUpdate-set", { key })
+
       // @ts-expect-error
       source.needsUpdate = true
     } else {
-      debugApplyProp("needsUpdate-set-skipped", { key: type, reason: "no needsUpdate on source" })
+      debugApplyProp("needsUpdate-set-skipped", { key, reason: "no needsUpdate on source" })
     }
     if (context.props.frameloop === "demand") {
-      debugApplyProp("requestRender", { key: type })
+      debugApplyProp("requestRender", { key })
+
       context.requestRender()
     } else {
-      debugApplyProp("requestRender-skipped", { key: type, frameloop: context.props.frameloop })
+      debugApplyProp("requestRender-skipped", { key, frameloop: context.props.frameloop })
     }
   }
 }
@@ -493,7 +514,12 @@ export function useProps<T extends Record<string, any>>(
                 cleanup()
               })
             } else if (isEventType(key)) {
-              debugUseProps("event skipped", { key, reason: !(object instanceof Object3D) ? "not Object3D" : "no meta" })
+              debugUseProps("event skipped", {
+                key,
+                reason: !(object instanceof Object3D) ? "not Object3D" : "no meta",
+              })
+            } else {
+              debugUseProps("non-event key", { key })
             }
           }
         },
@@ -516,6 +542,7 @@ export function useProps<T extends Record<string, any>>(
                 // NOTE:  Discuss - is this expected behavior? Feature or a bug?
                 //        Should it be according to order of update instead?
                 for (const subKey of subKeys) {
+                  debugUseProps("sub-key apply", { key, subKey })
                   applyProp(context, object, subKey, props[subKey])
                 }
               },

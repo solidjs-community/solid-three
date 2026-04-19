@@ -254,6 +254,7 @@ function createMissableEventRegistry(
       if (intersections.length === 0) {
         debugMissable("phase2-no-intersections", { type })
       }
+
       let phase2IntersectionCount = 0
       for (const { object } of intersections) {
         phase2IntersectionCount++
@@ -333,7 +334,9 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         enterSet.add(current)
         if (!hoveredSet.has(current)) {
           enterCount++
+
           debugHover("enter", { object: (current as any).type || "unknown" })
+
           getMeta(current)?.props[`on${type}Enter`]?.(
             // @ts-expect-error TODO: fix type-error
             enterEvent,
@@ -352,6 +355,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
 
     if (hoveredCanvas === false) {
       debugHover("canvas-enter", { type })
+
       context.props[`on${type}Enter`]?.(
         // @ts-expect-error TODO: fix type-error
         enterEvent,
@@ -500,6 +504,7 @@ function createDefaultEventRegistry(
           )
           node = node.parent
         }
+        
         if (event.stopped) {
           debugDefault("bubble-stopped", { type, bubbledLevels: bubbledCount })
         } else {

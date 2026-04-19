@@ -18,15 +18,16 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
     "build:dev": "vite build playground",
+    "build": "tsup",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-    "dev": "vite playground",
     "demo": "vite demo",
-    "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
+    "dev": "vite playground",
+    "format": "prettier --write",
     "lint:circular": "dpdm -T src",
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
     "lint:types": "tsc --noEmit",
+    "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "prepublishOnly": "pnpm lint && pnpm build",
     "test": "vitest run",
     "types": "tsc --emitDeclarationOnly --declarationDir types"
@@ -93,6 +94,7 @@
     "jest": "^29.7.0",
     "jiti": "^2.5.1",
     "jsdom": "^24.1.0",
+    "prettier": "^3.8.3",
     "remark-gfm": "^3.0.1",
     "rollup": "^4.18.0",
     "rollup-plugin-dts": "^6.1.1",
@@ -105,6 +107,7 @@
     "tsup-preset-solid": "^2.2.0",
     "typescript": "^5.4.5",
     "vite": "8.0.5",
+    "vite-plugin-dts": "^4.5.4",
     "vite-plugin-inspect": "0.8.4",
     "vite-plugin-solid": "next",
     "vitest": "^4.1.2"

@@ -1,13 +1,6 @@
 import { untrack } from "@solidjs/web"
 import type { Accessor, Context, JSX } from "solid-js"
-import {
-  createMemo,
-  createRenderEffect,
-  getOwner,
-  merge,
-  onCleanup,
-  type Ref,
-} from "solid-js"
+import { createMemo, createRenderEffect, getOwner, merge, onCleanup, type Ref } from "solid-js"
 import {
   Camera,
   Loader,
@@ -243,7 +236,6 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
   }
   return child
 }
-
 
 /**********************************************************************************/
 /*                                                                                */

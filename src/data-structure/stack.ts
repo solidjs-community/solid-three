@@ -2,7 +2,7 @@ import { type Accessor, type Setter, createSignal, getOwner, onCleanup, untrack 
 import { SHOULD_DEBUG } from "../constants.ts"
 import { createDebug } from "../utils.ts"
 
-const debugStack = createDebug("stack", SHOULD_DEBUG)
+const debugStack = createDebug("stack:Stack", SHOULD_DEBUG)
 
 /** Class representing a stack data structure. */
 export class Stack<T = any> {

@@ -5,7 +5,7 @@ import type { LoaderData, LoaderUrl, PromiseMaybe } from "../types.ts"
 import { createDebug, isRecord } from "../utils.ts"
 import { TreeRegistry } from "./tree-registry.ts"
 
-const debugCache = createDebug("loader-cache", SHOULD_DEBUG)
+const debugCache = createDebug("loader-cache:LoaderCache", SHOULD_DEBUG)
 
 /**********************************************************************************/
 /*                                                                                */

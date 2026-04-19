@@ -142,7 +142,9 @@ const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
   if (globalThis.HTMLCanvasElement) {
     const getContext = HTMLCanvasElement.prototype.getContext
     HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, id: string) {
-      if (id.startsWith("webgl")) return new WebGL2RenderingContext(this)
+      if (id.startsWith("webgl")) {
+        return new WebGL2RenderingContext(this)
+      }
       return getContext.apply(this, arguments as any)
     } as any
   }

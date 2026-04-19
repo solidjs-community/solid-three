@@ -4,7 +4,7 @@ import type { Meta } from "../types.ts"
 import { createDebug, meta } from "../utils.ts"
 import { Stack } from "./stack.ts"
 
-const debugAugStack = createDebug("augmented-stack", SHOULD_DEBUG)
+const debugAugStack = createDebug("augmented-stack:AugmentedStack", SHOULD_DEBUG)
 
 /** A generic stack data structure. It augments each value before pushing it onto the stack. */
 export class AugmentedStack<T> {
