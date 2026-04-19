@@ -1,5 +1,27 @@
-import { solidPlugin } from "esbuild-plugin-solid"
 import { defineConfig, type Options } from "tsup"
+import { transformAsync } from "@babel/core"
+import solid from "babel-preset-solid"
+import ts from "@babel/preset-typescript"
+import { readFile } from "node:fs/promises"
+import { parse } from "node:path"
+
+function solidPlugin() {
+  return {
+    name: "esbuild:solid",
+    setup(build: any) {
+      build.onLoad({ filter: /\.(t|j)sx$/ }, async (args: any) => {
+        const source = await readFile(args.path, { encoding: "utf-8" })
+        const { name, ext } = parse(args.path)
+        const result = await transformAsync(source, {
+          presets: [[solid, {}], [ts, {}]],
+          filename: name + ext,
+          sourceMaps: "inline",
+        })
+        return { contents: result!.code!, loader: "js" }
+      })
+    },
+  }
+}
 
 type Entry = { readonly entry: string; readonly name: string }
 type Variation = { readonly dev: boolean; readonly solid: boolean }
