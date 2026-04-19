@@ -17,10 +17,13 @@ class TreeNode<T> implements TreeBase<T> {
   count = 0
   data?: T
 
-  constructor(public key: string, public parent: TreeNode<T> | TreeRegistry<T>) {}
+  constructor(
+    public key: string,
+    public parent: TreeNode<T> | TreeRegistry<T>,
+  ) {}
 
   delete() {
-    this.parent?.children.delete(this.key)
+    this.parent.children.delete(this.key)
   }
 }
 
@@ -111,7 +114,7 @@ export class TreeRegistry<T> implements TreeBase<T> {
    * @param data The data to store
    */
   set(input: string | string[], data: T) {
-    let node = this.#resolve(input, true)
+    const node = this.#resolve(input, true)
 
     if (!node.data) {
       bubbleUp(node, node => node.count++)

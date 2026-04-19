@@ -304,7 +304,11 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
     intersections = raycast(context, registry.array, nativeEvent)
-    debugHover("move", { type, intersections: intersections.length, registrySize: registry.array.length })
+    debugHover("move", {
+      type,
+      intersections: intersections.length,
+      registrySize: registry.array.length,
+    })
 
     // Phase #1 - Enter
     const enterEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
@@ -455,7 +459,11 @@ function createDefaultEventRegistry(
     eventNameMap[type],
     nativeEvent => {
       const intersections = raycast(context, registry.array, nativeEvent)
-      debugDefault("fired", { type, intersections: intersections.length, registrySize: registry.array.length })
+      debugDefault("fired", {
+        type,
+        intersections: intersections.length,
+        registrySize: registry.array.length,
+      })
       const event = createThreeEvent(nativeEvent, { intersections })
 
       let processedCount = 0

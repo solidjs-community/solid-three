@@ -1,14 +1,23 @@
+import { untrack } from "@solidjs/web"
 import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import {
+  createMemo,
+  createRenderEffect,
+  getOwner,
+  latest,
+  merge,
+  onCleanup,
+  type Ref,
+} from "solid-js"
 import {
   Camera,
   Loader,
   Material,
   Object3D,
   OrthographicCamera,
-  type Renderer,
   Texture,
   Vector3,
+  type Renderer,
 } from "three"
 import { $S3C } from "./constants.ts"
 import type {
@@ -227,7 +236,7 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
     return child
   }
   if (typeof child === "function") {
-    const value = (child as Accessor<T>)()
+    const value = latest(child as Accessor<T>)
     if (recursive) {
       return resolve(value)
     }
@@ -323,24 +332,27 @@ export function withMultiContexts<TResult, T extends readonly [unknown?, ...unkn
   // Nest context providers (no .Provider in Solid 2.x — context IS the provider).
   // Each provider returns a lazy memo — we force the outermost to evaluate.
   let result: TResult
-  const memo = (values as [Context<any>, any][]).reduce(
-    (acc, [context, value], index) => {
-      return () => {
-        const m = (context as any)({
-          value,
-          children: (() => {
-            if (index === 0) result = acc()
-            else acc()
-            return ""
-          }) as any as JSX.Element,
-        })
-        if (typeof m === "function") m()
-        return m
-      }
-    },
-    children as () => any,
-  )()
-  if (typeof memo === "function") memo()
+
+  untrack(() =>
+    resolve(
+      (values as [Context<any>, any][]).reduce(
+        (acc, [Context, value], index) => {
+          return () => {
+            return resolve(
+              Context({
+                value,
+                get children() {
+                  return index === 0 ? (result = untrack(acc)) : untrack(acc)
+                },
+              }) as unknown as Accessor<unknown>,
+            )
+          }
+        },
+        children as () => any,
+      ),
+    ),
+  )
+
   return result!
 }
 

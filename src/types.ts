@@ -46,8 +46,8 @@ export type Overwrite<T extends unknown[]> = T extends [infer First, ...infer Re
   ? Rest extends []
     ? First
     : Overwrite<Rest> extends infer Result
-    ? Omit<First, keyof Result> & Result
-    : never
+      ? Omit<First, keyof Result> & Result
+      : never
   : never
 
 export type Prettify<T> = {
@@ -80,53 +80,51 @@ export type ConstructorOverloadParameters<T extends Constructor> = T extends {
 }
   ? U | U2 | U3 | U4 | U5 | U6 | U7
   : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-      new (...o: infer U6): void
-    }
-  ? U | U2 | U3 | U4 | U5 | U6
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-    }
-  ? U | U2 | U3 | U4 | U5
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-    }
-  ? U | U2 | U3 | U4
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-    }
-  ? U | U2 | U3
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-    }
-  ? U | U2
-  : T extends {
-      new (...o: infer U): void
-    }
-  ? U
-  : never
+        new (...o: infer U): void
+        new (...o: infer U2): void
+        new (...o: infer U3): void
+        new (...o: infer U4): void
+        new (...o: infer U5): void
+        new (...o: infer U6): void
+      }
+    ? U | U2 | U3 | U4 | U5 | U6
+    : T extends {
+          new (...o: infer U): void
+          new (...o: infer U2): void
+          new (...o: infer U3): void
+          new (...o: infer U4): void
+          new (...o: infer U5): void
+        }
+      ? U | U2 | U3 | U4 | U5
+      : T extends {
+            new (...o: infer U): void
+            new (...o: infer U2): void
+            new (...o: infer U3): void
+            new (...o: infer U4): void
+          }
+        ? U | U2 | U3 | U4
+        : T extends {
+              new (...o: infer U): void
+              new (...o: infer U2): void
+              new (...o: infer U3): void
+            }
+          ? U | U2 | U3
+          : T extends {
+                new (...o: infer U): void
+                new (...o: infer U2): void
+              }
+            ? U | U2
+            : T extends {
+                  new (...o: infer U): void
+                }
+              ? U
+              : never
 
-export type LoaderData<T extends Loader<object, any>> = T extends Loader<infer TData, any>
-  ? TData
-  : never
+export type LoaderData<T extends Loader<object, any>> =
+  T extends Loader<infer TData, any> ? TData : never
 
-export type LoaderUrl<T extends Loader<object, any>> = T extends Loader<object, infer TUrl>
-  ? TUrl
-  : never
+export type LoaderUrl<T extends Loader<object, any>> =
+  T extends Loader<object, infer TUrl> ? TUrl : never
 
 /**********************************************************************************/
 /*                                                s                                */
@@ -260,10 +258,10 @@ interface ThreeVectorRepresentation extends ThreeMathRepresentation {
 export type Representation<T> = T extends ThreeColor
   ? ConstructorParameters<typeof ThreeColor> | ColorRepresentation
   : T extends ThreeVectorRepresentation | ThreeLayers | ThreeEuler
-  ? T | Parameters<T["set"]> | number
-  : T extends ThreeMathRepresentation
-  ? T | Parameters<T["set"]>
-  : T
+    ? T | Parameters<T["set"]> | number
+    : T extends ThreeMathRepresentation
+      ? T | Parameters<T["set"]>
+      : T
 
 export type Vector2 = Representation<ThreeVector2>
 export type Vector3 = Representation<ThreeVector3>

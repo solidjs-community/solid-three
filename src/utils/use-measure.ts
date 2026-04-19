@@ -1,3 +1,4 @@
+import { untrack } from "@solidjs/web"
 import { createMemo, createRenderEffect, createSignal, merge } from "solid-js"
 import { SHOULD_DEBUG } from "../constants.ts"
 import { createDebug } from "../utils.ts"
@@ -28,6 +29,7 @@ export interface Measure {
 type HTMLOrSVGElement = HTMLElement | SVGElement
 
 export type UseMeasureOptions = {
+  element?: HTMLOrSVGElement
   debounce?: number | { scroll: number; resize: number }
   scroll?: boolean
   polyfill?: { new (cb: ResizeObserverCallback): ResizeObserver }
@@ -57,7 +59,7 @@ export function useMeasure(options?: UseMeasureOptions) {
     )
   }
 
-  const [element, setElement] = createSignal<HTMLOrSVGElement | null>(null)
+  const [element, setElement] = createSignal<HTMLOrSVGElement | null>(() => config.element ?? null)
   const [bounds, setBounds] = createSignal<Measure>({
     left: 0,
     top: 0,
@@ -139,8 +141,11 @@ export function useMeasure(options?: UseMeasureOptions) {
       createRenderEffect(
         () => scrollContainers(),
         containers => {
-          if (!config.scroll || !containers) {
-            debug("scroll-containers", { action: "skip", reason: !config.scroll ? "disabled" : "no containers" })
+          if (!config.scroll) {
+            debug("scroll-containers", {
+              action: "skip",
+              reason: "disabled",
+            })
             return
           }
           debug("scroll-containers", { action: "attached", count: containers.length })
@@ -180,7 +185,7 @@ export function useMeasure(options?: UseMeasureOptions) {
 
   return {
     setElement: (source: HTMLOrSVGElement | null) => {
-      if (!source || source === element()) {
+      if (!source || source === untrack(element)) {
         debug("setElement", { action: "skip", reason: !source ? "no source" : "same element" })
         return
       }

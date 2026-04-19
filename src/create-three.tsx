@@ -283,8 +283,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     })
   })
 
-  const measure = useMeasure()
-  measure.setElement(canvas)
+  const measure = useMeasure({ element: canvas })
 
   const defaultTarget = new Vector3()
   const viewport = createMemo(() =>
@@ -542,7 +541,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   ))
 
   useSceneGraph(
-    context.scene,
+    () => context.scene,
     merge(props, {
       get children() {
         return c()

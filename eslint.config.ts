@@ -1,9 +1,13 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import noOnlyTests from "eslint-plugin-no-only-tests";
-import eslintComments from "eslint-plugin-eslint-comments";
-import importPlugin from "eslint-plugin-import";
-import tsParser from "@typescript-eslint/parser";
+import typescriptEslint from "@typescript-eslint/eslint-plugin"
+import tsParser from "@typescript-eslint/parser"
+import eslintComments from "eslint-plugin-eslint-comments"
+import importPlugin from "eslint-plugin-import"
+import noOnlyTests from "eslint-plugin-no-only-tests"
+import { defineConfig, globalIgnores } from "eslint/config"
+import { dirname } from "node:path"
+import { fileURLToPath } from "node:url"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig([
   globalIgnores([
@@ -29,7 +33,7 @@ export default defineConfig([
 
       parserOptions: {
         project: "./tsconfig.json",
-        tsconfigRootDir: ".",
+        tsconfigRootDir: __dirname,
       },
     },
 
@@ -58,4 +62,4 @@ export default defineConfig([
       "prefer-const": "warn",
     },
   },
-]);
+])

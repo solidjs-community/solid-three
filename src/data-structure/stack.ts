@@ -38,7 +38,7 @@ export class Stack<T = any> {
       array.push(value)
       return array
     })
-    if (import.meta.env?.MODE === "development") {
+    if (import.meta.env.MODE === "development") {
       const array = untrack(this.#array.bind(this))
       if (array.length > 2) {
         // TODO: write better warning message

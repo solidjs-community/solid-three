@@ -1,7 +1,7 @@
 import { getOwner, onCleanup } from "solid-js"
 import type { Loader } from "three"
-import type { LoaderData, LoaderUrl, PromiseMaybe } from "../types.ts"
 import { SHOULD_DEBUG } from "../constants.ts"
+import type { LoaderData, LoaderUrl, PromiseMaybe } from "../types.ts"
 import { createDebug, isRecord } from "../utils.ts"
 import { TreeRegistry } from "./tree-registry.ts"
 
@@ -54,7 +54,7 @@ interface LoaderTreeRegistryMap extends Map<Loader<any, any>, any> {
 }
 
 interface LoaderTreeRegistry<TLoader extends Loader<object, any>> extends TreeRegistry<object> {
-  get(paths: LoaderUrl<TLoader>, warn?: boolean): CacheNode<TLoader>
+  get(paths: LoaderUrl<TLoader>, warn?: boolean): CacheNode<TLoader> | undefined
   set(paths: LoaderUrl<TLoader>, data: CacheNode<TLoader>): void
 }
 
@@ -137,7 +137,7 @@ export class LoaderCache implements LoaderRegistry {
     url: LoaderUrl<TLoader>,
     options?: { force?: boolean },
   ) {
-    const node = this.#registry(loader)?.get(url)
+    const node = this.#registry(loader).get(url)
 
     if (!node) {
       console.error(`Error while deleting path ${url}. Could not find CacheNode.`)
@@ -159,7 +159,7 @@ export class LoaderCache implements LoaderRegistry {
     url: LoaderUrl<TLoader>,
     warn?: boolean,
   ): PromiseMaybe<LoaderData<TLoader>> | undefined {
-    const node = this.#registry(loader)?.get(url, warn)
+    const node = this.#registry(loader).get(url, warn)
 
     if (!node) return undefined
 
@@ -181,7 +181,7 @@ export class LoaderCache implements LoaderRegistry {
     options?: { force?: boolean },
   ) {
     const registry = this.#registry(loader)
-    let node = registry?.get(path, false)
+    let node = registry.get(path, false)
 
     if (node) {
       node.update(data, options)
