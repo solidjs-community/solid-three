@@ -115,6 +115,7 @@
     "vitest": "^4.1.2"
   },
   "peerDependencies": {
+    "@solidjs/web": "*",
     "@types/three": "*",
     "solid-js": "*",
     "three": "*"
