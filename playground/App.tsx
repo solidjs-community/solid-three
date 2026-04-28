@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { A, Route, Router } from "@solidjs/router"
 import { createSignal, For, lazy, type ParentProps } from "solid-js"
 import * as THREE from "three"
@@ -171,6 +172,5 @@ export function App() {
       />
     </Router>
   )
-  console.log(router.toArray())
   return router
 }

@@ -344,7 +344,9 @@ export type LoadInput<TLoader extends Loader<any, any>> =
   | LoaderUrl<TLoader>
   | Record<string, LoaderUrl<TLoader>>
 
-export type LoadOutput<TLoader extends Loader<any, any>, TUrl> = TUrl extends Record<string, any>
+export type LoadOutput<TLoader extends Loader<any, any>, TUrl> = TUrl extends readonly any[]
+  ? LoaderData<TLoader>
+  : TUrl extends Record<string, any>
   ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
   : LoaderData<TLoader>
 
