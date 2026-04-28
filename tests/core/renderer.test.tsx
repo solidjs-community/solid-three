@@ -871,4 +871,93 @@ describe("renderer", () => {
     expect(ref!.children).toStrictEqual([child1, child])
     expect(ref!.userData.attach).toBe(attachedChild)
   })
+
+  describe("external Object3D children in scene graph", () => {
+    it("preserves order of managed children after external child appended", async () => {
+      const external = new THREE.Mesh()
+      const a = new THREE.Group()
+      const b = new THREE.Group()
+      const [array, setArray] = createSignal([a, b])
+      let group!: THREE.Group
+
+      await test(() => (
+        <T.Group ref={el => (group = el)}>
+          <For each={array()}>{item => <Entity from={item} />}</For>
+        </T.Group>
+      ))
+
+      // external appended after managed children: [a, b, external]
+      group.add(external)
+      expect(group.children[0]).toBe(a)
+      expect(group.children[1]).toBe(b)
+      expect(group.children[2]).toBe(external)
+
+      setArray([b, a])
+      await settled()
+
+      // managed slots reordered, external stays at end: [b, a, external]
+      expect(group.children[0]).toBe(b)
+      expect(group.children[1]).toBe(a)
+      expect(group.children[2]).toBe(external)
+    })
+
+    it("preserves order of managed children around a pre-existing external child", async () => {
+      const external = new THREE.Mesh()
+      const parent = new THREE.Group()
+      parent.add(external)
+
+      const a = new THREE.Group()
+      const b = new THREE.Group()
+      const [array, setArray] = createSignal([a, b])
+
+      await test(() => (
+        <Entity from={parent}>
+          <For each={array()}>{item => <Entity from={item} />}</For>
+        </Entity>
+      ))
+
+      // external was first, managed children appended after: [external, a, b]
+      expect(parent.children[0]).toBe(external)
+      expect(parent.children[1]).toBe(a)
+      expect(parent.children[2]).toBe(b)
+
+      setArray([b, a])
+      await settled()
+
+      // managed slots reordered, external stays at front: [external, b, a]
+      expect(parent.children[0]).toBe(external)
+      expect(parent.children[1]).toBe(b)
+      expect(parent.children[2]).toBe(a)
+    })
+
+    it("removes only the unmounted managed child, preserving external and others", async () => {
+      const external = new THREE.Mesh()
+      const a = new THREE.Group()
+      const b = new THREE.Group()
+      const [show, setShow] = createSignal(true)
+      let group!: THREE.Group
+
+      await test(() => (
+        <T.Group ref={el => (group = el)}>
+          <Entity from={a} />
+          <Show when={show()}>
+            <Entity from={b} />
+          </Show>
+        </T.Group>
+      ))
+
+      group.add(external)
+      // [a, b, external]
+      expect(group.children[0]).toBe(a)
+      expect(group.children[1]).toBe(b)
+      expect(group.children[2]).toBe(external)
+
+      setShow(false)
+      await settled()
+
+      // b removed, a and external remain: [a, external]
+      expect(group.children[0]).toBe(a)
+      expect(group.children[1]).toBe(external)
+    })
+  })
 })
