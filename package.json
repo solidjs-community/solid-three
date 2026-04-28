@@ -23,14 +23,13 @@
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
     "demo": "vite demo",
     "dev": "vite playground",
-    "format": "prettier --write",
+    "format": "prettier --write src",
     "lint:circular": "dpdm -T src",
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
     "lint:types": "tsc --noEmit",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "prepublishOnly": "pnpm lint && pnpm build",
-    "test": "vitest run",
-    "types": "tsc --emitDeclarationOnly --declarationDir types"
+    "test": "vitest run"  
   },
   "exports": {
     ".": {
