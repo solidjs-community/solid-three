@@ -199,7 +199,7 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
   useProps(resource, rest)
 
   return (
-    <Show when={"children" in config && resource()} fallback={resource()}>
+    <Show when={"children" in config && resource()} fallback={resource() as JSX.Element}>
       {resource => props.children?.(resource)}
     </Show>
   )

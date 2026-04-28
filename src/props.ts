@@ -48,7 +48,7 @@ function applySceneGraph(parent: object, child: object) {
 
   // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
-    const cleanup = attachProp(parent, child as Meta)
+    const cleanup = attachProp(parent, child as Meta<object>)
     onCleanup(cleanup)
     return
   }

@@ -173,8 +173,11 @@ type KeyOfOptionals<T> = keyof {
 export function defaultProps<
   const T,
   const TDefaults extends Partial<Required<Pick<T, KeyOfOptionals<T>>>>,
->(props: T, defaults: TDefaults): Prettify<TDefaults & Omit<T, keyof TDefaults>> {
-  return mergeProps(defaults, props)
+>(
+  props: T,
+  defaults: TDefaults,
+): Prettify<Omit<T, keyof TDefaults> & Required<Pick<T, Extract<keyof TDefaults, keyof T>>>> {
+  return mergeProps(defaults, props) as any
 }
 
 /**********************************************************************************/
@@ -226,7 +229,7 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
     return child
   }
   if (typeof child === "function") {
-    const value = child()
+    const value = (child as Accessor<T>)()
     if (recursive) {
       return resolve(value)
     }
@@ -345,12 +348,20 @@ export type LoadOutput<TLoader extends Loader<any, any>, TUrl> = TUrl extends Re
   ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
   : LoaderData<TLoader>
 
+export function load<const TLoader extends Loader<any, any>>(
+  loader: TLoader,
+  input: LoaderUrl<TLoader>,
+): Promise<LoaderData<TLoader>>
+export function load<const TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader>>(
+  loader: TLoader,
+  input: TInput,
+): Promise<LoadOutput<TLoader, TInput>>
 export async function load<
   const TLoader extends Loader<any, any>,
   TInput extends LoadInput<TLoader>,
 >(loader: TLoader, input: TInput): Promise<LoadOutput<TLoader, TInput>> {
   if (isRecord(input)) {
-    return await awaitMapObject(input, path => load(loader, path))
+    return (await awaitMapObject(input, path => load(loader, path))) as LoadOutput<TLoader, TInput>
   }
   return new Promise((resolve, reject) => loader.load(input, resolve, undefined, reject))
 }
