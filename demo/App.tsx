@@ -1,12 +1,12 @@
 import { createSignal } from "solid-js"
 import * as THREE from "three"
-import { Canvas, createT, Entity, useFrame } from "../src/index.ts"
+import { Canvas, createT, useFrame } from "../src/index.ts"
 
 const T = createT(THREE)
 
 export function App() {
   return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
+    <Canvas>
       <Cube />
     </Canvas>
   )
@@ -14,24 +14,23 @@ export function App() {
 
 function Cube() {
   const [hovered, setHovered] = createSignal(false)
-  const meshRef = { current: null as THREE.Mesh | null }
+  let meshRef!: THREE.Mesh
 
-  useFrame((_, { object }) => {
-    if (object) {
-      object.rotation.x += 0.01
-      object.rotation.y += 0.01
+  useFrame(() => {
+    if (meshRef) {
+      meshRef.rotation.x += 0.01
+      meshRef.rotation.y += 0.01
     }
   })
 
   return (
-    <Entity
-      from={THREE.Mesh}
-      ref={meshRef}
+    <T.Mesh
+      ref={el => (meshRef = el)}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
     >
       <T.BoxGeometry args={[1, 1, 1]} />
       <T.MeshStandardMaterial color={hovered() ? "hotpink" : "orange"} />
-    </Entity>
+    </T.Mesh>
   )
 }

@@ -19,5 +19,5 @@
     "types": ["vite/client"],
     "verbatimModuleSyntax": true
   },
-  "exclude": ["dist", "build", "node_modules"]
+  "exclude": ["dist", "build", "node_modules", "eslint.config.ts", "tsup.config.ts"]
 }

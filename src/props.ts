@@ -172,10 +172,10 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const kids = children(() => props.children)
-  const filteredKids = createMemo(() =>
+  const filteredKids = createMemo((): Object3D[] =>
     kids
       .toArray()
-      .map(kid => resolve(kid))
+      .map(kid => resolve(kid as unknown as Meta<object>))
       .filter(kid => kid instanceof Object3D),
   )
 
