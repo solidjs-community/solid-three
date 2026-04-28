@@ -150,7 +150,7 @@ export function App() {
         path="/"
         component={() => (
           <Canvas
-            defaultCamera={{ position: new THREE.Vector3(0, 0, 15) }}
+            camera={{ position: new THREE.Vector3(0, 0, 15) }}
             scene={{ background: [0.1, 0.1, 0.15] }}
             class="home-canvas"
           >

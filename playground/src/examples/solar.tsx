@@ -120,7 +120,7 @@ function CelestialBody(
 export default function () {
   return (
     <Canvas
-      defaultCamera={{ position: new THREE.Vector3(0, 0, 30) }}
+      camera={{ position: new THREE.Vector3(0, 0, 30) }}
       onClick={event => console.debug("canvas clicked", event)}
       onClickMissed={event => console.debug("canvas click missed", event)}
       onPointerLeave={event => console.debug("canvas pointer leave", event)}

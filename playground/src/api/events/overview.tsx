@@ -281,7 +281,7 @@ export default function () {
       </details>
 
       <Canvas
-        defaultCamera={{ position: [0, 0, 8] }}
+        camera={{ position: [0, 0, 8] }}
         style={{ width: "100%", height: "100%" }}
         onClick={() => console.info("Canvas clicked (canvas propagation)")}
         onClickMissed={() => console.info("Clicked empty space")}

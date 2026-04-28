@@ -64,7 +64,7 @@ export default function () {
         </button>
       </div>
 
-      <Canvas defaultCamera={{ position: [0, 0, 5] }}>
+      <Canvas camera={{ position: [0, 0, 5] }}>
         <T.AmbientLight intensity={0.5} />
         <T.PointLight position={[10, 10, 10]} />
 
