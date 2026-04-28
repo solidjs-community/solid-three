@@ -216,54 +216,24 @@ export const useSceneGraph = <T extends object>(
   createRenderEffect(
     () => [filteredKids(), resolve(_parent)] as const,
     ([kids, parent]) => {
-      if (!kids.length) {
-        debugSceneGraph("reorder-skipped", { reason: "no kids" })
-        return
-      }
       if (!(parent instanceof Object3D)) {
         debugSceneGraph("reorder-skipped", { reason: "parent not Object3D" })
         return
       }
 
-      // Only reorder when managed children exist and their relative order differs
-      const indices = kids.map(c => parent.children.indexOf(c)).filter(i => i !== -1)
-      if (indices.length < 2) {
-        debugSceneGraph("reorder-skipped", { reason: "fewer than 2 indexed children" })
-        return
-      }
-      let ordered = true
-      for (let i = 1; i < indices.length; i++) {
-        if (indices[i] <= indices[i - 1]) {
-          ordered = false
-          break
-        }
-      }
-      if (ordered) {
-        debugSceneGraph("reorder-skipped", { reason: "already ordered" })
-        return
-      }
       debugSceneGraph("reorder", {
         parentType: (parent as any).type ?? parent.constructor.name,
         count: kids.length,
       })
-      // Reorder: splice each managed child into its expected position
-      let insertPos = 0
-      for (const child of kids) {
-        const currentPos = parent.children.indexOf(child)
-        if (currentPos === -1) {
-          debugSceneGraph("reorder-child-not-found", {
-            childType: (child as any).type ?? child.constructor.name,
-          })
+
+      // Dual-cursor reorder: walk parent.children, assign desired order at managed slots
+      const managedChildren = new Set(kids)
+      let kidsIndex = 0
+      for (let i = 0; i < parent.children.length; i++) {
+        if (!managedChildren.has(parent.children[i]!)) {
           continue
         }
-        if (currentPos !== insertPos) {
-          debugSceneGraph("reorder-move", { from: currentPos, to: insertPos })
-          parent.children.splice(currentPos, 1)
-          parent.children.splice(insertPos, 0, child)
-        } else {
-          debugSceneGraph("reorder-in-place", { pos: currentPos })
-        }
-        insertPos++
+        parent.children[i] = kids[kidsIndex++]!
       }
     },
   )
