@@ -156,7 +156,7 @@ function resolveUrls<T>(base: string, url: T): T {
     ) as T
   } else if (typeof url === "string") {
     debugResolveUrls("resolved", { kind: "string" })
-    
+
     return new URL(url, base).href as T
   }
   throw new Error("Unexpected type")

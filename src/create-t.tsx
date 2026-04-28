@@ -31,7 +31,7 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
         }
 
         debugCreateT("resolved", { name })
-        
+
         /* Otherwise, create and memoize a component for that constructor. */
         cache.set(name, createEntity(constructor))
       }

@@ -505,7 +505,7 @@ function createDefaultEventRegistry(
           )
           node = node.parent
         }
-        
+
         if (event.stopped) {
           debugDefault("bubble-stopped", { type, bubbledLevels: bubbledCount })
         } else {

@@ -96,7 +96,7 @@ export function Canvas(props: ParentProps<CanvasProps>) {
             context.camera.bottom = height / -2
           } else {
             debug("resize", { camera: "perspective", aspect: width / height })
-            
+
             context.camera.aspect = width / height
           }
 

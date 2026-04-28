@@ -80,7 +80,7 @@ export class TreeRegistry<T> implements TreeBase<T> {
         }
 
         debugTreeRegistry("resolve", { action: "create", path: paths[i] })
-        
+
         node = new TreeNode(paths[i], current)
         current.children.set(paths[i], node)
       }
