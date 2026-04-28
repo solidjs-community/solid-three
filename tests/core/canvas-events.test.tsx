@@ -152,6 +152,20 @@ describe("canvas missable events", () => {
 
       expect(handleClickMissed).not.toHaveBeenCalled()
     })
+
+    it("does not fire when onClick is also registered and click hits a mesh", () => {
+      const handleClick = vi.fn()
+      const handleClickMissed = vi.fn()
+      const { canvas } = test(
+        () => <ListeningMesh eventType="onClick" />,
+        { onClick: handleClick, onClickMissed: handleClickMissed },
+      )
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(handleClick).toHaveBeenCalledTimes(1)
+      expect(handleClickMissed).not.toHaveBeenCalled()
+    })
   })
 
   //

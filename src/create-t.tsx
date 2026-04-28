@@ -1,7 +1,7 @@
 import { createMemo, type Component, type JSX } from "solid-js"
 import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
-import { meta } from "./utils.ts"
+import { autodispose, meta } from "./utils.ts"
 
 /**********************************************************************************/
 /*                                                                                */
@@ -47,7 +47,7 @@ export function createEntity<TConstructor>(
       // listen to key changes
       props.key
       try {
-        return meta(new (Constructor as any)(...(props.args ?? [])), { props })
+        return meta(autodispose(new (Constructor as any)(...(props.args ?? []))), { props })
       } catch (e) {
         console.error(e)
         throw new Error("")

@@ -388,3 +388,156 @@ describe("events", () => {
     })
   })
 })
+
+/**********************************************************************************/
+/*                                                                                */
+/*                           Mesh-level onClickMissed                             */
+/*                                                                                */
+/**********************************************************************************/
+
+const HIT_X = 640
+const HIT_Y = 400
+const MISS_X = 0
+const MISS_Y = 0
+
+function makeClickAt(offsetX: number, offsetY: number) {
+  const event = new Event("click")
+  Object.defineProperty(event, "offsetX", { get: () => offsetX })
+  Object.defineProperty(event, "offsetY", { get: () => offsetY })
+  return event
+}
+
+describe("mesh onClickMissed", () => {
+  it("fires when a click misses the mesh", async () => {
+    const handleClickMissed = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClickMissed={handleClickMissed}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
+
+
+    expect(handleClickMissed).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not fire when the mesh itself is clicked", async () => {
+    const handleClickMissed = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClickMissed={handleClickMissed}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+
+    expect(handleClickMissed).not.toHaveBeenCalled()
+  })
+
+  it("does not fire when a different mesh in the scene is clicked", async () => {
+    const handleClickMissed = vi.fn()
+
+    // Mesh A: off-center (far right), has onClickMissed
+    // Mesh B: at origin (center of screen), gets clicked
+    const { canvas } = await test(() => (
+      <>
+        <T.Mesh onClickMissed={handleClickMissed} position-x={100}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClickMissed).not.toHaveBeenCalled()
+  })
+
+  it("does not fire on a parent when its child is clicked", async () => {
+    const handleParentClickMissed = vi.fn()
+    const handleChildClick = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Group onClickMissed={handleParentClickMissed}>
+        <T.Mesh onClick={handleChildClick}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </T.Group>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+
+    expect(handleChildClick).toHaveBeenCalledTimes(1)
+    expect(handleParentClickMissed).not.toHaveBeenCalled()
+  })
+})
+
+/**********************************************************************************/
+/*                                                                                */
+/*                          Event handler reactivity                              */
+/*                                                                                */
+/**********************************************************************************/
+
+describe("event handler reactivity", () => {
+  it("registers object in interaction list when event prop is added", async () => {
+    const handleClick = vi.fn()
+    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(undefined)
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClick={onClick()}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    // No handler yet — click should not fire
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).not.toHaveBeenCalled()
+
+    // Add the handler reactively
+    setOnClick(() => handleClick)
+
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it("removes object from interaction list when event prop is removed", async () => {
+    const handleClick = vi.fn()
+    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(handleClick)
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClick={onClick()}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    // Handler active — click fires
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1)
+
+    // Remove handler reactively
+    setOnClick(undefined)
+
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1) // no new call
+  })
+})

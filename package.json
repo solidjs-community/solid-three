@@ -27,7 +27,7 @@
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
     "lint:types": "tsc --noEmit",
     "prepublishOnly": "pnpm lint && pnpm build",
-    "test": "vitest",
+    "test": "vitest run",
     "types": "tsc --emitDeclarationOnly --declarationDir types"
   },
   "exports": {
