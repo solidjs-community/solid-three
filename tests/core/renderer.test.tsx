@@ -472,7 +472,7 @@ describe("renderer", () => {
 
     camera = (await test(() => <T.Group />, {
       orthographic: true,
-      defaultCamera: { position: [0, 0, 5] },
+      camera: { position: [0, 0, 5] },
     })).camera
 
     expect(camera.type).toEqual("OrthographicCamera")

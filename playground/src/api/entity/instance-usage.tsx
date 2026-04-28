@@ -37,7 +37,7 @@ export default function () {
         </p>
       </details>
 
-      <Canvas defaultCamera={{ position: [0, 0, 5] }} style={{ width: "100%", height: "100%" }}>
+      <Canvas camera={{ position: [0, 0, 5] }} style={{ width: "100%", height: "100%" }}>
         <Entity from={THREE.AmbientLight} args={[0.5]} />
         <Entity from={THREE.PointLight} position={[10, 10, 10]} args={[0xffffff, 0.8]} />
 

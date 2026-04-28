@@ -53,7 +53,7 @@ export async function test(
             get children() {
               return children()
             },
-            defaultCamera: {
+            camera: {
               position: [0, 0, 5] as [number, number, number],
             },
           },

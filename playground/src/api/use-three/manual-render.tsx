@@ -83,7 +83,7 @@ export default function () {
       </details>
 
       <Canvas
-        defaultCamera={{ position: [0, 0, 5] }}
+        camera={{ position: [0, 0, 5] }}
         frameloop="demand"
         style={{ width: "100%", height: "100%" }}
       >

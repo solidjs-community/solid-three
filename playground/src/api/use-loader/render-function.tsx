@@ -59,7 +59,7 @@ export default function () {
 
       <Canvas
         style={{ width: "100%", height: "100%" }}
-        defaultCamera={{ position: new THREE.Vector3(0, 0, 3) }}
+        camera={{ position: new THREE.Vector3(0, 0, 3) }}
       >
         <Entity from={THREE.AmbientLight} />
         <Entity from={resource()?.scene.children[0]} />
