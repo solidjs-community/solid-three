@@ -128,46 +128,45 @@ export const useSceneGraph = <T extends object>(
   )
 
   // Object3D scene graph sync: add, remove, reorder
-  createComputed((prevManaged: Set<Object3D> = new Set()) => {
+  createComputed((previousManagedChildren: Set<Object3D>) => {
     const parent = resolve(_parent)
-    if (!(parent instanceof Object3D)) return prevManaged
-
-    const childArray = c.toArray() as unknown as Array<Meta<object> | undefined>
-    // Exclude Object3Ds with attach props — those are handled by applySceneGraph
-    const desired = childArray.filter((c): c is Object3D => {
-      if (!(c instanceof Object3D)) return false
-      return !getMeta(c)?.props.attach
-    })
-    const currentManaged = new Set(desired)
-
-    // Remove children no longer in the array
-    for (const child of prevManaged) {
-      if (!currentManaged.has(child)) parent.remove(child)
+    if (!(parent instanceof Object3D)) {
+      return previousManagedChildren
     }
 
-    // Add new children at the correct position
-    for (let i = 0; i < desired.length; i++) {
-      const child = desired[i]
-      if (parent.children.includes(child)) continue
-      const nextPresent = desired.slice(i + 1).find(c => parent.children.includes(c))
-      if (nextPresent) {
-        parent.children.splice(parent.children.indexOf(nextPresent), 0, child)
-        child.parent = parent
-        child.dispatchEvent({ type: "added" })
-        parent.dispatchEvent({ type: "childadded", child })
-      } else {
+    const childArray = c.toArray() as unknown as Array<object | undefined>
+    const managedChildren = new Set<Object3D>()
+
+    for (const child of childArray) {
+      if (!(child instanceof Object3D) || getMeta(child)?.props.attach) continue
+      managedChildren.add(child)
+      if (child.parent !== parent) {
         parent.add(child)
       }
     }
 
-    // Reorder: assign desired order into the slots managed children occupy
-    const slots: number[] = []
-    for (let i = 0; i < parent.children.length; i++) {
-      if (currentManaged.has(parent.children[i])) slots.push(i)
+    for (const child of previousManagedChildren) {
+      if (!managedChildren.has(child)) {
+        parent.remove(child)
+      }
     }
-    for (let i = 0; i < slots.length; i++) parent.children[slots[i]] = desired[i]
 
-    return currentManaged
+    // Reorder: walk parent.children, assign desired order at managed slots
+    let childArrayIndex = 0
+    for (let i = 0; i < parent.children.length; i++) {
+      if (!managedChildren.has(parent.children[i]!)) {
+        continue
+      }
+      while (childArrayIndex < childArray.length) {
+        const child = childArray[childArrayIndex++]
+        if (child instanceof Object3D && !getMeta(child)?.props.attach) {
+          parent.children[i] = child
+          break
+        }
+      }
+    }
+
+    return managedChildren
   }, new Set<Object3D>())
 }
 
