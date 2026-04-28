@@ -57,7 +57,7 @@ export const isVector3 = (def: object): def is Vector3 => "isVector3" in def && 
 
 export function autodispose<T extends { dispose?: () => void }>(object: T): T {
   if (object.dispose) {
-    onCleanup(object.dispose.bind(object))
+    onCleanup(() => object.dispose?.())
   }
   return object
 }

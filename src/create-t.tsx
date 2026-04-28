@@ -2,7 +2,7 @@ import { createMemo, type Component, type JSX } from "solid-js"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
-import { createDebug, describeOwnerChain, meta } from "./utils.ts"
+import { autodispose, createDebug, describeOwnerChain, meta } from "./utils.ts"
 
 const debugCreateT = createDebug("create-t:createT", SHOULD_DEBUG)
 const debugCreateEntity = createDebug("create-t:createEntity", SHOULD_DEBUG)
@@ -69,7 +69,7 @@ export function createEntity<TConstructor>(
       // listen to key changes
       props.key
       try {
-        return meta(new (Constructor as any)(...(props.args ?? [])), { props })
+        return meta(autodispose(new (Constructor as any)(...(props.args ?? []))), { props })
       } catch (e) {
         console.error(e)
         throw new Error("")
