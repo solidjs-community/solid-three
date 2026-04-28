@@ -128,7 +128,7 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     stack.push(...object.children)
   }
 
-  return context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
+  return context.raycaster.intersectObjects(Array.from(nodeSet), false)
 }
 
 /**********************************************************************************/

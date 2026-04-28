@@ -1,6 +1,5 @@
 import {
   Show,
-  createEffect,
   createMemo,
   mergeProps,
   splitProps,
@@ -188,8 +187,6 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
     () => config.url,
     options,
   )
-
-  createEffect(() => console.log("resource", resource()))
 
   useProps(resource, rest)
 
