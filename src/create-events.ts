@@ -388,7 +388,7 @@ function createDefaultEventRegistry(
         let node: Object3D | null = intersection.object
 
         while (node && !event.stopped) {
-          getMeta(intersection.object)?.props[type]?.(
+          getMeta(node)?.props[type]?.(
             // @ts-expect-error TODO: fix type-error
             event,
           )

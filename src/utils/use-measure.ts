@@ -149,6 +149,7 @@ export function useMeasure(options?: UseMeasureOptions) {
     setElement: (source: HTMLOrSVGElement | null) => {
       if (!source || source === element()) return
       setElement(source)
+      forceRefresh()
     },
     bounds,
     forceRefresh,

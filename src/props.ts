@@ -32,35 +32,30 @@ function isWritable(object: object, propertyName: string) {
 function applySceneGraph(parent: object, child: object) {
   const parentMeta = getMeta(parent)
   if (parentMeta) {
-    // Update parent's augmented children-property.
     parentMeta.children.add(child)
     onCleanup(() => parentMeta.children.delete(child))
   }
 
   const childMeta = getMeta(child)
   if (childMeta) {
-    // Update parent's augmented children-property.
     childMeta.parent = parent
     onCleanup(() => (childMeta.parent = undefined))
   }
 
   let attachProp = childMeta?.props.attach
 
-  // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
     const cleanup = attachProp(parent, child as Meta<object>)
     onCleanup(cleanup)
     return
   }
 
-  // Defaults for Material, BufferGeometry and Fog.
   if (!attachProp) {
     if (child instanceof Material) attachProp = "material"
     else if (child instanceof BufferGeometry) attachProp = "geometry"
     else if (child instanceof Fog) attachProp = "fog"
   }
 
-  // If an attachProp is defined, attach the child to the parent.
   if (attachProp) {
     let target = parent
     let property: string | undefined
@@ -83,12 +78,8 @@ function applySceneGraph(parent: object, child: object) {
     return
   }
 
-  // If no attach-prop is defined, add the child to the parent.
-  if (child instanceof Object3D && parent instanceof Object3D && !parent.children.includes(child)) {
-    parent.add(child)
-    onCleanup(() => parent.remove(child))
-    return child
-  }
+  // Object3D children are managed by the ordering loop in useSceneGraph
+  if (child instanceof Object3D && parent instanceof Object3D) return
 
   console.error(
     "Error while connecting/attaching child: child does not have attach-props defined and is not an Object3D",
@@ -119,6 +110,8 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const c = children(() => props.children)
+
+  // Per-item: metadata, attach props, events
   createComputed(
     mapArray(
       () => c.toArray() as unknown as (Meta<object> | undefined)[],
@@ -133,6 +126,49 @@ export const useSceneGraph = <T extends object>(
         }),
     ),
   )
+
+  // Object3D scene graph sync: add, remove, reorder
+  createComputed((prevManaged: Set<Object3D> = new Set()) => {
+    const parent = resolve(_parent)
+    if (!(parent instanceof Object3D)) return prevManaged
+
+    const childArray = c.toArray() as unknown as Array<Meta<object> | undefined>
+    // Exclude Object3Ds with attach props — those are handled by applySceneGraph
+    const desired = childArray.filter((c): c is Object3D => {
+      if (!(c instanceof Object3D)) return false
+      return !getMeta(c)?.props.attach
+    })
+    const currentManaged = new Set(desired)
+
+    // Remove children no longer in the array
+    for (const child of prevManaged) {
+      if (!currentManaged.has(child)) parent.remove(child)
+    }
+
+    // Add new children at the correct position
+    for (let i = 0; i < desired.length; i++) {
+      const child = desired[i]
+      if (parent.children.includes(child)) continue
+      const nextPresent = desired.slice(i + 1).find(c => parent.children.includes(c))
+      if (nextPresent) {
+        parent.children.splice(parent.children.indexOf(nextPresent), 0, child)
+        child.parent = parent
+        child.dispatchEvent({ type: "added" })
+        parent.dispatchEvent({ type: "childadded", child })
+      } else {
+        parent.add(child)
+      }
+    }
+
+    // Reorder: assign desired order into the slots managed children occupy
+    const slots: number[] = []
+    for (let i = 0; i < parent.children.length; i++) {
+      if (currentManaged.has(parent.children[i])) slots.push(i)
+    }
+    for (let i = 0; i < slots.length; i++) parent.children[slots[i]] = desired[i]
+
+    return currentManaged
+  }, new Set<Object3D>())
 }
 
 /**********************************************************************************/
