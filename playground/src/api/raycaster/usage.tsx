@@ -96,8 +96,8 @@ export default function () {
       </details>
 
       <Canvas
-        defaultRaycaster={getRaycaster()}
-        defaultCamera={{ position: [0, 0, 8] }}
+        raycaster={getRaycaster()}
+        camera={{ position: [0, 0, 8] }}
         style={{ width: "100%", height: "100%" }}
         onPointerMove={() => {
           // This will trigger raycaster updates

@@ -100,11 +100,11 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 **Props:**
 
-- **defaultCamera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
+- **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
 - **gl**: Defines options for the WebGLRenderer, a function returning a customized renderer, or an existing renderer instance.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
-- **defaultRaycaster**: Configures the Raycaster for mouse and pointer events.
+- **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
 - **orthographic**: Toggles between Orthographic and Perspective camera for the default camera.
 - **linear**: Toggles linear interpolation for texture filtering.
@@ -122,11 +122,11 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 ```tsx
 interface CanvasProps {
-  defaultCamera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
+  camera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
   fallback?: JSX.Element
   gl?: Partial<WebGLRenderer> | ((canvas: HTMLCanvasElement) => WebGLRenderer) | WebGLRenderer
   scene?: Partial<Scene> | Scene
-  defaultRaycaster?: Partial<Raycaster> | Raycaster
+  raycaster?: Partial<Raycaster> | Raycaster
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   orthographic?: boolean
   linear?: boolean
@@ -413,7 +413,7 @@ Provides access to the `three.js` context, including the renderer, scene, camera
 `solid-three` implements a stack-based system for managing its current camera and raycaster:
 
 - **Stack-based Management**: Both cameras and raycasters are managed as stacks internally
-- **Default at Tail**: The `defaultCamera` and `defaultRaycaster` from Canvas props form the tail of their respective stacks
+- **Default at Tail**: The `camera` and `raycaster` from Canvas props form the tail of their respective stacks
 - **Current Active Camera at Head**: The camera/raycaster at the top of the stack is the currently active camera/raycaster
 - **Push To The Stack To Become Active**: By calling `setCamera(camera)` and `setRaycaster(raycaster)`, the camera/raycaster is pushed to the stack. This causes it to become the currently active camera/raycaster
 - **Pop From The Stack To Deactivate**: `setCamera(camera)` and `setRaycaster(raycaster)` return a cleanup-function to pop the camera/raycaster from the stack. If the camera/raycaster was on top of the stack, the previous camera/raycaster in the stack becomes active again
@@ -745,7 +745,7 @@ const App = () => {
   const raycaster = new CursorRaycaster()
 
   // CursorRaycaster is used by default, but you can explicitly set it:
-  return <Canvas defaultRaycaster={raycaster}>{/* Your scene */}</Canvas>
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
 }
 ```
 
@@ -760,7 +760,7 @@ import { CenterRaycaster } from "solid-three"
 const App = () => {
   const raycaster = new CenterRaycaster()
 
-  return <Canvas defaultRaycaster={raycaster}>>{/* Your scene */}</Canvas>
+  return <Canvas raycaster={raycaster}>>{/* Your scene */}</Canvas>
 }
 ```
 
@@ -796,7 +796,7 @@ class CustomRaycaster extends Raycaster implements EventRaycaster {
 const App = () => {
   const raycaster = new CustomRaycaster()
 
-  return <Canvas defaultRaycaster={raycaster}>{/* Your scene */}</Canvas>
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
 }
 ```
 
@@ -1118,7 +1118,7 @@ const TreePropagation = () => {
 ```tsx
 const RayPropagation = () => {
   return (
-    <Canvas defaultCamera={{ position: [0, 0, 5] }}>
+    <Canvas camera={{ position: [0, 0, 5] }}>
       <T.Mesh
         name="front mesh"
         position={[0, 0, 2]}

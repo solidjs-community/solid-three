@@ -19,9 +19,9 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   ref?: Ref<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
-  defaultCamera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
+  camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
   /** Configuration for the Raycaster used for mouse and pointer events. */
-  defaultRaycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
+  raycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
   /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element
   /** Toggles flat interpolation for texture filtering. */

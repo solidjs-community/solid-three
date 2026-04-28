@@ -39,7 +39,7 @@ export default function () {
 
       <Canvas
         onClick={() => console.info("4. Canvas clicked (canvas propagation)")}
-        defaultCamera={{ position: [0, 0, 8] }}
+        camera={{ position: [0, 0, 8] }}
         style={{ width: "100%", height: "100%" }}
       >
         <T.AmbientLight intensity={0.5} />

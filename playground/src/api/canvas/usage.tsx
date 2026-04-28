@@ -58,7 +58,7 @@ export default function () {
       </details>
 
       <Canvas
-        defaultCamera={{
+        camera={{
           position: orthographic() ? [5, 5, 5] : [0, 0, 5],
           fov: 75,
         }}
@@ -70,7 +70,7 @@ export default function () {
           background: new THREE.Color(0x202020),
           fog: new THREE.Fog(0x202020, 10, 50),
         }}
-        defaultRaycaster={{
+        raycaster={{
           params: {
             Mesh: {},
             Line: { threshold: 0.1 },

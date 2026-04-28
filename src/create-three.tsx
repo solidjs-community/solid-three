@@ -169,16 +169,16 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  const defaultCamera = createMemo(() =>
+  const camera = createMemo(() =>
     meta(
-      props.defaultCamera instanceof Camera
-        ? (props.defaultCamera as OrthographicCamera | PerspectiveCamera)
+      props.camera instanceof Camera
+        ? (props.camera as OrthographicCamera | PerspectiveCamera)
         : props.orthographic
         ? new OrthographicCamera()
         : new PerspectiveCamera(),
       {
         get props() {
-          return props.defaultCamera || {}
+          return props.camera || {}
         },
       },
     ),
@@ -193,12 +193,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     }),
   )
 
-  const defaultRaycaster = createMemo(() =>
+  const raycaster = createMemo(() =>
     meta<Raycaster | EventRaycaster>(
-      props.defaultRaycaster instanceof Raycaster ? props.defaultRaycaster : new CursorRaycaster(),
+      props.raycaster instanceof Raycaster ? props.raycaster : new CursorRaycaster(),
       {
         get props() {
-          return props.defaultRaycaster || {}
+          return props.raycaster || {}
         },
       },
     ),
@@ -229,7 +229,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const defaultTarget = new Vector3()
   const viewport = createMemo(() =>
-    getCurrentViewport(defaultCamera(), defaultTarget, measure.bounds()),
+    getCurrentViewport(camera(), defaultTarget, measure.bounds()),
   )
 
   const clock = new Clock()
@@ -253,7 +253,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     xr,
     // elements
     get camera() {
-      return cameraStack.peek() ?? defaultCamera()
+      return cameraStack.peek() ?? camera()
     },
     setCamera(camera: CameraKind) {
       return cameraStack.push(camera)
@@ -262,7 +262,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return scene()
     },
     get raycaster() {
-      return raycasterStack.peek() || defaultRaycaster()
+      return raycasterStack.peek() || raycaster()
     },
     setRaycaster(raycaster: Raycaster) {
       return raycasterStack.push(raycaster)
@@ -299,11 +299,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     // Manage camera
     createRenderEffect(() => {
       if (cameraStack.peek()) return
-      if (!props.defaultCamera || props.defaultCamera instanceof Camera) return
-      useProps(defaultCamera, props.defaultCamera)
+      if (!props.camera || props.camera instanceof Camera) return
+      useProps(camera, props.camera)
       // NOTE:  Manually update camera's matrix with updateMatrixWorld is needed.
       //        Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-      defaultCamera().updateMatrixWorld(true)
+      camera().updateMatrixWorld(true)
     })
 
     // Manage scene
@@ -314,8 +314,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
     // Manage raycaster
     createRenderEffect(() => {
-      if (!props.defaultRaycaster || props.defaultRaycaster instanceof Raycaster) return
-      useProps(defaultRaycaster, props.defaultRaycaster)
+      if (!props.raycaster || props.raycaster instanceof Raycaster) return
+      useProps(raycaster, props.raycaster)
     })
 
     // Manage gl

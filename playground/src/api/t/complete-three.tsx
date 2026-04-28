@@ -34,7 +34,7 @@ export default function () {
         </p>
       </details>
 
-      <Canvas defaultCamera={{ position: [0, 0, 8] }} style={{ width: "100%", height: "100%" }}>
+      <Canvas camera={{ position: [0, 0, 8] }} style={{ width: "100%", height: "100%" }}>
         <T.AmbientLight intensity={0.5} />
         <T.PointLight position={[10, 10, 10]} intensity={0.8} />
 
