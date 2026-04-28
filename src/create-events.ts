@@ -323,10 +323,11 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
 
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent, { intersections, stoppable: false })
-    const leaveSet = hoveredSet.difference(enterSet)
+    const prevHoveredSet = hoveredSet
     hoveredSet = enterSet
 
-    for (const object of leaveSet.values()) {
+    for (const object of prevHoveredSet) {
+      if (enterSet.has(object)) continue
       getMeta(object)?.props[`on${type}Leave`]?.(
         // @ts-expect-error TODO: fix type-error
         leaveEvent,
