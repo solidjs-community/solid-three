@@ -183,13 +183,12 @@ function createMissableEventRegistry(
   const registry = createRegistry<Object3D>()
 
   context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
-    if (registry.array.length === 0) {
-      debugMissable("skipped", { type, reason: "empty registry" })
+    const missedType = `${type}Missed` as const
+    if (registry.array.length === 0 && !context.props[type] && !context.props[missedType]) {
+      debugMissable("skipped", { type, reason: "empty registry and no canvas handlers" })
       return
     }
     debugMissable("fired", { type, registrySize: registry.array.length })
-
-    const missedType = `${type}Missed` as const
 
     // Track which objects have been visited during event processing
     const missedObjects = new Set(registry.array)
@@ -276,10 +275,11 @@ function createMissableEventRegistry(
       getMeta(object)?.props[missedType]?.(missedEvent)
     }
 
-    if (visitedObjects.size > 0) {
-      debugMissable("missed-fired", { type, missedType, visitedCount: visitedObjects.size })
+    if (intersections.length === 0) {
+      debugMissable("missed-fired", { type, missedType })
+      context.props[missedType]?.(missedEvent)
     } else {
-      debugMissable("missed-none", { type, reason: "no objects visited" })
+      debugMissable("missed-none", { type, reason: "intersections found" })
     }
   })
 
