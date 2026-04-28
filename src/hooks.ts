@@ -216,7 +216,7 @@ export function useLoader<
     input: TInput,
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (isRecord(input)) {
-      return awaitMapObject(input, value => getOrInsert(registry, loader, value)) as Promise<
+      return awaitMapObject(input, async value => getOrInsert(registry, loader, value)) as PromiseMaybe<
         LoadOutput<TLoader, TInput>
       >
     } else {
@@ -225,11 +225,11 @@ export function useLoader<
       const cachedPromise = registry.get(loader, _input, false)
 
       if (cachedPromise) {
-        return cachedPromise
+        return cachedPromise as PromiseMaybe<LoadOutput<TLoader, TInput>>
       }
 
-      const promise = load(loader, input)
-      registry.set(loader, input, promise)
+      const promise = load(loader, _input)
+      registry.set(loader, _input, promise)
 
       return promise as Promise<LoadOutput<TLoader, TInput>>
     }
@@ -237,7 +237,7 @@ export function useLoader<
 
   function loadUrl<TInput extends LoadInput<TLoader>>(
     url: TInput,
-  ): Promise<LoadOutput<TLoader, TInput>> {
+  ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (config.cache === true) {
       if (!useLoader.cache) {
         return load(loader(), url)

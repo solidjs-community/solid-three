@@ -63,19 +63,20 @@ export default function () {
           fov: 75,
         }}
         fallback={<div style={{ color: "white", padding: "20px" }}>Loading Canvas...</div>}
-        gl={{
-          antialias: true,
-          alpha: true,
-          powerPreference: "high-performance",
-        }}
+        gl={canvas =>
+          new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" })
+        }
         scene={{
           background: new THREE.Color(0x202020),
           fog: new THREE.Fog(0x202020, 10, 50),
         }}
         defaultRaycaster={{
           params: {
+            Mesh: {},
             Line: { threshold: 0.1 },
+            LOD: {},
             Points: { threshold: 0.1 },
+            Sprite: {},
           },
         }}
         shadows={shadows()}

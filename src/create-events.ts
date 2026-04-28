@@ -59,7 +59,7 @@ export const isEventType = (type: string): type is EventName =>
 function createThreeEvent<
   TEvent extends Event,
   TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
->(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {}) {
+>(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {} as TConfig) {
   const event: Record<string, any> = stoppable
     ? {
         nativeEvent,
@@ -128,7 +128,7 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     stack.push(...object.children)
   }
 
-  return context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
+  return context.raycaster.intersectObjects(Array.from(nodeSet), false)
 }
 
 /**********************************************************************************/
@@ -323,10 +323,11 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
 
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent, { intersections, stoppable: false })
-    const leaveSet = hoveredSet.difference(enterSet)
+    const prevHoveredSet = hoveredSet
     hoveredSet = enterSet
 
-    for (const object of leaveSet.values()) {
+    for (const object of prevHoveredSet) {
+      if (enterSet.has(object)) continue
       getMeta(object)?.props[`on${type}Leave`]?.(
         // @ts-expect-error TODO: fix type-error
         leaveEvent,
@@ -388,7 +389,7 @@ function createDefaultEventRegistry(
         let node: Object3D | null = intersection.object
 
         while (node && !event.stopped) {
-          getMeta(intersection.object)?.props[type]?.(
+          getMeta(node)?.props[type]?.(
             // @ts-expect-error TODO: fix type-error
             event,
           )

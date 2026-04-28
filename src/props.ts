@@ -32,35 +32,30 @@ function isWritable(object: object, propertyName: string) {
 function applySceneGraph(parent: object, child: object) {
   const parentMeta = getMeta(parent)
   if (parentMeta) {
-    // Update parent's augmented children-property.
     parentMeta.children.add(child)
     onCleanup(() => parentMeta.children.delete(child))
   }
 
   const childMeta = getMeta(child)
   if (childMeta) {
-    // Update parent's augmented children-property.
     childMeta.parent = parent
     onCleanup(() => (childMeta.parent = undefined))
   }
 
   let attachProp = childMeta?.props.attach
 
-  // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
-    const cleanup = attachProp(parent, child as Meta)
+    const cleanup = attachProp(parent, child as Meta<object>)
     onCleanup(cleanup)
     return
   }
 
-  // Defaults for Material, BufferGeometry and Fog.
   if (!attachProp) {
     if (child instanceof Material) attachProp = "material"
     else if (child instanceof BufferGeometry) attachProp = "geometry"
     else if (child instanceof Fog) attachProp = "fog"
   }
 
-  // If an attachProp is defined, attach the child to the parent.
   if (attachProp) {
     let target = parent
     let property: string | undefined
@@ -83,12 +78,8 @@ function applySceneGraph(parent: object, child: object) {
     return
   }
 
-  // If no attach-prop is defined, add the child to the parent.
-  if (child instanceof Object3D && parent instanceof Object3D && !parent.children.includes(child)) {
-    parent.add(child)
-    onCleanup(() => parent.remove(child))
-    return child
-  }
+  // Object3D children are managed by the ordering loop in useSceneGraph
+  if (child instanceof Object3D && parent instanceof Object3D) return
 
   console.error(
     "Error while connecting/attaching child: child does not have attach-props defined and is not an Object3D",
@@ -119,6 +110,8 @@ export const useSceneGraph = <T extends object>(
   props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
 ) => {
   const c = children(() => props.children)
+
+  // Per-item: metadata, attach props, events
   createComputed(
     mapArray(
       () => c.toArray() as unknown as (Meta<object> | undefined)[],
@@ -133,6 +126,48 @@ export const useSceneGraph = <T extends object>(
         }),
     ),
   )
+
+  // Object3D scene graph sync: add, remove, reorder
+  createComputed((previousManagedChildren: Set<Object3D>) => {
+    const parent = resolve(_parent)
+    if (!(parent instanceof Object3D)) {
+      return previousManagedChildren
+    }
+
+    const childArray = c.toArray() as unknown as Array<object | undefined>
+    const managedChildren = new Set<Object3D>()
+
+    for (const child of childArray) {
+      if (!(child instanceof Object3D) || getMeta(child)?.props.attach) continue
+      managedChildren.add(child)
+      if (child.parent !== parent) {
+        parent.add(child)
+      }
+    }
+
+    for (const child of previousManagedChildren) {
+      if (!managedChildren.has(child)) {
+        parent.remove(child)
+      }
+    }
+
+    // Reorder: walk parent.children, assign desired order at managed slots
+    let childArrayIndex = 0
+    for (let i = 0; i < parent.children.length; i++) {
+      if (!managedChildren.has(parent.children[i]!)) {
+        continue
+      }
+      while (childArrayIndex < childArray.length) {
+        const child = childArray[childArrayIndex++]
+        if (child instanceof Object3D && !getMeta(child)?.props.attach) {
+          parent.children[i] = child
+          break
+        }
+      }
+    }
+
+    return managedChildren
+  }, new Set<Object3D>())
 }
 
 /**********************************************************************************/

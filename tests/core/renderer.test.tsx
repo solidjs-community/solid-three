@@ -277,7 +277,7 @@ describe("renderer", () => {
       const scene = test(() => (
         <T.HasObject3dMethods>
           <Show when={visible()}>
-            <T.Mesh attach={parent => ((attachedMesh = parent), () => (detachedMesh = parent))} />
+            <T.Mesh attach={parent => ((attachedMesh = parent as THREE.Object3D), () => (detachedMesh = parent as THREE.Object3D))} />
           </Show>
         </T.HasObject3dMethods>
       )).scene
@@ -584,9 +584,6 @@ describe("renderer", () => {
       return <T.MeshBasicMaterial map={texture} />
     }
 
-    const LinearEncoding = 3000
-    const sRGBEncoding = 3001
-
     const [linear, setLinear] = createSignal(false)
     const [flat, setFlat] = createSignal(false)
 
@@ -599,24 +596,19 @@ describe("renderer", () => {
       },
     }).gl as unknown as THREE.WebGLRenderer & { outputColorSpace: string }
 
-    // @ts-expect-error TODO: fix type-error
-    expect(gl.outputEncoding).toBe(sRGBEncoding)
+    const SRGBColorSpace = "srgb"
+    const LinearSRGBColorSpace = "srgb-linear"
+
     expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(texture.encoding).toBe(sRGBEncoding)
+    expect(gl.outputColorSpace).toBe(SRGBColorSpace)
+    expect(texture.colorSpace).toBe(SRGBColorSpace)
 
     setLinear(true)
     setFlat(true)
 
-    // @ts-expect-error TODO: fix type-error
-    expect(gl.outputEncoding).toBe(LinearEncoding)
     expect(gl.toneMapping).toBe(THREE.NoToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(texture.encoding).toBe(LinearEncoding)
-
-    // Sets outputColorSpace since r152
-    const SRGBColorSpace = "srgb"
-    const LinearSRGBColorSpace = "srgb-linear"
+    expect(gl.outputColorSpace).toBe(LinearSRGBColorSpace)
+    expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
 
     // @ts-expect-error TODO: fix type-error
     gl.outputColorSpace = "test"

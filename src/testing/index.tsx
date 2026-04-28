@@ -33,7 +33,7 @@ export function test(
           get children() {
             return children()
           },
-          camera: {
+          defaultCamera: {
             position: [0, 0, 5] as [number, number, number],
           },
         },
@@ -111,6 +111,10 @@ const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
   }
   canvas.width = width
   canvas.height = height
+
+  // jsdom's getBoundingClientRect always returns zeros, which breaks raycasting.
+  canvas.getBoundingClientRect = () =>
+    ({ width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0 }) as DOMRect
 
   // eslint-disable-next-line
   if (globalThis.HTMLCanvasElement) {

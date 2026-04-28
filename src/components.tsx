@@ -1,7 +1,5 @@
-import { whenMemo } from "@bigmistqke/solid-whenever"
 import {
   Show,
-  createEffect,
   createMemo,
   mergeProps,
   splitProps,
@@ -94,22 +92,18 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  */
 export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
   const [config, rest] = splitProps(props, ["from", "args"])
-  const memo = whenMemo(
-    () => config.from,
-    from => {
-      // listen to key changes
-      props.key
-      const instance = meta(
-        isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
-        {
-          props,
-        },
-      ) as Meta<T>
-      useProps(instance, rest)
-      return instance
-    },
-  )
-  return memo as unknown as JSX.Element
+  const instance = createMemo(() => {
+    const from = config.from
+    if (!from) return undefined
+    // track key changes to force reconstruction
+    props.key
+    return meta(
+      isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
+      { props },
+    ) as Meta<T>
+  })
+  useProps(instance, rest)
+  return instance as unknown as JSX.Element
 }
 
 /**********************************************************************************/
@@ -194,12 +188,10 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
     options,
   )
 
-  createEffect(() => console.log("resource", resource()))
-
   useProps(resource, rest)
 
   return (
-    <Show when={"children" in config && resource()} fallback={resource()}>
+    <Show when={"children" in config && resource()} fallback={resource() as JSX.Element}>
       {resource => props.children?.(resource)}
     </Show>
   )

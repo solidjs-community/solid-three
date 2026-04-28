@@ -15,15 +15,7 @@ function SkyboxSphere() {
       "https://threejs.org/examples/textures/cube/SwedishRoyalCastle/ny.jpg", // negative y
       "https://threejs.org/examples/textures/cube/SwedishRoyalCastle/pz.jpg", // positive z
       "https://threejs.org/examples/textures/cube/SwedishRoyalCastle/nz.jpg", // negative z
-    ],
-    // CubeTextureLoader properties
-    {
-      mapping: THREE.CubeReflectionMapping,
-      wrapS: THREE.ClampToEdgeWrapping,
-      wrapT: THREE.ClampToEdgeWrapping,
-      magFilter: THREE.LinearFilter,
-      minFilter: THREE.LinearMipmapLinearFilter,
-    },
+    ] as string[],
   )
 
   return (

@@ -38,8 +38,7 @@ export class Stack<T = any> {
       array.push(value)
       return array
     })
-    // @ts-expect-error TODO: fix type-error
-    if (import.meta.env?.MODE === "development") {
+    if (process.env.NODE_ENV === "development") {
       const array = untrack(this.#array.bind(this))
       if (array.length > 2) {
         // TODO: write better warning message
