@@ -151,7 +151,7 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     skipped: skippedCount,
   })
 
-  const results = context.raycaster.intersectObjects(nodeSet.values().toArray(), false)
+  const results = context.raycaster.intersectObjects(Array.from(nodeSet), false)
   debugEvents("intersected", {
     registry: registry.length,
     nodes: nodeSet.size,
@@ -417,17 +417,18 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
 
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent, { intersections, stoppable: false })
-    const leaveSet = hoveredSet.difference(enterSet)
-    hoveredSet = enterSet
-    debugHover("leave-count", { type, leaveCount: leaveSet.size })
+    debugHover("leave-count", { type, leaveCount: hoveredSet.size - enterSet.size })
 
-    for (const object of leaveSet.values()) {
+    for (const object of hoveredSet) {
+      if (enterSet.has(object)) continue
       debugHover("leave", { object: (object as any).type || "unknown" })
       getMeta(object)?.props[`on${type}Leave`]?.(
         // @ts-expect-error TODO: fix type-error
         leaveEvent,
       )
     }
+
+    hoveredSet = enterSet
   })
 
   context.canvas.addEventListener(eventNameMap[`on${type}Leave`], nativeEvent => {
