@@ -1,7 +1,8 @@
 import { createEffect, createMemo, onCleanup, type Ref } from "solid-js"
 import type { Event } from "three"
 import { OrbitControls as ThreeOrbitControls } from "three-stdlib"
-import { useFrame, useThree, whenEffect, type S3 } from "../../src/index.ts"
+import { useFrame, useThree, type S3 } from "../../src/index.ts"
+import { whenEffect } from "../../src/utils.ts"
 import { useProps } from "../../src/props.ts"
 import { processProps } from "./process-props.ts"
 
