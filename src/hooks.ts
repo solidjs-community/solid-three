@@ -104,8 +104,8 @@ export function useThree(callback?: (value: Context) => any) {
 
 /** Global cache of loader instances to prevent duplicates */
 const LOADER_CACHE = new Map<
-  Constructor<Loader<object, string | string[]>>,
-  Loader<object, string | string[]>
+  Constructor<Loader<any, string | string[]>>,
+  Loader<any, string | string[]>
 >()
 
 /**
