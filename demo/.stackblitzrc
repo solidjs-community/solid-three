@@ -1,0 +1,4 @@
+{
+  "installCommand": "pnpm install",
+  "startCommand": "pnpm run dev"
+}
