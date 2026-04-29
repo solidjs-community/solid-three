@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js"
+import { Canvas, createT, useFrame } from "solid-three"
 import * as THREE from "three"
-import { Canvas, createT, useFrame } from "../src/index.ts"
 
 const T = createT(THREE)
 
