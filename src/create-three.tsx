@@ -323,11 +323,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   }
   debug("context ready", () => ({ contextKeys: Object.keys(context) }))
 
-  createRoot(() => {
-    setContext(threeContext, context)
-    setContext(frameContext, addFrameListener)
-    useRef(props, context)
-  })
+  setContext(threeContext, context)
+  setContext(frameContext, addFrameListener)
+  useRef(props, context)
 
   /**********************************************************************************/
   /*                                                                                */
@@ -335,9 +333,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  createRoot(() => {
-    setContext(threeContext, context)
-    createRenderEffect(
+  createRenderEffect(
       () => props.frameloop,
       frameloop => {
         if (frameloop === "never") {
@@ -509,7 +505,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
       () => {},
     )
-  })
 
   /**********************************************************************************/
   /*                                                                                */

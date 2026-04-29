@@ -2,7 +2,6 @@ import {
   Loading,
   Show,
   createMemo,
-  createRoot,
   merge,
   omit,
   untrack,
@@ -67,15 +66,14 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
     return meta(props.element, { props: {} })
   })
 
+  setContext(threeContext as any, merge(context, { get scene() { return element() } }))
+
   useProps(element, {
     get onUpdate() {
       return props.onUpdate
     },
     get children() {
-      return () => createRoot(() => {
-        setContext(threeContext as any, merge(context, { get scene() { return element() } }))
-        return props.children as unknown as Meta | Meta[]
-      })
+      return props.children
     },
   })
 
