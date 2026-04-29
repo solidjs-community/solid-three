@@ -72,14 +72,10 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
       return props.onUpdate
     },
     get children() {
-      return () => {
-        let result: Meta | Meta[]
-        createRoot(() => {
-          setContext(threeContext as any, merge(context, { get scene() { return element() } }))
-          result = props.children as unknown as Meta | Meta[]
-        })
-        return result!
-      }
+      return () => createRoot(() => {
+        setContext(threeContext as any, merge(context, { get scene() { return element() } }))
+        return props.children as unknown as Meta | Meta[]
+      })
     },
   })
 
