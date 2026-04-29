@@ -20,7 +20,7 @@ export interface LoaderRegistry {
    * @param url The URL or path to the resource
    * @param data The resource promise or resolved data
    */
-  set<TLoader extends Loader<object, any>>(
+  set<TLoader extends Loader<any, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     data: PromiseMaybe<LoaderData<TLoader>>,
@@ -32,7 +32,7 @@ export interface LoaderRegistry {
    * @param url The URL or path to the resource
    * @returns The resource promise, resolved data, or undefined if not found
    */
-  get<TLoader extends Loader<object, any>>(
+  get<TLoader extends Loader<any, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     warn?: boolean,
@@ -46,11 +46,11 @@ export interface LoaderRegistry {
 /**********************************************************************************/
 
 interface LoaderTreeRegistryMap extends Map<Loader<any, any>, any> {
-  get<TLoader extends Loader<object, any>>(loader: TLoader): LoaderTreeRegistry<TLoader> | undefined
-  set<TLoader extends Loader<object, any>>(loader: TLoader, data: LoaderTreeRegistry<TLoader>): this
+  get<TLoader extends Loader<any, any>>(loader: TLoader): LoaderTreeRegistry<TLoader> | undefined
+  set<TLoader extends Loader<any, any>>(loader: TLoader, data: LoaderTreeRegistry<TLoader>): this
 }
 
-interface LoaderTreeRegistry<TLoader extends Loader<object, any>> extends TreeRegistry<object> {
+interface LoaderTreeRegistry<TLoader extends Loader<any, any>> extends TreeRegistry<object> {
   get(paths: LoaderUrl<TLoader>, warn?: boolean): CacheNode<TLoader>
   set(paths: LoaderUrl<TLoader>, data: CacheNode<TLoader>): void
 }
@@ -70,7 +70,7 @@ export class LoaderCache implements LoaderRegistry {
    * @returns The tree registry for this loader
    * @private
    */
-  #registry<TLoader extends Loader<object, any>>(loader: TLoader) {
+  #registry<TLoader extends Loader<any, any>>(loader: TLoader) {
     let registry = this.#treeRegistryMap.get(loader)
     if (!registry) {
       this.#treeRegistryMap.set(
@@ -129,7 +129,7 @@ export class LoaderCache implements LoaderRegistry {
    * @param url The URL or path to the resource
    * @param options.force Force deletion even if resource has active references
    */
-  delete<TLoader extends Loader<object, any>>(
+  delete<TLoader extends Loader<any, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     options?: { force?: boolean },
@@ -151,7 +151,7 @@ export class LoaderCache implements LoaderRegistry {
    * @param url The URL or path to the resource
    * @returns The resource promise, resolved data, or undefined if not found
    */
-  get<TLoader extends Loader<object, any>>(
+  get<TLoader extends Loader<any, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     warn?: boolean,
@@ -171,7 +171,7 @@ export class LoaderCache implements LoaderRegistry {
    * @param options.force Force update even if resource already exists
    * @returns The stored promise
    */
-  set<TLoader extends Loader<object, any>>(
+  set<TLoader extends Loader<any, any>>(
     loader: TLoader,
     path: LoaderUrl<TLoader>,
     data: PromiseMaybe<LoaderData<TLoader>>,
