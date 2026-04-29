@@ -1,4 +1,5 @@
 import { children, createMemo, createRenderEffect, createRoot, merge, onCleanup } from "solid-js"
+import { setContext } from "@solidjs/signals"
 import {
   ACESFilmicToneMapping,
   BasicShadowMap,
@@ -32,7 +33,6 @@ import {
   meta,
   removeElementFromArray,
   useRef,
-  withMultiContexts,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
 
@@ -323,13 +323,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   }
   debug("context ready", () => ({ contextKeys: Object.keys(context) }))
 
-  withMultiContexts(
-    () => useRef(props, context),
-    [
-      [threeContext, context],
-      [frameContext, addFrameListener],
-    ],
-  )
+  createRoot(() => {
+    setContext(threeContext, context)
+    setContext(frameContext, addFrameListener)
+    useRef(props, context)
+  })
 
   /**********************************************************************************/
   /*                                                                                */
@@ -337,7 +335,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  withMultiContexts(() => {
+  createRoot(() => {
+    setContext(threeContext, context)
     createRenderEffect(
       () => props.frameloop,
       frameloop => {
@@ -510,7 +509,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
       () => {},
     )
-  }, [[threeContext, context]])
+  })
 
   /**********************************************************************************/
   /*                                                                                */

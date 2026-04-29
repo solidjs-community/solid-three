@@ -2,13 +2,16 @@ import {
   Loading,
   Show,
   createMemo,
+  createRoot,
   merge,
   omit,
+  untrack,
   type Accessor,
   type JSX,
   type JSXElement,
   type ParentProps,
 } from "solid-js"
+import { setContext } from "@solidjs/signals"
 import { Loader, Object3D } from "three"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
@@ -22,7 +25,6 @@ import {
   isConstructor,
   meta,
   whenMemo,
-  withContext,
   type LoadOutput,
 } from "./utils.ts"
 
@@ -70,17 +72,14 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
       return props.onUpdate
     },
     get children() {
-      return () =>
-        withContext(
-          () => props.children as unknown as Meta | Meta[],
-          // @ts-expect-error TODO: fix type-error
-          threeContext,
-          merge(context, {
-            get scene() {
-              return element()
-            },
-          }),
-        )
+      return () => {
+        let result: Meta | Meta[]
+        createRoot(() => {
+          setContext(threeContext as any, merge(context, { get scene() { return element() } }))
+          result = props.children as unknown as Meta | Meta[]
+        })
+        return result!
+      }
     },
   })
 
