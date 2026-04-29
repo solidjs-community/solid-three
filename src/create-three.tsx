@@ -1,6 +1,5 @@
 import {
   children,
-  createEffect,
   createMemo,
   createRenderEffect,
   createRoot,
@@ -466,8 +465,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
           },
         )
 
-        // XR connect — intentionally createEffect (DOM side effect, not render phase) ✓
-        createEffect(
+        // XR connect
+        createRenderEffect(
           () => gl(),
           renderer => {
             if (renderer.xr) {

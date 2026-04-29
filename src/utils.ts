@@ -1,6 +1,5 @@
-import { untrack } from "@solidjs/web"
 import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import { createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
 import {
   Camera,
   Loader,
@@ -273,19 +272,22 @@ export function withContext<T, TResult>(
   context: Context<T>,
   value: T,
 ) {
-  // In Solid 2.x the context object IS the provider component (no .Provider).
-  // The provider calls setContext from the correct signals version internally.
-  // It returns a lazy children() memo — we must force evaluation so our callback runs.
+  // Solid 2.x context providers return lazy memos. Reading them outside a reactive
+  // context triggers auto-disposal (read() calls unobserved() when !tracking && !e.I),
+  // which cascades to dispose effects created in children(). Fix: wrap in createRoot
+  // and subscribe to the lazy memo via createMemo — this keeps the memo and all its
+  // children (including effects) alive and reactive.
   let result: TResult
-  const memo = (context as any)({
-    value,
-    children: (() => {
-      result = children()
-      return ""
-    }) as any as JSX.Element,
+  createRoot(() => {
+    const memo = (context as any)({
+      value,
+      get children() {
+        result = children()
+        return ""
+      },
+    })
+    if (typeof memo === "function") createMemo(() => memo())
   })
-  // Force lazy children memo to evaluate (triggers flatten → calls our fn)
-  if (typeof memo === "function") memo()
   return result!
 }
 
@@ -321,29 +323,33 @@ export function withMultiContexts<TResult, T extends readonly [unknown?, ...unkn
     [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]]
   },
 ) {
-  // Nest context providers (no .Provider in Solid 2.x — context IS the provider).
-  // Each provider returns a lazy memo — we force the outermost to evaluate.
+  // Solid 2.x context providers return lazy memos. Reading them outside a reactive
+  // context triggers auto-disposal via unobserved(), which cascades to dispose all
+  // children effects. Fix: build a nested provider chain (so each child root inherits
+  // parent's Ve/context-map), then subscribe the outermost memo via createMemo.
+  // flatten() in the provider calls zero-arg function children, propagating the
+  // createMemo subscription through the whole chain.
   let result: TResult
 
-  untrack(() =>
-    resolve(
-      (values as [Context<any>, any][]).reduce(
-        (acc, [Context, value], index) => {
-          return () => {
-            return resolve(
-              Context({
-                value,
-                get children() {
-                  return index === 0 ? (result = untrack(acc)) : untrack(acc)
-                },
-              }) as unknown as Accessor<unknown>,
-            )
-          }
-        },
-        children as () => any,
-      ),
-    ),
+  const chain = (values as [any, any][]).reduceRight(
+    (innerFn: () => any, [ctx, value]) =>
+      () =>
+        (ctx as any)({
+          value,
+          get children() {
+            return innerFn()
+          },
+        }),
+    (() => {
+      result = children()
+      return ""
+    }) as () => any,
   )
+
+  createRoot(() => {
+    const outerMemo = chain()
+    if (typeof outerMemo === "function") createMemo(() => outerMemo())
+  })
 
   return result!
 }
