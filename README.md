@@ -20,6 +20,7 @@
 3. [Components](#components)
    - [Canvas](#canvas)
    - [T](#t)
+     - [createEntity](#createentity)
    - [Entity](#entity)
    - [Portal](#portal)
    - [Resource](#resource)
@@ -312,6 +313,22 @@ const T = createT({ Mesh, BoxGeometry, MeshBasicMaterial })
 - **In Libraries**: create multiple `T` to allow for treeshaking or use [`<Entity/>`](#entity) instead
 - **Multiple Ts**: Create multiple T instances for lazy loading different parts of three.js
 
+#### createEntity
+
+`createT` is built on top of `createEntity`, which creates a single typed component from one Three.js constructor. Use it directly when you need a one-off component without building a full namespace:
+
+```tsx
+import { createEntity } from "solid-three"
+import { Mesh } from "three"
+
+const MeshComponent = createEntity(Mesh)
+
+// Equivalent to <T.Mesh /> but without the full namespace
+<MeshComponent position={[0, 1, 0]}>
+  ...
+</MeshComponent>
+```
+
 ### Portal
 
 The `Portal` component allows you to place children outside the regular scene graph while maintaining reactive updates. This is useful for rendering objects into different scenes or bypassing the normal parent-child relationships.
@@ -390,7 +407,24 @@ Wrapper-component around ['useLoader'](#useloader).
 
 ### useThree
 
-Provides access to the `three.js` context, including the renderer, scene, camera, and more. This hook can be used with or without a selector function for optimized access to specific properties.
+Provides access to the `three.js` context, including the renderer, scene, camera, and more.
+
+**Signatures:**
+
+```tsx
+// Returns the full context object directly
+useThree(): Context
+
+// Returns a reactive accessor for a derived value
+useThree<T>(callback: (value: Context) => T): Accessor<T>
+```
+
+Use the selector form to derive a specific value reactively:
+
+```tsx
+const camera = useThree(ctx => ctx.camera)
+// camera() is an Accessor<Camera>
+```
 
 **Returns:**
 
@@ -485,7 +519,7 @@ useFrame(
     priority?: number
     stage?: "before" | "after"
   }
-)
+): () => void
 ```
 
 </details>
