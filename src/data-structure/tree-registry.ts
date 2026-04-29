@@ -75,11 +75,11 @@ export class TreeRegistry<T> implements TreeBase<T> {
 
       if (!node) {
         if (!autocreate) {
-          debugTreeRegistry("resolve", { action: "not-found", path: paths[i] })
+          debugTreeRegistry("resolve", () => ({ action: "not-found", path: paths[i] }))
           return undefined
         }
 
-        debugTreeRegistry("resolve", { action: "create", path: paths[i] })
+        debugTreeRegistry("resolve", () => ({ action: "create", path: paths[i] }))
 
         node = new TreeNode(paths[i], current)
         current.children.set(paths[i], node)
@@ -107,11 +107,11 @@ export class TreeRegistry<T> implements TreeBase<T> {
       if (warn) {
         console.warn("Invalid path", input)
       }
-      debugTreeRegistry("get", { input, found: false })
+      debugTreeRegistry("get", () => ({ input, found: false }))
       return undefined
     }
 
-    debugTreeRegistry("get", { input, found: true })
+    debugTreeRegistry("get", () => ({ input, found: true }))
     return node.data
   }
 
@@ -125,10 +125,10 @@ export class TreeRegistry<T> implements TreeBase<T> {
     const node = this.#resolve(input, true)
 
     if (!node.data) {
-      debugTreeRegistry("set", { input, action: "new" })
+      debugTreeRegistry("set", () => ({ input, action: "new" }))
       bubbleUp(node, node => node.count++)
     } else {
-      debugTreeRegistry("set", { input, action: "update" })
+      debugTreeRegistry("set", () => ({ input, action: "update" }))
     }
 
     node.data = data
@@ -143,17 +143,17 @@ export class TreeRegistry<T> implements TreeBase<T> {
     const node = this.#resolve(input, false)
 
     if (!node) {
-      debugTreeRegistry("delete", { input, found: false })
+      debugTreeRegistry("delete", () => ({ input, found: false }))
       console.warn("Invalid path", input)
       return
     }
 
-    debugTreeRegistry("delete", { input, found: true })
+    debugTreeRegistry("delete", () => ({ input, found: true }))
 
     bubbleUp(node, node => {
       node.count--
       if (node instanceof TreeNode && node.count === 0) {
-        debugTreeRegistry("delete", { action: "pruned", key: node.key })
+        debugTreeRegistry("delete", () => ({ action: "pruned", key: node.key }))
         node.delete()
       }
     })

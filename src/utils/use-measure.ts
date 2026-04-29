@@ -53,7 +53,7 @@ export function useMeasure(options?: UseMeasureOptions) {
       : (globalThis as any).ResizeObserver)
 
   if (!ResizeObserver) {
-    debug("observer", { action: "unsupported" })
+    debug("observer", () => ({ action: "unsupported" }))
     throw new Error(
       "This browser does not support ResizeObserver out of the box. See: https://github.com/react-spring/react-use-measure/#resize-observer-polyfills",
     )
@@ -80,17 +80,17 @@ export function useMeasure(options?: UseMeasureOptions) {
         : config.debounce[type]
       : null
     if (debounce) {
-      debug("debounce", { type, mode: "debounced", ms: debounce })
+      debug("debounce", () => ({ type, mode: "debounced", ms: debounce }))
       return createDebounce(forceRefresh, debounce)
     }
-    debug("debounce", { type, mode: "immediate" })
+    debug("debounce", () => ({ type, mode: "immediate" }))
     return forceRefresh
   }
 
   function forceRefresh() {
     const el = element()
     if (!el) {
-      debug("forceRefresh", { action: "skip", reason: "no element" })
+      debug("forceRefresh", () => ({ action: "skip", reason: "no element" }))
       return
     }
 
@@ -109,7 +109,7 @@ export function useMeasure(options?: UseMeasureOptions) {
     }
 
     if (el instanceof HTMLElement && config.offsetSize) {
-      debug("forceRefresh", { action: "offset-size override" })
+      debug("forceRefresh", () => ({ action: "offset-size override" }))
       bounds.height = el.offsetHeight
       bounds.width = el.offsetWidth
     }
@@ -119,9 +119,9 @@ export function useMeasure(options?: UseMeasureOptions) {
     if (!lastBounds || !areBoundsEqual(lastBounds, bounds)) {
       lastBounds = bounds
       setBounds(bounds)
-      debug("bounds", { width: bounds.width, height: bounds.height })
+      debug("bounds", () => ({ width: bounds.width, height: bounds.height }))
     } else {
-      debug("bounds", { action: "unchanged" })
+      debug("bounds", () => ({ action: "unchanged" }))
     }
   }
 
@@ -134,10 +134,10 @@ export function useMeasure(options?: UseMeasureOptions) {
         () => config.scroll,
         scroll => {
           if (!scroll) {
-            debug("scroll", { action: "disabled" })
+            debug("scroll", () => ({ action: "disabled" }))
             return
           }
-          debug("scroll", { action: "attached" })
+          debug("scroll", () => ({ action: "attached" }))
           globalThis.addEventListener("scroll", onScroll, { capture: true, passive: true })
           return () => globalThis.removeEventListener("scroll", onScroll, true)
         },
@@ -148,13 +148,13 @@ export function useMeasure(options?: UseMeasureOptions) {
         () => scrollContainers(),
         containers => {
           if (!config.scroll) {
-            debug("scroll-containers", {
+            debug("scroll-containers", () => ({
               action: "skip",
               reason: "disabled",
-            })
+            }))
             return
           }
-          debug("scroll-containers", { action: "attached", count: containers.length })
+          debug("scroll-containers", () => ({ action: "attached", count: containers.length }))
           containers.forEach(c =>
             c.addEventListener("scroll", onScroll, { capture: true, passive: true }),
           )
@@ -179,10 +179,10 @@ export function useMeasure(options?: UseMeasureOptions) {
     () => ({ el: element(), onResize: getDebounce("resize") }),
     ({ el, onResize }) => {
       if (!el) {
-        debug("observer", { action: "skipped", reason: "no element" })
+        debug("observer", () => ({ action: "skipped", reason: "no element" }))
         return
       }
-      debug("observer", { action: "attached" })
+      debug("observer", () => ({ action: "attached" }))
       const observer = new ResizeObserver(onResize)
       observer.observe(el)
       return () => observer.disconnect()
@@ -192,10 +192,10 @@ export function useMeasure(options?: UseMeasureOptions) {
   return {
     setElement: (source: HTMLOrSVGElement | null) => {
       if (!source || source === untrack(element)) {
-        debug("setElement", { action: "skip", reason: !source ? "no source" : "same element" })
+        debug("setElement", () => ({ action: "skip", reason: !source ? "no source" : "same element" }))
         return
       }
-      debug("setElement", { action: "set" })
+      debug("setElement", () => ({ action: "set" }))
       setElement(source)
     },
     bounds,

@@ -36,75 +36,78 @@ function isWritable(object: object, propertyName: string) {
   return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
 }
 
-function applySceneGraph(parent: object, child: object) {
+function applySceneGraph(parent: object, child: object): (() => void) | undefined {
   const parentType = (parent as any).type ?? (parent as any).constructor?.name
   const childType = (child as any).type ?? (child as any).constructor?.name
 
+  const cleanups: (() => void)[] = []
+
   const parentMeta = getMeta(parent)
   if (parentMeta) {
-    debugAttach("track-child", { action: "add to parent children", parentType, childType })
-    // Update parent's augmented children-property.
+    debugAttach("track-child", () => ({ action: "add to parent children", parentType, childType }))
     parentMeta.children.add(child)
-    onCleanup(() => {
-      debugAttach("cleanup", { action: "remove from parent children", parentType, childType })
+    cleanups.push(() => {
+      debugAttach("cleanup", () => ({
+        action: "remove from parent children",
+        parentType,
+        childType,
+      }))
       parentMeta.children.delete(child)
     })
   } else {
-    debugAttach("no-parent-meta", { parentType })
+    debugAttach("no-parent-meta", () => ({ parentType }))
   }
 
   const childMeta = getMeta(child)
   if (childMeta) {
-    debugAttach("track-parent", { action: "set child parent", childType, parentType })
-    // Update parent's augmented children-property.
+    debugAttach("track-parent", () => ({ action: "set child parent", childType, parentType }))
     childMeta.parent = parent
-    onCleanup(() => {
-      debugAttach("cleanup", { action: "unset child parent", childType })
+    cleanups.push(() => {
+      debugAttach("cleanup", () => ({ action: "unset child parent", childType }))
       childMeta.parent = undefined
     })
   } else {
-    debugAttach("no-child-meta", { childType })
+    debugAttach("no-child-meta", () => ({ childType }))
   }
 
   let attachProp = childMeta?.props.attach
 
   // Attach-prop can be a callback. It returns a cleanup-function.
   if (typeof attachProp === "function") {
-    debugAttach("attached", { via: "callback", parentType, childType })
-    const cleanup = attachProp(parent, child as Meta<object>)
-    onCleanup(cleanup)
-    return
+    debugAttach("attached", () => ({ via: "callback", parentType, childType }))
+    cleanups.push(attachProp(parent, child as Meta<object>))
+    return () => cleanups.forEach(fn => fn())
   }
 
   // Defaults for Material, BufferGeometry and Fog.
   let defaultedFrom: string | undefined
   if (!attachProp) {
-    debugAttach("check-defaults", { childType })
+    debugAttach("check-defaults", () => ({ childType }))
     if (child instanceof Material) {
-      debugAttach("default", { type: "Material", childType })
+      debugAttach("default", () => ({ type: "Material", childType }))
       attachProp = "material"
       defaultedFrom = "Material"
     } else if (child instanceof BufferGeometry) {
-      debugAttach("default", { type: "BufferGeometry", childType })
+      debugAttach("default", () => ({ type: "BufferGeometry", childType }))
       attachProp = "geometry"
       defaultedFrom = "BufferGeometry"
     } else if (child instanceof Fog) {
-      debugAttach("default", { type: "Fog", childType })
+      debugAttach("default", () => ({ type: "Fog", childType }))
       attachProp = "fog"
       defaultedFrom = "Fog"
     } else {
-      debugAttach("no-default", { childType })
+      debugAttach("no-default", () => ({ childType }))
     }
   }
 
   // If an attachProp is defined, attach the child to the parent.
   if (attachProp) {
-    debugAttach("attached", {
+    debugAttach("attached", () => ({
       via: defaultedFrom ? `default:${defaultedFrom}` : "prop",
       attachProp,
       parentType,
       childType,
-    })
+    }))
     let target = parent
     let property: string | undefined
 
@@ -112,42 +115,50 @@ function applySceneGraph(parent: object, child: object) {
 
     while ((property = path.shift())) {
       if (path.length === 0) {
-        debugAttach("attach-assign", { property, parentType, childType })
+        debugAttach("attach-assign", () => ({ property, parentType, childType }))
         // @ts-expect-error TODO: fix type-error
         target[property] = child
-        onCleanup(() => {
-          debugAttach("cleanup", { action: "unset attach prop", property, parentType, childType })
+        cleanups.push(() => {
+          debugAttach("cleanup", () => ({
+            action: "unset attach prop",
+            property,
+            parentType,
+            childType,
+          }))
           // @ts-expect-error TODO: fix type-error
           target[property] = undefined
         })
         break
       } else {
-        debugAttach("attach-traverse", { property, parentType })
+        debugAttach("attach-traverse", () => ({ property, parentType }))
         // @ts-expect-error TODO: fix type-error
         target = target[property]
       }
     }
 
-    return
+    return () => cleanups.forEach(fn => fn())
   }
 
   // If no attach-prop is defined, add the child to the parent.
   if (child instanceof Object3D && parent instanceof Object3D) {
-    debugAttach("check-add", { parentType, childType })
+    debugAttach("check-add", () => ({ parentType, childType }))
     if (!parent.children.includes(child)) {
-      debugAttach("attached", { via: "add", parentType, childType })
+      debugAttach("attached", () => ({ via: "add", parentType, childType }))
       parent.add(child)
-      onCleanup(() => {
-        debugAttach("cleanup", { action: "remove Object3D", parentType, childType })
+      cleanups.push(() => {
+        debugAttach("cleanup", () => ({ action: "remove Object3D", parentType, childType }))
         parent.remove(child)
       })
-      return child
+      return () => cleanups.forEach(fn => fn())
     }
-    debugAttach("skipped", { reason: "already-attached", parentType, childType }, { trace: true })
-    return
+    debugAttach("skipped", () => ({ reason: "already-attached", parentType, childType }), {
+      trace: true,
+    })
+  } else {
+    debugAttach("failed", () => ({ reason: "not-Object3D, no attach prop", childType }))
   }
 
-  debugAttach("failed", { reason: "not-Object3D, no attach prop", childType })
+  return cleanups.length > 0 ? () => cleanups.forEach(fn => fn()) : undefined
 }
 
 /**********************************************************************************/
@@ -183,25 +194,26 @@ export const useSceneGraph = <T extends object>(
     mapArray(
       () => kids.toArray() as unknown as (Meta<object> | undefined)[],
       _child => {
-        debugSceneGraph("child-added", {
+        debugSceneGraph("child-added", () => ({
           child: (_child as any)?.type ?? (_child as any)?.constructor?.name ?? "unknown",
-        })
+        }))
         createRenderEffect(
           () => ({ parent: resolve(_parent), child: resolve(_child) }),
           ({ parent, child }) => {
             if (!parent || !child) {
-              debugSceneGraph("skipped", { reason: !parent ? "no parent" : "no child" })
+              debugSceneGraph("skipped", () => ({ reason: !parent ? "no parent" : "no child" }))
               return
             }
-            applySceneGraph(parent, child)
+            const cleanup = applySceneGraph(parent, child)
             if (props.onUpdate) {
-              debugSceneGraph("onUpdate", {
+              debugSceneGraph("onUpdate", () => ({
                 parentType: (parent as any).type ?? (parent as any).constructor?.name,
-              })
+              }))
               untrack(() => props.onUpdate)?.(parent)
             } else {
-              debugSceneGraph("onUpdate-skipped", { reason: "no onUpdate" })
+              debugSceneGraph("onUpdate-skipped", () => ({ reason: "no onUpdate" }))
             }
+            return cleanup
           },
         )
       },
@@ -217,14 +229,14 @@ export const useSceneGraph = <T extends object>(
     () => [filteredKids(), resolve(_parent)] as const,
     ([kids, parent]) => {
       if (!(parent instanceof Object3D)) {
-        debugSceneGraph("reorder-skipped", { reason: "parent not Object3D" })
+        debugSceneGraph("reorder-skipped", () => ({ reason: "parent not Object3D" }))
         return
       }
 
-      debugSceneGraph("reorder", {
+      debugSceneGraph("reorder", () => ({
         parentType: (parent as any).type ?? parent.constructor.name,
         count: kids.length,
-      })
+      }))
 
       // Dual-cursor reorder: walk parent.children, assign desired order at managed slots
       const managedChildren = new Set(kids)
@@ -280,7 +292,7 @@ function applyProp<T extends Record<string, any>>(
 
   // Ignore setting undefined props
   if (value === undefined) {
-    debugApplyProp("skipped", { reason: "undefined value", key })
+    debugApplyProp("skipped", () => ({ reason: "undefined value", key }))
 
     return
   }
@@ -289,7 +301,7 @@ function applyProp<T extends Record<string, any>>(
   if (key.indexOf("-") > -1) {
     const [property, ...rest] = key.split("-")
 
-    debugApplyProp("nested", { key, property, rest })
+    debugApplyProp("nested", () => ({ key, property, rest }))
 
     applyProp(context, source[property], rest.join("-"), value)
     return
@@ -297,14 +309,14 @@ function applyProp<T extends Record<string, any>>(
 
   if (NEEDS_UPDATE.includes(key)) {
     if ((!source[key] && value) || (source[key] && !value)) {
-      debugApplyProp("needsUpdate", { key })
+      debugApplyProp("needsUpdate", () => ({ key }))
       // @ts-expect-error
       source.needsUpdate = true
     } else {
-      debugApplyProp("needsUpdate-skipped", { key, reason: "no transition" })
+      debugApplyProp("needsUpdate-skipped", () => ({ key, reason: "no transition" }))
     }
   } else {
-    debugApplyProp("needsUpdate-not-applicable", { key })
+    debugApplyProp("needsUpdate-not-applicable", () => ({ key }))
   }
 
   // Alias (output)encoding => (output)colorSpace (since r152)
@@ -316,32 +328,36 @@ function applyProp<T extends Record<string, any>>(
 
     if (key === "encoding") {
       const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
-      debugApplyProp("remapped", { from: "encoding", to: "colorSpace", value: remapped })
+      debugApplyProp("remapped", () => ({ from: "encoding", to: "colorSpace", value: remapped }))
 
       key = "colorSpace"
       value = remapped
     } else if (key === "outputEncoding") {
       const remapped = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
 
-      debugApplyProp("remapped", {
+      debugApplyProp("remapped", () => ({
         from: "outputEncoding",
         to: "outputColorSpace",
         value: remapped,
-      })
+      }))
 
       key = "outputColorSpace"
       value = remapped
     } else {
-      debugApplyProp("colorspace-check", { action: "no remap needed", key })
+      debugApplyProp("colorspace-check", () => ({ action: "no remap needed", key }))
     }
   } else {
-    debugApplyProp("colorspace-check", { action: "skip", reason: "no colorSpace on source", key })
+    debugApplyProp("colorspace-check", () => ({
+      action: "skip",
+      reason: "no colorSpace on source",
+      key,
+    }))
   }
 
   // Event registration is handled in useProps compute phase (needs reactive owner for useContext).
   // applyProp just skips event types — no work needed here.
   if (isEventType(key)) {
-    debugApplyProp("skipped", { reason: "event type (registered in useProps)", key })
+    debugApplyProp("skipped", () => ({ reason: "event type (registered in useProps)", key }))
     return
   }
 
@@ -351,16 +367,16 @@ function applyProp<T extends Record<string, any>>(
   try {
     // Copy if properties match signatures
     if (target?.copy && target?.constructor === value?.constructor && !isWritable(source, key)) {
-      debugApplyProp("applied", { via: "copy", sourceType, key })
+      debugApplyProp("applied", () => ({ via: "copy", sourceType, key }))
 
       target.copy(value)
     } else if (target?.set && Array.isArray(value)) {
       if (target.fromArray) {
-        debugApplyProp("apply-fromArray", { sourceType, key })
+        debugApplyProp("apply-fromArray", () => ({ sourceType, key }))
 
         target.fromArray(value)
       } else {
-        debugApplyProp("apply-set-spread", { sourceType, key })
+        debugApplyProp("apply-set-spread", () => ({ sourceType, key }))
 
         target.set(...value)
       }
@@ -369,43 +385,46 @@ function applyProp<T extends Record<string, any>>(
     // https://github.com/pmndrs/react-three-fiber/issues/274
     else if (target?.set && typeof value !== "object") {
       const isColor = target instanceof Color
-      debugApplyProp("set-literal", { isColor, sourceType, key })
+      debugApplyProp("set-literal", () => ({ isColor, sourceType, key }))
 
       // Allow setting array scalars
       if (!isColor && target.setScalar && typeof value === "number") {
-        debugApplyProp("applied", { via: "setScalar", sourceType, key })
+        debugApplyProp("applied", () => ({ via: "setScalar", sourceType, key }))
 
         target.setScalar(value)
       }
       // Otherwise just set ...
       else if (value !== undefined) {
-        debugApplyProp("applied", { via: "set", sourceType, key })
+        debugApplyProp("applied", () => ({ via: "set", sourceType, key }))
 
         target.set(value)
       }
     }
     // Else, just overwrite the value
     else {
-      debugApplyProp("applied", { via: "assign", sourceType, key })
+      debugApplyProp("applied", () => ({ via: "assign", sourceType, key }))
 
       // @ts-expect-error TODO: fix type-error
       source[key] = value
     }
   } finally {
     if ("needsUpdate" in source) {
-      debugApplyProp("needsUpdate-set", { key })
+      debugApplyProp("needsUpdate-set", () => ({ key }))
 
       // @ts-expect-error
       source.needsUpdate = true
     } else {
-      debugApplyProp("needsUpdate-set-skipped", { key, reason: "no needsUpdate on source" })
+      debugApplyProp("needsUpdate-set-skipped", () => ({ key, reason: "no needsUpdate on source" }))
     }
-    if (context.props.frameloop === "demand") {
-      debugApplyProp("requestRender", { key })
+    if (untrack(() => context.props.frameloop) === "demand") {
+      debugApplyProp("requestRender", () => ({ key }))
 
       context.requestRender()
     } else {
-      debugApplyProp("requestRender-skipped", { key, frameloop: context.props.frameloop })
+      debugApplyProp("requestRender-skipped", () => ({
+        key,
+        frameloop: untrack(() => context.props.frameloop),
+      }))
     }
   }
 }
@@ -433,10 +452,10 @@ export function useProps<T extends Record<string, any>>(
   options?: { skipSceneGraph?: boolean },
 ) {
   const instanceProps = omit(props, "ref", "args", "object", "attach", "children")
-  debugUseProps("call", {
+  debugUseProps("call", () => ({
     keys: Object.keys(instanceProps),
     sceneGraph: options?.skipSceneGraph ? "skipped" : "managed",
-  })
+  }))
 
   if (!options?.skipSceneGraph) {
     useSceneGraph(accessor, props)
@@ -446,11 +465,11 @@ export function useProps<T extends Record<string, any>>(
     () => {
       const object = resolve(accessor)
       if (!object) {
-        debugUseProps("skipped", { reason: "no object resolved" })
+        debugUseProps("skipped", () => ({ reason: "no object resolved" }))
         return undefined
       }
 
-      debugUseProps("resolved", { objectType: object.constructor.name })
+      debugUseProps("resolved", () => ({ objectType: object.constructor.name }))
 
       // Ref effect — created in compute phase ✓
       // runWithOwner(null) sets context=null so signal writes (ref(object) / props.ref=object)
@@ -460,10 +479,10 @@ export function useProps<T extends Record<string, any>>(
         ref => {
           runWithOwner(null, () => {
             if (ref instanceof Function) {
-              debugUseProps("ref", { via: "callback" })
+              debugUseProps("ref", () => ({ via: "callback" }))
               ref(object)
             } else {
-              debugUseProps("ref", { via: "assign" })
+              debugUseProps("ref", () => ({ via: "assign" }))
               props.ref = object
             }
           })
@@ -477,19 +496,22 @@ export function useProps<T extends Record<string, any>>(
           const keys = Object.keys(instanceProps)
           for (const key of keys) {
             if (isEventType(key) && object instanceof Object3D && hasMeta(object)) {
-              debugUseProps("event registered", { key, objectType: object.constructor.name })
+              debugUseProps("event registered", () => ({
+                key,
+                objectType: object.constructor.name,
+              }))
               const cleanup = addToEventListeners(object, key)
               onCleanup(() => {
-                debugUseProps("event cleanup", { key, objectType: object.constructor.name })
+                debugUseProps("event cleanup", () => ({ key, objectType: object.constructor.name }))
                 cleanup()
               })
             } else if (isEventType(key)) {
-              debugUseProps("event skipped", {
+              debugUseProps("event skipped", () => ({
                 key,
                 reason: !(object instanceof Object3D) ? "not Object3D" : "no meta",
-              })
+              }))
             } else {
-              debugUseProps("non-event key", { key })
+              debugUseProps("non-event key", () => ({ key }))
             }
           }
         },
@@ -512,7 +534,7 @@ export function useProps<T extends Record<string, any>>(
                 // NOTE:  Discuss - is this expected behavior? Feature or a bug?
                 //        Should it be according to order of update instead?
                 for (const subKey of subKeys) {
-                  debugUseProps("sub-key apply", { key, subKey })
+                  debugUseProps("sub-key apply", () => ({ key, subKey }))
                   applyProp(context, object, subKey, props[subKey])
                 }
               },
@@ -534,24 +556,24 @@ export function useProps<T extends Record<string, any>>(
               },
               result => {
                 if (!result) {
-                  debugUseProps("texture color space", {
+                  debugUseProps("texture color space", () => ({
                     action: "skip",
                     reason: "not a matching texture",
-                  })
+                  }))
                   return
                 }
                 const { texture, gl } = result
                 if (hasColorSpace(texture) && hasColorSpace(gl)) {
-                  debugUseProps("texture color space", {
+                  debugUseProps("texture color space", () => ({
                     via: "colorSpace",
                     value: gl.outputColorSpace,
-                  })
+                  }))
                   texture.colorSpace = gl.outputColorSpace
                 } else {
-                  debugUseProps("texture color space", {
+                  debugUseProps("texture color space", () => ({
                     via: "encoding (legacy)",
                     value: (gl as any).outputEncoding,
-                  })
+                  }))
                   // @ts-expect-error TODO: fix type-error
                   texture.encoding = gl.outputEncoding
                 }
@@ -567,10 +589,10 @@ export function useProps<T extends Record<string, any>>(
     object => {
       // NOTE: see "onUpdate should not update itself"-test
       if (object) {
-        debugUseProps("onUpdate", { objectType: object.constructor.name })
+        debugUseProps("onUpdate", () => ({ objectType: object.constructor.name }))
         untrack(() => props.onUpdate)?.(object)
       } else {
-        debugUseProps("onUpdate-skipped", { reason: "no object" })
+        debugUseProps("onUpdate-skipped", () => ({ reason: "no object" }))
       }
     },
   )

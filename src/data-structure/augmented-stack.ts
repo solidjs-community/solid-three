@@ -23,10 +23,10 @@ export class AugmentedStack<T> {
    */
   push(value: T | Accessor<T>) {
     if (typeof value === "function") {
-      debugAugStack("push", { stack: this.name, via: "accessor" })
+      debugAugStack("push", () => ({ stack: this.name, via: "accessor" }))
       return this.#stack.push(() => meta((value as Accessor<T>)()))
     }
-    debugAugStack("push", { stack: this.name, via: "value" })
+    debugAugStack("push", () => ({ stack: this.name, via: "value" }))
     return this.#stack.push(meta(value))
   }
 }

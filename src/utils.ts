@@ -1,6 +1,13 @@
-import { untrack } from "@solidjs/web"
-import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import type { Accessor } from "solid-js"
+import {
+  createMemo,
+  createRenderEffect,
+  getOwner,
+  merge,
+  onCleanup,
+  untrack,
+  type Ref,
+} from "solid-js"
 import {
   Camera,
   Loader,
@@ -237,116 +244,6 @@ export function resolve<T>(child: Accessor<T> | T, recursive = false): T {
   return child
 }
 
-/**********************************************************************************/
-/*                                                                                */
-/*                                   With Context                                 */
-/*                                                                                */
-/**********************************************************************************/
-
-export type ContextProviderProps = {
-  children?: JSX.Element
-} & Record<string, unknown>
-export type ContextProvider<T extends ContextProviderProps> = (
-  props: { children: JSX.Element } & T,
-) => JSX.Element
-/**
- * A utility-function to provide context to components.
- *
- * @param children Accessor of Children
- * @param context Context<T>
- * @param value T
- *
- * @example
- * ```tsx
- * const NumberContext = createContext<number>
- *
- * const children = withContext(
- *    () => props.children,
- *    NumberContext,
- *    1
- * )
- * ```
- */
-
-export function withContext<T, TResult>(
-  children: Accessor<TResult>,
-  context: Context<T>,
-  value: T,
-) {
-  // In Solid 2.x the context object IS the provider component (no .Provider).
-  // The provider calls setContext from the correct signals version internally.
-  // It returns a lazy children() memo — we must force evaluation so our callback runs.
-  let result: TResult
-  const memo = (context as any)({
-    value,
-    children: (() => {
-      result = children()
-      return ""
-    }) as any as JSX.Element,
-  })
-  // Force lazy children memo to evaluate (triggers flatten → calls our fn)
-  if (typeof memo === "function") memo()
-  return result!
-}
-
-/**********************************************************************************/
-/*                                                                                */
-/*                              With Multi Contexts                               */
-/*                                                                                */
-/**********************************************************************************/
-
-/**
- * A utility-function to provide multiple context to components.
- *
- * @param children Accessor of Children
- * @param values Array of tuples of `[Context<T>, value T]`.
- *
- * @example
- * ```tsx
- * const NumberContext = createContext<number>
- * const StringContext = createContext<string>
- * const children = withContext(
- *    () => props.children,
- *    [
- *      [NumberContext, 1],
- *      [StringContext, "string"]
- *    ]
- * )
- * ```
- */
-
-export function withMultiContexts<TResult, T extends readonly [unknown?, ...unknown[]]>(
-  children: () => TResult,
-  values: {
-    [K in keyof T]: readonly [Context<T[K]>, [T[K]][T extends unknown ? 0 : never]]
-  },
-) {
-  // Nest context providers (no .Provider in Solid 2.x — context IS the provider).
-  // Each provider returns a lazy memo — we force the outermost to evaluate.
-  let result: TResult
-
-  untrack(() =>
-    resolve(
-      (values as [Context<any>, any][]).reduce(
-        (acc, [Context, value], index) => {
-          return () => {
-            return resolve(
-              Context({
-                value,
-                get children() {
-                  return index === 0 ? (result = untrack(acc)) : untrack(acc)
-                },
-              }) as unknown as Accessor<unknown>,
-            )
-          }
-        },
-        children as () => any,
-      ),
-    ),
-  )
-
-  return result!
-}
 
 /**********************************************************************************/
 /*                                                                                */
@@ -508,17 +405,19 @@ type DebugOptions = { trace?: boolean }
 /**
  * Returns a debug function. When `enabled` is false, the debug function is a no-op.
  * Usage: const debug = createDebug("my-module:function", true)
- *        debug("topic", data)
- *        debug("topic", data, { trace: true })  // also prints full call stack
+ *        debug("topic", () => data)
+ *        debug("topic", () => data, { trace: true })  // also prints full call stack
  */
 export const createDebug = !import.meta.env.DEV
-  ? (title: string, enabled: boolean) => (topic: string, data?: any, options?: DebugOptions) => {}
+  ? (title: string, enabled: boolean) =>
+      (topic: string, data?: (() => any) | undefined, options?: DebugOptions) => {}
   : (title: string, enabled: boolean) => {
-      return (topic: string, data?: any, options?: DebugOptions) => {
+      return (topic: string, data?: (() => any) | undefined, options?: DebugOptions) => {
         if (!enabled) {
           return
         }
-        console.log(`[${title}] ${topic}`, ...(data !== undefined ? [data] : []))
+        const resolved = data !== undefined ? untrack(data) : undefined
+        console.log(`[${title}] ${topic}`, ...(resolved !== undefined ? [resolved] : []))
         if (options?.trace) {
           const prev = (Error as any).stackTraceLimit
           ;(Error as any).stackTraceLimit = 50

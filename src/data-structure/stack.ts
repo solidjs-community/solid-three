@@ -39,7 +39,7 @@ export class Stack<T = any> {
     this.#setArray(array => {
       const index = array.indexOf(value)
       if (index !== -1) {
-        debugStack("push", { stack: this.name, action: "deduplicated", index })
+        debugStack("push", () => ({ stack: this.name, action: "deduplicated", index }))
         array.splice(index, 1)
       }
       array.push(value)
@@ -74,10 +74,10 @@ Remember to remove the element from the stack by calling the returned cleanup-fu
     this.#setArray(array => {
       const index = array.indexOf(value)
       if (index === -1) {
-        debugStack("remove", { stack: this.name, action: "not-found" })
+        debugStack("remove", () => ({ stack: this.name, action: "not-found" }))
         return array
       }
-      debugStack("remove", { stack: this.name, action: "removed", index })
+      debugStack("remove", () => ({ stack: this.name, action: "removed", index }))
       array.splice(index, 1)
       return array
     })

@@ -123,8 +123,7 @@ export type ConstructorOverloadParameters<T extends Constructor> = T extends {
 export type LoaderData<T extends Loader<any, any>> =
   T extends Loader<infer TData, any> ? TData : never
 
-export type LoaderUrl<T extends Loader<any, any>> =
-  T extends Loader<any, infer TUrl> ? TUrl : never
+export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl> ? TUrl : never
 
 /**********************************************************************************/
 /*                                                s                                */

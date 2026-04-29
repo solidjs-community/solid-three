@@ -21,6 +21,9 @@ importers:
       '@solidjs/router':
         specifier: 0.17.0-next.1
         version: 0.17.0-next.1(@solidjs/web@2.0.0-experimental.16(solid-js@2.0.0-beta.9))(solid-js@2.0.0-beta.9)
+      '@solidjs/signals':
+        specifier: 2.0.0-beta.9
+        version: 2.0.0-beta.9
       '@solidjs/testing-library':
         specifier: ^0.8.10
         version: 0.8.10(@solidjs/router@0.17.0-next.1(@solidjs/web@2.0.0-experimental.16(solid-js@2.0.0-beta.9))(solid-js@2.0.0-beta.9))(solid-js@2.0.0-beta.9)

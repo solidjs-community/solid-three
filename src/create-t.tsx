@@ -26,11 +26,11 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
 
         /* If no constructor is found, return undefined. */
         if (!constructor) {
-          debugCreateT("missing", { name })
+          debugCreateT("missing", () => ({ name }))
           return undefined
         }
 
-        debugCreateT("resolved", { name })
+        debugCreateT("resolved", () => ({ name }))
 
         /* Otherwise, create and memoize a component for that constructor. */
         cache.set(name, createEntity(constructor))
@@ -53,16 +53,18 @@ export function createEntity<TConstructor>(
 ): Component<Props<TConstructor>> {
   const name = (Constructor as any)?.name
 
-  debugCreateEntity("factory", { constructor: name })
+  debugCreateEntity("factory", () => ({ constructor: name }))
 
   return (props: Props<TConstructor>) => {
     const chain = describeOwnerChain()
     const isNullContext = chain === "(anon)[0ctx](T)"
 
     if (isNullContext) {
-      debugCreateEntity("null context", { constructor: name, ownerChain: chain }, { trace: true })
+      debugCreateEntity("null context", () => ({ constructor: name, ownerChain: chain }), {
+        trace: true,
+      })
     } else {
-      debugCreateEntity("mount", { constructor: name })
+      debugCreateEntity("mount", () => ({ constructor: name }))
     }
 
     const memo = createMemo(() => {

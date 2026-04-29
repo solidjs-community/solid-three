@@ -4,11 +4,13 @@ import {
   createMemo,
   merge,
   omit,
+  untrack,
   type Accessor,
   type JSX,
   type JSXElement,
   type ParentProps,
 } from "solid-js"
+import { setContext } from "@solidjs/signals"
 import { Loader, Object3D } from "three"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
@@ -22,7 +24,6 @@ import {
   isConstructor,
   meta,
   whenMemo,
-  withContext,
   type LoadOutput,
 } from "./utils.ts"
 
@@ -49,38 +50,30 @@ type PortalProps<T extends Object3D> = ParentProps<{
  * @returns An empty JSX element.
  */
 export function Portal<T extends Object3D>(props: PortalProps<T>) {
-  debugPortal("mount", { target: props.element ? "custom" : "scene" })
+  debugPortal("mount", () => ({ target: props.element ? "custom" : "scene" }))
   const context = useThree()
 
   const element = createMemo(() => {
     if (!props.element) {
-      debugPortal("element", { source: "scene" })
+      debugPortal("element", () => ({ source: "scene" }))
       return context.scene
     }
     if (hasMeta(props.element)) {
-      debugPortal("element", { source: "custom", hasMeta: true })
+      debugPortal("element", () => ({ source: "custom", hasMeta: true }))
       return props.element
     }
-    debugPortal("element", { source: "custom", hasMeta: false })
+    debugPortal("element", () => ({ source: "custom", hasMeta: false }))
     return meta(props.element, { props: {} })
   })
+
+  setContext(threeContext as any, merge(context, { get scene() { return element() } }))
 
   useProps(element, {
     get onUpdate() {
       return props.onUpdate
     },
     get children() {
-      return () =>
-        withContext(
-          () => props.children as unknown as Meta | Meta[],
-          // @ts-expect-error TODO: fix type-error
-          threeContext,
-          merge(context, {
-            get scene() {
-              return element()
-            },
-          }),
-        )
+      return props.children
     },
   })
 
@@ -112,10 +105,10 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
  */
 export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
-  debugEntity("mount", {
+  debugEntity("mount", () => ({
     fromType: !props.from ? "none" : isConstructor(props.from) ? "constructor" : "instance",
     hasArgs: !!props.args?.length,
-  })
+  }))
   const rest = omit(props, "from", "args")
   const memo = whenMemo(
     () => props.from,
@@ -123,9 +116,9 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
       // listen to key changes
       props.key
       if (isConstructor(from)) {
-        debugEntity("instance", { via: "constructor", args: props.args?.length ?? 0 })
+        debugEntity("instance", () => ({ via: "constructor", args: props.args?.length ?? 0 }))
       } else {
-        debugEntity("instance", { via: "existing" })
+        debugEntity("instance", () => ({ via: "existing" }))
       }
       const instance = meta(
         isConstructor(from) ? autodispose(new from(...(props.args ?? []))) : from,
@@ -217,11 +210,11 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
  * ```
  */
 export function Resource<const TLoader extends Loader<object, any>>(props: ResourceProps<TLoader>) {
-  debugResource("mount", {
+  debugResource("mount", () => ({
     urlShape:
       typeof props.url === "string" ? "string" : Array.isArray(props.url) ? "array" : "record",
     hasRenderFn: "children" in props,
-  })
+  }))
   const rest = omit(props, "base", "cache", "onBeforeLoad", "onLoad", "loader", "url", "children")
 
   const resource = useLoader(

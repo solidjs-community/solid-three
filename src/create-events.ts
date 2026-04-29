@@ -67,7 +67,7 @@ function createThreeEvent<
   TEvent extends Event,
   TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
 >(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {} as TConfig) {
-  debugEvents("create", { stoppable, hasIntersections: !!intersections })
+  debugEvents("create", () => ({ stoppable, hasIntersections: !!intersections }))
   const event: Record<string, any> = stoppable
     ? {
         nativeEvent,
@@ -116,10 +116,10 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
   event: TNativeEvent,
 ): Intersection<Meta<Object3D>>[] {
   if ("update" in context.raycaster) {
-    debugEvents("update", { variant: "custom" })
+    debugEvents("update", () => ({ variant: "custom" }))
     context.raycaster.update(event, context)
   } else {
-    debugEvents("update", { variant: "skip", reason: "no update method" })
+    debugEvents("update", () => ({ variant: "skip", reason: "no update method" }))
   }
 
   const nodeSet = new Set<Object3D>()
@@ -145,18 +145,18 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
     stack.push(...object.children)
   }
 
-  debugEvents("traverse", {
+  debugEvents("traverse", () => ({
     processed: visitedSet.size,
     raycastable: raycastableCount,
     skipped: skippedCount,
-  })
+  }))
 
   const results = context.raycaster.intersectObjects(Array.from(nodeSet), false)
-  debugEvents("intersected", {
+  debugEvents("intersected", () => ({
     registry: registry.length,
     nodes: nodeSet.size,
     intersections: results.length,
-  })
+  }))
   // nodeSet only contains objects that already have $S3C metadata (see the
   // traversal above — `meta && meta.props.raycastable !== false`), so every
   // intersected object is Meta<Object3D>. Three.js's Intersection type doesn't
@@ -185,10 +185,10 @@ function createMissableEventRegistry(
   context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
     const missedType = `${type}Missed` as const
     if (registry.array.length === 0 && !context.props[type] && !context.props[missedType]) {
-      debugMissable("skipped", { type, reason: "empty registry and no canvas handlers" })
+      debugMissable("skipped", () => ({ type, reason: "empty registry and no canvas handlers" }))
       return
     }
-    debugMissable("fired", { type, registrySize: registry.array.length })
+    debugMissable("fired", () => ({ type, registrySize: registry.array.length }))
 
     // Track which objects have been visited during event processing
     const missedObjects = new Set(registry.array)
@@ -196,7 +196,7 @@ function createMissableEventRegistry(
 
     // Phase #1 - Process normal click events
     const intersections = raycast(context, registry.array, nativeEvent)
-    debugMissable("phase1", { type, intersections: intersections.length })
+    debugMissable("phase1", () => ({ type, intersections: intersections.length }))
 
     const stoppableEvent = createThreeEvent(nativeEvent, { intersections })
 
@@ -221,23 +221,23 @@ function createMissableEventRegistry(
         node = node.parent
       }
       if (stoppableEvent.stopped) {
-        debugMissable("bubble-stopped", { type, bubbledLevels: bubbledCount })
+        debugMissable("bubble-stopped", () => ({ type, bubbledLevels: bubbledCount }))
       } else {
-        debugMissable("bubble-completed", { type, bubbledLevels: bubbledCount })
+        debugMissable("bubble-completed", () => ({ type, bubbledLevels: bubbledCount }))
       }
     }
-    debugMissable("intersections-processed", { type, count: processedIntersections })
+    debugMissable("intersections-processed", () => ({ type, count: processedIntersections }))
 
     // Call the respective canvas event-handler
     // if event propagated all the way down
     if (!stoppableEvent.stopped) {
-      debugMissable("propagated", { type })
+      debugMissable("propagated", () => ({ type }))
       // Remove currentIntersection
       // @ts-expect-error TODO: fix type-error
       delete stoppableEvent.currentIntersection
       context.props[type]?.(stoppableEvent)
     } else {
-      debugMissable("stopped", { type })
+      debugMissable("stopped", () => ({ type }))
     }
 
     // Phase #2 - Raycast remaining missed objects
@@ -251,7 +251,7 @@ function createMissableEventRegistry(
       // - add object to visitedObjects
       // - remove from remainingObjects,
       if (intersections.length === 0) {
-        debugMissable("phase2-no-intersections", { type })
+        debugMissable("phase2-no-intersections", () => ({ type }))
       }
 
       let phase2IntersectionCount = 0
@@ -265,21 +265,21 @@ function createMissableEventRegistry(
         }
       }
     }
-    debugMissable("phase2", { type, processedObjects: phase2ProcessedCount })
+    debugMissable("phase2", () => ({ type, processedObjects: phase2ProcessedCount }))
 
     // Phase #3 - Fire missed event-handler on missed objects
     const missedEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    debugMissable("phase3", { type, missedCount: missedObjects.size })
+    debugMissable("phase3", () => ({ type, missedCount: missedObjects.size }))
 
     for (const object of missedObjects) {
       getMeta(object)?.props[missedType]?.(missedEvent)
     }
 
     if (intersections.length === 0) {
-      debugMissable("missed-fired", { type, missedType })
+      debugMissable("missed-fired", () => ({ type, missedType }))
       context.props[missedType]?.(missedEvent)
     } else {
-      debugMissable("missed-none", { type, reason: "intersections found" })
+      debugMissable("missed-none", () => ({ type, reason: "intersections found" }))
     }
   })
 
@@ -308,15 +308,15 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
   let hoveredSet = new Set<Object3D>()
   let intersections: Intersection<Meta<Object3D>>[] = []
   let hoveredCanvas = false
-  debugHover("init", { type })
+  debugHover("init", () => ({ type }))
 
   context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
     intersections = raycast(context, registry.array, nativeEvent)
-    debugHover("move", {
+    debugHover("move", () => ({
       type,
       intersections: intersections.length,
       registrySize: registry.array.length,
-    })
+    }))
 
     // Phase #1 - Enter
     const enterEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
@@ -335,17 +335,17 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         if (!hoveredSet.has(current)) {
           enterCount++
 
-          debugHover("enter", { object: (current as any).type || "unknown" })
+          debugHover("enter", () => ({ object: (current as any).type || "unknown" }))
 
           getMeta(current)?.props[`on${type}Enter`]?.(
             // @ts-expect-error TODO: fix type-error
             enterEvent,
           )
         } else {
-          debugHover("enter-skipped", {
+          debugHover("enter-skipped", () => ({
             object: (current as any).type || "unknown",
             reason: "already hovered",
-          })
+          }))
         }
 
         // We bubble a layer down.
@@ -354,7 +354,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
     }
 
     if (hoveredCanvas === false) {
-      debugHover("canvas-enter", { type })
+      debugHover("canvas-enter", () => ({ type }))
 
       context.props[`on${type}Enter`]?.(
         // @ts-expect-error TODO: fix type-error
@@ -362,7 +362,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
       )
       hoveredCanvas = true
     } else {
-      debugHover("canvas-already-entered", { type })
+      debugHover("canvas-already-entered", () => ({ type }))
     }
 
     // Phase #2 - Move
@@ -389,21 +389,21 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
           )
           // Break if event was
           if (moveEvent.stopped) {
-            debugHover("move-stopped", { type })
+            debugHover("move-stopped", () => ({ type }))
             break
           }
         } else {
-          debugHover("move-no-meta", { type })
+          debugHover("move-no-meta", () => ({ type }))
         }
         // We bubble a layer down.
         current = current.parent
       }
     }
-    debugHover("enter-processed", { type, newEnters: enterCount })
-    debugHover("move-processed", { type, count: moveCount })
+    debugHover("enter-processed", () => ({ type, newEnters: enterCount }))
+    debugHover("move-processed", () => ({ type, count: moveCount }))
 
     if (!moveEvent.stopped) {
-      debugHover("move-propagated", { type })
+      debugHover("move-propagated", () => ({ type }))
       // Remove currentIntersection
       // @ts-expect-error TODO: fix type-error
       delete moveEvent.currentIntersection
@@ -412,16 +412,16 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         moveEvent,
       )
     } else {
-      debugHover("move-not-propagated", { type })
+      debugHover("move-not-propagated", () => ({ type }))
     }
 
     // Handle leave-event
     const leaveEvent = createThreeEvent(nativeEvent, { intersections, stoppable: false })
-    debugHover("leave-count", { type, leaveCount: hoveredSet.size - enterSet.size })
+    debugHover("leave-count", () => ({ type, leaveCount: hoveredSet.size - enterSet.size }))
 
     for (const object of hoveredSet) {
       if (enterSet.has(object)) continue
-      debugHover("leave", { object: (object as any).type || "unknown" })
+      debugHover("leave", () => ({ object: (object as any).type || "unknown" }))
       getMeta(object)?.props[`on${type}Leave`]?.(
         // @ts-expect-error TODO: fix type-error
         leaveEvent,
@@ -432,7 +432,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
   })
 
   context.canvas.addEventListener(eventNameMap[`on${type}Leave`], nativeEvent => {
-    debugHover("leave-exit", { type, hoveredSize: hoveredSet.size })
+    debugHover("leave-exit", () => ({ type, hoveredSize: hoveredSet.size }))
     const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false })
     // @ts-expect-error TODO: fix type-error
     context.props[`on${type}Leave`]?.(leaveEvent)
@@ -446,7 +446,7 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         leaveEvent,
       )
     }
-    debugHover("leave-exit-processed", { type, count: canvasLeaveCount })
+    debugHover("leave-exit-processed", () => ({ type, count: canvasLeaveCount }))
     hoveredSet.clear()
   })
 
@@ -473,17 +473,17 @@ function createDefaultEventRegistry(
   options?: AddEventListenerOptions,
 ) {
   const registry = createRegistry<Object3D>()
-  debugDefault("init", { type })
+  debugDefault("init", () => ({ type }))
 
   context.canvas.addEventListener(
     eventNameMap[type],
     nativeEvent => {
       const intersections = raycast(context, registry.array, nativeEvent)
-      debugDefault("fired", {
+      debugDefault("fired", () => ({
         type,
         intersections: intersections.length,
         registrySize: registry.array.length,
-      })
+      }))
       const event = createThreeEvent(nativeEvent, { intersections })
 
       let processedCount = 0
@@ -507,15 +507,15 @@ function createDefaultEventRegistry(
         }
 
         if (event.stopped) {
-          debugDefault("bubble-stopped", { type, bubbledLevels: bubbledCount })
+          debugDefault("bubble-stopped", () => ({ type, bubbledLevels: bubbledCount }))
         } else {
-          debugDefault("bubble-completed", { type, bubbledLevels: bubbledCount })
+          debugDefault("bubble-completed", () => ({ type, bubbledLevels: bubbledCount }))
         }
       }
-      debugDefault("intersections-processed", { type, count: processedCount })
+      debugDefault("intersections-processed", () => ({ type, count: processedCount }))
 
       if (!event.stopped) {
-        debugDefault("propagated", { type })
+        debugDefault("propagated", () => ({ type }))
         // Remove currentIntersection
         // @ts-expect-error TODO: fix type-error
         delete event.currentIntersection
@@ -523,7 +523,7 @@ function createDefaultEventRegistry(
         // @ts-expect-error TODO: fix type-error
         context.props[type]?.(event)
       } else {
-        debugDefault("stopped", { type })
+        debugDefault("stopped", () => ({ type }))
       }
     },
     options,
@@ -575,27 +575,27 @@ export function createEvents(context: Context) {
         // Missable Events
         case "onClick":
         case "onClickMissed":
-          debugRegistry("bound", { event: type, category: "missable" })
+          debugRegistry("bound", () => ({ event: type, category: "missable" }))
           return missableClickRegistry.add(object)
         case "onContextMenu":
         case "onContextMenuMissed":
-          debugRegistry("bound", { event: type, category: "missable" })
+          debugRegistry("bound", () => ({ event: type, category: "missable" }))
           return missableContextMenuRegistry.add(object)
         case "onDoubleClick":
         case "onDoubleClickMissed":
-          debugRegistry("bound", { event: type, category: "missable" })
+          debugRegistry("bound", () => ({ event: type, category: "missable" }))
           return missableDoubleClickRegistry.add(object)
 
         // Hover Events
         case "onMouseEnter":
         case "onMouseLeave":
         case "onMouseMove":
-          debugRegistry("bound", { event: type, category: "hover" })
+          debugRegistry("bound", () => ({ event: type, category: "hover" }))
           return hoverMouseRegistry.add(object)
         case "onPointerEnter":
         case "onPointerLeave":
         case "onPointerMove":
-          debugRegistry("bound", { event: type, category: "hover" })
+          debugRegistry("bound", () => ({ event: type, category: "hover" }))
           return hoverPointerRegistry.add(object)
 
         // Default Events
@@ -604,7 +604,7 @@ export function createEvents(context: Context) {
         case "onPointerDown":
         case "onPointerUp":
         case "onWheel":
-          debugRegistry("bound", { event: type, category: "default" })
+          debugRegistry("bound", () => ({ event: type, category: "default" }))
           switch (type) {
             case "onMouseDown":
               return mouseDownRegistry.add(object)

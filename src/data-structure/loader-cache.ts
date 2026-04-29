@@ -99,7 +99,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
-    debugCache("delete", { action: "dispose", force: !!force })
+    debugCache("delete", () => ({ action: "dispose", force: !!force }))
     node.dispose()
   }
 
@@ -108,7 +108,7 @@ export class LoaderCache implements LoaderRegistry {
    * Should be called periodically to clean up unused resources.
    */
   disposeFreeList() {
-    debugCache("disposeFreeList", { count: this.freeList.size })
+    debugCache("disposeFreeList", () => ({ count: this.freeList.size }))
     this.freeList.forEach(resource => this.#dataMap.get(resource)?.dispose())
   }
 
@@ -125,7 +125,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
-    debugCache("disposeResource", { found: true, force: !!options?.force })
+    debugCache("disposeResource", () => ({ found: true, force: !!options?.force }))
     this.#delete(node, options)
   }
 
@@ -147,7 +147,7 @@ export class LoaderCache implements LoaderRegistry {
       return
     }
 
-    debugCache("delete", { url, force: !!options?.force })
+    debugCache("delete", () => ({ url, force: !!options?.force }))
     this.#delete(node, options)
   }
 
@@ -166,11 +166,11 @@ export class LoaderCache implements LoaderRegistry {
     const node = this.#registry(loader).get(url, warn)
 
     if (!node) {
-      debugCache("get", { url, hit: false })
+      debugCache("get", () => ({ url, hit: false }))
       return undefined
     }
 
-    debugCache("get", { url, hit: true })
+    debugCache("get", () => ({ url, hit: true }))
     return node.data
   }
 
@@ -192,10 +192,10 @@ export class LoaderCache implements LoaderRegistry {
     let node = registry.get(path, false)
 
     if (node) {
-      debugCache("set", { path, action: "update" })
+      debugCache("set", () => ({ path, action: "update" }))
       node.update(data, options)
     } else {
-      debugCache("set", { path, action: "create" })
+      debugCache("set", () => ({ path, action: "create" }))
       node = new CacheNode(this.freeList, registry, path, data)
       this.#dataMap.set(data, node)
       registry.set(path, node)
@@ -272,12 +272,12 @@ class CacheNode<TLoader extends Loader<any, any>> {
    */
   track() {
     if (this.count === 0) {
-      debugCache("track", { path: this.path, action: "removed from free list" })
+      debugCache("track", () => ({ path: this.path, action: "removed from free list" }))
       this.free.delete(this.data)
     }
 
     this.count++
-    debugCache("tracked", { path: this.path, count: this.count })
+    debugCache("tracked", () => ({ path: this.path, count: this.count }))
 
     if (!getOwner()) {
       console.warn(
@@ -289,7 +289,7 @@ class CacheNode<TLoader extends Loader<any, any>> {
         this.count -= 1
         if (this.count <= 0) {
           this.free.add(this.data)
-          debugCache("freed", { path: this.path, count: this.count })
+          debugCache("freed", () => ({ path: this.path, count: this.count }))
         }
       })
     }
@@ -307,9 +307,9 @@ class CacheNode<TLoader extends Loader<any, any>> {
       )
     } else {
       if (this.data === data) {
-        debugCache("updated", { path: this.path, reason: "same-data" })
+        debugCache("updated", () => ({ path: this.path, reason: "same-data" }))
       } else {
-        debugCache("updated", { path: this.path, reason: "force-replace" })
+        debugCache("updated", () => ({ path: this.path, reason: "force-replace" }))
         this.#dispose()
       }
       this.#set(data)
