@@ -1,6 +1,15 @@
 import { setContext } from "@solidjs/signals"
 import type { Accessor, Context, JSX } from "solid-js"
-import { createMemo, createRenderEffect, createRoot, getOwner, merge, onCleanup, type Ref } from "solid-js"
+import {
+  createMemo,
+  createRenderEffect,
+  createRoot,
+  getOwner,
+  merge,
+  onCleanup,
+  untrack,
+  type Ref,
+} from "solid-js"
 import {
   Camera,
   Loader,
@@ -483,17 +492,19 @@ type DebugOptions = { trace?: boolean }
 /**
  * Returns a debug function. When `enabled` is false, the debug function is a no-op.
  * Usage: const debug = createDebug("my-module:function", true)
- *        debug("topic", data)
- *        debug("topic", data, { trace: true })  // also prints full call stack
+ *        debug("topic", () => data)
+ *        debug("topic", () => data, { trace: true })  // also prints full call stack
  */
 export const createDebug = !import.meta.env.DEV
-  ? (title: string, enabled: boolean) => (topic: string, data?: any, options?: DebugOptions) => {}
+  ? (title: string, enabled: boolean) =>
+      (topic: string, data?: (() => any) | undefined, options?: DebugOptions) => {}
   : (title: string, enabled: boolean) => {
-      return (topic: string, data?: any, options?: DebugOptions) => {
+      return (topic: string, data?: (() => any) | undefined, options?: DebugOptions) => {
         if (!enabled) {
           return
         }
-        console.log(`[${title}] ${topic}`, ...(data !== undefined ? [data] : []))
+        const resolved = data !== undefined ? untrack(data) : undefined
+        console.log(`[${title}] ${topic}`, ...(resolved !== undefined ? [resolved] : []))
         if (options?.trace) {
           const prev = (Error as any).stackTraceLimit
           ;(Error as any).stackTraceLimit = 50

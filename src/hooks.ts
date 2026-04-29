@@ -44,10 +44,10 @@ export const frameContext = createContext<FrameListener>()
 export const useFrame: FrameListener = (callback, options) => {
   const addFrameListener = useContext(frameContext)
   if (!addFrameListener) {
-    debugUseFrame("failed", { reason: "no frame context" })
+    debugUseFrame("failed", () => ({ reason: "no frame context" }))
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
-  debugUseFrame("register", { stage: options?.stage ?? "before", priority: options?.priority ?? 0 })
+  debugUseFrame("register", () => ({ stage: options?.stage ?? "before", priority: options?.priority ?? 0 }))
   return addFrameListener(callback, options)
 }
 
@@ -73,7 +73,7 @@ export function useThree<T>(callback: (value: Context) => T): Accessor<T>
 export function useThree(callback?: (value: Context) => any) {
   // Guard: outside reactive context (e.g. Vitest deepClone traversing $S3C.props.children getter)
   if (!getOwner()) {
-    debugUseThree("skipped", { reason: "no owner" })
+    debugUseThree("skipped", () => ({ reason: "no owner" }))
 
     return (callback ? () => undefined : undefined) as any
   }
@@ -81,14 +81,14 @@ export function useThree(callback?: (value: Context) => any) {
   if (!store) {
     debugUseThree(
       "failed",
-      { reason: "no context", ownerChain: describeOwnerChain() },
+      () => ({ reason: "no context", ownerChain: describeOwnerChain() }),
       { trace: true },
     )
 
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
 
-  debugUseThree("call", { shape: callback ? "selector" : "direct" })
+  debugUseThree("call", () => ({ shape: callback ? "selector" : "direct" }))
 
   if (callback) {
     return () => callback(store)
@@ -145,17 +145,17 @@ export interface UseLoaderOptions<
  */
 function resolveUrls<T>(base: string, url: T): T {
   if (Array.isArray(url)) {
-    debugResolveUrls("resolved", { kind: "array", count: url.length })
+    debugResolveUrls("resolved", () => ({ kind: "array", count: url.length }))
 
     return url.map(url => new URL(url, base).href) as T
   } else if (isRecord(url)) {
-    debugResolveUrls("resolved", { kind: "record", count: Object.keys(url).length })
+    debugResolveUrls("resolved", () => ({ kind: "record", count: Object.keys(url).length }))
 
     return Object.fromEntries(
       Object.entries(url).map(([key, url]) => [key, resolveUrls(base, url)] as const),
     ) as T
   } else if (typeof url === "string") {
-    debugResolveUrls("resolved", { kind: "string" })
+    debugResolveUrls("resolved", () => ({ kind: "string" }))
 
     return new URL(url, base).href as T
   }
@@ -214,10 +214,10 @@ export function useLoader<
   options?: UseLoaderOptions<TLoader, TInput>,
 ): Accessor<LoadOutput<TLoader, TInput>> {
   const config = merge({ cache: true }, options ?? {})
-  debugUseLoader("call", {
+  debugUseLoader("call", () => ({
     cache: config.cache === true ? "default" : config.cache === false ? "off" : "custom",
     hasBase: !!config.base,
-  })
+  }))
 
   const loader = createMemo(() => {
     const _constructor = resolve(constructor)
@@ -226,9 +226,9 @@ export function useLoader<
 
     if (!loader) {
       LOADER_CACHE.set(_constructor, (loader = new _constructor()))
-      debugUseLoader("loader", { action: "created", constructor: _constructor.name })
+      debugUseLoader("loader", () => ({ action: "created", constructor: _constructor.name }))
     } else {
-      debugUseLoader("loader", { action: "reused", constructor: _constructor.name })
+      debugUseLoader("loader", () => ({ action: "reused", constructor: _constructor.name }))
     }
 
     return loader
@@ -248,7 +248,7 @@ export function useLoader<
     input: TInput,
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (isRecord(input)) {
-      debugUseLoader("cache", { kind: "record", keyCount: Object.keys(input).length })
+      debugUseLoader("cache", () => ({ kind: "record", keyCount: Object.keys(input).length }))
       return awaitMapObject(input, value =>
         Promise.resolve(getOrInsert(registry, loader, value)),
       ) as unknown as Promise<LoadOutput<TLoader, TInput>>
@@ -258,11 +258,11 @@ export function useLoader<
       const cachedPromise = registry.get(loader, _input, false)
 
       if (cachedPromise) {
-        debugUseLoader("cache", { action: "hit", url: _input })
+        debugUseLoader("cache", () => ({ action: "hit", url: _input }))
         return cachedPromise as PromiseMaybe<LoadOutput<TLoader, TInput>>
       }
 
-      debugUseLoader("cache", { action: "miss", url: _input })
+      debugUseLoader("cache", () => ({ action: "miss", url: _input }))
       const promise = load(loader, input)
       registry.set(loader, _input, promise as unknown as Promise<any>)
 
@@ -275,7 +275,7 @@ export function useLoader<
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (config.cache === true) {
       if (!useLoader.cache) {
-        debugUseLoader("load", { cache: "disabled" })
+        debugUseLoader("load", () => ({ cache: "disabled" }))
         return load(loader(), url)
       }
 
@@ -283,11 +283,11 @@ export function useLoader<
     }
 
     if (config.cache) {
-      debugUseLoader("load", { cache: "custom" })
+      debugUseLoader("load", () => ({ cache: "custom" }))
       return getOrInsert(config.cache, loader(), url)
     }
 
-    debugUseLoader("load", { cache: "off" })
+    debugUseLoader("load", () => ({ cache: "off" }))
     return load(loader(), url)
   }
 
