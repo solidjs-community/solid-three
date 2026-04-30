@@ -150,8 +150,8 @@ function createMissableEventRegistry(
   const registry = createRegistry<Object3D>()
 
   context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
-    if (registry.array.length === 0) return
     const missedType = `${type}Missed` as const
+    if (registry.array.length === 0 && !context.props[type] && !context.props[missedType]) return
 
     // Track which objects have been visited during event processing
     const missedObjects = new Set(registry.array)
@@ -214,7 +214,7 @@ function createMissableEventRegistry(
       getMeta(object)?.props[missedType]?.(missedEvent)
     }
 
-    if (visitedObjects.size > 0) {
+    if (intersections.length === 0) {
       context.props[`${type}Missed`]?.(missedEvent)
     }
   })
