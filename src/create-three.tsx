@@ -1,5 +1,5 @@
-import { children, createMemo, createRenderEffect, createRoot, merge, onCleanup } from "solid-js"
 import { setContext } from "@solidjs/signals"
+import { children, createMemo, createRenderEffect, createRoot, merge, onCleanup } from "solid-js"
 import {
   ACESFilmicToneMapping,
   BasicShadowMap,
@@ -325,7 +325,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   setContext(threeContext, context)
   setContext(frameContext, addFrameListener)
-  useRef(props, context)
 
   /**********************************************************************************/
   /*                                                                                */
@@ -334,177 +333,177 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   createRenderEffect(
-      () => props.frameloop,
-      frameloop => {
-        if (frameloop === "never") {
-          debugEffects("clock", () => ({ action: "stop", reason: "frameloop=never" }))
-          context.clock.stop()
-          context.clock.elapsedTime = 0
-        } else {
-          debugEffects("clock", () => ({ action: "start", frameloop: frameloop ?? "always" }))
-          context.clock.start()
-        }
-      },
-    )
+    () => props.frameloop,
+    frameloop => {
+      if (frameloop === "never") {
+        debugEffects("clock", () => ({ action: "stop", reason: "frameloop=never" }))
+        context.clock.stop()
+        context.clock.elapsedTime = 0
+      } else {
+        debugEffects("clock", () => ({ action: "start", frameloop: frameloop ?? "always" }))
+        context.clock.start()
+      }
+    },
+  )
 
-    // Manage camera — useProps must be in compute phase (creates reactive nodes)
-    createRenderEffect(
-      () => {
-        const peek = cameraStack.peek()
-        const dc = props.camera
-        if (peek) {
-          debugEffects("camera", () => ({ action: "skip", reason: "stack-peek" }))
-          return
-        }
-        if (!dc || dc instanceof Camera) {
-          debugEffects("camera", () => ({
-            action: "skip",
-            reason: !dc ? "no-default" : "instance",
-          }))
-          return
-        }
-        debugEffects("camera", () => ({ action: "apply" }))
-        useProps(camera, dc)
-        return camera()
-      },
-      camera => {
-        if (camera) {
-          // Manually update camera's matrix with updateMatrixWorld is needed.
-          // Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
-          debugEffects("camera", () => ({ action: "updateMatrixWorld" }))
-          camera.updateMatrixWorld(true)
-        } else {
-          debugEffects("camera", () => ({ action: "skip", reason: "no camera" }))
-        }
-      },
-    )
+  // Manage camera — useProps must be in compute phase (creates reactive nodes)
+  createRenderEffect(
+    () => {
+      const peek = cameraStack.peek()
+      const dc = props.camera
+      if (peek) {
+        debugEffects("camera", () => ({ action: "skip", reason: "stack-peek" }))
+        return
+      }
+      if (!dc || dc instanceof Camera) {
+        debugEffects("camera", () => ({
+          action: "skip",
+          reason: !dc ? "no-default" : "instance",
+        }))
+        return
+      }
+      debugEffects("camera", () => ({ action: "apply" }))
+      useProps(camera, dc)
+      return camera()
+    },
+    camera => {
+      if (camera) {
+        // Manually update camera's matrix with updateMatrixWorld is needed.
+        // Otherwise casting a ray immediately after start-up will cause the incorrect matrix to be used.
+        debugEffects("camera", () => ({ action: "updateMatrixWorld" }))
+        camera.updateMatrixWorld(true)
+      } else {
+        debugEffects("camera", () => ({ action: "skip", reason: "no camera" }))
+      }
+    },
+  )
 
-    // Manage scene — useProps must be in compute phase (creates reactive nodes)
-    createRenderEffect(
-      () => {
-        const scene_ = props.scene
-        if (!scene_ || scene_ instanceof Scene) {
-          debugEffects("scene", () => ({
-            action: "skip",
-            reason: !scene_ ? "no-default" : "instance",
-          }))
-          return
-        }
-        debugEffects("scene", () => ({ action: "apply" }))
-        useProps(scene, scene_)
-      },
-      () => {},
-    )
+  // Manage scene — useProps must be in compute phase (creates reactive nodes)
+  createRenderEffect(
+    () => {
+      const scene_ = props.scene
+      if (!scene_ || scene_ instanceof Scene) {
+        debugEffects("scene", () => ({
+          action: "skip",
+          reason: !scene_ ? "no-default" : "instance",
+        }))
+        return
+      }
+      debugEffects("scene", () => ({ action: "apply" }))
+      useProps(scene, scene_)
+    },
+    () => {},
+  )
 
-    // Manage raycaster — useProps must be in compute phase (creates reactive nodes)
-    createRenderEffect(
-      () => {
-        const raycaster = props.raycaster
-        if (!raycaster || raycaster instanceof Raycaster) {
-          debugEffects("raycaster", () => ({
-            action: "skip",
-            reason: !raycaster ? "no-default" : "instance",
-          }))
-          return
-        }
-        debugEffects("raycaster", () => ({ action: "apply" }))
-        useProps(raycaster, raycaster)
-      },
-      () => {},
-    )
+  // Manage raycaster — useProps must be in compute phase (creates reactive nodes)
+  createRenderEffect(
+    () => {
+      const raycaster = props.raycaster
+      if (!raycaster || raycaster instanceof Raycaster) {
+        debugEffects("raycaster", () => ({
+          action: "skip",
+          reason: !raycaster ? "no-default" : "instance",
+        }))
+        return
+      }
+      debugEffects("raycaster", () => ({ action: "apply" }))
+      useProps(raycaster, raycaster)
+    },
+    () => {},
+  )
 
-    // Manage gl
-    createRenderEffect(
-      () => {
-        // Shadow map — child created in compute phase ✓
-        createRenderEffect(
-          () => ({
-            enabled: !!props.shadows,
-            type:
-              typeof props.shadows === "string"
-                ? ((
-                    {
-                      basic: BasicShadowMap,
-                      percentage: PCFShadowMap,
-                      soft: PCFSoftShadowMap,
-                      variance: VSMShadowMap,
-                    } as const
-                  )[props.shadows] ?? PCFSoftShadowMap)
-                : PCFSoftShadowMap,
-            shadowsObj: typeof props.shadows === "object" ? props.shadows : undefined,
-            gl: gl(),
-          }),
-          ({ enabled, type, shadowsObj, gl: _gl }) => {
-            if (!_gl.shadowMap) {
-              debugEffects("shadow", () => ({ action: "skip", reason: "no-shadowmap" }))
-              return
+  // Manage gl
+  createRenderEffect(
+    () => {
+      // Shadow map — child created in compute phase ✓
+      createRenderEffect(
+        () => ({
+          enabled: !!props.shadows,
+          type:
+            typeof props.shadows === "string"
+              ? ((
+                  {
+                    basic: BasicShadowMap,
+                    percentage: PCFShadowMap,
+                    soft: PCFSoftShadowMap,
+                    variance: VSMShadowMap,
+                  } as const
+                )[props.shadows] ?? PCFSoftShadowMap)
+              : PCFSoftShadowMap,
+          shadowsObj: typeof props.shadows === "object" ? props.shadows : undefined,
+          gl: gl(),
+        }),
+        ({ enabled, type, shadowsObj, gl: _gl }) => {
+          if (!_gl.shadowMap) {
+            debugEffects("shadow", () => ({ action: "skip", reason: "no-shadowmap" }))
+            return
+          }
+          const changed = _gl.shadowMap.enabled !== enabled || _gl.shadowMap.type !== type
+          _gl.shadowMap.enabled = enabled
+          if (shadowsObj) {
+            debugEffects("shadow", () => ({ action: "apply", via: "object" }))
+            Object.assign(_gl.shadowMap, shadowsObj)
+          } else {
+            debugEffects("shadow", () => ({ action: "apply", via: "type", type }))
+            _gl.shadowMap.type = type
+          }
+          if (changed) {
+            _gl.shadowMap.needsUpdate = true
+            debugEffects("shadow", () => ({
+              action: "changed",
+              enabled,
+              type,
+              custom: !!shadowsObj,
+            }))
+          } else {
+            debugEffects("shadow", () => ({ action: "unchanged" }))
+          }
+        },
+      )
+
+      // XR connect
+      createRenderEffect(
+        () => gl(),
+        renderer => {
+          if (renderer.xr) {
+            debugEffects("xr connect", () => ({ hasXR: true }))
+            renderer.xr.addEventListener("sessionstart", handleSessionChange)
+            renderer.xr.addEventListener("sessionend", handleSessionChange)
+            return () => {
+              renderer.xr.removeEventListener("sessionstart", handleSessionChange)
+              renderer.xr.removeEventListener("sessionend", handleSessionChange)
             }
-            const changed = _gl.shadowMap.enabled !== enabled || _gl.shadowMap.type !== type
-            _gl.shadowMap.enabled = enabled
-            if (shadowsObj) {
-              debugEffects("shadow", () => ({ action: "apply", via: "object" }))
-              Object.assign(_gl.shadowMap, shadowsObj)
-            } else {
-              debugEffects("shadow", () => ({ action: "apply", via: "type", type }))
-              _gl.shadowMap.type = type
-            }
-            if (changed) {
-              _gl.shadowMap.needsUpdate = true
-              debugEffects("shadow", () => ({
-                action: "changed",
-                enabled,
-                type,
-                custom: !!shadowsObj,
-              }))
-            } else {
-              debugEffects("shadow", () => ({ action: "unchanged" }))
-            }
-          },
-        )
+          } else {
+            debugEffects("xr connect", () => ({ action: "skip", reason: "no xr on renderer" }))
+          }
+        },
+      )
 
-        // XR connect
-        createRenderEffect(
-          () => gl(),
-          renderer => {
-            if (renderer.xr) {
-              debugEffects("xr connect", () => ({ hasXR: true }))
-              renderer.xr.addEventListener("sessionstart", handleSessionChange)
-              renderer.xr.addEventListener("sessionend", handleSessionChange)
-              return () => {
-                renderer.xr.removeEventListener("sessionstart", handleSessionChange)
-                renderer.xr.removeEventListener("sessionend", handleSessionChange)
-              }
-            } else {
-              debugEffects("xr connect", () => ({ action: "skip", reason: "no xr on renderer" }))
-            }
-          },
-        )
+      // Color space and tone mapping
+      const LinearEncoding = 3000
+      const sRGBEncoding = 3001
+      useProps(gl, {
+        get outputEncoding() {
+          return props.linear ? LinearEncoding : sRGBEncoding
+        },
+        get toneMapping() {
+          return props.flat ? NoToneMapping : ACESFilmicToneMapping
+        },
+      })
 
-        // Color space and tone mapping
-        const LinearEncoding = 3000
-        const sRGBEncoding = 3001
-        useProps(gl, {
-          get outputEncoding() {
-            return props.linear ? LinearEncoding : sRGBEncoding
-          },
-          get toneMapping() {
-            return props.flat ? NoToneMapping : ACESFilmicToneMapping
-          },
-        })
-
-        // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
-        if (props.gl && !(props.gl instanceof WebGLRenderer)) {
-          debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
-          useProps(gl, props.gl)
-        } else {
-          debugEffects("gl", () => ({
-            action: "skip",
-            reason: !props.gl ? "no gl prop" : "gl is WebGLRenderer instance",
-          }))
-        }
-      },
-      () => {},
-    )
+      // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
+      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+        debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
+        useProps(gl, props.gl)
+      } else {
+        debugEffects("gl", () => ({
+          action: "skip",
+          reason: !props.gl ? "no gl prop" : "gl is WebGLRenderer instance",
+        }))
+      }
+    },
+    () => {},
+  )
 
   /**********************************************************************************/
   /*                                                                                */
@@ -564,6 +563,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     }),
   )
+
+  useRef(props, context)
 
   // Return context merged with `addFrameListeners``
   // This is used in `@solid-three/testing`
