@@ -29,7 +29,7 @@
     "lint:types": "tsc --noEmit",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "prepublishOnly": "pnpm lint && pnpm build",
-    "test": "vitest run"  
+    "test": "vitest run"
   },
   "exports": {
     ".": {
@@ -76,16 +76,16 @@
     "debounce": "^2.1.0"
   },
   "devDependencies": {
-    "@solidjs/signals": "2.0.0-beta.9",
+    "@solidjs/signals": "2.0.0-beta.10",
     "@solidjs/router": "0.17.0-next.1",
     "@solidjs/testing-library": "^0.8.10",
-    "@solidjs/web": "2.0.0-experimental.16",
+    "@solidjs/web": "2.0.0-beta.10",
     "@types/three": "^0.164.1",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "dpdm": "^3.14.0",
     "esbuild": "^0.21.4",
-    "babel-preset-solid": "2.0.0-beta.9",
+    "babel-preset-solid": "2.0.0-beta.10",
     "@babel/core": "^7.20.12",
     "@babel/preset-typescript": "^7.18.6",
     "esbuild-register": "^3.5.0",
@@ -101,7 +101,7 @@
     "rollup": "^4.18.0",
     "rollup-plugin-dts": "^6.1.1",
     "solid-app-router": "^0.1.14",
-    "solid-js": "2.0.0-beta.9",
+    "solid-js": "2.0.0-beta.10",
     "three": "^0.164.1",
     "three-stdlib": "^2.36.0",
     "tsm": "^2.3.0",
