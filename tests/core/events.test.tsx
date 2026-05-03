@@ -1,0 +1,520 @@
+import { fireEvent } from "@solidjs/testing-library"
+import { Show, createSignal } from "solid-js"
+import * as THREE from "three"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { createT } from "../../src/index.ts"
+import { test } from "../../src/testing/index.tsx"
+
+const T = createT(THREE)
+
+describe("events", () => {
+  it("can handle onPointerDown", async () => {
+    const handlePointerDown = vi.fn()
+
+    const { canvas, waitTillNextFrame } = test(() => (
+      <T.Mesh onMouseDown={handlePointerDown}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(canvas, new MouseEvent("mousedown", { clientX: 640, clientY: 400, bubbles: true }))
+
+    expect(handlePointerDown).toHaveBeenCalled()
+  })
+
+  // TODO:  implement onPointerMissed-api
+  // NOTE:  unsure if/how we should implement onPointerMissed
+  //        the heuristics are unclear imo
+
+  // it("can handle onPointerMissed", async () => {
+  //   const handleClick = vi.fn();
+  //   const handleMissed = vi.fn();
+
+  //   const { canvas } = test(() => (
+  //     <T.Mesh onPointerMissed={handleMissed} onClick={handleClick}>
+  //       <T.BoxGeometry args={[2, 2]} />
+  //       <T.MeshBasicMaterial />
+  //     </T.Mesh>
+  //   ));
+
+  //   const evt = new MouseEvent("click");
+  //   Object.defineProperty(evt, "offsetX", { get: () => 0 });
+  //   Object.defineProperty(evt, "offsetY", { get: () => 0 });
+
+  //   fireEvent(canvas, evt);
+
+  //   expect(handleClick).not.toHaveBeenCalled();
+  //   expect(handleMissed).toHaveBeenCalledWith(evt);
+  // });
+
+  // TODO:  implement onPointerMissed-api
+
+  // it("should not fire onPointerMissed when same element is clicked", async () => {
+  //   const handleClick = vi.fn();
+  //   const handleMissed = vi.fn();
+
+  //   const { canvas } = test(() => (
+  //     <T.Mesh onPointerMissed={handleMissed} onClick={handleClick}>
+  //       <T.BoxGeometry args={[2, 2]} />
+  //       <T.MeshBasicMaterial />
+  //     </T.Mesh>
+  //   ));
+
+  //   const down = new Event("pointerdown");
+  //   Object.defineProperty(down, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(down, "offsetY", { get: () => 480 });
+
+  //   fireEvent(canvas, down);
+
+  //   const up = new Event("pointerup");
+  //   Object.defineProperty(up, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(up, "offsetY", { get: () => 480 });
+
+  //   const evt = new MouseEvent("click");
+  //   Object.defineProperty(evt, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(evt, "offsetY", { get: () => 480 });
+
+  //   fireEvent(canvas, evt);
+
+  //   expect(handleClick).toHaveBeenCalled();
+  //   expect(handleMissed).not.toHaveBeenCalled();
+  // });
+
+  // TODO:  implement onPointerMissed-api
+
+  // it("should not fire onPointerMissed on parent when child element is clicked", async () => {
+  //   const handleClick = vi.fn();
+  //   const handleMissed = vi.fn();
+
+  //   const { canvas } = test(() => (
+  //     <T.Group onPointerMissed={handleMissed}>
+  //       <T.Mesh onClick={handleClick}>
+  //         <T.BoxGeometry args={[2, 2]} />
+  //         <T.MeshBasicMaterial />
+  //       </T.Mesh>
+  //     </T.Group>
+  //   ));
+
+  //   const down = new Event("pointerdown");
+  //   Object.defineProperty(down, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(down, "offsetY", { get: () => 480 });
+
+  //   fireEvent(canvas, down);
+
+  //   const up = new Event("pointerup");
+  //   Object.defineProperty(up, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(up, "offsetY", { get: () => 480 });
+
+  //   const evt = new MouseEvent("click");
+  //   Object.defineProperty(evt, "offsetX", { get: () => 577 });
+  //   Object.defineProperty(evt, "offsetY", { get: () => 480 });
+
+  //   fireEvent(canvas, evt);
+
+  //   expect(handleClick).toHaveBeenCalled();
+  //   expect(handleMissed).not.toHaveBeenCalled();
+  // });
+
+  // TODO:  implement onPointerMissed-api
+
+  // it("can handle onPointerMissed on Canvas", async () => {
+  //   const handleMissed = vi.fn();
+
+  //   const { canvas } = test(() => (
+  //     <T.Mesh>
+  //       <T.BoxGeometry args={[2, 2]} />
+  //       <T.MeshBasicMaterial />
+  //     </T.Mesh>
+  //   ));
+
+  //   const evt = new MouseEvent("click");
+  //   Object.defineProperty(evt, "offsetX", { get: () => 0 });
+  //   Object.defineProperty(evt, "offsetY", { get: () => 0 });
+
+  //   fireEvent(canvas, evt);
+  //   expect(handleMissed).toHaveBeenCalledWith(evt);
+  // });
+
+  it("can handle onPointerMove", async () => {
+    const handlePointerMove = vi.fn()
+    const handlePointerEnter = vi.fn()
+    const handlePointerOut = vi.fn()
+
+    const { canvas } = test(() => (
+      <T.Mesh
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerOut}
+        onPointerMove={handlePointerMove}
+      >
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
+
+    expect(handlePointerMove).toHaveBeenCalled()
+    expect(handlePointerEnter).toHaveBeenCalled()
+
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
+
+    expect(handlePointerOut).toHaveBeenCalled()
+  })
+
+  it("should handle stopPropogation", async () => {
+    // onPointerEnter/Leave are non-stoppable (DOM-like behavior)
+    const handlePointerEnter = vi.fn()
+    const handlePointerLeave = vi.fn()
+
+    const { canvas } = test(() => (
+      <>
+        <T.Mesh onPointerLeave={handlePointerLeave} onPointerEnter={handlePointerEnter}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh position-z={3}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
+
+    expect(handlePointerEnter).toHaveBeenCalled()
+
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
+
+    expect(handlePointerLeave).toHaveBeenCalled()
+  })
+
+  it("should handle stopPropagation on click events", async () => {
+    const handleClickFront = vi.fn(e => e.stopPropagation())
+    const handleClickRear = vi.fn()
+
+    const { canvas } = test(() => (
+      <>
+        <T.Mesh onClick={handleClickFront}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh onClick={handleClickRear} position-z={-3}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+
+    const at = { clientX: 577, clientY: 480, bubbles: true }
+    fireEvent(canvas, new PointerEvent("pointerdown", at))
+    fireEvent(canvas, new PointerEvent("pointerup", at))
+    fireEvent(canvas, new MouseEvent("click", at))
+
+    expect(handleClickFront).toHaveBeenCalled()
+    expect(handleClickRear).not.toHaveBeenCalled()
+  })
+
+  // TODO:  implement pointer capture
+
+  describe("web pointer capture", () => {
+    let handlePointerMove = vi.fn()
+    let handlePointerDown = vi.fn(ev => {
+      ;(ev.nativeEvent.target as any).setPointerCapture(ev.pointerId)
+    })
+    let handlePointerUp = vi.fn(ev =>
+      (ev.nativeEvent.target as any).releasePointerCapture(ev.pointerId),
+    )
+    let handlePointerEnter = vi.fn()
+    let handlePointerLeave = vi.fn()
+
+    beforeEach(() => {
+      handlePointerMove = vi.fn()
+      handlePointerDown = vi.fn(ev => {
+        ;(ev.nativeEvent.target as any).setPointerCapture(ev.pointerId)
+      })
+      handlePointerUp = vi.fn(ev =>
+        (ev.nativeEvent.target as any).releasePointerCapture(ev.pointerId),
+      )
+      handlePointerEnter = vi.fn()
+      handlePointerLeave = vi.fn()
+    })
+
+    /* This component lets us unmount the event-handling object */
+    function PointerCaptureTest(props: { hasMesh: boolean; manualRelease?: boolean }) {
+      return (
+        <Show when={props.hasMesh}>
+          <T.Mesh
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={props.manualRelease ? handlePointerUp : undefined}
+            onPointerLeave={handlePointerLeave}
+            onPointerEnter={handlePointerEnter}
+          >
+            <T.BoxGeometry args={[2, 2]} />
+            <T.MeshBasicMaterial />
+          </T.Mesh>
+        </Show>
+      )
+    }
+
+    const pointerId = 1234
+
+    it.todo("should release when the capture target is unmounted", async () => {
+      const [hasMesh, setHasMesh] = createSignal(true)
+
+      // S3:   we do not have a replacement for rerender
+      const { canvas } = test(() => <PointerCaptureTest hasMesh={hasMesh()} />)
+
+      canvas.setPointerCapture = vi.fn()
+      canvas.releasePointerCapture = vi.fn()
+
+      // @ts-expect-error TODO: fix type-error
+      const down = new Event("pointerdown", { pointerId })
+      Object.defineProperty(down, "offsetX", { get: () => 577 })
+      Object.defineProperty(down, "offsetY", { get: () => 480 })
+
+      /* testing-utils/react's fireEvent wraps the event like React does, so it doesn't match how our event handlers are called in production, so we call dispatchEvent directly. */
+      canvas.dispatchEvent(down)
+
+      /* This should have captured the DOM pointer */
+      expect(handlePointerDown).toHaveBeenCalledTimes(1)
+      expect(canvas.setPointerCapture).toHaveBeenCalledWith(pointerId)
+      expect(canvas.releasePointerCapture).not.toHaveBeenCalled()
+
+      /* Now remove the T.Mesh */
+      setHasMesh(false)
+
+      expect(canvas.releasePointerCapture).toHaveBeenCalledWith(pointerId)
+
+      // @ts-expect-error TODO: fix type-error
+      const move = new Event("pointerdown", { pointerId })
+      Object.defineProperty(move, "offsetX", { get: () => 577 })
+      Object.defineProperty(move, "offsetY", { get: () => 480 })
+
+      canvas.dispatchEvent(move)
+
+      /* There should now be no pointer capture */
+      expect(handlePointerMove).not.toHaveBeenCalled()
+    })
+
+    it.todo("should not leave when captured", async () => {
+      const { canvas } = test(() => <PointerCaptureTest hasMesh manualRelease />)
+
+      canvas.setPointerCapture = vi.fn()
+      canvas.releasePointerCapture = vi.fn()
+
+      // @ts-expect-error TODO: fix type-error
+      const moveIn = new Event("pointermove", { pointerId })
+      Object.defineProperty(moveIn, "offsetX", { get: () => 577 })
+      Object.defineProperty(moveIn, "offsetY", { get: () => 480 })
+
+      // @ts-expect-error TODO: fix type-error
+      const moveOut = new Event("pointermove", { pointerId })
+      Object.defineProperty(moveOut, "offsetX", { get: () => -10000 })
+      Object.defineProperty(moveOut, "offsetY", { get: () => -10000 })
+
+      /* testing-utils/react's fireEvent wraps the event like React does, so it doesn't match how our event handlers are called in production, so we call dispatchEvent directly. */
+      canvas.dispatchEvent(moveIn)
+      expect(handlePointerEnter).toHaveBeenCalledTimes(1)
+      expect(handlePointerMove).toHaveBeenCalledTimes(1)
+
+      // @ts-expect-error TODO: fix type-error
+      const down = new Event("pointerdown", { pointerId })
+      Object.defineProperty(down, "offsetX", { get: () => 577 })
+      Object.defineProperty(down, "offsetY", { get: () => 480 })
+
+      canvas.dispatchEvent(down)
+
+      // If we move the pointer now, when it is captured, it should raise the onPointerMove event even though the pointer is not over the element,
+      // and NOT raise the onPointerLeave event.
+      canvas.dispatchEvent(moveOut)
+      expect(handlePointerMove).toHaveBeenCalledTimes(2)
+      expect(handlePointerLeave).not.toHaveBeenCalled()
+
+      canvas.dispatchEvent(moveIn)
+      expect(handlePointerMove).toHaveBeenCalledTimes(3)
+
+      // @ts-expect-error TODO: fix type-error
+      const up = new Event("pointerup", { pointerId })
+      Object.defineProperty(up, "offsetX", { get: () => 577 })
+      Object.defineProperty(up, "offsetY", { get: () => 480 })
+      // @ts-expect-error TODO: fix type-error
+      const lostpointercapture = new Event("lostpointercapture", { pointerId })
+
+      canvas.dispatchEvent(up)
+      canvas.dispatchEvent(lostpointercapture)
+
+      // The pointer is still over the element, so onPointerLeave should not have been called.
+      expect(handlePointerLeave).not.toHaveBeenCalled()
+
+      // The element pointer should no longer be captured, so moving it away should call onPointerLeave.
+      canvas.dispatchEvent(moveOut)
+      expect(handlePointerEnter).toHaveBeenCalledTimes(1)
+      expect(handlePointerLeave).toHaveBeenCalledTimes(1)
+    })
+  })
+})
+
+/**********************************************************************************/
+/*                                                                                */
+/*                           Mesh-level onClickMissed                             */
+/*                                                                                */
+/**********************************************************************************/
+
+const HIT_X = 640
+const HIT_Y = 400
+const MISS_X = 0
+const MISS_Y = 0
+
+function makeClickAt(clientX: number, clientY: number) {
+  // Canvas is at (0, 0) in document.body, so offsetX/Y === clientX/Y.
+  return new MouseEvent("click", { clientX, clientY, bubbles: true })
+}
+
+describe("mesh onClickMissed", () => {
+  it("fires when a click misses the mesh", async () => {
+    const handleClickMissed = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClickMissed={handleClickMissed}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
+
+
+    expect(handleClickMissed).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not fire when the mesh itself is clicked", async () => {
+    const handleClickMissed = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClickMissed={handleClickMissed}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+
+    expect(handleClickMissed).not.toHaveBeenCalled()
+  })
+
+  it("does not fire when a different mesh in the scene is clicked", async () => {
+    const handleClickMissed = vi.fn()
+
+    // Mesh A: off-center (far right), has onClickMissed
+    // Mesh B: at origin (center of screen), gets clicked
+    const { canvas } = await test(() => (
+      <>
+        <T.Mesh onClickMissed={handleClickMissed} position-x={100}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClickMissed).not.toHaveBeenCalled()
+  })
+
+  it("does not fire on a parent when its child is clicked", async () => {
+    const handleParentClickMissed = vi.fn()
+    const handleChildClick = vi.fn()
+
+    const { canvas } = await test(() => (
+      <T.Group onClickMissed={handleParentClickMissed}>
+        <T.Mesh onClick={handleChildClick}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </T.Group>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+
+    expect(handleChildClick).toHaveBeenCalledTimes(1)
+    expect(handleParentClickMissed).not.toHaveBeenCalled()
+  })
+})
+
+/**********************************************************************************/
+/*                                                                                */
+/*                          Event handler reactivity                              */
+/*                                                                                */
+/**********************************************************************************/
+
+describe("event handler reactivity", () => {
+  it("registers object in interaction list when event prop is added", async () => {
+    const handleClick = vi.fn()
+    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(undefined)
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClick={onClick()}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    // No handler yet — click should not fire
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).not.toHaveBeenCalled()
+
+    // Add the handler reactively
+    setOnClick(() => handleClick)
+
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1)
+  })
+
+  it("removes object from interaction list when event prop is removed", async () => {
+    const handleClick = vi.fn()
+    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(handleClick)
+
+    const { canvas } = await test(() => (
+      <T.Mesh onClick={onClick()}>
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+
+    // Handler active — click fires
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1)
+
+    // Remove handler reactively
+    setOnClick(undefined)
+
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+
+    expect(handleClick).toHaveBeenCalledTimes(1) // no new call
+  })
+})
