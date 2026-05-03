@@ -174,8 +174,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       props.camera instanceof Camera
         ? (props.camera as OrthographicCamera | PerspectiveCamera)
         : props.orthographic
-        ? new OrthographicCamera()
-        : new PerspectiveCamera(),
+          ? new OrthographicCamera()
+          : new PerspectiveCamera(),
       {
         get props() {
           return props.camera || {}
@@ -212,10 +212,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         ? // props.gl can be a WebGLRenderer provided by the user
           props.gl
         : typeof props.gl === "function"
-        ? // or a callback that returns a Renderer
-          props.gl(canvas)
-        : // if props.gl is not defined we default to a WebGLRenderer
-          new WebGLRenderer({ canvas, alpha: true })
+          ? // or a callback that returns a Renderer
+            props.gl(canvas)
+          : // if props.gl is not defined we default to a WebGLRenderer
+            new WebGLRenderer({ canvas, alpha: true })
 
     return meta(gl, {
       get props() {
@@ -228,9 +228,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   measure.setElement(canvas)
 
   const defaultTarget = new Vector3()
-  const viewport = createMemo(() =>
-    getCurrentViewport(camera(), defaultTarget, measure.bounds()),
-  )
+  const viewport = createMemo(() => getCurrentViewport(camera(), defaultTarget, measure.bounds()))
 
   const clock = new Clock()
   clock.start()
@@ -271,14 +269,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return gl()
     },
   }
-
-  withMultiContexts(
-    () => useRef(props, context),
-    [
-      [threeContext, context],
-      [frameContext, addFrameListener],
-    ],
-  )
 
   /**********************************************************************************/
   /*                                                                                */
@@ -421,6 +411,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         return c()
       },
     }),
+  )
+
+  withMultiContexts(
+    () => useRef(props, context),
+    [
+      [threeContext, context],
+      [frameContext, addFrameListener],
+    ],
   )
 
   // Return context merged with `addFrameListeners``
