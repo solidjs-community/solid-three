@@ -1,0 +1,44 @@
+name: Publish to pkg.pr.new
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install latest corepack
+        run: npm install corepack@latest -g
+
+      - run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Build the library first so `site/` (which imports `solid-three`
+      # via `link:..`) can resolve types in the Typecheck step.
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm lint:types
+
+      - name: Test
+        run: pnpm test --run
+
+      - name: Publish preview
+        run: pnpx pkg-pr-new publish --compact --template ./demo
