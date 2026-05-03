@@ -4,7 +4,7 @@
  */
 
 import { render as solidRender } from "@solidjs/web"
-import type { JSX } from "solid-js"
+import type { JSX } from "@solidjs/web"
 
 const mountedRoots: Array<{ container: Element; dispose: () => void }> = []
 

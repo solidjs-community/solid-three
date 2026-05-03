@@ -1,4 +1,4 @@
-import { type JSX, createContext, useContext } from "solid-js"
+import { type Element, createContext, useContext } from "solid-js"
 import { Object3D } from "three"
 import type { EventName, Meta } from "./types.ts"
 
@@ -26,11 +26,11 @@ export const eventContext = createContext<(object: Meta<any>, type: EventName) =
  * @param children - The child elements to be rendered through the portal.
  * @throws Throws an error if used outside of the Canvas component context.
  */
-export const addPortal = (children: JSX.Element | JSX.Element[]) => {
+export const addPortal = (children: Element | Element[]) => {
   const addPortal = useContext(portalContext)
   if (!addPortal) {
     throw new Error("S3: Hooks can only be used within the Canvas component!")
   }
   addPortal(children)
 }
-export const portalContext = createContext<(children: JSX.Element | JSX.Element[]) => void>()
+export const portalContext = createContext<(children: Element | Element[]) => void>()

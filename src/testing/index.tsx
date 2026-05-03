@@ -1,4 +1,4 @@
-import { type Accessor, type JSX, createRoot, merge, onSettled } from "solid-js"
+import { type Accessor, type Element, createRoot, merge, onSettled } from "solid-js"
 import type { CanvasProps } from "../canvas.tsx"
 import { createThree } from "../create-three.tsx"
 import { useRef } from "../utils.ts"
@@ -30,7 +30,7 @@ export function settled(): Promise<void> {
  * testScene.unmount();
  */
 export async function test(
-  children: Accessor<JSX.Element>,
+  children: Accessor<Element>,
   props?: Omit<CanvasProps, "children">,
 ): Promise<TestApi> {
   const canvas = createTestCanvas()

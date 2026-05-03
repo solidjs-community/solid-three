@@ -6,8 +6,7 @@ import {
   omit,
   untrack,
   type Accessor,
-  type JSX,
-  type JSXElement,
+  type Element,
   type ParentProps,
 } from "solid-js"
 import { setContext } from "@solidjs/signals"
@@ -91,7 +90,7 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
     Props<T>,
     {
       from: T | undefined
-      children?: JSXElement
+      children?: Element
     },
   ]
 >
@@ -137,7 +136,7 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
   // rather than being destroyed and recreated.
   // @ts-expect-error TODO: fix type — onUpdate signature mismatch between EntityProps and useSceneGraph
   useSceneGraph(memo, rest)
-  return memo as unknown as JSX.Element
+  return memo as unknown as Element
 }
 
 /**********************************************************************************/
@@ -153,7 +152,7 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
   Omit<Props<LoaderData<TLoader>>, "children"> & {
     loader: Constructor<TLoader>
     url: LoaderUrl<TLoader>
-    children?: (result: Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>) => JSXElement
+    children?: (result: Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>) => Element
   }
 
 /**
@@ -242,7 +241,7 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
     <Loading>
       <Show
         when={"children" in props && resource()}
-        fallback={resource() as unknown as JSX.Element}
+        fallback={resource() as unknown as Element}
       >
         {r => props.children?.(r)}
       </Show>

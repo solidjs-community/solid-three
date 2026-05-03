@@ -2,10 +2,10 @@ import {
   createEffect,
   getOwner,
   runWithOwner,
-  type JSX,
   type ParentProps,
   type Ref,
 } from "solid-js"
+import type { JSX } from "@solidjs/web"
 import {
   Camera,
   OrthographicCamera,

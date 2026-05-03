@@ -1,5 +1,8 @@
-import { A, Route, Router } from "@solidjs/router"
-import { createSignal, For, lazy, type ParentProps } from "solid-js"
+import { A as RouterA, Route, Router, type AnchorProps } from "@solidjs/router"
+import { createSignal, For, lazy, type Component, type ParentProps } from "solid-js"
+import type { JSX } from "@solidjs/web"
+
+const A = RouterA as Component<AnchorProps & { children?: JSX.Element; class?: string }>
 import * as THREE from "three"
 import { Canvas, createT, Entity } from "../src/index.ts"
 import "./index.css"

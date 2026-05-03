@@ -1,4 +1,4 @@
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor, Element } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -303,7 +303,7 @@ export type Props<T> = Partial<
       {
         args: T extends Constructor ? ConstructorOverloadParameters<T> : undefined
         attach: string | ((parent: object, self: Meta<InstanceOf<T>>) => () => void)
-        children: JSX.Element
+        children: Element
         key?: string
         onUpdate: (self: Meta<InstanceOf<T>>) => void
         ref: InstanceOf<T> | ((value: Meta<InstanceOf<T>>) => void)

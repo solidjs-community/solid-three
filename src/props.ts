@@ -3,7 +3,7 @@ import {
   children,
   createMemo,
   createRenderEffect,
-  type JSXElement,
+  type Element,
   mapArray,
   omit,
   onCleanup,
@@ -180,7 +180,7 @@ function applySceneGraph(parent: object, child: object): (() => void) | undefine
  */
 export const useSceneGraph = <T extends object>(
   _parent: AccessorMaybe<T | undefined>,
-  props: { children?: JSXElement | JSXElement[]; onUpdate?(event: T): void },
+  props: { children?: Element | Element[]; onUpdate?(event: T): void },
 ) => {
   const kids = children(() => props.children)
   const filteredKids = createMemo((): Object3D[] =>

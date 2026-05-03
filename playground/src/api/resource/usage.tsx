@@ -1,5 +1,6 @@
 import * as THREE from "three"
-import { DRACOLoader, GLTFLoader } from "three-stdlib"
+import { DRACOLoader, GLTFLoader, type GLTF } from "three-stdlib"
+import type { Accessor } from "solid-js"
 import { Canvas, Entity, Resource } from "../../../../src/index.ts"
 
 let dracoLoader: DRACOLoader
@@ -54,7 +55,7 @@ export default function () {
             loader.setDRACOLoader(dracoLoader)
           }}
         >
-          {gltf => <Entity from={gltf().scene} />}
+          {(gltf: Accessor<GLTF>) => <Entity from={gltf().scene} />}
         </Resource>
       </Canvas>
     </div>

@@ -1,4 +1,4 @@
-import { createMemo, type Component, type JSX } from "solid-js"
+import { createMemo, type Component, type Element } from "solid-js"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { useProps } from "./props.ts"
 import type { Props } from "./types.ts"
@@ -79,6 +79,6 @@ export function createEntity<TConstructor>(
     })
 
     useProps(memo, props)
-    return memo as unknown as JSX.Element
+    return memo as unknown as Element
   }
 }
