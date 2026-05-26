@@ -11,7 +11,7 @@ import * as THREE from "three"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
-import type { Context, Meta } from "../../src/types.ts"
+import type { Context, Meta, RendererLike } from "../../src/types.ts"
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>
 
@@ -580,6 +580,95 @@ describe("renderer", () => {
     const gl = test(() => <T.Group />, { gl: canvas => new Renderer({ canvas }) }).gl
 
     expect(gl instanceof Renderer).toBe(true)
+  })
+
+  /**
+   * External-renderer (RendererLike) tests — cover the structural-typed `gl`
+   * prop that lets users pass any renderer (WebGPURenderer, SVGRenderer,
+   * custom). Mirrors r3f's external-renderer.test.tsx.
+   */
+  function makeFakeRenderer(overrides: Partial<RendererLike> = {}) {
+    const fake = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      setPixelRatio: vi.fn(),
+      getPixelRatio: vi.fn(() => 1),
+      ...overrides,
+    }
+    return fake as typeof fake & RendererLike
+  }
+
+  it("should accept a RendererLike instance as the gl prop", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should accept a RendererLike instance returned from the gl factory", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: () => fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should await renderer.init() before the first render", async () => {
+    let resolveInit!: () => void
+    const initPromise = new Promise<void>(resolve => {
+      resolveInit = resolve
+    })
+    const fake = makeFakeRenderer({ init: vi.fn(() => initPromise) })
+
+    const state = test(() => <T.Group />, { gl: fake })
+
+    // Loop is spinning, but render() must early-return until init resolves.
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(fake.init).toHaveBeenCalledTimes(1)
+    expect(fake.render).not.toHaveBeenCalled()
+
+    resolveInit()
+    await initPromise
+    await state.waitTillNextFrame()
+
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should skip init() when hasInitialized() returns true", async () => {
+    const fake = makeFakeRenderer({
+      init: vi.fn(async () => {}),
+      hasInitialized: vi.fn(() => true),
+    })
+
+    const state = test(() => <T.Group />, { gl: fake })
+    await state.waitTillNextFrame()
+
+    expect(fake.init).not.toHaveBeenCalled()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should render immediately for a RendererLike without init()", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+
+    await state.waitTillNextFrame()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should not apply outputEncoding/toneMapping to a non-WebGL renderer", async () => {
+    const fake = makeFakeRenderer() as RendererLike & {
+      outputEncoding?: unknown
+      toneMapping?: unknown
+    }
+    test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputEncoding).toBeUndefined()
+    expect(fake.toneMapping).toBeUndefined()
+  })
+
+  it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+
+    expect(() => state.xr.connect()).not.toThrow()
+    expect(() => state.xr.disconnect()).not.toThrow()
   })
 
   it("should respect color management preferences via gl", async () => {
