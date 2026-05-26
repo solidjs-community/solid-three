@@ -152,6 +152,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     debugXR("frame", () => ({ timestamp }))
     render(timestamp, frame)
   }
+  function warnNonXR(method: string) {
+    console.warn(
+      `solid-three: ${method} is a no-op — the active renderer has no WebXRManager-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
+    )
+  }
   // Toggle render switching on session. Gated on `isWebXRManager` so that
   // exotic renderers (WebGPU, custom) without `setAnimationLoop` are skipped.
   function handleSessionChange() {
@@ -168,14 +173,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const xr = {
     connect() {
       const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return
+      if (!isWebXRManager(xrManager)) return warnNonXR("xr.connect()")
       debugXR("connect")
       xrManager.addEventListener("sessionstart", handleSessionChange)
       xrManager.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
       const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return
+      if (!isWebXRManager(xrManager)) return warnNonXR("xr.disconnect()")
       debugXR("disconnect")
       xrManager.removeEventListener("sessionstart", handleSessionChange)
       xrManager.removeEventListener("sessionend", handleSessionChange)
