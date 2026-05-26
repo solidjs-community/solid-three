@@ -1,0 +1,60 @@
+---
+title: Custom components
+---
+
+import compositionSnippet from "../../snippets/12-composition.tsx?raw"
+import usePropsSnippet from "../../snippets/12-use-props.tsx?raw"
+
+# Custom components
+
+Real apps grow custom components. A `<Cube>` you use everywhere instead of
+spelling out mesh + geometry + material every time. A `<Floor>` that comes
+pre-styled. A `<DebugAxes>` you drop in to orient yourself.
+
+There are two ways to build one in `solid-three`, depending on whether you
+*compose* with the built-in tags or *construct* something yourself.
+
+## Composition: just wrap `<T.*>`
+
+Most custom components are just composition. Spread the caller's props
+onto a `<T.Mesh>` (or whatever else) — the smart-prop pipeline from
+[Smart props](/tutorial/03-smart-props) already handles arrays, single
+numbers, strings, dashed paths. Nothing extra to wire up.
+
+<Demo code={compositionSnippet} />
+
+Three `<Cube>`s with different colours, positions and scales. The
+component is twelve lines; everything else just works because `<T.Mesh>`
+sees the spread props and routes them through its own internal pipeline.
+Disposal is handled too — when `<Cube>` unmounts, its underlying
+geometry and material are disposed automatically, the same way any
+`<T.*>` is.
+
+## Direct construction: `useProps` + `autodispose`
+
+When you instantiate a `three.js` object yourself — a helper, a custom
+subclass, an external library's `Object3D` — you don't get the smart-prop
+pipeline or the disposal lifecycle for free. Two utilities patch that up:
+
+- **`autodispose(target)`** registers an `onCleanup` that calls
+  `target.dispose()` when the component unmounts.
+- **`useProps(target, props)`** applies a props object to `target` using
+  the same smart-prop rules `<T.*>` uses internally.
+
+<Demo code={usePropsSnippet} />
+
+`<Axes>` constructs a `THREE.AxesHelper` directly, wraps it in
+`autodispose` so its GPU resources are released when the component
+unmounts, then hands it to `useProps` so the caller can pass `position`,
+`scale`, `visible`, etc. and have them applied through the same pipeline
+as a `<T.*>` element. Returning the instance is enough — `solid-three`
+knows how to attach an `Object3D` to its scene parent.
+
+## Picking between them
+
+- Use **composition** whenever the building blocks already exist as
+  `<T.*>` or other `solid-three` components. That covers most custom
+  helpers.
+- Reach for **`useProps` + `autodispose`** when you've stepped outside
+  the declarative tree — usually a custom `three.js` class or an
+  instance from another library.
