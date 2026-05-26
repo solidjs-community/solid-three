@@ -17,6 +17,7 @@ import {
   Texture,
   Vector3,
 } from "three"
+import type { WebGLShadowMap, WebXRManager } from "three"
 import { $S3C } from "./constants.ts"
 import type {
   CameraKind,
@@ -28,6 +29,7 @@ import type {
   Meta,
   Prettify,
   Renderer,
+  RendererLike,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -55,6 +57,47 @@ export const isOrthographicCamera = (def: Camera): def is OrthographicCamera =>
   "isOrthographicCamera" in def && !!def.isOrthographicCamera
 
 export const isVector3 = (def: object): def is Vector3 => "isVector3" in def && !!def.isVector3
+
+/**
+ * Returns true when `value` is an already-built renderer instance.
+ */
+export function isRenderer(value: unknown): value is Renderer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
+  )
+}
+
+/**
+ * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
+ * — three's WebGPU `XRManager` doesn't expose it.
+ */
+export function isWebXRManager(value: unknown): value is WebXRManager {
+  return !!value && typeof (value as { setAnimationLoop?: unknown }).setAnimationLoop === "function"
+}
+
+/**
+ * Duck-typed narrow to `WebGLShadowMap`. `needsUpdate` is the discriminator
+ * — WebGPURenderer's `shadowMap` is `{ enabled, type }` without it.
+ */
+export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
+  return !!value && "needsUpdate" in (value as object)
+}
+
+/**
+ * Returns the renderer's `init()` if it both exists and hasn't been called yet,
+ * else `undefined`. Used to await async setup (e.g. WebGPURenderer.init) before
+ * the first render.
+ */
+export function getPendingInit(renderer: Renderer): (() => Promise<void>) | undefined {
+  const r = renderer as RendererLike
+  const initFn = r.init
+  if (!initFn) return undefined
+  if (typeof r.hasInitialized === "function" && r.hasInitialized()) return undefined
+  return () => initFn.call(r)
+}
 
 /**********************************************************************************/
 /*                                                                                */

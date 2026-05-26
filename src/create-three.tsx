@@ -39,6 +39,9 @@ import {
   createDebug,
   defaultProps,
   getCurrentViewport,
+  isRenderer,
+  isWebGLShadowMap,
+  isWebXRManager,
   meta,
   removeElementFromArray,
   useRef,
@@ -149,13 +152,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     debugXR("frame", () => ({ timestamp }))
     render(timestamp, frame)
   }
-  // Toggle render switching on session. The current wiring is built for
-  // `WebXRManager` (WebGL build). Task 4 introduces `isWebXRManager` for
-  // proper duck-typing — for now we early-return when absent and cast the
-  // present manager to `WebXRManager` to preserve the existing API surface.
+  // Toggle render switching on session. Gated on `isWebXRManager` so that
+  // exotic renderers (WebGPU, custom) without `setAnimationLoop` are skipped.
   function handleSessionChange() {
-    const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
-    if (!xrManager) return
+    const xrManager = context.gl.xr
+    if (!isWebXRManager(xrManager)) return
     debugXR("session", () => ({
       presenting: xrManager.isPresenting,
       enabled: xrManager.enabled,
@@ -166,15 +167,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   // WebXR session-manager
   const xr = {
     connect() {
-      const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
-      if (!xrManager) return
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return
       debugXR("connect")
       xrManager.addEventListener("sessionstart", handleSessionChange)
       xrManager.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
-      if (!xrManager) return
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return
       debugXR("disconnect")
       xrManager.removeEventListener("sessionstart", handleSessionChange)
       xrManager.removeEventListener("sessionend", handleSessionChange)
@@ -289,16 +290,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     let rendererInstance: Renderer
     // Instance check first — recognise any RendererLike (incl. WebGPURenderer)
     // regardless of class, otherwise an `instanceof WebGLRenderer` would skip it.
-    // Task 4 will replace this inline check with `isRenderer()`.
-    if (
-      propsGl &&
-      typeof propsGl === "object" &&
-      !Array.isArray(propsGl) &&
-      typeof (propsGl as Renderer).render === "function" &&
-      typeof (propsGl as Renderer).setSize === "function"
-    ) {
+    if (isRenderer(propsGl)) {
       debugContext("gl", () => ({ source: "custom" }))
-      rendererInstance = propsGl as Renderer
+      rendererInstance = propsGl
     } else if (typeof propsGl === "function") {
       debugContext("gl", () => ({ source: "factory" }))
       rendererInstance = propsGl(canvas)
@@ -529,10 +523,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             _gl.shadowMap.type = type
           }
           if (changed) {
-            // `needsUpdate` only exists on `WebGLShadowMap`; Task 4 introduces
-            // `isWebGLShadowMap` for proper narrowing.
-            if ("needsUpdate" in _gl.shadowMap) {
-              ;(_gl.shadowMap as { needsUpdate: boolean }).needsUpdate = true
+            // WebGL-only: signals the renderer to re-bake. WebGPURenderer's
+            // shadowMap is `{ enabled, type }` without `needsUpdate`.
+            if (isWebGLShadowMap(_gl.shadowMap)) {
+              _gl.shadowMap.needsUpdate = true
             }
             debugEffects("shadow", () => ({
               action: "changed",
@@ -546,13 +540,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // XR connect — duck-typed to WebGLRenderer's `xr` until Task 4 lands
-      // `isWebXRManager` to discriminate WebGL vs WebGPU XR managers.
+      // XR connect — duck-typed via `isWebXRManager` so WebGPU's `XRManager`
+      // (which lacks `setAnimationLoop`) and renderers without `xr` are skipped.
       createRenderEffect(
         () => gl(),
         renderer => {
-          const xrManager = renderer.xr as WebGLRenderer["xr"] | undefined
-          if (xrManager) {
+          const xrManager = renderer.xr
+          if (isWebXRManager(xrManager)) {
             debugEffects("xr connect", () => ({ hasXR: true }))
             xrManager.addEventListener("sessionstart", handleSessionChange)
             xrManager.addEventListener("sessionend", handleSessionChange)
@@ -601,13 +595,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       // Apply props only for the config-object branch (not a renderer instance,
       // not a factory function).
       const _propsGl = props.gl
-      const isRendererInstance =
-        _propsGl &&
-        typeof _propsGl === "object" &&
-        !Array.isArray(_propsGl) &&
-        typeof (_propsGl as Renderer).render === "function" &&
-        typeof (_propsGl as Renderer).setSize === "function"
-      if (_propsGl && typeof _propsGl !== "function" && !isRendererInstance) {
+      if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
         debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
         useProps(gl, _propsGl as object)
       } else {
