@@ -348,13 +348,6 @@ function DemoClient(props: DemoProps) {
       <div class="demo-panes">
         <Show when={!isNarrow() || pane() === "editor"}>
           <div class="demo-editor-wrapper">
-            <Show when={code() !== initialCode}>
-              <div class="demo-reset-sticky">
-                <button type="button" class="demo-reset" onClick={resetCode}>
-                  Reset
-                </button>
-              </div>
-            </Show>
             <TmTextarea
               class="demo-editor"
               grammar="tsx"
@@ -363,6 +356,11 @@ function DemoClient(props: DemoProps) {
               editable
               onInput={event => setCode(event.currentTarget.value)}
             />
+            <Show when={code() !== initialCode}>
+              <button type="button" class="demo-reset" onClick={resetCode}>
+                Reset
+              </button>
+            </Show>
           </div>
         </Show>
         <Show when={!isNarrow() || pane() === "canvas"}>
