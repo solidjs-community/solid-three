@@ -3,6 +3,7 @@ import {
   createEffect,
   createMemo,
   createRenderEffect,
+  createResource,
   createRoot,
   mergeProps,
   onCleanup,
@@ -183,12 +184,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
-  // WebGPURenderer needs `await renderer.init()` before its first render. The
-  // render loop spins harmlessly until this flips true.
-  let glInitialized = false
 
   function render(timestamp: number, frame?: XRFrame) {
-    if (!context.gl || !glInitialized) {
+    // `WebGPURenderer.init()` must complete before the first render; the
+    // render loop spins harmlessly until the resource flips to "ready".
+    // WebGL renderers report ready synchronously on creation.
+    if (!context.gl || rendererReady.state !== "ready") {
       return
     }
     if (props.frameloop === "never") {
@@ -336,6 +337,39 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     })
   })
 
+  /**
+   * Renderer-init resource. Source tracks `gl()`; on every swap the fetcher
+   * runs and returns either:
+   * - a synchronous `true` (no `init()` method or already initialized) →
+   *   resource is `"ready"` immediately, render loop can render.
+   * - a Promise that resolves once `renderer.init()` finishes (WebGPU) →
+   *   resource is `"pending"` until then.
+   *
+   * Solid's `createResource` cancels stale in-flight fetches when the
+   * source changes, so we don't need a manual `cancelled` flag.
+   */
+  const [rendererReady] = createResource(
+    () => gl(),
+    renderer => {
+      const init = getPendingInit(renderer)
+      if (!init) return true
+      // Pre-size the canvas backing buffer before awaiting `init()`.
+      // WebGPURenderer allocates its depth attachment during `init()` based on
+      // the canvas's current `width`/`height`. An unsized canvas defaults to
+      // 300×150, so without this the first `setSize(...)` from the resize
+      // observer ends up with a 300×150 depth buffer paired with a full-size
+      // color buffer — WebGPU rejects that mismatch on the first frame.
+      // Mirrors r3f v10's WebGPU init handling (see pmndrs/react-three-fiber#3651).
+      const rect = canvas.getBoundingClientRect()
+      const ratio = globalThis.devicePixelRatio || 1
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width * ratio
+        canvas.height = rect.height * ratio
+      }
+      return init().then(() => true)
+    },
+  )
+
   const measure = useMeasure()
   measure.setElement(canvas)
 
@@ -462,35 +496,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         // shaped manager. Inner `xr.connect()`/`disconnect()` guards
         // reinforce this if `context.gl` swaps later.
         if (isWebXRManager(gl().xr)) context.xr.connect()
-      })
-
-      // Await async renderer init (WebGPURenderer requires this before the
-      // first render). For WebGLRenderer this branch is a no-op and
-      // `glInitialized` flips true synchronously.
-      createEffect(async () => {
-        const renderer = gl()
-        glInitialized = false
-        // Register synchronously so a renderer swap mid-init can abort.
-        let cancelled = false
-        onCleanup(() => {
-          cancelled = true
-        })
-
-        const init = getPendingInit(renderer)
-        if (init) {
-          // Size the canvas backing buffer before init so WebGPU allocates the
-          // depth attachment at the correct dimensions (otherwise the default
-          // 300×150 causes a size mismatch on the first resize).
-          const rect = canvas.getBoundingClientRect()
-          const ratio = globalThis.devicePixelRatio || 1
-          if (rect.width > 0 && rect.height > 0) {
-            canvas.width = rect.width * ratio
-            canvas.height = rect.height * ratio
-          }
-          await init()
-        }
-
-        if (!cancelled) glInitialized = true
       })
 
       // Color management and tone-mapping. Both WebGLRenderer and
