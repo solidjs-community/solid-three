@@ -8,22 +8,25 @@ The existing `playground/` (sidebar + canvas + `<details>`) stays intact during 
 
 ## Surface
 
-A new top-level **`tutorial/`** project at the repo root, a sibling to `playground/`.
+A new top-level **`tutorial/`** project at the repo root, a sibling to `playground/`. Built on **SolidStart + SolidBase** (`@kobalte/solidbase`).
 
-- Own `vite.config.ts`, `index.html`, `App.tsx`
-- Imports `../src` directly (same pattern as `playground/`)
-- Added as a workspace target so `pnpm --filter tutorial dev` works
+- SolidStart-based; its own `app.config.ts` / `vite.config.ts`
+- Imports `../src` directly (via a Vite plugin that bundles the workspace solid-three)
 - Deploys independently of `playground/`
+- **Extensibility note:** SolidBase is designed for documentation; later we plan to host reference docs alongside the tutorial in the same site.
+
+> **History:** An earlier iteration of this spec specified a plain Vite + custom-sidebar + long-scroll site. We pivoted to SolidBase because (a) it would let us host reference docs in the same project later, and (b) the MDX/Solid wiring it ships with is more robust than the custom integration. The long-scroll reading model was the cost of the pivot — see "Reading model" below.
 
 ## Reading model
 
-One long-scroll page contains every chapter in order.
+**Page-per-chapter**, with prominent prev/next navigation and a sidebar listing every chapter. Each chapter is its own `.mdx` route. Read linearly via prev/next, like the Svelte / Vue interactive tutorials.
 
-- Sidebar (left) lists Parts → Chapters. Clicking scrolls to that anchor.
-- URL hash (e.g. `#scene-graph`) updates as the reader scrolls, so deep links are shareable.
-- Each chapter has an `<h2>` anchor; subsections use `<h3>`.
-- Reading column is constrained to a comfortable text width (~70ch). Inline REPL blocks may break out wider when useful.
+- Sidebar (left) lists Parts → Chapters (grouped via SolidBase's `sidebar` config).
+- Active chapter highlighted; prev/next buttons at the bottom of each chapter.
+- Reading column constrained to SolidBase's default content width. Inline REPL blocks may break out wider when useful.
 - When the viewport is too narrow to show editor and canvas side-by-side, each `<Demo>` switches to a single-pane mode with a toggle (canvas ⇄ editor). Wide viewports show both at once.
+
+The narrative continuity (the spine of this design) is preserved by: a single ordered chapter list, clear prev/next, and prose that explicitly hands off from one chapter to the next.
 
 ## Page layout
 
@@ -38,20 +41,17 @@ No sticky canvas, no split panes. The story is the spine; demos are figures.
 
 ## REPL integration
 
-Built on **`@bigmistqke/repl`** (sibling repo at `../repl`).
+Built on **`@bigmistqke/repl`** (sibling repo at `../repl`), consumed via `link:../repl`.
 
-Two prerequisites are NOT supported by `@bigmistqke/repl` today and must be added there as part of this work:
+`@bigmistqke/repl`'s existing `transformModulePaths` API supports per-specifier import resolution — no upstream changes needed for this design.
 
-1. **Workspace-relative import resolution.** Snippets must be able to write `import { Canvas } from "solid-three"` (or similar) and have the REPL resolve to the local `../src`, not a published version.
-2. **Continuous releases via tarball.** So `tutorial/` can depend on the local `@bigmistqke/repl` build during development without publishing.
+Local `solid-three` is exposed to iframe snippets via a custom Vite plugin that bundles `../src/index.ts` (externalising `solid-js`, `solid-js/web`, `solid-js/store`, `three`) and serves it at `/@tutorial/solid-three.js`. The iframe's import map pins `solid-js` and `three` to esm.sh so singletons match across snippet code and solid-three internals.
 
-Both are upstream work in `../repl`. This design assumes that work happens in tandem; the tutorial scaffolding can begin in parallel using a stub `<Demo>` component.
+A thin `<Demo>` wrapper inside `tutorial/src/components/` provides:
 
-A thin `<Demo>` wrapper inside `tutorial/` provides:
-
-- A unified API (`<Demo code={...} />` or `<Demo>{raw-string}</Demo>`)
-- Pre-wired Vite config for resolving `solid-three`, `three` against the workspace
-- The reset / persistence behavior described above
+- A unified API (`<Demo code={...} />`)
+- The Vite-plugin-served local solid-three bundle as the resolution target for `import "solid-three"`
+- localStorage persistence per snippet; reset button
 
 ## Chapter outline
 
@@ -94,7 +94,7 @@ Six parts, 17 chapters. Each chapter introduces one concept.
 
 ## Authoring format — MDX
 
-Chapters are written in **MDX** (`.mdx`), not raw `.tsx`. Prose is plain Markdown; demos are JSX components embedded in the same file:
+Chapters are written in **MDX** (`.mdx`). MDX support is built into SolidBase. Prose is plain Markdown; demos are JSX components embedded in the same file:
 
 ```mdx
 # Hello, Canvas
@@ -111,36 +111,36 @@ The canvas is empty — we haven't put anything in the scene yet.
 
 Build setup:
 
-- `@mdx-js/rollup` plugin in `vite.config.ts`, configured with a Solid JSX runtime (`solid-mdx` or equivalent)
-- A shared `MDXProvider` (or component prop) makes `<Demo>` and any other tutorial components available in every chapter without per-file imports
-- Frontmatter (via `remark-frontmatter` + `remark-mdx-frontmatter`) carries chapter metadata: `id`, `title`, `part`. The sidebar is generated from this.
-
-This is a small new dependency surface; an early implementation step is to verify MDX-with-Solid works in this project.
+- MDX handled by SolidBase's built-in pipeline (no manual `@mdx-js/rollup` wiring required).
+- A custom **theme `componentsPath`** exports `<Demo>` as a named export — SolidBase injects it globally into all MDX, so no per-chapter import.
+- Frontmatter carries chapter metadata (`title`, etc.). Sidebar grouping is configured in `app.config.ts` / `vite.config.ts`.
 
 ## File / directory shape
 
 ```
 tutorial/
-  index.html
-  vite.config.ts
+  app.config.ts                       # SolidStart + SolidBase config (sidebar lives here)
+  vite.config.ts                      # additional Vite plugins (solid-three pre-bundle)
   package.json
   tsconfig.json
   src/
-    main.tsx
-    App.tsx
-    sidebar.tsx
-    demo.tsx                 # the <Demo> wrapper around @bigmistqke/repl
-    mdx-components.tsx       # shared component map (Demo, etc.)
-    chapters/
+    app.tsx                           # SolidStart root, wraps with <SolidBaseRoot>
+    entry-client.tsx
+    entry-server.tsx
+    components/
+      demo.tsx                        # <Demo> wrapper around @bigmistqke/repl
+    theme/
+      mdx-components.tsx              # exports <Demo> globally for MDX
+      style.css                       # any theme overrides
+    routes/
+      index.mdx                       # landing page
       01-hello-canvas.mdx
       02-t-proxy.mdx
-      03-scene-graph.mdx
       ...
       17-environment-scene.mdx
-    index.css
 ```
 
-Each chapter `.mdx` file contains prose + `<Demo>` blocks + frontmatter. `App.tsx` imports them in order via a Vite glob and renders them as one long page. The sidebar is generated from each chapter module's frontmatter export.
+Each chapter `.mdx` lives at `src/routes/NN-<id>.mdx`, becomes a route, and contains prose + `<Demo>` blocks + frontmatter. The sidebar order and grouping (Parts I-VI) is configured in `app.config.ts` / `vite.config.ts`.
 
 ## Out of scope
 
@@ -152,9 +152,4 @@ Each chapter `.mdx` file contains prose + `<Demo>` blocks + frontmatter. `App.ts
 
 ## Dependencies on `../repl`
 
-The tutorial's REPL story depends on changes landing in `../repl`:
-
-- **Workspace import resolution** — REPL must accept a resolver/config mapping import specifiers to local files
-- **Tarball release flow** — so `tutorial/`'s `package.json` can depend on a built tarball during development
-
-These are tracked as part of the implementation plan, not this design.
+`@bigmistqke/repl` is consumed via `link:../repl`. Its existing `transformModulePaths` API satisfies the tutorial's needs without upstream changes. Tarball-based releases remain a known gap for `../repl` but are not required for this tutorial design (deferred to whatever publishes the tutorial as a static site).
