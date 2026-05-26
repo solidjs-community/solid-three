@@ -7,6 +7,11 @@ import remarkMdxFrontmatter from "remark-mdx-frontmatter"
 
 export default defineConfig({
   base: "./",
+  resolve: {
+    alias: {
+      "solid-three": new URL("../src/index.ts", import.meta.url).pathname,
+    },
+  },
   plugins: [
     tsconfig(),
     {
