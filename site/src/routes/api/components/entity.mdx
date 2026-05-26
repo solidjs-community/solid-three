@@ -43,7 +43,7 @@ interface EntityProps {
 
 ## createEntity
 
-`createT` is built on top of `createEntity`, which creates a single typed component from one Three.js constructor. Use it directly when you need a one-off component without building a full namespace:
+`createEntity` creates a single typed component from one `three.js` constructor — the same primitive [`createT`](/api/components/t) uses internally to build a whole namespace. Use it directly when you need a one-off component without building a full namespace:
 
 ```tsx
 import { createEntity } from "solid-three"

@@ -19,9 +19,9 @@
 2. [Basic Usage](#basic-usage)
 3. [Components](#components)
    - [Canvas](#canvas)
-   - [T](#t)
-     - [createEntity](#createentity)
    - [Entity](#entity)
+     - [createEntity](#createentity)
+   - [T](#t)
    - [Portal](#portal)
    - [Resource](#resource)
 4. [Hooks](#hooks)
@@ -336,6 +336,22 @@ function Good(props: { shape: "box" | "sphere" }) {
 
 These patterns automatically trigger `needsUpdate` flags on materials and geometries when necessary.
 
+#### createEntity
+
+`createEntity` creates a single typed component from one `three.js` constructor — the same primitive [`createT`](#t) uses internally to build a whole namespace. Use it directly when you need a one-off component without building a full namespace:
+
+```tsx
+import { createEntity } from "solid-three"
+import { Mesh } from "three"
+
+const MeshComponent = createEntity(Mesh)
+
+// Equivalent to <T.Mesh /> but without the full namespace
+<MeshComponent position={[0, 1, 0]}>
+  ...
+</MeshComponent>
+```
+
 ### T
 
 The `T` namespace contains components that wrap `three.js` objects, allowing you to insert them into your scene declaratively. You create the namespace using the `createT()` factory function:
@@ -374,21 +390,7 @@ const T = createT({ Mesh, BoxGeometry, MeshBasicMaterial })
 - **In Libraries**: create multiple `T` to allow for treeshaking or use [`<Entity/>`](#entity) instead
 - **Multiple Ts**: Create multiple T instances for lazy loading different parts of three.js
 
-#### createEntity
-
-`createT` is built on top of `createEntity`, which creates a single typed component from one Three.js constructor. Use it directly when you need a one-off component without building a full namespace:
-
-```tsx
-import { createEntity } from "solid-three"
-import { Mesh } from "three"
-
-const MeshComponent = createEntity(Mesh)
-
-// Equivalent to <T.Mesh /> but without the full namespace
-<MeshComponent position={[0, 1, 0]}>
-  ...
-</MeshComponent>
-```
+For a single typed component without building a full namespace, see [`createEntity`](#createentity) under Entity.
 
 ### Portal
 
