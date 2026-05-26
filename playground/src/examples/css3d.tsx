@@ -39,18 +39,25 @@ const cards = [
 ]
 
 function Card(props: { label: string; color: string; index: number }) {
-  const element = document.createElement("div")
-  element.textContent = props.label
-  element.style.cssText = `
-    width: 200px; height: 120px;
-    display: flex; align-items: center; justify-content: center;
-    font: 600 28px system-ui, sans-serif;
-    color: white;
-    background: ${props.color};
-    border: 4px solid white;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
-  `
+  const element = (
+    <div
+      style={{
+        width: "200px",
+        height: "120px",
+        display: "flex",
+        "align-items": "center",
+        "justify-content": "center",
+        font: "600 28px system-ui, sans-serif",
+        color: "white",
+        background: props.color,
+        border: "4px solid white",
+        "border-radius": "12px",
+        "box-shadow": "0 8px 30px rgba(0,0,0,0.35)",
+      }}
+    >
+      {props.label}
+    </div>
+  ) as unknown as HTMLDivElement
   const css = new CSS3DObject(element)
 
   const angle = (props.index / cards.length) * Math.PI * 2
