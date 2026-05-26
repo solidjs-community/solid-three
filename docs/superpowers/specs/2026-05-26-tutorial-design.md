@@ -23,6 +23,7 @@ One long-scroll page contains every chapter in order.
 - URL hash (e.g. `#scene-graph`) updates as the reader scrolls, so deep links are shareable.
 - Each chapter has an `<h2>` anchor; subsections use `<h3>`.
 - Reading column is constrained to a comfortable text width (~70ch). Inline REPL blocks may break out wider when useful.
+- When the viewport is too narrow to show editor and canvas side-by-side, each `<Demo>` switches to a single-pane mode with a toggle (canvas ⇄ editor). Wide viewports show both at once.
 
 ## Page layout
 
@@ -91,6 +92,31 @@ Six parts, 17 chapters. Each chapter introduces one concept.
 16. **A solar system** — built from scratch, step by step (reuses the existing `examples/solar.tsx` material)
 17. **An environment scene** — loaders + lighting + post
 
+## Authoring format — MDX
+
+Chapters are written in **MDX** (`.mdx`), not raw `.tsx`. Prose is plain Markdown; demos are JSX components embedded in the same file:
+
+```mdx
+# Hello, Canvas
+
+Every solid-three app starts by mounting a `<Canvas>`.
+
+<Demo>{`
+  import { Canvas } from "solid-three"
+  export default () => <Canvas />
+`}</Demo>
+
+The canvas is empty — we haven't put anything in the scene yet.
+```
+
+Build setup:
+
+- `@mdx-js/rollup` plugin in `vite.config.ts`, configured with a Solid JSX runtime (`solid-mdx` or equivalent)
+- A shared `MDXProvider` (or component prop) makes `<Demo>` and any other tutorial components available in every chapter without per-file imports
+- Frontmatter (via `remark-frontmatter` + `remark-mdx-frontmatter`) carries chapter metadata: `id`, `title`, `part`. The sidebar is generated from this.
+
+This is a small new dependency surface; an early implementation step is to verify MDX-with-Solid works in this project.
+
 ## File / directory shape
 
 ```
@@ -104,16 +130,17 @@ tutorial/
     App.tsx
     sidebar.tsx
     demo.tsx                 # the <Demo> wrapper around @bigmistqke/repl
+    mdx-components.tsx       # shared component map (Demo, etc.)
     chapters/
-      01-hello-canvas.tsx
-      02-t-proxy.tsx
-      03-scene-graph.tsx
+      01-hello-canvas.mdx
+      02-t-proxy.mdx
+      03-scene-graph.mdx
       ...
-      17-environment-scene.tsx
+      17-environment-scene.mdx
     index.css
 ```
 
-Each chapter file exports a Solid component containing its prose + `<Demo>` blocks. `App.tsx` imports them in order and renders them as one long page. The sidebar is generated from chapter metadata (id, title, part).
+Each chapter `.mdx` file contains prose + `<Demo>` blocks + frontmatter. `App.tsx` imports them in order via a Vite glob and renders them as one long page. The sidebar is generated from each chapter module's frontmatter export.
 
 ## Out of scope
 
