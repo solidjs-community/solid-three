@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import WebGPURenderer from "three/addons/renderers/webgpu/WebGPURenderer.js"
+import { WebGPURenderer } from "three/webgpu"
 import { Canvas, createT, useFrame } from "../../../src/index.ts"
 import { OrbitControls } from "../../controls/orbit-controls.tsx"
 

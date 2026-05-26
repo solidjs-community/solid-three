@@ -1,6 +1,6 @@
 import * as THREE from "three"
-import { MeshBasicNodeMaterial, mix, sin, timerLocal, uv, vec3 } from "three/nodes"
-import WebGPURenderer from "three/addons/renderers/webgpu/WebGPURenderer.js"
+import { mix, sin, time, uv, vec3 } from "three/tsl"
+import { MeshBasicNodeMaterial, WebGPURenderer } from "three/webgpu"
 import { Canvas, createT, useFrame } from "../../../src/index.ts"
 import { OrbitControls } from "../../controls/orbit-controls.tsx"
 
@@ -12,9 +12,9 @@ const T = createT({ ...THREE, MeshBasicNodeMaterial })
  * GPU; `uv()` is the per-fragment UV; `mix`/`sin` are TSL math ops.
  */
 function buildColorNode() {
-  const time = timerLocal()
-  const stripes = sin(uv().x.mul(20).add(time.mul(2)))
-  const wash = sin(uv().y.mul(8).sub(time))
+  const t = time
+  const stripes = sin(uv().x.mul(20).add(t.mul(2)))
+  const wash = sin(uv().y.mul(8).sub(t))
   return mix(vec3(0.95, 0.3, 0.6), vec3(0.2, 0.7, 1.0), stripes.mul(0.5).add(wash.mul(0.5)))
 }
 
