@@ -1,4 +1,5 @@
 import {
+  babelTransform,
   createFileUrlSystem,
   createHTMLExtension,
   PathUtils,
@@ -53,37 +54,99 @@ function resolveBareSpecifier(specifier: string): string {
   return `${externalEsmHost}/${specifier}?${externalDepsParam}`
 }
 
+// Load Babel + babel-preset-solid lazily from esm.sh. We want the real Solid
+// JSX transform (which compiles JSX to `_$template` / `_$insert` calls)
+// rather than the React JSX runtime — Solid's `jsx-runtime` doesn't export a
+// `jsx` function.
+//
+// TS syntax is stripped first via `ts.transpile` with `JsxEmit.Preserve` so
+// Babel only has to worry about JSX. (`@babel/preset-typescript` requires a
+// `filename` option that `babelTransform` doesn't forward, so doing the TS
+// strip up-front sidesteps that.)
+//
+// The promise is created on first access (client-only) so SSR never triggers
+// the CDN imports.
+type SnippetTransform = (source: string, path: string) => string
+let babelTransformPromise: Promise<SnippetTransform> | undefined
+function getBabelTransformPromise(): Promise<SnippetTransform> {
+  if (!babelTransformPromise) {
+    babelTransformPromise = babelTransform({
+      presets: [["babel-preset-solid", { generate: "dom", hydratable: false }]],
+    })
+  }
+  return babelTransformPromise
+}
+
+function stripTypeScript(source: string): string {
+  return ts.transpile(source, {
+    jsx: ts.JsxEmit.Preserve,
+    target: ts.ScriptTarget.ESNext,
+    module: ts.ModuleKind.ESNext,
+  })
+}
+
+function rewriteModulePaths({
+  source,
+  path,
+  fileUrls,
+}: {
+  source: string
+  path: string
+  fileUrls: { get(path: string): string | undefined }
+}): string {
+  const apply = transformModulePaths({
+    ts,
+    source,
+    transform: modulePath => {
+      if (modulePath.startsWith(".") || modulePath.startsWith("/")) {
+        return fileUrls.get(PathUtils.resolvePath(path, modulePath)) ?? modulePath
+      }
+      if (PathUtils.isUrl(modulePath)) {
+        return modulePath
+      }
+      return resolveBareSpecifier(modulePath)
+    },
+  })
+  return apply()
+}
+
+// Module-level signal that publishes the resolved Babel transform once the
+// dynamic CDN imports settle. Created client-side on first call to
+// `ensureBabelLoaded` so SSR never kicks off the network fetch.
+const [babelSnippetTransform, setBabelSnippetTransform] = createSignal<
+  SnippetTransform | undefined
+>(undefined)
+let babelLoadStarted = false
+function ensureBabelLoaded(): void {
+  if (babelLoadStarted) return
+  babelLoadStarted = true
+  getBabelTransformPromise()
+    .then(transform => setBabelSnippetTransform(() => transform))
+    .catch(error => {
+      // Surface load failures in the host console; the iframe will remain
+      // showing the placeholder empty module.
+      console.error("[demo] Failed to load babel-preset-solid:", error)
+    })
+}
+
 const tsxExtension: Extension = {
   type: "javascript",
   transform: ({ source, path, fileUrls }) => {
-    const transpiled = ts.transpile(source, {
-      jsx: ts.JsxEmit.Preserve,
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-    })
-    // Run a second pass to compile JSX (preserve -> react-jsx-ish via solid).
-    // We use Solid's JSX compilation by post-processing through TypeScript's
-    // JSX=react-jsx mode targeting solid-js/h, which is good enough for the
-    // tutorial snippets that lean on <T.mesh /> style proxies.
-    const jsxCompiled = ts.transpile(transpiled, {
-      jsx: ts.JsxEmit.ReactJSX,
-      jsxImportSource: "solid-js",
-      target: ts.ScriptTarget.ESNext,
-      module: ts.ModuleKind.ESNext,
-    })
-    return transformModulePaths({
-      ts,
-      source: jsxCompiled,
-      transform: modulePath => {
-        if (modulePath.startsWith(".") || modulePath.startsWith("/")) {
-          return fileUrls.get(PathUtils.resolvePath(path, modulePath)) ?? modulePath
-        }
-        if (PathUtils.isUrl(modulePath)) {
-          return modulePath
-        }
-        return resolveBareSpecifier(modulePath)
-      },
-    })
+    ensureBabelLoaded()
+    // Return an Accessor so the transformed source updates once Babel +
+    // presets finish loading from the CDN.
+    return () => {
+      const transform = babelSnippetTransform()
+      if (!transform) {
+        // Babel not ready yet — emit a no-op default export so importers
+        // (main.tsx) can still resolve; the file URL will be re-created when
+        // Babel resolves and this accessor re-runs.
+        return "export default function Placeholder() { return null }\n"
+      }
+      const stripped = stripTypeScript(source)
+      const compiled = transform(stripped, path)
+      return rewriteModulePaths({ source: compiled, path, fileUrls })
+    }
   },
 }
 
@@ -263,7 +326,7 @@ function DemoClient(props: DemoProps) {
           <iframe
             class="demo-canvas"
             src={iframeSrc() ?? "about:blank"}
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-same-origin"
           />
         </Show>
       </div>
