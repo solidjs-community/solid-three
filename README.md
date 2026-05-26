@@ -1175,24 +1175,68 @@ const MyTest = () => {
 
 ### Event Object
 
-Event handlers receive an event object with the following properties:
+Every handler receives a single event argument that combines the original DOM event with the raycast result.
 
-- **nativeEvent**: The original DOM event
-- **stopped**: Whether propagation has been stopped (only for stoppable events)
-- **stopPropagation**: Method to stop event propagation (only for stoppable events)
+| Property              | Type                                       | When present              | Description                                                                                                |
+| --------------------- | ------------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                    | The original DOM event the handler was triggered by.                                                       |
+| `intersections`       | `Intersection[]`                           | events that raycast       | All hit intersections, sorted nearest-first.                                                               |
+| `intersection`        | `Intersection`                             | events that raycast       | Shorthand for `intersections[0]` — the closest hit overall.                                                |
+| `currentIntersection` | `Intersection`                             | inside an object handler  | The intersection corresponding to the current handler's object. Omitted on canvas-level dispatch.          |
+| `stopped`             | `boolean`                                  | stoppable events only     | Whether `stopPropagation()` has been called.                                                               |
+| `stopPropagation`     | `() => void`                               | stoppable events only     | Stops both raycast and tree propagation.                                                                   |
+
+`*Missed` events do not raycast: their event object is just `{ nativeEvent }`.
+
+Each `Intersection` is a standard [three.js `Intersection`](https://threejs.org/docs/#api/en/core/Raycaster.intersectObject) and carries:
+
+- `object` — the hit `Object3D`
+- `point` — world-space hit position (`Vector3`)
+- `distance` — distance from the ray origin
+- `face`, `faceIndex` — hit face on the geometry (when available)
+- `uv`, `uv1` — texture coordinates at the hit (when available)
+- `normal` — face normal at the hit (when available)
+- `instanceId` — for `InstancedMesh` hits
 
 <details>
 <summary>Typescript Interface</summary>
 
 ```tsx
-interface Event<T> {
-  nativeEvent: T
-  stopped?: boolean
-  stopPropagation?: () => void
-}
+type ThreeEvent<TNativeEvent, TConfig = { stoppable: true; intersections: true }> = {
+  nativeEvent: TNativeEvent
+} & (TConfig["stoppable"] extends false
+  ? {}
+  : { stopped: boolean; stopPropagation: () => void }) &
+  (TConfig["intersections"] extends false
+    ? {}
+    : {
+        intersection: Intersection
+        intersections: Intersection[]
+        currentIntersection: Intersection
+      })
 ```
 
+`onClick`, `onContextMenu`, `onDoubleClick`, `on*Move`, `on*Down`, `on*Up`, `onWheel` receive the full event (stoppable + intersections).
+
+`onMouseEnter`, `onMouseLeave`, `onPointerEnter`, `onPointerLeave` receive intersections but cannot be stopped.
+
+`onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` receive only `{ nativeEvent }`.
+
 </details>
+
+**Reading the full hit stack:**
+
+For "x-ray" tools, measure-through-walls, or click-through selection, `intersections` is sorted nearest-first:
+
+```tsx
+<T.Mesh
+  onClick={event => {
+    for (const hit of event.intersections) {
+      console.log(hit.distance, hit.object.name)
+    }
+  }}
+/>
+```
 
 ### Event Propagation
 
