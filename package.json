@@ -115,6 +115,11 @@
     "solid-js": "*",
     "three": "*"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "jest": {
     "preset": "scripts/jest/node"
   }
