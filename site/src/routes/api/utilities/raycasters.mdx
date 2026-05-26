@@ -1,0 +1,101 @@
+---
+title: Raycasters
+---
+
+# Raycasters
+
+`solid-three` provides custom raycaster implementations that handle pointer tracking internally. All raycasters extend THREE.Raycaster and implement the `EventRaycaster` interface.
+
+The interface adds one method to the standard THREE.Raycaster:
+
+- **update**: Called automatically before intersection testing to update the raycaster's position based on the event
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+interface EventRaycaster extends THREE.Raycaster {
+  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context): void
+}
+```
+
+</details>
+
+**When `update()` is called:**
+
+The `update()` method is automatically called by `solid-three`'s event system whenever:
+
+- **Mouse events**: `click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`
+- **Pointer events**: `pointerdown`, `pointerup`, `pointermove`
+- **Wheel events**: `wheel`
+
+This happens before intersection testing, ensuring the raycaster is properly positioned for accurate 3D object detection.
+
+## CursorRaycaster
+
+The default raycaster that tracks the cursor position:
+
+```tsx
+import { Canvas } from "solid-three"
+import { CursorRaycaster } from "solid-three"
+
+const App = () => {
+  const raycaster = new CursorRaycaster()
+
+  // CursorRaycaster is used by default, but you can explicitly set it:
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+}
+```
+
+## CenterRaycaster
+
+A raycaster that always casts from the center of the screen:
+
+```tsx
+import { Canvas } from "solid-three"
+import { CenterRaycaster } from "solid-three"
+
+const App = () => {
+  const raycaster = new CenterRaycaster()
+
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+}
+```
+
+## Creating Your Own Raycaster
+
+You can create custom raycasters by extending THREE.Raycaster and (optionally) implementing the `EventRaycaster` interface:
+
+```tsx
+import { Raycaster, Vector2 } from "three"
+import type { EventRaycaster, Context } from "solid-three"
+
+class CustomRaycaster extends Raycaster implements EventRaycaster {
+  constructor() {
+    super()
+    // Initialize your custom raycaster
+  }
+
+  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context) {
+    const pointer = new Vector2()
+
+    // Calculate normalized device coordinates based on your custom logic
+
+    // Example: Apply custom transformation to pointer coordinates
+    pointer.x = ((event.offsetX / context.bounds.width) * 2 - 1) * 0.5 // Scale down horizontal movement
+    pointer.y = (-(event.offsetY / context.bounds.height) * 2 + 1) * 0.5 // Scale down vertical movement
+
+    // Update the raycaster with the transformed coordinates
+    this.setFromCamera(pointer, context.camera)
+  }
+}
+
+// Usage
+const App = () => {
+  const raycaster = new CustomRaycaster()
+
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+}
+```
+
+See also the [raycaster tutorial chapter](/tutorial/07-raycaster).

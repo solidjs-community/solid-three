@@ -1,0 +1,65 @@
+---
+title: LoaderCache
+---
+
+# LoaderCache
+
+`LoaderCache` is the default cache-manager for [`useLoader`](/api/hooks/use-loader). It implements the `LoaderRegistry` interface and adds additional methods to simplify managing the cached resources.
+
+**Features:**
+
+- **Automatic Reference Counting**: Tracks if a resource is currently actively in-use
+- **Deferred Disposal**: Resources are added to a free list when no longer referenced
+- **Disposal Methods**: Several methods to ease managing disposal of resources
+  - **dispose(loader, path)**: dispose a resource based on loader and path
+  - **disposeResource(resource)**: dispose a resource by passing the resource directly
+  - **disposeFreeList()**: dispose all currently not referenced resources
+
+**Example:**
+
+```tsx
+const TexturedBox = () => {
+  // This increments the reference count for 'texture.jpg'
+  const texture = useLoader(TextureLoader, "texture.jpg")
+
+  // When this component unmounts, the reference count decreases
+  // If it reaches zero, the texture is added to the free list
+  return (
+    <T.Mesh>
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial map={texture()} />
+    </T.Mesh>
+  )
+}
+
+// Multiple components can share the same cached resource
+const Scene = () => (
+  <>
+    <TexturedBox /> {/* ref count: 1 */}
+    <TexturedBox /> {/* ref count: 2 */}
+    <TexturedBox /> {/* ref count: 3 */}
+  </>
+)
+
+const App = () => {
+  const [visible, setVisible] = createSignal(true)
+
+  onMount(() => {
+    // Texture will not be disposed because it is referenced (3 times)
+    useLoader.cache.disposeFreeList()
+
+    setVisible(false)
+
+    // Texture will be disposed because it is not referenced anymore
+    useLoader.cache.disposeFreeList()
+  })
+
+  return (
+    <Canvas>
+      <Show when={visible}>
+        <Scene />
+      </Show>
+    </Canvas>
+  )
+}
+```

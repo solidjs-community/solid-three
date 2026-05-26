@@ -1,0 +1,22 @@
+---
+title: Metadata
+---
+
+# Metadata Utilities
+
+These utilities help manage metadata associated with THREE.js objects:
+
+- **getMeta(object)**: Get metadata associated with a THREE.js object
+- **hasMeta(object)**: Check if an object has metadata
+- **meta**: WeakMap storing object metadata
+- **$S3C**: Symbol used internally for component metadata
+
+```tsx
+import { getMeta, hasMeta } from "solid-three"
+
+// Check if an object has solid-three metadata
+if (hasMeta(mesh)) {
+  const metadata = getMeta(mesh)
+  console.log(metadata)
+}
+```

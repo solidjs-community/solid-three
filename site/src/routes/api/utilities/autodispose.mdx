@@ -1,0 +1,45 @@
+---
+title: autodispose
+---
+
+# autodispose
+
+The `autodispose` utility ensures that three.js objects are properly disposed on cleanup.
+
+**Use cases:**
+
+Working with conditional rendering where objects need cleanup
+
+```tsx
+import { Show, createSignal } from "solid-js"
+import { Entity, autodispose } from "solid-three"
+import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
+
+const [visible, setVisible] = createSignal(true)
+
+// These will be disposed when ConditionalMesh unmounts
+const geometry = autodispose(new BoxGeometry())
+const material = autodispose(new MeshBasicMaterial())
+
+return (
+  <Show when={visible()}>
+    <Entity from={new Mesh(geometry, material)} />
+  </Show>
+)
+```
+
+Creating reusable instances that should be disposed with the component
+
+```tsx
+const geometry = autodispose(new THREE.SphereGeometry(0.3, 16, 16))
+const material = autodispose(new THREE.MeshStandardMaterial())
+
+<Index each={Array.from({ length: instanceCount() })}>
+  {(_, i) => (
+    <T.Mesh position={[(i - instanceCount() / 2) * 0.8, 0, 0]}>
+      <Entity from={geometry} />
+      <Entity from={material} />
+    </T.Mesh>
+  )}
+</Index>
+```

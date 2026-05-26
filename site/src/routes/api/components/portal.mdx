@@ -1,0 +1,35 @@
+---
+title: Portal
+---
+
+# Portal
+
+The `Portal` component allows you to place children outside the regular scene graph while maintaining reactive updates. This is useful for rendering objects into different scenes or bypassing the normal parent-child relationships.
+
+**Props:**
+
+- **element**: Optional `three.js` object to render into. If not provided, renders into the root scene.
+- **children**: Elements to render in the portal.
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+type PortalProps<T extends Object3D> = ParentProps<{
+  element?: T | Meta<T>
+  onUpdate?(value: T): void
+}>
+```
+
+</details>
+
+Example:
+
+```tsx
+<Portal element={uiScene}>
+  <T.Mesh position={[2, 0, 0]}>
+    <T.SphereGeometry args={[15, 32, 16]} />
+    <T.MeshBasicMaterial color="red" />
+  </T.Mesh>
+</Portal>
+```

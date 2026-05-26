@@ -1,0 +1,106 @@
+---
+title: Entity
+---
+
+# Entity
+
+The `Entity` component provides an alternative way to create three.js objects without needing to pre-create a T namespace. This is particularly useful in libraries or when working with dynamic object types:
+
+You can pass a constructor
+
+```tsx
+<Entity from={Mesh}>
+  <Entity from={BoxGeometry} args={[1, 1, 1]} />
+  <Entity from={MeshBasicMaterial} args={[{"orange"}]} />
+</Entity>
+```
+
+or pass an instance
+
+```tsx
+const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial('orange))
+<Entity from={mesh} position={[0, 0, 0]} />
+```
+
+**Props:**
+
+- **from**: Either a three.js constructor (class) or an existing instance
+- **args**: Arguments to pass to the constructor when using a class
+- All other props supported by the three.js object
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+interface EntityProps {
+  from: Constructor | Instance
+  args?: ConstructorParameters
+  // Plus all THREE.js object props
+}
+```
+
+</details>
+
+## Manual disposal of instance-entities
+
+When passing an instance to `<Entity from={...}/>` disposal need to be handled manually. This can be done via the [`autodispose`](/api/utilities/autodispose) utility.
+
+**Wrong**
+
+If you do not dispose of box/sphere after the component unmounts, threejs will retain the resource in memory.
+
+```tsx
+function Wrong(props: { shape: "box" | "sphere" }) {
+  const box = new BoxGeometry()
+  const sphere = new SphereGeometry()
+  return (
+    <Show when={props.shape === "box"} fallback={<Entity from={sphere} />}>
+      <Entity from={box} />
+    </Show>
+  )
+}
+```
+
+**Good**
+
+By wrapping `BoxGeometry` and `SphereGeometry` in `autodispose`, the resources are automatically disposed once the component cleans up.
+
+```tsx
+function Good(props: { shape: "box" | "sphere" }) {
+  const box = autodispose(new BoxGeometry())
+  const sphere = autodispose(new SphereGeometry())
+  return (
+    <Show when={props.shape === "box"} fallback={<Entity from={sphere} />}>
+      <Entity from={box} />
+    </Show>
+  )
+}
+```
+
+## Advanced Prop Patterns
+
+`solid-three` supports advanced prop attachment patterns for precise control:
+
+```tsx
+<Entity
+  from={MeshStandardMaterial}
+  // Direct property setting
+  color="red"
+  // Nested property access with dot notation
+  material-color="blue"
+  // Sub-property access with hyphens
+  position-x={2}
+  rotation-y={Math.PI / 4}
+  scale-z={0.5}
+  // Deep nested properties
+  material-emissive-intensity={0.5}
+/>
+```
+
+**Supported patterns:**
+
+- **Direct props**: `color="red"` → `object.color = "red"`
+- **Hyphen notation**: `position-x={1}` → `object.position.x = 1`
+- **Deep nesting**: `material-emissive-intensity={0.5}` → `object.material.emissive.intensity = 0.5`
+
+These patterns automatically trigger `needsUpdate` flags on materials and geometries when necessary. See also the [chapter on smart props](/tutorial/03-smart-props).

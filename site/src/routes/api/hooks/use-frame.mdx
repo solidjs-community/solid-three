@@ -1,0 +1,56 @@
+---
+title: useFrame
+---
+
+# useFrame
+
+Registers a callback that will be called before every frame is rendered, useful for animations and updates.
+
+**Parameters:**
+
+- **callback** - Function called each frame with:
+  - **context** - The three.js context object (same as [`useThree()`](/api/hooks/use-three))
+  - **delta** - Time elapsed since last frame in seconds
+  - **frame** - Optional XRFrame for WebXR sessions
+- **options** - Optional configuration object:
+  - **priority** - Execution priority (lower numbers run first, default: 0)
+  - **stage** - Whether to run before or after rendering (default: "before")
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+useFrame(
+  callback: (context: Context, delta: number, frame?: XRFrame) => void,
+  options?: {
+    priority?: number
+    stage?: "before" | "after"
+  }
+): () => void
+```
+
+</details>
+
+**Usage:**
+
+```tsx
+let mesh: THREE.Mesh = null!
+
+// Run with high priority before render
+useFrame(
+  (context, delta) => {
+    mesh.position.x = Math.sin(delta) * 2
+  },
+  { priority: -1 },
+)
+
+// Run after render with lower priority
+useFrame(
+  (context, delta) => {
+    console.info("Frame rendered")
+  },
+  { stage: "after", priority: 10 },
+)
+```
+
+See also the [useFrame tutorial chapter](/tutorial/08-use-frame).

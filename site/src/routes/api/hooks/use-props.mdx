@@ -1,0 +1,61 @@
+---
+title: useProps
+---
+
+# useProps
+
+The `useProps` hook manages and applies `solid-three` props to THREE.js objects. It sets up reactive effects to ensure properties are correctly applied and updated, manages children attachment, and handles automatic disposal.
+
+**Parameters:**
+
+- **object**: An accessor function that returns the target THREE.js object
+- **props**: Object containing props to apply (including `ref`, `children`, and THREE.js properties)
+
+<details>
+<summary>Typescript Signature</summary>
+
+```tsx
+function useProps<T extends object>(object: Accessor<T>, props: any): void
+```
+
+</details>
+
+**Usage:**
+
+This hook is primarily used internally by `solid-three` components, but can be useful when creating custom components or integrating existing THREE.js objects:
+
+```tsx
+const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
+
+// Apply solid-three props reactively to the mesh
+useProps(mesh, props)
+```
+
+**What it handles:**
+
+- **Reactive prop updates**: Automatically applies prop changes to the THREE.js object
+- **Ref assignment**: Handles both function refs and object refs
+- **Children management**: Attaches/detaches child objects from the scene graph
+- **Automatic disposal**: Cleans up the object when the component unmounts
+- **Special props**: Processes `onUpdate` callbacks after prop applications
+
+**Advanced usage:**
+
+```tsx
+export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
+  const three = useThree()
+  const controls = createMemo<ThreeOrbitControls>(previous => {
+    const controls = autodispose(new ThreeOrbitControls(three.camera))
+    controls.connect(three.gl.domElement)
+    return controls
+  })
+
+  useFrame(() => controls().update())
+
+  useProps(controls, rest)
+
+  return null!
+}
+```
+
+See also the [custom components tutorial chapter](/tutorial/12-custom-components).

@@ -4,5 +4,80 @@ title: API reference
 
 # API reference
 
-*Reference docs are coming soon. In the meantime, see the README on GitHub
-or jump into the [tutorial](/tutorial/01-your-first-scene).*
+Reference docs for every public export of `solid-three`. If you're new to the
+library, start with the [tutorial](/tutorial/01-your-first-scene) — these pages
+are a port of the README, organised one file per export.
+
+## Installation
+
+```bash
+npm install solid-three three
+```
+
+```bash
+pnpm install solid-three three
+```
+
+```bash
+yarn add solid-three three
+```
+
+Ensure that `solid-js` is installed in your environment, as it is a peer dependency of `solid-three`.
+
+## Basic Usage
+
+Here's a simple example to get you started:
+
+```tsx
+<Entity from={THREE.Mesh}>
+  <Entity from={THREE.BoxGeometry} args={[1, 1, 1]} />
+  <Entity from={THREE.MeshStandardMaterial} args={["red"]} />
+</Entity>
+```
+
+Alternatively, using the `createT()` pattern:
+
+```tsx
+// Create the T namespace
+const T = createT(THREE)
+
+<T.Mesh>
+  <T.BoxGeometry args={[1, 1, 1]} />
+  <T.MeshStandardMaterial args={["red"]} />
+</T.Mesh>
+```
+
+**Choosing between `Entity` and `T`:**
+
+- **Use `Entity`**: When building libraries, working with dynamic object types, or when you want to avoid creating a namespace
+- **Use `T`**: When building applications where you want the convenience of pre-typed components and better autocomplete
+
+## What's in this section
+
+**Components**
+
+- [Canvas](/api/components/canvas)
+- [Entity](/api/components/entity)
+- [T / createT](/api/components/t)
+- [Portal](/api/components/portal)
+- [Resource](/api/components/resource)
+
+**Hooks**
+
+- [useThree](/api/hooks/use-three)
+- [useFrame](/api/hooks/use-frame)
+- [useLoader](/api/hooks/use-loader)
+- [useProps](/api/hooks/use-props)
+
+**Utilities**
+
+- [Raycasters](/api/utilities/raycasters)
+- [LoaderCache](/api/utilities/loader-cache)
+- [autodispose](/api/utilities/autodispose)
+- [Metadata](/api/utilities/metadata)
+- [Testing](/api/utilities/testing)
+
+**Events**
+
+- [Overview](/api/events/overview)
+- [raycastable](/api/events/raycastable)

@@ -99,6 +99,46 @@ export default defineConfig({
             collapsed: false,
             items: [
               { title: "Introduction", link: "/api" },
+              {
+                title: "Components",
+                collapsed: true,
+                items: [
+                  { title: "Canvas", link: "/api/components/canvas" },
+                  { title: "Entity", link: "/api/components/entity" },
+                  { title: "T / createT", link: "/api/components/t" },
+                  { title: "Portal", link: "/api/components/portal" },
+                  { title: "Resource", link: "/api/components/resource" },
+                ],
+              },
+              {
+                title: "Hooks",
+                collapsed: true,
+                items: [
+                  { title: "useThree", link: "/api/hooks/use-three" },
+                  { title: "useFrame", link: "/api/hooks/use-frame" },
+                  { title: "useLoader", link: "/api/hooks/use-loader" },
+                  { title: "useProps", link: "/api/hooks/use-props" },
+                ],
+              },
+              {
+                title: "Utilities",
+                collapsed: true,
+                items: [
+                  { title: "Raycasters", link: "/api/utilities/raycasters" },
+                  { title: "LoaderCache", link: "/api/utilities/loader-cache" },
+                  { title: "autodispose", link: "/api/utilities/autodispose" },
+                  { title: "Metadata", link: "/api/utilities/metadata" },
+                  { title: "Testing", link: "/api/utilities/testing" },
+                ],
+              },
+              {
+                title: "Events",
+                collapsed: true,
+                items: [
+                  { title: "Overview", link: "/api/events/overview" },
+                  { title: "raycastable", link: "/api/events/raycastable" },
+                ],
+              },
             ],
           },
         ],

@@ -1,0 +1,26 @@
+---
+title: Testing
+---
+
+# Testing Utilities
+
+Available from `"solid-three/testing"`:
+
+- **TestCanvas**: A lightweight Canvas component for testing
+- **test**: Testing utilities for solid-three components
+
+```tsx
+import { TestCanvas, test } from "solid-three/testing"
+
+// Use TestCanvas in your tests for a minimal three.js environment
+const MyTest = () => {
+  return (
+    <TestCanvas>
+      <T.Mesh>
+        <T.BoxGeometry />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    </TestCanvas>
+  )
+}
+```

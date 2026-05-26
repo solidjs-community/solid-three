@@ -1,0 +1,129 @@
+---
+title: Canvas
+---
+
+# Canvas
+
+The `Canvas` component initializes the `three.js` rendering context and acts as the root for your 3D scene. All `<T/>` and `<Entity/>` components must be children of this Canvas.
+
+**Props:**
+
+- **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
+- **fallback**: Element to render while the main content is loading asynchronously.
+- **gl**: Defines options for the default WebGLRenderer, a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
+- **scene**: Provides custom settings for the Scene instance or an existing Scene.
+- **raycaster**: Configures the Raycaster for mouse and pointer events.
+- **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
+- **orthographic**: Toggles between Orthographic and Perspective camera for the default camera.
+- **linear**: Toggles linear interpolation for texture filtering.
+- **flat**: Toggles flat interpolation for texture filtering.
+- **frameloop**: Controls the rendering loop's operation mode:
+  - `"always"`: Renders continuously on every frame
+  - `"demand"`: Renders only when explicitly requested
+  - `"never"`: Disables automatic rendering
+- **style**: Custom CSS styles for the canvas container.
+- **class**: CSS class names for the canvas container.
+- **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onClickMissed`, etc.)
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+interface CanvasProps {
+  camera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
+  fallback?: JSX.Element
+  gl?:
+    | Partial<WebGLRenderer>
+    | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
+    | ResolvedRenderer
+  scene?: Partial<Scene> | Scene
+  raycaster?: Partial<Raycaster> | Raycaster
+  shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
+  orthographic?: boolean
+  linear?: boolean
+  flat?: boolean
+  frameloop?: "never" | "demand" | "always"
+  style?: JSX.CSSProperties
+  class?: string
+  // Plus all event handlers
+}
+```
+
+</details>
+
+**Example with all props:**
+
+```tsx
+<Canvas
+  camera={{ position: [0, 0, 5], fov: 75 }}
+  fallback={<div>Loading...</div>}
+  gl={{ antialias: true, alpha: true }}
+  scene={{ fog: new Fog(0xffffff, 1, 100) }}
+  raycaster={{ params: { Line: { threshold: 0.1 } } }}
+  shadows="soft"
+  orthographic={false}
+  linear={false}
+  flat={false}
+  frameloop="always"
+  style={{ background: "black" }}
+  onClick={e => console.log("Canvas clicked")}
+  onClickMissed={e => console.log("Clicked empty space")}
+  onPointerMove={e => console.log("Pointer moved on canvas")}
+>
+  {/* Your 3D scene */}
+</Canvas>
+```
+
+## Custom renderers
+
+The `gl` prop accepts any object satisfying the `Renderer` union: three's
+`WebGLRenderer` or `WebGPURenderer`, three's DOM-based renderers
+(`SVGRenderer`, `CSS2DRenderer`, `CSS3DRenderer`), or a custom renderer
+matching the structural `RendererLike` interface.
+
+```tsx
+import { WebGPURenderer } from "three/webgpu"
+
+<Canvas gl={canvas => new WebGPURenderer({ canvas })}>
+  {/* scene */}
+</Canvas>
+```
+
+solid-three awaits `renderer.init()` automatically before the first
+frame, so async WebGPU setup just works.
+
+### Narrowing the renderer type project-wide
+
+By default `useThree().gl` is typed as the open `Renderer` union. Declare
+your concrete renderer once and the type narrows everywhere — both
+`useThree().gl` reads and `<Canvas gl>` assignments:
+
+```ts
+// src/solid-three.d.ts
+import type { WebGPURenderer } from "three/webgpu"
+
+declare module "solid-three" {
+  interface Register {
+    renderer: WebGPURenderer
+  }
+}
+```
+
+After this:
+
+```tsx
+function Scene() {
+  const three = useThree()
+  three.gl.init()      // ✓ no narrowing needed — `gl` is WebGPURenderer
+  three.gl.toneMapping // ✓ typed
+}
+
+<Canvas gl={canvas => new WebGPURenderer({ canvas })}> {/* ✓ */}
+<Canvas gl={canvas => new WebGLRenderer({ canvas })}>  {/* ✗ type error */}
+<Canvas gl={{ toneMapping: ACESFilmicToneMapping }}>   {/* ✗ type error —
+                                                          the config shorthand
+                                                          only builds a default
+                                                          WebGLRenderer */}
+```
+
+Same pattern as Vite's `ImportMetaEnv` or Next's `getServerSideProps`.
