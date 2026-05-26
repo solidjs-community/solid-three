@@ -17,7 +17,6 @@ export default () => {
           left: "1rem",
           "z-index": 1,
           padding: "0.5rem 0.75rem",
-          background: "#fff",
           border: "0",
           "border-radius": "4px",
           cursor: "pointer",

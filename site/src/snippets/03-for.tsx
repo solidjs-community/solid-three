@@ -32,7 +32,6 @@ export default () => {
           onClick={addCube}
           style={{
             padding: "0.5rem 0.75rem",
-            background: "#fff",
             border: "0",
             "border-radius": "4px",
             cursor: "pointer",
@@ -44,7 +43,6 @@ export default () => {
           onClick={removeCube}
           style={{
             padding: "0.5rem 0.75rem",
-            background: "#fff",
             border: "0",
             "border-radius": "4px",
             cursor: "pointer",
