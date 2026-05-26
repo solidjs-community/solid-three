@@ -18,11 +18,7 @@ describe("events", () => {
       </T.Mesh>
     ))
 
-    const evt = new Event("mousedown")
-    Object.defineProperty(evt, "offsetX", { get: () => 640 })
-    Object.defineProperty(evt, "offsetY", { get: () => 400 })
-
-    fireEvent(canvas, evt)
+    fireEvent(canvas, new MouseEvent("mousedown", { clientX: 640, clientY: 400, bubbles: true }))
 
     expect(handlePointerDown).toHaveBeenCalled()
   })
@@ -156,20 +152,18 @@ describe("events", () => {
       </T.Mesh>
     ))
 
-    const evt1 = new Event("pointermove")
-    Object.defineProperty(evt1, "offsetX", { get: () => 577 })
-    Object.defineProperty(evt1, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, evt1)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
 
     expect(handlePointerMove).toHaveBeenCalled()
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    const evt2 = new Event("pointermove")
-    Object.defineProperty(evt2, "offsetX", { get: () => 0 })
-    Object.defineProperty(evt2, "offsetY", { get: () => 0 })
-
-    fireEvent(canvas, evt2)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
 
     expect(handlePointerOut).toHaveBeenCalled()
   })
@@ -192,19 +186,17 @@ describe("events", () => {
       </>
     ))
 
-    const evt1 = new Event("pointermove")
-    Object.defineProperty(evt1, "offsetX", { get: () => 577 })
-    Object.defineProperty(evt1, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, evt1)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
 
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    const evt2 = new Event("pointermove")
-    Object.defineProperty(evt2, "offsetX", { get: () => 0 })
-    Object.defineProperty(evt2, "offsetY", { get: () => 0 })
-
-    fireEvent(canvas, evt2)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
 
     expect(handlePointerLeave).toHaveBeenCalled()
   })
@@ -226,23 +218,10 @@ describe("events", () => {
       </>
     ))
 
-    const down = new Event("pointerdown")
-    Object.defineProperty(down, "offsetX", { get: () => 577 })
-    Object.defineProperty(down, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, down)
-
-    const up = new Event("pointerup")
-    Object.defineProperty(up, "offsetX", { get: () => 577 })
-    Object.defineProperty(up, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, up)
-
-    const event = new Event("click")
-    Object.defineProperty(event, "offsetX", { get: () => 577 })
-    Object.defineProperty(event, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, event)
+    const at = { clientX: 577, clientY: 480, bubbles: true }
+    fireEvent(canvas, new PointerEvent("pointerdown", at))
+    fireEvent(canvas, new PointerEvent("pointerup", at))
+    fireEvent(canvas, new MouseEvent("click", at))
 
     expect(handleClickFront).toHaveBeenCalled()
     expect(handleClickRear).not.toHaveBeenCalled()
@@ -400,11 +379,9 @@ const HIT_Y = 400
 const MISS_X = 0
 const MISS_Y = 0
 
-function makeClickAt(offsetX: number, offsetY: number) {
-  const event = new Event("click")
-  Object.defineProperty(event, "offsetX", { get: () => offsetX })
-  Object.defineProperty(event, "offsetY", { get: () => offsetY })
-  return event
+function makeClickAt(clientX: number, clientY: number) {
+  // Canvas is at (0, 0) in document.body, so offsetX/Y === clientX/Y.
+  return new MouseEvent("click", { clientX, clientY, bubbles: true })
 }
 
 describe("mesh onClickMissed", () => {

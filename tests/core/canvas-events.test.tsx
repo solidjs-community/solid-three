@@ -14,11 +14,11 @@ const HIT_Y = 400
 const MISS_X = 0
 const MISS_Y = 0
 
-function makeEvent(type: string, offsetX: number, offsetY: number) {
-  const event = new Event(type)
-  Object.defineProperty(event, "offsetX", { get: () => offsetX })
-  Object.defineProperty(event, "offsetY", { get: () => offsetY })
-  return event
+function makeEvent(type: string, clientX: number, clientY: number) {
+  // The test canvas is mounted at (0, 0) in document.body, so offsetX/Y === clientX/Y.
+  // We dispatch a real MouseEvent; the browser computes offsetX/Y from the target's
+  // bounding rect — no `Object.defineProperty` hacks needed.
+  return new MouseEvent(type, { clientX, clientY, bubbles: true })
 }
 
 function hitEvent(type: string) {
@@ -512,10 +512,10 @@ describe("canvas default events", () => {
       const handleWheel = vi.fn()
       const { canvas } = test(() => null, { onWheel: handleWheel })
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).toHaveBeenCalledTimes(1)
     })
@@ -527,10 +527,10 @@ describe("canvas default events", () => {
         { onWheel: handleWheel },
       )
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).toHaveBeenCalledTimes(1)
     })
@@ -542,10 +542,10 @@ describe("canvas default events", () => {
         { onWheel: handleWheel },
       )
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).not.toHaveBeenCalled()
     })
