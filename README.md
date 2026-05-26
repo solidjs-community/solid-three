@@ -188,6 +188,23 @@ interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
 
 ([see](/playground/src/api/canvas/usage.tsx))
 
+#### Defaults
+
+When a prop is omitted, `Canvas` falls back to the following:
+
+| Prop          | Default                                                                              |
+| ------------- | ------------------------------------------------------------------------------------ |
+| `frameloop`   | `"always"`                                                                           |
+| `gl`          | `new WebGLRenderer({ alpha: true, canvas })` — `alpha: true` is the implicit default; override it via the `[ctorArgs, properties]` tuple form |
+| `camera`      | `new PerspectiveCamera()` — or `new OrthographicCamera()` if `orthographic` is set   |
+| `raycaster`   | `new CursorRaycaster()`                                                              |
+| `scene`       | `new Scene()`                                                                        |
+| `shadows`     | shadow map disabled. When `shadows={true}`, type is `PCFSoftShadowMap`. Strings: `"basic" → BasicShadowMap`, `"percentage" → PCFShadowMap`, `"soft" → PCFSoftShadowMap`, `"variance" → VSMShadowMap` |
+| Tone mapping  | `ACESFilmicToneMapping` — `NoToneMapping` when `flat` is set                         |
+| Output color space | `SRGBColorSpace` — `LinearSRGBColorSpace` when `linear` is set                  |
+
+Tone-mapping and color-space defaults are only applied to renderers that expose the corresponding fields (skipped silently for e.g. `SVGRenderer`).
+
 #### Custom renderers
 
 The `gl` prop accepts any object satisfying the `Renderer` union: three's
