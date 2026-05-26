@@ -3,26 +3,58 @@ title: Signals drive the scene
 ---
 
 import buttonToggleSnippet from "../../snippets/03-button-toggle.tsx?raw"
+import showSnippet from "../../snippets/03-show.tsx?raw"
+import forSnippet from "../../snippets/03-for.tsx?raw"
 
 # Signals drive the scene
 
-A `solid-three` prop is a Solid prop. Pass it a signal and the scene tracks
-the signal the same way any other Solid view would — no remount, no manual
-diffing, no special bindings.
+A `solid-three` prop is a Solid prop. Pass it a signal and the scene
+tracks the signal the same way any other Solid view would — no remount,
+no manual diffing, no special bindings.
 
 <Demo code={buttonToggleSnippet} />
 
-Click the button. The cube's `color` prop reads `hot()`, so when the signal
-flips, only that one property assignment runs — the mesh stays mounted, the
-canvas keeps the same renderer, nothing else moves.
+Click the button repeatedly. Notice the counter at the top: "App body has
+run: 1 time" — and it stays at 1, no matter how often you click. The
+component's body runs once. Only the small reactive expression that reads
+`hot()` re-runs, and all it does is hand a new value to
+`material.color.set(...)`. The mesh stays mounted, the canvas keeps the
+same renderer, nothing else moves.
 
-That's the through-line of the whole library: a scene in `solid-three` is a
-reactive view over a `three.js` graph. Anything that drives a Solid component
-also drives the scene.
+That's the through-line of the whole library: a scene in `solid-three`
+is a reactive view over a `three.js` graph. Anything that drives a Solid
+component also drives the scene.
+
+## Control flow: `<Show>`
+
+`<Show when={...}>` is Solid's conditional renderer. It works inside
+`<Canvas>` exactly the way it works inside a `<div>`:
+
+<Demo code={showSnippet} />
+
+When the signal flips, `<Show>` *mounts* and *unmounts* its children —
+not just hides them. The cube's `BoxGeometry` and `MeshNormalMaterial`
+are constructed when it appears and disposed when it disappears (more on
+disposal later).
+
+## Lists: `<For>`
+
+`<For each={...}>` is Solid's keyed list. Same idea — works the same in
+3D.
+
+<Demo code={forSnippet} />
+
+Click "add" to push a new cube onto the signal array; the scene gains a
+cube. Click "remove" to pop one; it disappears. The other cubes don't
+move on the JSX level — they just update their `position` because the
+expression `(index() - (cubes().length - 1) / 2) * 1.2` reads two reactive
+values. One assignment per moved cube, per change. No diffing, no remount.
+
+The point: you already know how to do this. `createSignal`, `<Show>`,
+`<For>` — every reactive Solid primitive maps cleanly into the scene.
 
 ## What about clicking the cube itself?
 
-The button works because it's a regular DOM element with an `onClick`
-handler. But what if you wanted to click the cube — the actual `<T.Mesh>` —
-and have *that* be the trigger? Same `onClick`, different target. That's the
-next chapter.
+So far the triggers have been DOM buttons. But what if you wanted to
+click the cube — the actual `<T.Mesh>` — and have *that* be the trigger?
+Same `onClick`, different target. That's the next chapter.
