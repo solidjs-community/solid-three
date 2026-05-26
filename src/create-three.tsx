@@ -565,14 +565,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     </eventContext.Provider>
   ))
 
-  useSceneGraph(
-    context.scene,
-    mergeProps(props, {
-      get children() {
-        return c()
-      },
-    }),
-  )
+  useSceneGraph(context.scene, {
+    get children() {
+      return c()
+    },
+  })
 
   withMultiContexts(
     () => useRef(props, context),
