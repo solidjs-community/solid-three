@@ -31,10 +31,12 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   frameloop?: "never" | "demand" | "always"
   /**
    * Renderer to render the scene with. Accepts:
-   * - a properties object (instance-writable keys, applied to a default `WebGLRenderer`)
-   * - a `[constructorParameters, properties]` tuple (split form — useful when you
-   *   need WebGL-only constructor args like `antialias` that can't be set after
-   *   construction)
+   * - a flat properties object mixing `WebGLRendererParameters` (e.g. `antialias`,
+   *   `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`).
+   *   Ctor args are baked at first construction; instance props stay reactive.
+   *   Reactively changing a ctor-only key logs a warning — WebGL contexts are
+   *   immutable once created, so to swap config at runtime, unmount and remount
+   *   `<Canvas>`.
    * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
    * - a renderer instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
    *
@@ -42,17 +44,15 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
    * module-augmentation interface — see {@link Register} in `types.ts`.
    */
   gl?:
-    // Properties-only / tuple shorthand creates a default WebGLRenderer at
-    // runtime. When `Register` narrows `ResolvedRenderer` away from WebGL,
-    // these branches collapse to `never` so the user is forced into the
-    // factory or instance form that actually matches their declared renderer.
+    // Flat object accepts both `WebGLRendererParameters` (constructor-only,
+    // e.g. `antialias`, `alpha`) and writable instance props (e.g.
+    // `toneMapping`). solid-three splits them at construction: ctor args are
+    // baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
+    // When `Register` narrows `ResolvedRenderer` away from WebGL this branch
+    // collapses to `never` so the user is forced into the factory or instance
+    // form that matches their declared renderer.
     | (WebGLRenderer extends ResolvedRenderer
-        ?
-            | Partial<Props<WebGLRenderer>>
-            | readonly [
-                constructorParameters: Partial<WebGLRendererParameters>,
-                properties: Partial<Props<WebGLRenderer>>,
-              ]
+        ? Partial<Props<WebGLRenderer> & WebGLRendererParameters>
         : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer

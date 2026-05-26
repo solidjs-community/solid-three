@@ -2,17 +2,31 @@ import { type Accessor, type JSX, createRoot, mergeProps } from "solid-js"
 import type { CanvasProps } from "../canvas.tsx"
 import { createThree } from "../create-three.tsx"
 import { useRef } from "../utils.ts"
-import { WebGL2RenderingContext } from "./webgl2-rendering-context.ts"
+
+const activeUnmounts = new Set<() => void>()
 
 /**
- * Initializes a testing enviromnent for `solid-three`.
+ * Unmounts every active `test()` instance — disposes its Solid root, frees
+ * its WebGL context, and removes its canvas from the DOM. Browsers cap
+ * concurrent WebGL contexts (~16 in Chromium), so tests that don't clean up
+ * exhaust the limit and the page crashes. Wire this into `afterEach` in your
+ * test setup file.
+ */
+export function cleanup() {
+  for (const unmount of activeUnmounts) unmount()
+  activeUnmounts.clear()
+}
+
+/**
+ * Initializes a testing environment for `solid-three`. Designed to run in a
+ * real browser (e.g. vitest browser mode). jsdom is not supported.
  *
  * @param children - An accessor for the `AugmentedElement` to render.
  * @param [props] - Optional properties to configure canvas.
  * @returns `S3.Context` augmented with methods to unmount the scene and to wait for the next animation frame.
  *
  * @example
- * const testScene = test(() => <Mesh />, { camera: position: [0,0,5] });
+ * const testScene = test(() => <Mesh />, { camera: { position: [0,0,5] } });
  * await testScene.waitTillNextFrame();
  * testScene.unmount();
  */
@@ -25,7 +39,17 @@ export function test(
   let unmount: () => void = null!
 
   createRoot(dispose => {
-    unmount = dispose
+    unmount = () => {
+      activeUnmounts.delete(unmount)
+      dispose()
+      // Actively free the GPU context — Solid's dispose alone doesn't, and
+      // browsers cap concurrent WebGL contexts.
+      const gl = context.gl as { dispose?: () => void; forceContextLoss?: () => void }
+      gl.dispose?.()
+      gl.forceContextLoss?.()
+      canvas.remove()
+    }
+    activeUnmounts.add(unmount)
     context = createThree(
       canvas,
       mergeProps(
@@ -58,13 +82,10 @@ type TestApi = ReturnType<typeof createThree> & {
 }
 
 /**
- * Canvas element tailored for testing.
- *
- * @param props
- * @returns The canvas JSX element.
+ * Canvas element tailored for testing in a real browser.
  *
  * @example
- * render(<TestCanvas camera={{ position: [0,0,5] }} />);
+ * render(() => <TestCanvas camera={{ position: [0,0,5] }} />);
  */
 export function TestCanvas(props: CanvasProps) {
   const canvas = createTestCanvas()
@@ -79,59 +100,17 @@ export function TestCanvas(props: CanvasProps) {
 }
 
 /**
- * Creates a mock canvas element for testing purposes. This function dynamically generates a canvas,
- * suitable for environments with or without a standard DOM. In non-DOM environments, it simulates
- * essential canvas properties and methods, including WebGL contexts.
- *
- * @param [options] - Configuration options for the canvas.
- * @returns A canvas element with specified dimensions and stubbed if necessary.
- *
- * @example
- * // Create a test canvas of default size
- * const canvas = createTestCanvas();
- *
- * @example
- * // Create a test canvas with custom dimensions
- * const customCanvas = createTestCanvas({ width: 1024, height: 768 });
+ * Creates a canvas, mounts it to `document.body`, and returns it. Mounting
+ * is required so the canvas has real layout (`getBoundingClientRect` returns
+ * non-zero rects), real `WebGL2RenderingContext`, and is reachable by
+ * dispatched DOM events.
  */
 const createTestCanvas = ({ width = 1280, height = 800 } = {}) => {
-  let canvas: HTMLCanvasElement
-
-  if (typeof document !== "undefined" && typeof document.createElement === "function") {
-    canvas = document.createElement("canvas")
-  } else {
-    canvas = {
-      style: {},
-      addEventListener: (() => {}) as any,
-      removeEventListener: (() => {}) as any,
-      clientWidth: width,
-      clientHeight: height,
-      getContext: (() => new WebGL2RenderingContext(canvas)) as any,
-    } as HTMLCanvasElement
-  }
+  const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
-
-  // jsdom's getBoundingClientRect always returns zeros, which breaks raycasting.
-  canvas.getBoundingClientRect = () =>
-    ({ width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0 }) as DOMRect
-
-  // eslint-disable-next-line
-  if (globalThis.HTMLCanvasElement) {
-    const getContext = HTMLCanvasElement.prototype.getContext
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, id: string) {
-      if (id.startsWith("webgl")) return new WebGL2RenderingContext(this)
-      return getContext.apply(this, arguments as any)
-    } as any
-  }
-
-  class WebGLRenderingContext extends WebGL2RenderingContext {}
-  // @ts-expect-error
-  // eslint-disable-next-line
-  globalThis.WebGLRenderingContext ??= WebGLRenderingContext
-  // @ts-expect-error
-  // eslint-disable-next-line
-  globalThis.WebGL2RenderingContext ??= WebGL2RenderingContext
-
+  canvas.style.width = `${width}px`
+  canvas.style.height = `${height}px`
+  document.body.appendChild(canvas)
   return canvas
 }

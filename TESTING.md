@@ -1,30 +1,31 @@
 ## Testing
 
-`solid-three` provides a comprehensive testing framework for unit testing 3D components. The testing utilities are available as a separate export.
+`solid-three` ships a small testing API (`solid-three/testing`) that mounts a real `<canvas>` and creates a `solid-three` root against it. It is **browser-only** — run your tests in a real browser (e.g. [vitest browser mode](https://vitest.dev/guide/browser/) with Playwright + Chromium). jsdom is not supported.
 
 ### Setup and Basic Testing
 
 ```tsx
-import { test, TestCanvas } from "solid-three/testing"
+import { test, TestCanvas, cleanup } from "solid-three/testing"
 import { render } from "@solidjs/testing-library"
+import { afterEach } from "vitest"
 
-test("renders a mesh", () => {
-  const { canvas, scene, unmount, waitTillNextFrame } = test(() => (
+// Browsers cap concurrent WebGL contexts (~16 in Chromium). Wire `cleanup()`
+// into `afterEach` so each test frees its renderer.
+afterEach(() => cleanup())
+
+it("renders a mesh", () => {
+  const scene = test(() => (
     <T.Mesh>
       <T.BoxGeometry />
       <T.MeshBasicMaterial />
     </T.Mesh>
   ))
 
-  expect(scene.children).toHaveLength(1)
-  expect(scene.children[0]).toBeDefined()
-
-  // Clean up
-  unmount()
+  expect(scene.scene.children).toHaveLength(1)
 })
 
-// Using TestCanvas for JSX-based testing
-test("renders with TestCanvas", () => {
+// Or use TestCanvas as JSX
+it("renders with TestCanvas", () => {
   render(() => (
     <TestCanvas camera={{ position: [0, 0, 5] }}>
       <T.Mesh>
@@ -33,45 +34,28 @@ test("renders with TestCanvas", () => {
       </T.Mesh>
     </TestCanvas>
   ))
-
-  // TestCanvas automatically handles the canvas setup
 })
-```
-
-### Mock WebGL Context
-
-The testing framework includes a mock WebGL2RenderingContext for environments without GPU support:
-
-```tsx
-import { WebGL2RenderingContext } from "solid-three/testing"
-
-// Automatically used when real WebGL is unavailable
-// Provides all WebGL methods as no-ops for testing
 ```
 
 ### Testing Events
 
+Dispatch real `MouseEvent`/`PointerEvent`s. The test canvas is mounted at the
+top-left of the document body, so `clientX`/`clientY` map 1:1 to canvas
+`offsetX`/`offsetY` (which `CursorRaycaster` reads).
+
 ```tsx
 import { fireEvent } from "@solidjs/testing-library"
-import { test } from "solid-three/testing"
 
-test("handles click events", () => {
+it("handles click events", () => {
   let clicked = false
-
   const { canvas } = test(() => (
     <T.Mesh onClick={() => (clicked = true)}>
-      <T.BoxGeometry />
+      <T.BoxGeometry args={[2, 2]} />
       <T.MeshBasicMaterial />
     </T.Mesh>
   ))
 
-  // Create a mock click event on the canvas
-  const clickEvent = new MouseEvent("click")
-  Object.defineProperty(clickEvent, "offsetX", { get: () => 640 })
-  Object.defineProperty(clickEvent, "offsetY", { get: () => 400 })
-
-  fireEvent(canvas, clickEvent)
-
+  fireEvent(canvas, new MouseEvent("click", { clientX: 640, clientY: 400, bubbles: true }))
   expect(clicked).toBe(true)
 })
 ```
@@ -82,26 +66,18 @@ test("handles click events", () => {
 import { test } from "solid-three/testing"
 import { useThree } from "solid-three"
 
-test("useThree returns context", () => {
+it("useThree returns context", () => {
   let context
-
   const TestComponent = () => {
     context = useThree()
-    return (
-      <T.Mesh>
-        <T.BoxGeometry />
-        <T.MeshBasicMaterial />
-      </T.Mesh>
-    )
+    return <T.Mesh><T.BoxGeometry /><T.MeshBasicMaterial /></T.Mesh>
   }
 
-  const { unmount } = test(() => <TestComponent />)
+  test(() => <TestComponent />)
 
   expect(context.camera).toBeDefined()
   expect(context.gl).toBeDefined()
   expect(context.scene).toBeDefined()
-
-  unmount()
 })
 ```
 
@@ -111,22 +87,47 @@ test("useThree returns context", () => {
 import { test } from "solid-three/testing"
 import { useFrame } from "solid-three"
 
-test("animates on frame", async () => {
+it("animates on frame", async () => {
   let rotation = 0
-
   const AnimatedBox = () => {
-    useFrame(() => {
-      rotation += 0.01
-    })
-
+    useFrame(() => { rotation += 0.01 })
     return <T.Mesh />
   }
 
-  const { waitTillNextFrame } = test(() => <AnimatedBox />, { frameloop: "always" })
-
-  // Wait for animation frame using test utility
-  await waitTillNextFrame()
-
+  const scene = test(() => <AnimatedBox />, { frameloop: "always" })
+  await scene.waitTillNextFrame()
   expect(rotation).toBeGreaterThan(0)
+})
+```
+
+### Recommended vitest browser config
+
+This repo's own `vitest.config.ts` is a good reference. Key bits:
+
+```ts
+import { playwright } from "@vitest/browser-playwright"
+
+export default defineConfig({
+  test: {
+    setupFiles: ["./tests/setup.ts"],
+    // Real WebGL contexts are GPU-process-limited (~16 in Chromium).
+    // Running test files in parallel exhausts the cap and hangs the browser.
+    fileParallelism: false,
+    browser: {
+      enabled: true,
+      provider: playwright(),
+      headless: true,
+      instances: [
+        {
+          browser: "chromium",
+          // SwiftShader = software WebGL. Removes Chromium's GPU-process
+          // context cap so renderer-heavy suites don't crash mid-run.
+          launch: {
+            args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader"],
+          },
+        },
+      ],
+    },
+  },
 })
 ```

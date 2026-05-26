@@ -2,43 +2,30 @@ import { playwright } from "@vitest/browser-playwright"
 import solidPlugin from "vite-plugin-solid"
 import { defineConfig } from "vitest/config"
 
-/**
- * Two projects:
- * - `browser` — full `tests/` suite in real Chromium (catches DOM-timing /
- *   Solid-compile bugs that jsdom hides).
- * - `jsdom` — a tiny contract suite for `src/testing/`, the public jsdom API
- *   external consumers depend on. Keeps that code path from bitrotting.
- *
- * `pnpm test` runs both.
- */
 export default defineConfig({
   plugins: [solidPlugin({ hot: false })],
   test: {
-    projects: [
-      {
-        plugins: [solidPlugin({ hot: false })],
-        test: {
-          name: "browser",
-          include: ["tests/**/*.test.{ts,tsx}"],
-          exclude: ["tests/jsdom/**"],
-          setupFiles: ["./tests/setup.ts"],
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: true,
-            instances: [{ browser: "chromium" }],
-          },
+    include: ["tests/**/*.test.{ts,tsx}"],
+    setupFiles: ["./tests/setup.ts"],
+    // Real WebGL contexts are GPU-process-limited (~16 concurrent in Chromium).
+    // Running test files in parallel exhausts the cap and hangs the browser.
+    fileParallelism: false,
+    browser: {
+      enabled: true,
+      // SwiftShader = software WebGL. Avoids Chromium's tight
+      // GPU-process-backed concurrent-context cap (~16) which renderer-heavy
+      // suites blow past mid-run. Slower per render but unbounded contexts.
+      provider: playwright({
+        launchOptions: {
+          args: [
+            "--use-gl=swiftshader",
+            "--enable-unsafe-swiftshader",
+            "--enable-features=Vulkan",
+          ],
         },
-      },
-      {
-        plugins: [solidPlugin({ hot: false })],
-        test: {
-          name: "jsdom",
-          include: ["tests/jsdom/**/*.test.{ts,tsx}"],
-          environment: "jsdom",
-          setupFiles: ["./tests/setup.ts"],
-        },
-      },
-    ],
+      }),
+      headless: true,
+      instances: [{ browser: "chromium" }],
+    },
   },
 })

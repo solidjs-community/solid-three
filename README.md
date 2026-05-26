@@ -19,16 +19,14 @@
 2. [Basic Usage](#basic-usage)
 3. [Components](#components)
    - [Canvas](#canvas)
-   - [Entity](#entity)
-     - [createEntity](#createentity)
    - [T](#t)
+     - [createEntity](#createentity)
+   - [Entity](#entity)
    - [Portal](#portal)
    - [Resource](#resource)
-   - [The `S3` type namespace](#the-s3-type-namespace)
 4. [Hooks](#hooks)
    - [useThree](#usethree)
    - [useFrame](#useframe)
-   - [useLoader](#useloader)
    - [useProps](#useprops)
 5. [Utilities](#utilities)
    - [Raycasters](#raycasters)
@@ -43,8 +41,9 @@
    - [Event Propagation](#event-propagation)
    - [Missed Events](#missed-events)
    - [Hover Events](#hover-events)
-7. [Contributing](#contributing)
-8. [License](#license)
+7. [Performance Optimization](#performance-optimization)
+8. [Contributing](#contributing)
+9. [License](#license)
 
 ## Installation
 
@@ -104,13 +103,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
-- **gl**: How the renderer is constructed. Accepts one of four shapes:
-  - **properties object** (`gl={{ toneMapping: ACESFilmicToneMapping }}`) — applied to a default `WebGLRenderer` as instance-writable properties after construction.
-  - **`[constructorParameters, properties]` tuple** (`gl={[{ antialias: true }, { toneMapping: ACESFilmicToneMapping }]}`) — slot 0 is passed to the `WebGLRenderer` constructor (for WebGL-only flags like `antialias`/`alpha`/`stencil` that can't be set after); slot 1 is applied as instance properties.
-  - **factory** (`gl={canvas => new WebGPURenderer({ canvas })}`) — return any renderer you want (`WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom).
-  - **pre-built instance** — a renderer you already constructed.
-
-  See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
+- **gl**: A flat object mixing `WebGLRenderer` constructor params (e.g. `antialias`, `alpha`) and instance-writable props (e.g. `toneMapping`) — solid-three splits them internally; ctor args are baked at construction, instance props stay reactive. Reactively changing a ctor-only key logs a warning (WebGL contexts are immutable; remount `<Canvas>` to swap). Also accepts a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
 - **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
@@ -129,25 +122,15 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 <summary>Typescript Interface</summary>
 
 ```tsx
-interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
-  ref?: Ref<Context>
-  camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
+interface CanvasProps {
+  camera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
   fallback?: JSX.Element
   gl?:
-    // The two config-shorthand branches collapse to `never` when Register
-    // narrows ResolvedRenderer away from WebGLRenderer.
-    | (WebGLRenderer extends ResolvedRenderer
-        ?
-            | Partial<Props<WebGLRenderer>>
-            | readonly [
-                constructorParameters: Partial<WebGLRendererParameters>,
-                properties: Partial<Props<WebGLRenderer>>,
-              ]
-        : never)
+    | Partial<WebGLRenderer & WebGLRendererParameters>
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
-  scene?: Partial<Props<Scene>> | Scene
-  raycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
+  scene?: Partial<Scene> | Scene
+  raycaster?: Partial<Raycaster> | Raycaster
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   orthographic?: boolean
   linear?: boolean
@@ -155,11 +138,9 @@ interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   frameloop?: "never" | "demand" | "always"
   style?: JSX.CSSProperties
   class?: string
-  // Plus all event handlers (Partial<CanvasEventHandlers>)
+  // Plus all event handlers
 }
 ```
-
-`CanvasProps` is also exported as a type: `import type { CanvasProps } from "solid-three"`.
 
 </details>
 
@@ -187,23 +168,6 @@ interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
 ```
 
 ([see](/playground/src/api/canvas/usage.tsx))
-
-#### Defaults
-
-When a prop is omitted, `Canvas` falls back to the following:
-
-| Prop          | Default                                                                              |
-| ------------- | ------------------------------------------------------------------------------------ |
-| `frameloop`   | `"always"`                                                                           |
-| `gl`          | `new WebGLRenderer({ alpha: true, canvas })` — `alpha: true` is the implicit default; override it via the `[ctorArgs, properties]` tuple form |
-| `camera`      | `new PerspectiveCamera()` — or `new OrthographicCamera()` if `orthographic` is set   |
-| `raycaster`   | `new CursorRaycaster()`                                                              |
-| `scene`       | `new Scene()`                                                                        |
-| `shadows`     | shadow map disabled. When `shadows={true}`, type is `PCFSoftShadowMap`. Strings: `"basic" → BasicShadowMap`, `"percentage" → PCFShadowMap`, `"soft" → PCFSoftShadowMap`, `"variance" → VSMShadowMap` |
-| Tone mapping  | `ACESFilmicToneMapping` — `NoToneMapping` when `flat` is set                         |
-| Output color space | `SRGBColorSpace` — `LinearSRGBColorSpace` when `linear` is set                  |
-
-Tone-mapping and color-space defaults are only applied to renderers that expose the corresponding fields (skipped silently for e.g. `SVGRenderer`).
 
 #### Custom renderers
 
@@ -257,39 +221,12 @@ function Scene() {
 <Canvas gl={canvas => new WebGPURenderer({ canvas })}> {/* ✓ */}
 <Canvas gl={canvas => new WebGLRenderer({ canvas })}>  {/* ✗ type error */}
 <Canvas gl={{ toneMapping: ACESFilmicToneMapping }}>   {/* ✗ type error —
-                                                          the config shorthand
+                                                          the flat-object form
                                                           only builds a default
                                                           WebGLRenderer */}
 ```
 
 Same pattern as Vite's `ImportMetaEnv` or Next's `getServerSideProps`.
-
-##### Renderer types
-
-The renderer-related types used in `CanvasProps` are all public via the `S3` namespace.
-
-```ts
-type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
-
-/** Effective renderer type — narrowed by user `Register` augmentation if provided. */
-type ResolvedRenderer = Register extends { renderer: infer R } ? R : Renderer
-
-/** Module-augmentation point — declare `renderer` to narrow project-wide. */
-interface Register {}
-
-/** Minimal structural interface for custom / DOM-based renderers. */
-interface RendererLike {
-  render(scene: any, camera: any): void
-  setSize(width: number, height: number, updateStyle?: boolean): void
-  domElement: Element
-  setPixelRatio?(value: number): void
-  getPixelRatio?(): number
-  xr?: WebGLRenderer["xr"] | WebGPURenderer["xr"]
-  shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
-  init?(): Promise<void>
-  hasInitialized?(): boolean
-}
-```
 
 ### Entity
 
@@ -300,14 +237,14 @@ You can pass a constructor
 ```tsx
 <Entity from={Mesh}>
   <Entity from={BoxGeometry} args={[1, 1, 1]} />
-  <Entity from={MeshBasicMaterial} args={["orange"]} />
+  <Entity from={MeshBasicMaterial} args={[{"orange"}]} />
 </Entity>
 ```
 
 or pass an instance
 
 ```tsx
-const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial("orange"))
+const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial('orange))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
@@ -400,22 +337,6 @@ function Good(props: { shape: "box" | "sphere" }) {
 
 These patterns automatically trigger `needsUpdate` flags on materials and geometries when necessary.
 
-#### createEntity
-
-`createEntity` creates a single typed component from one `three.js` constructor — the same primitive [`createT`](#t) uses internally to build a whole namespace. Use it directly when you need a one-off component without building a full namespace:
-
-```tsx
-import { createEntity } from "solid-three"
-import { Mesh } from "three"
-
-const MeshComponent = createEntity(Mesh)
-
-// Equivalent to <T.Mesh /> but without the full namespace
-<MeshComponent position={[0, 1, 0]}>
-  ...
-</MeshComponent>
-```
-
 ### T
 
 The `T` namespace contains components that wrap `three.js` objects, allowing you to insert them into your scene declaratively. You create the namespace using the `createT()` factory function:
@@ -454,7 +375,21 @@ const T = createT({ Mesh, BoxGeometry, MeshBasicMaterial })
 - **In Libraries**: create multiple `T` to allow for treeshaking or use [`<Entity/>`](#entity) instead
 - **Multiple Ts**: Create multiple T instances for lazy loading different parts of three.js
 
-For a single typed component without building a full namespace, see [`createEntity`](#createentity) under Entity.
+#### createEntity
+
+`createT` is built on top of `createEntity`, which creates a single typed component from one Three.js constructor. Use it directly when you need a one-off component without building a full namespace:
+
+```tsx
+import { createEntity } from "solid-three"
+import { Mesh } from "three"
+
+const MeshComponent = createEntity(Mesh)
+
+// Equivalent to <T.Mesh /> but without the full namespace
+<MeshComponent position={[0, 1, 0]}>
+  ...
+</MeshComponent>
+```
 
 ### Portal
 
@@ -464,7 +399,6 @@ The `Portal` component allows you to place children outside the regular scene gr
 
 - **element**: Optional `three.js` object to render into. If not provided, renders into the root scene.
 - **children**: Elements to render in the portal.
-- **onUpdate**: Called with the resolved `element` whenever `Portal` mounts or re-attaches. Useful for extra wiring on the target (e.g. setting properties on a foreign scene that aren't expressible as solid-three props).
 
 <details>
 <summary>Typescript Interface</summary>
@@ -493,17 +427,13 @@ Example:
 
 ### Resource
 
-Wrapper-component around [`useLoader`](#useloader).
+Wrapper-component around ['useLoader'](#useloader).
 
 **Props:**
 
 - `loader` - Three.js loader constructor (e.g., `TextureLoader`, `GLTFLoader`)
 - `url` - URL(s) to load, depending on what the passed loader expects
 - `children` - Optional render function
-- `base` - Base URL for resolving relative paths (forwarded to `useLoader`)
-- `cache` - `true` (default global cache), `false` (disable), or a custom `LoaderRegistry` instance
-- `onBeforeLoad` - Callback fired with the loader instance before loading starts (e.g. to configure decoders)
-- `onLoad` - Callback fired with the resolved resource after loading succeeds
 - `*` - Additional props are passed to the loaded resource
 
 **Examples:**
@@ -535,30 +465,6 @@ Wrapper-component around [`useLoader`](#useloader).
 
 ([see](/playground/src/api/resource/usage.tsx))
 
-### The `S3` type namespace
-
-All public type aliases live in a single re-exported namespace:
-
-```ts
-import { S3 } from "solid-three"
-
-type Position = S3.Vector3
-type Controls = S3.Props<typeof OrbitControls>
-```
-
-The namespace re-exports [`src/types.ts`](src/types.ts) and includes:
-
-- **Renderer surface** — `Renderer`, `RendererLike`, `ResolvedRenderer`, `Register`
-- **Context** — `Context`, `Viewport`, `CameraKind`
-- **Frame loop** — `FrameListener`, `FrameListenerCallback`, `FrameListenerOptions`
-- **Events** — `ThreeEvent`, `EventHandlers`, `CanvasEventHandlers`, `EventName`
-- **Three representations** — `Representation`, `Vector2`, `Vector3`, `Vector4`, `Color`, `Layers`, `Quaternion`, `Euler`, `Matrix3`, `Matrix4`
-- **Solid-three metadata** — `Meta`, `Data`, `MapToRepresentation`, `Props`
-- **Loaders** — `LoaderData`, `LoaderUrl`
-- **Utility helpers** — `AccessorMaybe`, `PromiseMaybe`, `Constructor`, `InstanceOf`, `Overwrite`, `Prettify`, `ConstructorOverloadParameters`
-
-The same names are also reachable as named type imports, e.g. `import type { Context, Props } from "solid-three"`.
-
 ## Hooks
 
 ### useThree
@@ -585,18 +491,17 @@ const camera = useThree(ctx => ctx.camera)
 **Returns:**
 
 - **bounds** (`Measure`): Reactive canvas bounds measurement.
-- **camera** (`CameraKind`): The current camera (`PerspectiveCamera | OrthographicCamera`).
-- **setCamera** (`(camera: CameraKind) => () => void`): A setter-function for setting the current camera. Accepts only `PerspectiveCamera` or `OrthographicCamera`. Returns a cleanup that pops the camera off the stack.
+- **camera** (`Camera`): The current camera.
+- **setCamera** (`(camera: Camera) => () => void`): A setter-function for setting the current camera.
 - **canvas** (`HTMLCanvasElement`): The canvas DOM element.
 - **clock** (`Clock`): The `three.js` clock for timing.
 - **dpr** (`number`): Device pixel ratio reported by the active renderer (falls back to `1` for renderers without `getPixelRatio`, e.g. `CSS3DRenderer` / `SVGRenderer`).
-- **gl** (`Meta<ResolvedRenderer>`): The active renderer, wrapped with `meta` so you can read solid-three metadata via `getMeta(three.gl)`. The underlying renderer is `WebGLRenderer | WebGPURenderer | RendererLike` by default — narrow project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
-- **raycaster** (`Raycaster | EventRaycaster`): The current raycaster used for pointer events.
-- **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster. Returns a cleanup that pops it off the stack.
+- **gl** (`Renderer`): The active renderer — `WebGLRenderer | WebGPURenderer | RendererLike` by default. Narrow to a concrete type project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
+- **raycaster** (`Raycaster`): The current raycaster used for pointer events.
+- **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster.
 - **render** (`(delta: number) => void`): Function to manually trigger a render.
 - **requestRender** (`() => void`): Function to request a render on the next frame.
-- **scene** (`Meta<Scene>`): The root scene, wrapped with `meta`.
-- **props** (`CanvasProps`): The props the host `<Canvas>` was rendered with.
+- **scene** (`Scene`): The root scene.
 - **xr** (`{ connect: () => void; disconnect: () => void }`): WebXR connection management.
 
 **Camera and Raycaster Stack System:**
@@ -609,7 +514,28 @@ const camera = useThree(ctx => ctx.camera)
 - **Push To The Stack To Become Active**: By calling `setCamera(camera)` and `setRaycaster(raycaster)`, the camera/raycaster is pushed to the stack. This causes it to become the currently active camera/raycaster
 - **Pop From The Stack To Deactivate**: `setCamera(camera)` and `setRaycaster(raycaster)` return a cleanup-function to pop the camera/raycaster from the stack. If the camera/raycaster was on top of the stack, the previous camera/raycaster in the stack becomes active again
 
-**Camera Switching Example:**
+**Usage:**
+
+```tsx
+const three = useThree()
+
+createEffect(() => {
+  if (useOrtho()) {
+    const orthoCamera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000)
+    orthoCamera.position.set(0, 0, 5)
+
+    // Push ortho camera onto stack
+    const restore = three.setCamera(orthoCamera)
+
+    // Cleanup automatically restores previous camera
+    onCleanup(restore)
+  }
+})
+```
+
+([see](/playground/src/api/use-three/camera-switch.tsx))
+
+**Practical Example - Camera Switching:**
 
 ```tsx
 const three = useThree()
@@ -644,8 +570,6 @@ Registers a callback that will be called before every frame is rendered, useful 
 - **options** - Optional configuration object:
   - **priority** - Execution priority (lower numbers run first, default: 0)
   - **stage** - Whether to run before or after rendering (default: "before")
-
-**Returns:** A cleanup function (`() => void`) that unregisters the callback. Solid calls it automatically when the owning component unmounts, but you can also call it manually to detach the listener earlier.
 
 <details>
 <summary>Typescript Interface</summary>
@@ -709,14 +633,11 @@ You can customize caching behavior:
 <summary>Typescript Interface</summary>
 
 ```tsx
-interface UseLoaderOptions<
-  TLoader extends Loader<any, any>,
-  TInput extends LoadInput<TLoader>,
-> {
+interface UseLoaderOptions<TLoader, TResult> {
   base?: string
-  cache?: boolean | LoaderRegistry
+  cache?: true | LoaderRegistry | false
   onBeforeLoad?(loader: TLoader): void
-  onLoad?(resource: LoadOutput<TLoader, TInput>): void
+  onLoad?(resource: TResult): void
 }
 ```
 
@@ -801,14 +722,14 @@ A cache registry needs two methods:
 
 ```tsx
 interface LoaderRegistry {
-  set<TLoader extends Loader<any, any>>(
+  set<TLoader extends Loader<object, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     data: PromiseMaybe<LoaderData<TLoader>>,
   ): void
 
-  get<TLoader extends Loader<any, any>>(
-    loader: TLoader,
+  get<TLoader extends Loader<object, any>>(
+    loader: Loader<TData, TUrl>,
     url: LoaderUrl<TLoader>,
     warn?: boolean,
   ): PromiseMaybe<LoaderData<TLoader>> | undefined
@@ -817,52 +738,27 @@ interface LoaderRegistry {
 
 </details>
 
-#### `load` — the lower-level primitive
-
-`useLoader` is built on top of `load`, a plain async function that wraps `loader.load` in a `Promise` (no caching, no Suspense integration, no reactivity). Use it directly when you need to await a resource imperatively.
-
-```tsx
-import { load } from "solid-three"
-import { TextureLoader } from "three"
-
-// Single URL → resolves to the loader's data type
-const texture = await load(new TextureLoader(), "/wood.jpg")
-
-// Record of URLs → resolves to a record of resources, preserving keys
-const textures = await load(new TextureLoader(), {
-  diffuse: "/wood-diffuse.jpg",
-  normal: "/wood-normal.jpg",
-})
-```
-
-`useLoader` calls `load` internally when there's a cache miss.
-
 ### useProps
 
-`useProps` is the smart-prop pipeline that powers every `<T.*>` and `<Entity/>` component. It applies a record of props to a `three.js` object reactively — coercing values into the shapes three expects, walking dashed paths into nested setters, wiring up event listeners, and attaching children.
-
-Call it directly when you wrap your own `three.js` object (custom controls, third-party libraries, ad-hoc instances).
+The `useProps` hook manages and applies `solid-three` props to THREE.js objects. It sets up reactive effects to ensure properties are correctly applied and updated, manages children attachment, and handles automatic disposal.
 
 **Parameters:**
 
-- **accessor**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
-- **props**: Object containing props to apply (including `ref`, `args`, `attach`, `children`, and any `three.js` properties).
-- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) the pipeline reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
+- **object**: An accessor function that returns the target THREE.js object
+- **props**: Object containing props to apply (including `ref`, `children`, and THREE.js properties)
 
 <details>
 <summary>Typescript Signature</summary>
 
 ```tsx
-function useProps<T extends Record<string, any>>(
-  accessor: T | undefined | Accessor<T | undefined>,
-  props: any,
-  context?: Pick<Context, "requestRender" | "gl" | "props">,
-): void
+function useProps<T extends object>(object: Accessor<T>, props: any): void
 ```
 
 </details>
 
 **Usage:**
+
+This hook is primarily used internally by `solid-three` components, but can be useful when creating custom components or integrating existing THREE.js objects:
 
 ```tsx
 const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
@@ -871,121 +767,36 @@ const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
 useProps(mesh, props)
 ```
 
-A typical wrapper looks like this — instantiate (often via `createMemo` so the object rebuilds when `args` change), hand the accessor to `useProps`, and return `null`:
+([see](/playground/src/api/use-props/usage.tsx))
+
+**What it handles:**
+
+- **Reactive prop updates**: Automatically applies prop changes to the THREE.js object
+- **Ref assignment**: Handles both function refs and object refs
+- **Children management**: Attaches/detaches child objects from the scene graph
+- **Automatic disposal**: Cleans up the object when the component unmounts
+- **Special props**: Processes `onUpdate` callbacks after prop applications
+
+**Advanced usage:**
 
 ```tsx
 export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
   const three = useThree()
-  const controls = createMemo<ThreeOrbitControls>(() => {
-    const next = autodispose(new ThreeOrbitControls(three.camera))
-    next.connect(three.gl.domElement)
-    return next
+  const controls = createMemo<ThreeOrbitControls>(previous => {
+    const controls = autodispose(new ThreeOrbitControls(three.camera))
+    controls.connect(three.gl.domElement)
+    return controls
   })
 
   useFrame(() => controls().update())
 
-  useProps(controls, props)
+  useProps(controls, rest)
 
-  return null
+  return null!
 }
 ```
 
-([see](/playground/controls/orbit-controls.tsx))
-
-**What it handles:**
-
-- **Reactive prop updates**: Each prop is wrapped in its own `createRenderEffect`. When a signal a prop reads updates, only that prop's effect re-runs.
-- **Ref assignment**: Handles both function refs and object refs.
-- **Children management**: Attaches child objects to the scene graph (via `applySceneGraph`) and removes them on cleanup.
-- **Event wiring**: Registers event handlers on `Object3D` instances.
-- **`onUpdate` callback**: Fires after every prop application pass for the entity.
-
-Disposal of the wrapped object is **not** automatic — use [`autodispose`](#autodispose) for that.
-
-#### Coercion rules
-
-Applied top-to-bottom by the internal `applyProp`. The first rule that matches wins.
-
-| #  | Condition                                                                                       | Action                                                                                                       |
-| -- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1  | `value === undefined`                                                                            | skip (never overwrites with `undefined`)                                                                     |
-| 2  | `key` contains `-`                                                                               | split on `-`, recurse into the nested object                                                                  |
-| 3  | `key` is in the `NEEDS_UPDATE` list (see below) and its truthiness flips                          | set `source.needsUpdate = true` **before** the assignment continues                                          |
-| 4  | `source` has `colorSpace`/`outputColorSpace` and `key` is `encoding` / `outputEncoding`           | alias to `colorSpace` / `outputColorSpace`, mapping `sRGBEncoding → "srgb"`, anything else → `"srgb-linear"` |
-| 5  | `key` is an event name                                                                           | register on the event system (`Object3D` instances only — warns otherwise) and **return**                    |
-| 6  | `source[key].copy` exists, constructors match, `source[key]` is not a writable own property      | `source[key].copy(value)`                                                                                    |
-| 7  | `source[key].set` exists and `value` is an array                                                 | `source[key].fromArray(value)` if available, else `source[key].set(...value)`                                |
-| 8  | `source[key].set` exists, `value` is a number, `source[key]` is **not** a `Color`, and `.setScalar` exists | `source[key].setScalar(value)`                                                                      |
-| 9  | `source[key].set` exists and `value` is not an object                                            | `source[key].set(value)` — this is where `color="red"`, `color={0xff8800}` land via `Color.set`             |
-| 10 | otherwise                                                                                        | `source[key] = value`; if the assigned value is a `Texture` with `RGBAFormat`/`UnsignedByteType`, auto-reconcile its `colorSpace` against the renderer (subscribing to canvas-level `linear`/`flat`) |
-
-Then, in a `finally` after every prop (rules 5–10):
-
-- if `"needsUpdate" in source`, set `source.needsUpdate = true` — every assigned prop bumps `needsUpdate` on materials/geometries that have it;
-- if `frameloop === "demand"`, `context.requestRender()` is called.
-
-#### `NEEDS_UPDATE` truthiness list
-
-These props additionally flip `needsUpdate = true` *before* assignment, when their truthiness changes:
-
-`map`, `envMap`, `bumpMap`, `normalMap`, `transparent`, `morphTargets`, `skinning`, `alphaTest`, `useVertexColors`, `flatShading`.
-
-#### `args` — constructor parameters
-
-`args` is spread into the entity's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it determines how the object is *built*. Changing `args` therefore **rebuilds the entity** (old disposed, new mounted in its place).
-
-```tsx
-const [size, setSize] = createSignal(1)
-
-<T.Mesh>
-  {/* Resizing rebuilds the BoxGeometry */}
-  <T.BoxGeometry args={[size(), size(), size()]} />
-  <T.MeshStandardMaterial color="cornflowerblue" />
-</T.Mesh>
-```
-
-For everything that *does* have a runtime setter, use a regular prop — it mutates in place instead of rebuilding.
-
-#### `attach` — slot assignment
-
-By default, `solid-three` figures out where a child belongs:
-
-- `Material` instances → `parent.material`
-- `BufferGeometry` instances → `parent.geometry`
-- `Fog` instances → `parent.scene.fog`
-- `Object3D` instances → added to `parent.children`
-
-Override with an explicit `attach` prop when the default isn't what you want:
-
-```tsx
-<T.MeshStandardMaterial>
-  <Resource loader={TextureLoader} url="diffuse.jpg" attach="map" />
-  <Resource loader={TextureLoader} url="normal.jpg" attach="normalMap" />
-</T.MeshStandardMaterial>
-```
-
-`attach` accepts:
-
-- a **string** — dashed paths work the same way they do for props (`attach="material-emissiveMap"`);
-- a **function** — `(parent, child) => cleanup`. The returned cleanup runs on unmount.
-
-#### `ref`
-
-Both function refs and object refs are supported:
-
-```tsx
-let mesh: Mesh | undefined
-<T.Mesh ref={mesh}>…</T.Mesh>
-
-// or
-<T.Mesh ref={instance => doSomethingWith(instance)} />
-```
-
-Function refs fire inside a `createRenderEffect`, so they re-run if the underlying object identity changes (e.g. after an `args` rebuild).
-
-#### `onUpdate`
-
-A special prop, not a `three.js` field. Fires after every prop application pass for the entity, with the entity itself as the argument. Useful as a "props are settled" hook for derived setup that can't be expressed as a single prop.
+[see](/playground/controls/orbit-controls.tsx)
 
 ## Utilities
 
@@ -1195,23 +1006,21 @@ const material = autodispose(new THREE.MeshStandardMaterial())
 
 ### Metadata Utilities
 
-These utilities manage `solid-three`'s per-instance metadata. Metadata lives **on the three.js instance itself** under a non-enumerable symbol key (`$S3C`) — there is no external `WeakMap`. Each entry stores the entity's solid-three props, its scene-graph parent, and its set of children.
+These utilities help manage metadata associated with THREE.js objects:
 
-- **`meta(instance, augmentation?)`**: Attaches `solid-three` metadata to `instance` (idempotent). `augmentation` defaults to `{ props: {} }`; pass a `{ props }` object (commonly with a getter) when you want the entity's props to be reactive. Returns the same instance, narrowed to `Meta<T>`.
-- **`getMeta(object)`**: Returns the metadata `Data<T>` attached to `object`, or `undefined` if no metadata is present.
-- **`hasMeta(object)`**: Type guard — returns `true` (narrowing to `Meta<T>`) when the object carries solid-three metadata.
-- **`$S3C`**: The `Symbol` key used to store metadata on instances. Exposed for advanced introspection; prefer `getMeta`/`hasMeta` in normal code.
+- **getMeta(object)**: Get metadata associated with a THREE.js object
+- **hasMeta(object)**: Check if an object has metadata
+- **meta**: WeakMap storing object metadata
+- **$S3C**: Symbol used internally for component metadata
 
 ```tsx
-import { getMeta, hasMeta, meta, $S3C } from "solid-three"
+import { getMeta, hasMeta } from "solid-three"
 
+// Check if an object has solid-three metadata
 if (hasMeta(mesh)) {
   const metadata = getMeta(mesh)
-  console.log(metadata.props, metadata.parent, metadata.children)
+  console.log(metadata)
 }
-
-const tagged = meta(new Mesh(), { props: {} })
-tagged[$S3C] // same shape as getMeta(tagged)
 ```
 
 ### Testing Utilities
@@ -1265,68 +1074,24 @@ const MyTest = () => {
 
 ### Event Object
 
-Every handler receives a single event argument that combines the original DOM event with the raycast result.
+Event handlers receive an event object with the following properties:
 
-| Property              | Type                                       | When present              | Description                                                                                                |
-| --------------------- | ------------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                    | The original DOM event the handler was triggered by.                                                       |
-| `intersections`       | `Intersection[]`                           | events that raycast       | All hit intersections, sorted nearest-first.                                                               |
-| `intersection`        | `Intersection`                             | events that raycast       | Shorthand for `intersections[0]` — the closest hit overall.                                                |
-| `currentIntersection` | `Intersection`                             | inside an object handler  | The intersection corresponding to the current handler's object. Omitted on canvas-level dispatch.          |
-| `stopped`             | `boolean`                                  | stoppable events only     | Whether `stopPropagation()` has been called.                                                               |
-| `stopPropagation`     | `() => void`                               | stoppable events only     | Stops both raycast and tree propagation.                                                                   |
-
-`*Missed` events do not raycast: their event object is just `{ nativeEvent }`.
-
-Each `Intersection` is a standard [three.js `Intersection`](https://threejs.org/docs/#api/en/core/Raycaster.intersectObject) and carries:
-
-- `object` — the hit `Object3D`
-- `point` — world-space hit position (`Vector3`)
-- `distance` — distance from the ray origin
-- `face`, `faceIndex` — hit face on the geometry (when available)
-- `uv`, `uv1` — texture coordinates at the hit (when available)
-- `normal` — face normal at the hit (when available)
-- `instanceId` — for `InstancedMesh` hits
+- **nativeEvent**: The original DOM event
+- **stopped**: Whether propagation has been stopped (only for stoppable events)
+- **stopPropagation**: Method to stop event propagation (only for stoppable events)
 
 <details>
 <summary>Typescript Interface</summary>
 
 ```tsx
-type ThreeEvent<TNativeEvent, TConfig = { stoppable: true; intersections: true }> = {
-  nativeEvent: TNativeEvent
-} & (TConfig["stoppable"] extends false
-  ? {}
-  : { stopped: boolean; stopPropagation: () => void }) &
-  (TConfig["intersections"] extends false
-    ? {}
-    : {
-        intersection: Intersection
-        intersections: Intersection[]
-        currentIntersection: Intersection
-      })
+interface Event<T> {
+  nativeEvent: T
+  stopped?: boolean
+  stopPropagation?: () => void
+}
 ```
-
-`onClick`, `onContextMenu`, `onDoubleClick`, `on*Move`, `on*Down`, `on*Up`, `onWheel` receive the full event (stoppable + intersections).
-
-`onMouseEnter`, `onMouseLeave`, `onPointerEnter`, `onPointerLeave` receive intersections but cannot be stopped.
-
-`onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` receive only `{ nativeEvent }`.
 
 </details>
-
-**Reading the full hit stack:**
-
-For "x-ray" tools, measure-through-walls, or click-through selection, `intersections` is sorted nearest-first:
-
-```tsx
-<T.Mesh
-  onClick={event => {
-    for (const hit of event.intersections) {
-      console.log(hit.distance, hit.object.name)
-    }
-  }}
-/>
-```
 
 ### Event Propagation
 
@@ -1533,7 +1298,7 @@ The `raycastable` prop controls whether an Object3D can be targeted by raycastin
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTION.md) for details on how to get started.
 
 ## License
 
