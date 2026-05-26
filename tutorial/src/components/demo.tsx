@@ -129,6 +129,21 @@ function ensureBabelLoaded(): void {
     })
 }
 
+function errorModule(message: string): string {
+  // A standalone module — no JSX, no babel — that renders a styled <pre>
+  // showing the compile error. Returned in place of the user snippet when
+  // babel/TypeScript fails, so the iframe stays alive while the user is
+  // still typing.
+  const escaped = JSON.stringify(message)
+  return `export default function CompileError() {
+  const node = document.createElement("pre")
+  node.style.cssText = "color:#ff8080;background:#0a0c12;font-family:ui-monospace,monospace;font-size:0.85rem;padding:1rem;margin:0;height:100%;white-space:pre-wrap;overflow:auto;"
+  node.textContent = ${escaped}
+  return node
+}
+`
+}
+
 const tsxExtension: Extension = {
   type: "javascript",
   transform: ({ source, path, fileUrls }) => {
@@ -143,9 +158,14 @@ const tsxExtension: Extension = {
         // Babel resolves and this accessor re-runs.
         return "export default function Placeholder() { return null }\n"
       }
-      const stripped = stripTypeScript(source)
-      const compiled = transform(stripped, path)
-      return rewriteModulePaths({ source: compiled, path, fileUrls })
+      try {
+        const stripped = stripTypeScript(source)
+        const compiled = transform(stripped, path)
+        return rewriteModulePaths({ source: compiled, path, fileUrls })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return errorModule("Compile error:\n\n" + message)
+      }
     }
   },
 }
