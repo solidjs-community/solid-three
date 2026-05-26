@@ -11,11 +11,13 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
 - **gl**: How the renderer is constructed. Accepts one of three shapes:
-  - **flat properties object** (`gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}`) — mixes `WebGLRendererParameters` (constructor-only flags like `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`). solid-three splits them internally: constructor args are baked once at construction; instance props stay reactive. Reactively changing a constructor-only key logs a warning — WebGL contexts are immutable once created, so to swap config at runtime, unmount and remount `<Canvas>`. Inspired by react-three-fiber's `gl` prop.
+  - **flat properties object** (`gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}`) — mixes `WebGLRendererParameters` (constructor-only flags like `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`). solid-three splits the two internally: instance props stay reactive (set them after construction, update them anytime); constructor args are different — see the note below. Inspired by react-three-fiber's `gl` prop.
   - **factory** (`gl={canvas => new WebGPURenderer({ canvas })}`) — return any renderer you want (`WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom).
   - **pre-built instance** — a renderer you already constructed.
 
   See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
+
+  **Constructor args are applied once.** Keys like `antialias`, `alpha`, `powerPreference`, `depth`, `stencil`, `preserveDrawingBuffer` are passed to `new WebGLRenderer({ ... })` at the first construction and never re-read. Updating them later does **not** rebuild the renderer or recreate the WebGL context — and it can't, because `canvas.getContext("webgl2")` is idempotent: the browser returns the same context object on every subsequent call, with the original creation flags. solid-three logs a warning when it detects a reactive change to one of these keys. If you genuinely need to change them at runtime, unmount and remount the `<Canvas>` (e.g. by gating it behind a `<Show>` keyed on the value you want to swap) — that gives you a fresh `<canvas>` element and therefore a fresh context.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
 - **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
