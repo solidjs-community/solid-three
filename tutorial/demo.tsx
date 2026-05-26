@@ -14,15 +14,36 @@ const externalEsmHost = "https://esm.sh"
 const externalDepsParam = "external=solid-js,three&deps=solid-js@1.8,three@0.181"
 
 /**
+ * URL of the local solid-three bundle served by the Vite dev plugin. The
+ * bundle keeps solid-js / solid-js/web / solid-js/store / three external so
+ * the iframe's import map can pin them — this avoids singleton mismatches
+ * between snippet code and solid-three internals.
+ *
+ * Resolved relative to the document so it works whether the tutorial is
+ * served from / or a sub-path.
+ */
+const localSolidThreeUrl = new URL(
+  "/@tutorial/solid-three.js",
+  window.location.href,
+).toString()
+
+/**
  * Map a bare specifier to a URL the iframe can load.
  *
  * solid-js and three are loaded as bare specifiers and resolved via an
  * import map in the host HTML — this keeps a single instance shared between
  * the user snippet, solid-three, and any other esm.sh modules.
+ *
+ * solid-three is served by the dev server as a local pre-bundled ESM file
+ * so the iframe always reflects the current `src/` rather than the published
+ * version on esm.sh.
  */
 function resolveBareSpecifier(specifier: string): string {
   if (specifier === "solid-js" || specifier === "three") {
     return specifier
+  }
+  if (specifier === "solid-three") {
+    return localSolidThreeUrl
   }
   if (specifier.startsWith("solid-js/")) {
     return `${externalEsmHost}/${specifier}?${externalDepsParam}`
