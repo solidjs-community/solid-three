@@ -220,6 +220,10 @@ function Scene() {
 
 <Canvas gl={canvas => new WebGPURenderer({ canvas })}> {/* ✓ */}
 <Canvas gl={canvas => new WebGLRenderer({ canvas })}>  {/* ✗ type error */}
+<Canvas gl={{ toneMapping: ACESFilmicToneMapping }}>   {/* ✗ type error —
+                                                          the config shorthand
+                                                          only builds a default
+                                                          WebGLRenderer */}
 ```
 
 Same pattern as Vite's `ImportMetaEnv` or Next's `getServerSideProps`.
