@@ -231,10 +231,12 @@ const hostHtml = `<!doctype html>
       // Parent posts { type: "theme", value: "dark"|"light" } whenever the
       // site theme toggles. Mirror it into color-scheme so the browser uses
       // the right user-agent canvas behind any transparent body.
-      window.addEventListener("message", event => {
-        if (event.data && event.data.type === "theme") {
-          document.documentElement.style.colorScheme = event.data.value
-        }
+      // (Avoid && in this script — repl's HTML processor encodes & to &amp;.)
+      window.addEventListener("message", function (event) {
+        var data = event.data
+        if (!data) return
+        if (data.type !== "theme") return
+        document.documentElement.style.colorScheme = data.value
       })
     </script>
     <script type="importmap">
