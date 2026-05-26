@@ -219,8 +219,9 @@ const htmlExtension = createHTMLExtension({
     }),
 })
 
-const hostHtml = `<!doctype html>
-<html>
+function buildHostHtml(theme: "dark" | "light"): string {
+  return `<!doctype html>
+<html style="color-scheme: ${theme}">
   <head>
     <meta charset="utf-8" />
     <style>
@@ -260,6 +261,7 @@ const hostHtml = `<!doctype html>
   </body>
 </html>
 `
+}
 
 const bootstrapTsx = `import { render } from "solid-js/web"
 import Component from "./snippet.tsx"
@@ -307,15 +309,12 @@ function DemoClient(props: DemoProps) {
     setCode(initialCode)
   }
 
-  const files: Record<string, string> = {
-    "/index.html": hostHtml,
-    "/main.tsx": bootstrapTsx,
-  }
-
   const fileUrls = createFileUrlSystem({
     readFile: path => {
       if (path === "/snippet.tsx") return code()
-      return files[path]
+      if (path === "/index.html") return buildHostHtml(editorTheme())
+      if (path === "/main.tsx") return bootstrapTsx
+      return undefined
     },
     extensions: {
       tsx: tsxExtension,
