@@ -48,26 +48,18 @@ function Cell(props: { x: number; y: number; color: string }) {
   )
 }
 
-function Tetromino(props: { piece: Piece; onClick: () => void }) {
+function Tetromino(props: { piece: Piece }) {
   return (
     <Index each={props.piece.shape}>
       {(row, rowIndex) => (
         <Index each={row()}>
           {(filled, colIndex) => (
             <Show when={filled()}>
-              <T.Mesh
-                position={cellWorldPosition(
-                  props.piece.position[0] + colIndex,
-                  props.piece.position[1] + rowIndex,
-                )}
-                onClick={event => {
-                  event.stopPropagation()
-                  props.onClick()
-                }}
-              >
-                <T.BoxGeometry args={[0.95, 0.95, 0.95]} />
-                <T.MeshStandardMaterial color={TETROMINOES[props.piece.type].color} />
-              </T.Mesh>
+              <Cell
+                x={props.piece.position[0] + colIndex}
+                y={props.piece.position[1] + rowIndex}
+                color={TETROMINOES[props.piece.type].color}
+              />
             </Show>
           )}
         </Index>
@@ -95,24 +87,29 @@ export default function App() {
   }
 
   return (
-    <Canvas
-      orthographic
-      camera={{ position: [0, 0, 20], zoom: 14 }}
+    <div
+      onClick={cycleType}
+      style={{ width: "100%", height: "100%", cursor: "pointer" }}
     >
-      <T.AmbientLight intensity={0.6} />
-      <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />
-      <Index each={board}>
-        {(row, y) => (
-          <Index each={row()}>
-            {(color, x) => (
-              <Show when={color()}>
-                <Cell x={x} y={y} color={color() as string} />
-              </Show>
-            )}
-          </Index>
-        )}
-      </Index>
-      <Tetromino piece={piece} onClick={cycleType} />
-    </Canvas>
+      <Canvas
+        orthographic
+        camera={{ position: [0, 0, 20], zoom: 60 }}
+      >
+        <T.AmbientLight intensity={0.6} />
+        <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />
+        <Index each={board}>
+          {(row, y) => (
+            <Index each={row()}>
+              {(color, x) => (
+                <Show when={color()}>
+                  <Cell x={x} y={y} color={color() as string} />
+                </Show>
+              )}
+            </Index>
+          )}
+        </Index>
+        <Tetromino piece={piece} />
+      </Canvas>
+    </div>
   )
 }
