@@ -144,19 +144,23 @@ export interface RendererLike {
   setSize(width: number, height: number, updateStyle?: boolean): void
   setPixelRatio(value: number): void
   getPixelRatio(): number
-  /** Optional XR manager. */
+  /**
+   * Optional XR manager. Typed loosely because three's `WebGLRenderer.xr`
+   * and `WebGPURenderer.xr` expose different surfaces across versions, and
+   * we runtime-narrow inside `create-three.tsx` before calling any method.
+   */
   xr?: {
-    isPresenting: boolean
     enabled: boolean
-    addEventListener(type: string, listener: () => void): void
-    removeEventListener(type: string, listener: () => void): void
-    setAnimationLoop(callback: XRFrameRequestCallback | null): void
+    isPresenting?: boolean
+    addEventListener?: (type: string, listener: () => void) => void
+    removeEventListener?: (type: string, listener: () => void) => void
+    setAnimationLoop?: (callback: XRFrameRequestCallback | null) => void
   }
-  /** Optional shadow map (WebGL-specific). */
+  /** Optional shadow map (WebGL-specific; surface varies by renderer/version). */
   shadowMap?: {
     enabled: boolean
     type: number
-    needsUpdate: boolean
+    needsUpdate?: boolean
   }
   /** Async initializer — awaited once before the first render (WebGPURenderer). */
   init?(): Promise<void>

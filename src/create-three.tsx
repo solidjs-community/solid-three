@@ -140,24 +140,24 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     render(timestamp, frame)
   }
   // Toggle render switching on session. No-op when the active renderer
-  // doesn't expose an `xr` manager (e.g. a non-XR `WebGPURenderer` build).
+  // doesn't expose a full `xr` manager (e.g. a non-XR `WebGPURenderer` build,
+  // whose `xr` may carry only `{ enabled }` and none of the methods).
   function handleSessionChange() {
     const _xr = context.gl.xr
-    if (!_xr) return
-    _xr.enabled = _xr.isPresenting
+    if (!_xr?.setAnimationLoop) return
+    _xr.enabled = !!_xr.isPresenting
     _xr.setAnimationLoop(_xr.isPresenting ? handleXRFrame : null)
   }
-  // WebXR session-manager
   const xr = {
     connect() {
       const _xr = context.gl.xr
-      if (!_xr) return
+      if (!_xr?.addEventListener) return
       _xr.addEventListener("sessionstart", handleSessionChange)
       _xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
       const _xr = context.gl.xr
-      if (!_xr) return
+      if (!_xr?.removeEventListener) return
       _xr.removeEventListener("sessionstart", handleSessionChange)
       _xr.removeEventListener("sessionend", handleSessionChange)
     },
@@ -370,8 +370,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
       createEffect(() => {
         const renderer = gl()
-        // Connect to xr if property exists
-        if (renderer.xr) context.xr.connect()
+        // Only wire up the XR session manager when the renderer's `xr`
+        // actually has the methods we'll call. WebGPURenderer ships a stub
+        // `xr: { enabled: false }` when built without XR — truthy but unusable.
+        if (typeof renderer.xr?.addEventListener === "function") context.xr.connect()
       })
 
       // Await async renderer init (WebGPURenderer requires this before the
