@@ -5,6 +5,8 @@ import {
   createRenderEffect,
   createResource,
   createRoot,
+  createSignal,
+  untrack,
   mergeProps,
   onCleanup,
 } from "solid-js"
@@ -290,6 +292,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
+  // The live `<canvas>` element — replaced when the default-branch
+  // WebGLRenderer is reconstructed with different ctor args (because WebGL
+  // won't issue a fresh context for a canvas whose context has been lost,
+  // so we have to swap the canvas itself). Reactive consumers
+  // (`context.canvas` getter, event listeners) re-bind to the new element.
+  const [liveCanvas, setLiveCanvas] = createSignal(canvas)
+
   // Tracks whether the *previous* renderer was built by us (vs supplied by
   // the user via factory/instance). Only our own renderers get disposed when
   // the memo re-runs — disposing a user's renderer would be rude.
@@ -301,9 +310,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       if ("forceContextLoss" in old) old.forceContextLoss()
     }
     const kind = glKind()
+    // Read live canvas WITHOUT tracking — only this memo writes to it (via
+    // the canvas swap below), so a tracked read would loop.
+    const currentCanvas = untrack(liveCanvas)
     let _gl: Renderer
     if (kind === "factory") {
-      _gl = (props.gl as (canvas: HTMLCanvasElement) => Renderer)(canvas)
+      _gl = (props.gl as (canvas: HTMLCanvasElement) => Renderer)(currentCanvas)
       ownsCurrentRenderer = false
     } else if (kind === "instance") {
       _gl = props.gl as Renderer
@@ -313,7 +325,21 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       // (if they passed a `[ctorArgs, props]` tuple). The default `alpha: true`
       // can be overridden by the user; `canvas` is solid-three's own and
       // intentionally placed last so it can't be.
-      _gl = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas })
+      //
+      // If we're *recreating* a default WebGLRenderer (previous existed and
+      // was ours), swap the canvas element first: WebGL binds a context to a
+      // canvas for life, so a fresh context requires a fresh canvas.
+      let targetCanvas = currentCanvas
+      if (previous && ownsCurrentRenderer) {
+        const fresh = document.createElement("canvas")
+        fresh.width = targetCanvas.width
+        fresh.height = targetCanvas.height
+        fresh.style.cssText = targetCanvas.style.cssText
+        targetCanvas.parentNode?.replaceChild(fresh, targetCanvas)
+        setLiveCanvas(fresh)
+        targetCanvas = fresh
+      }
+      _gl = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas: targetCanvas })
       ownsCurrentRenderer = true
     }
 
@@ -370,7 +396,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     get bounds() {
       return measure.bounds()
     },
-    canvas,
+    get canvas() {
+      return liveCanvas()
+    },
     clock,
     get dpr() {
       // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale

@@ -621,14 +621,7 @@ describe("renderer", () => {
     expect(state.gl).toBe(initial)
   })
 
-  // Constructing a second WebGLRenderer on the same `<canvas>` is unsupported
-  // by WebGL itself — once `forceContextLoss()` runs, the canvas's context is
-  // permanently lost and the new renderer can't acquire a fresh one. These
-  // tests describe an aspirational behavior that only works for the factory
-  // branch (where the user can swap canvases). Tracking under a known
-  // limitation; the underlying memo logic is still covered by the
-  // `gl: factory` tests below.
-  it.skip("should recreate the renderer when tuple[0] changes shape", async () => {
+  it("should recreate the renderer when tuple[0] changes shape", async () => {
     const [aa, setAa] = createSignal(true)
     const state = test(() => <T.Group />, {
       get gl() {
@@ -641,7 +634,7 @@ describe("renderer", () => {
     expect(state.gl).not.toBe(initial)
   })
 
-  it.skip("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
+  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
     const [aa, setAa] = createSignal(true)
     const state = test(() => <T.Group />, {
       get gl() {

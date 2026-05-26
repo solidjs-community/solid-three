@@ -1,6 +1,25 @@
+import { createEffect, onCleanup } from "solid-js"
 import { Object3D, type Intersection } from "three"
 import type { Context, EventName, Meta, Prettify, ThreeEvent } from "./types.ts"
 import { getMeta } from "./utils.ts"
+
+/**
+ * Bind a DOM listener to whichever canvas `context.canvas` currently refers
+ * to. Re-binds when the canvas is swapped (e.g. default WebGLRenderer
+ * recreation). Cleanup is owner-scoped.
+ */
+function bindToLiveCanvas<K extends keyof HTMLElementEventMap>(
+  context: Context,
+  type: K,
+  handler: (event: HTMLElementEventMap[K]) => void,
+  options?: AddEventListenerOptions,
+) {
+  createEffect(() => {
+    const canvas = context.canvas
+    canvas.addEventListener(type, handler as EventListener, options)
+    onCleanup(() => canvas.removeEventListener(type, handler as EventListener, options))
+  })
+}
 
 const eventNameMap = {
   onClick: "click",
@@ -149,7 +168,10 @@ function createMissableEventRegistry(
 ) {
   const registry = createRegistry<Object3D>()
 
-  context.canvas.addEventListener(eventNameMap[type], nativeEvent => {
+  bindToLiveCanvas(
+    context,
+    eventNameMap[type] as keyof HTMLElementEventMap,
+    nativeEvent => {
     const missedType = `${type}Missed` as const
     if (registry.array.length === 0 && !context.props[type] && !context.props[missedType]) return
 
@@ -217,7 +239,8 @@ function createMissableEventRegistry(
     if (intersections.length === 0) {
       context.props[`${type}Missed`]?.(missedEvent)
     }
-  })
+    },
+  )
 
   return registry
 }
@@ -245,7 +268,10 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
   let intersections: Intersection<Meta<Object3D>>[] = []
   let hoveredCanvas = false
 
-  context.canvas.addEventListener(eventNameMap[`on${type}Move`], nativeEvent => {
+  bindToLiveCanvas(
+    context,
+    eventNameMap[`on${type}Move`] as keyof HTMLElementEventMap,
+    nativeEvent => {
     intersections = raycast(context, registry.array, nativeEvent)
 
     // Phase #1 - Enter
@@ -333,22 +359,27 @@ function createHoverEventRegistry(type: "Mouse" | "Pointer", context: Context) {
         leaveEvent,
       )
     }
-  })
+    },
+  )
 
-  context.canvas.addEventListener(eventNameMap[`on${type}Leave`], nativeEvent => {
-    const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    // @ts-expect-error TODO: fix type-error
-    context.props[`on${type}Leave`]?.(leaveEvent)
-    hoveredCanvas = false
+  bindToLiveCanvas(
+    context,
+    eventNameMap[`on${type}Leave`] as keyof HTMLElementEventMap,
+    nativeEvent => {
+      const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false })
+      // @ts-expect-error TODO: fix type-error
+      context.props[`on${type}Leave`]?.(leaveEvent)
+      hoveredCanvas = false
 
-    for (const object of hoveredSet) {
-      getMeta(object)?.props[`on${type}Leave`]?.(
-        // @ts-expect-error TODO: fix type-error
-        leaveEvent,
-      )
-    }
-    hoveredSet.clear()
-  })
+      for (const object of hoveredSet) {
+        getMeta(object)?.props[`on${type}Leave`]?.(
+          // @ts-expect-error TODO: fix type-error
+          leaveEvent,
+        )
+      }
+      hoveredSet.clear()
+    },
+  )
 
   return registry
 }
@@ -374,8 +405,9 @@ function createDefaultEventRegistry(
 ) {
   const registry = createRegistry<Object3D>()
 
-  context.canvas.addEventListener(
-    eventNameMap[type],
+  bindToLiveCanvas(
+    context,
+    eventNameMap[type] as keyof HTMLElementEventMap,
     nativeEvent => {
       const intersections = raycast(context, registry.array, nativeEvent)
       const event = createThreeEvent(nativeEvent, { intersections })
