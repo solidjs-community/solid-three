@@ -6,7 +6,7 @@ const T = createT(THREE)
 
 export default function App() {
   return (
-    <Canvas camera={{ position: [2, 2, 2] }}>
+    <Canvas camera={{ position: [0, 0, 3] }}>
       <Suspense>
         <T.Mesh>
           <T.BoxGeometry />

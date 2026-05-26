@@ -5,10 +5,7 @@ import { Canvas, createT, useLoader } from "solid-three"
 const T = createT(THREE)
 
 function TexturedCube() {
-  const texture = useLoader(
-    () => THREE.TextureLoader,
-    () => "https://picsum.photos/seed/solid-three/256",
-  )
+  const texture = useLoader(THREE.TextureLoader, "https://picsum.photos/seed/solid-three/256")
   return (
     <T.Mesh>
       <T.BoxGeometry />
@@ -19,7 +16,7 @@ function TexturedCube() {
 
 export default function App() {
   return (
-    <Canvas camera={{ position: [2, 2, 2] }}>
+    <Canvas camera={{ position: [0, 0, 3] }}>
       <Suspense>
         <TexturedCube />
       </Suspense>
