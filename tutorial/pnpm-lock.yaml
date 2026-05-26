@@ -32,6 +32,12 @@ importers:
       three:
         specifier: ^0.181.2
         version: 0.181.2
+      tm:
+        specifier: ^0.0.1
+        version: 0.0.1
+      tm-textarea:
+        specifier: ^0.1.1
+        version: 0.1.1(@babel/core@7.29.7)(@types/react@19.2.15)(solid-js@1.9.13)
       typescript:
         specifier: ^5.4.5
         version: 5.9.3
@@ -619,6 +625,11 @@ packages:
     peerDependencies:
       solid-js: ^1.8.8
 
+  '@lume/element@0.13.1':
+    resolution: {integrity: sha512-IiSgUeTXX1SjnzvxB+pnoERW5YaeGEtwbR7vyFAmBvI5PvccbTv4TR6mPweHKK/XiO/ZDT1whOS8HmSkRrxMCg==}
+    peerDependencies:
+      '@types/react': '*'
+
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
 
@@ -809,6 +820,11 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/memo@1.4.5':
+    resolution: {integrity: sha512-dMfFShNsyX5virETyDv/Uoy2HP+PL4k8cUTTLb2r4TfoqJb010KIaOuURqp/Qbdznp4ZkDuP57b28d45kaOueQ==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
   '@solid-primitives/platform@0.1.2':
     resolution: {integrity: sha512-sSxcZfuUrtxcwV0vdjmGnZQcflACzMfLriVeIIWXKp8hzaS3Or3tO6EFQkTd3L8T5dTq+kTtLvPscXIpL0Wzdg==}
     peerDependencies:
@@ -831,6 +847,11 @@ packages:
 
   '@solid-primitives/rootless@1.5.3':
     resolution: {integrity: sha512-N8cIDAHbWcLahNRLr0knAAQvXyEdEMoAZvIMZKmhNb1mlx9e2UOv9BRD5YNwQUJwbNoYVhhLwFOEOcVXFx0HqA==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/scheduled@1.5.3':
+    resolution: {integrity: sha512-oNwLE6E6lxJAWrc8QXuwM0k2oU1BnANnkChwMw82aK1j3+mWGJkG1IFe5gCwbV+afYmjI76t9JJV3md/8tLw+g==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -930,6 +951,9 @@ packages:
 
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
+
+  '@types/react@19.2.15':
+    resolution: {integrity: sha512-eRwcGNHve+E8qtEQSSRl6urh+rFop4v8gm6O8rGv25CodbvFdLjA1vVQ1KkiFE0w0UPOnb8tDiFKL5lp0rtY5Q==}
 
   '@types/stats.js@0.17.4':
     resolution: {integrity: sha512-jIBvWWShCvlBqBNIZt0KAshWpvSjhkwkEu4ZUcASoAvhmrgAUI2t1dXrjSL4xXVLB4FznPrIsX3nKXFl/Dt4vA==}
@@ -1031,6 +1055,13 @@ packages:
 
   character-reference-invalid@2.0.1:
     resolution: {integrity: sha512-iBZ4F4wRbyORVsu0jPV7gXkOsGYjGHPmAyv+HiHG8gi5PtC9KI2j1+v8/tlibRvjoWX027ypmG/n0HtO5t7unw==}
+
+  classy-solid@0.4.4:
+    resolution: {integrity: sha512-AVLh3MDtAo9ijVgTF9tx2AjPIP/YREcthsaN8btHjisi2GA92Ku4AIrabmtxIgGCEndOh+wIzWaBHqALso6NVA==}
+
+  clsx@2.1.1:
+    resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
+    engines: {node: '>=6'}
 
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
@@ -1534,6 +1565,9 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
+
+  lowclass@8.0.2:
+    resolution: {integrity: sha512-F/SMc8Kn34lNfjhlMDZYiOqmdtROR8sndSl7I/HJooxBekpgFxBcZL7LFsugc/sSGg0PV+or74+M5Q1/F4dP9g==}
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
@@ -2077,6 +2111,15 @@ packages:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
 
+  tm-textarea@0.1.1:
+    resolution: {integrity: sha512-9zUlMnkGn8VtaCBrmPx8vTDzW7mseGbeI40v+6kznP8PqmuqgNz9p/uBj9aNk7Fz3cM7d9bJa06xemAdEP33dQ==}
+    engines: {node: '>=18', pnpm: '>=9.0.0'}
+    peerDependencies:
+      solid-js: ^1.6.0
+
+  tm@0.0.1:
+    resolution: {integrity: sha512-61DriEKy3/Am1o/OY7MxfQVe5kL8Y4R60b3C4KZKFiSLtSr3JlFJ+3x9pxyL/bhmcj3xwMGyt00Gt3ffdkk1EA==}
+
   to-regex-range@5.0.1:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
@@ -2341,6 +2384,12 @@ packages:
     peerDependenciesMeta:
       vite:
         optional: true
+
+  vscode-oniguruma@2.0.1:
+    resolution: {integrity: sha512-poJU8iHIWnC3vgphJnrLZyI3YdqRlR27xzqDmpPXYzA93R4Gk8z7T6oqDzDoHjoikA2aS82crdXFkjELCdJsjQ==}
+
+  vscode-textmate@9.3.2:
+    resolution: {integrity: sha512-n2uGbUcrjhUEBH16uGA0TvUfhWwliFZ1e3+pTjrkim1Mt7ydB41lV08aUvsi70OlzDWp6X7Bx3w/x3fAXIsN0Q==}
 
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
@@ -2936,6 +2985,16 @@ snapshots:
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
       solid-js: 1.9.13
 
+  '@lume/element@0.13.1(@babel/core@7.29.7)(@types/react@19.2.15)':
+    dependencies:
+      '@types/react': 19.2.15
+      babel-preset-solid: 1.9.12(@babel/core@7.29.7)(solid-js@1.9.13)
+      classy-solid: 0.4.4
+      lowclass: 8.0.2
+      solid-js: 1.9.13
+    transitivePeerDependencies:
+      - '@babel/core'
+
   '@mdx-js/mdx@3.1.1':
     dependencies:
       '@types/estree': 1.0.9
@@ -3142,6 +3201,12 @@ snapshots:
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
       solid-js: 1.9.13
 
+  '@solid-primitives/memo@1.4.5(solid-js@1.9.13)':
+    dependencies:
+      '@solid-primitives/scheduled': 1.5.3(solid-js@1.9.13)
+      '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
+      solid-js: 1.9.13
+
   '@solid-primitives/platform@0.1.2(solid-js@1.9.13)':
     dependencies:
       solid-js: 1.9.13
@@ -3167,6 +3232,10 @@ snapshots:
   '@solid-primitives/rootless@1.5.3(solid-js@1.9.13)':
     dependencies:
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
+      solid-js: 1.9.13
+
+  '@solid-primitives/scheduled@1.5.3(solid-js@1.9.13)':
+    dependencies:
       solid-js: 1.9.13
 
   '@solid-primitives/scroll@2.1.5(solid-js@1.9.13)':
@@ -3297,6 +3366,10 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/react@19.2.15':
+    dependencies:
+      csstype: 3.2.3
+
   '@types/stats.js@0.17.4': {}
 
   '@types/three@0.181.0':
@@ -3387,6 +3460,14 @@ snapshots:
   character-entities@2.0.2: {}
 
   character-reference-invalid@2.0.1: {}
+
+  classy-solid@0.4.4:
+    dependencies:
+      '@solid-primitives/memo': 1.4.5(solid-js@1.9.13)
+      lowclass: 8.0.2
+      solid-js: 1.9.13
+
+  clsx@2.1.1: {}
 
   collapse-white-space@2.1.0: {}
 
@@ -3946,6 +4027,8 @@ snapshots:
       quansync: 0.2.11
 
   longest-streak@3.1.0: {}
+
+  lowclass@8.0.2: {}
 
   lru-cache@5.1.1:
     dependencies:
@@ -4918,6 +5001,21 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
+  tm-textarea@0.1.1(@babel/core@7.29.7)(@types/react@19.2.15)(solid-js@1.9.13):
+    dependencies:
+      '@lume/element': 0.13.1(@babel/core@7.29.7)(@types/react@19.2.15)
+      '@solid-primitives/memo': 1.4.5(solid-js@1.9.13)
+      classy-solid: 0.4.4
+      clsx: 2.1.1
+      solid-js: 1.9.13
+      vscode-oniguruma: 2.0.1
+      vscode-textmate: 9.3.2
+    transitivePeerDependencies:
+      - '@babel/core'
+      - '@types/react'
+
+  tm@0.0.1: {}
+
   to-regex-range@5.0.1:
     dependencies:
       is-number: 7.0.0
@@ -5108,6 +5206,10 @@ snapshots:
   vitefu@1.1.3(vite@8.0.14(esbuild@0.25.12)(yaml@2.9.0)):
     optionalDependencies:
       vite: 8.0.14(esbuild@0.25.12)(yaml@2.9.0)
+
+  vscode-oniguruma@2.0.1: {}
+
+  vscode-textmate@9.3.2: {}
 
   web-namespaces@2.0.1: {}
 

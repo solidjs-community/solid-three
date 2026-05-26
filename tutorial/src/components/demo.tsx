@@ -6,9 +6,20 @@ import {
   transformModulePaths,
   type Extension,
 } from "@bigmistqke/repl"
+import { clientOnly } from "@solidjs/start"
 import { isServer } from "solid-js/web"
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import ts from "typescript"
+
+// `tm-textarea` touches the DOM at import time, so it must only load
+// client-side. `clientOnly` returns a Solid component that renders nothing
+// on the server and dynamically imports the real one in the browser.
+// The default CDN (https://esm.sh) routes /tm-themes/... and /tm-grammars/...
+// to the corresponding npm packages, so no extra config is needed.
+const TmTextarea = clientOnly(async () => {
+  const solid = await import("tm-textarea/solid")
+  return { default: solid.TmTextarea }
+})
 
 const externalEsmHost = "https://esm.sh"
 
@@ -295,10 +306,12 @@ function DemoClient(props: DemoProps) {
       </Show>
       <div class="demo-panes">
         <Show when={!isNarrow() || pane() === "editor"}>
-          <textarea
+          <TmTextarea
             class="demo-editor"
-            spellcheck={false}
+            grammar="tsx"
+            theme="andromeeda"
             value={code()}
+            editable
             onInput={event => setCode(event.currentTarget.value)}
           />
         </Show>

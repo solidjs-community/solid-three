@@ -60,7 +60,7 @@ export default defineConfig({
     },
   },
   ssr: {
-    noExternal: ["@kobalte/solidbase"],
+    noExternal: ["@kobalte/solidbase", "tm-textarea"],
   },
   plugins: [
     solidBaseJsxFallbackPlugin(),

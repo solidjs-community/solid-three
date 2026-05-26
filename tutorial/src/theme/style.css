@@ -30,14 +30,13 @@
 }
 
 .demo-editor {
-  background: #0a0c12;
-  color: #e8e8e8;
   font-family: ui-monospace, monospace;
   font-size: 0.85rem;
   padding: 1rem;
   border: 0;
   border-right: 1px solid #222;
-  resize: none;
+  min-height: 320px;
+  overflow: auto;
 }
 
 .demo-narrow .demo-editor {
