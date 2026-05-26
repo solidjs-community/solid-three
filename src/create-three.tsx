@@ -168,9 +168,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
+  // WebGPURenderer needs `await renderer.init()` before its first render. The
+  // render loop spins harmlessly until this flips true.
+  let glInitialized = false
 
   function render(timestamp: number, frame?: XRFrame) {
-    if (!context.gl) {
+    if (!context.gl || !glInitialized) {
       return
     }
     if (props.frameloop === "never") {
@@ -233,7 +236,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const _gl =
+    const _gl: RendererLike =
       typeof props.gl === "function"
         ? // factory callback that returns a renderer
           props.gl(canvas)
@@ -367,6 +370,34 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         const renderer = gl()
         // Connect to xr if property exists
         if (renderer.xr) context.xr.connect()
+      })
+
+      // Await async renderer init (WebGPURenderer requires this before the
+      // first render). For WebGLRenderer this branch is a no-op and
+      // `glInitialized` flips true synchronously.
+      createEffect(async () => {
+        const renderer = gl()
+        glInitialized = false
+        // Register synchronously so a renderer swap mid-init can abort.
+        let cancelled = false
+        onCleanup(() => {
+          cancelled = true
+        })
+
+        if (typeof renderer.init === "function" && !renderer.hasInitialized?.()) {
+          // Size the canvas backing buffer before init so WebGPU allocates the
+          // depth attachment at the correct dimensions (otherwise the default
+          // 300×150 causes a size mismatch on the first resize).
+          const rect = canvas.getBoundingClientRect()
+          const ratio = globalThis.devicePixelRatio || 1
+          if (rect.width > 0 && rect.height > 0) {
+            canvas.width = rect.width * ratio
+            canvas.height = rect.height * ratio
+          }
+          await renderer.init()
+        }
+
+        if (!cancelled) glInitialized = true
       })
 
       // Color management and tone-mapping are WebGL-specific; WebGPURenderer
