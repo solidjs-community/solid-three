@@ -79,7 +79,7 @@ export default defineConfig({
             collapsed: false,
             items: [
               { title: "Your first scene", link: "/tutorial/01-your-first-scene" },
-              { title: "Transforms & smart props", link: "/tutorial/02-transforms-and-smart-props" },
+              { title: "Props and children", link: "/tutorial/02-props-and-children" },
               { title: "Signals drive the scene", link: "/tutorial/03-signals-drive-the-scene" },
               { title: "Pointer events", link: "/tutorial/04-pointer-events" },
               { title: "useFrame", link: "/tutorial/05-use-frame" },

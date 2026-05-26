@@ -63,7 +63,7 @@ Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
 <T.MeshBasicNodeMaterial colorNode={buildColorNode()} />
 ```
 
-The same smart-prop machinery you saw in [chapter 3](/tutorial/02-transforms-and-smart-props)
+The same smart-prop machinery you saw in [chapter 3](/tutorial/02-props-and-children)
 still applies — `colorNode` is just a prop. `MeshBasicNodeMaterial`
 isn't in the global `THREE` namespace, so we extended `createT` with it:
 `createT({ ...THREE, MeshBasicNodeMaterial })`.
