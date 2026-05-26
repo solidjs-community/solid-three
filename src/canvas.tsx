@@ -39,7 +39,20 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   flat?: boolean
   /** Controls the rendering loop's operation mode. */
   frameloop?: "never" | "demand" | "always"
-  /** Options for the WebGLRenderer or a function returning a customized renderer. */
+  /**
+   * Renderer to render the scene with. Accepts:
+   * - a flat properties object mixing `WebGLRendererParameters` (e.g. `antialias`,
+   *   `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`).
+   *   Ctor args are baked at first construction; instance props stay reactive.
+   *   Reactively changing a ctor-only key logs a warning — WebGL contexts are
+   *   immutable once created, so to swap config at runtime, unmount and remount
+   *   `<Canvas>`.
+   * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
+   * - a renderer instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
+   *
+   * Narrow the type project-wide by augmenting the `Register` interface — see
+   * {@link Register} in `types.ts`.
+   */
   gl?:
     // Flat object accepts both `WebGLRendererParameters` (constructor-only,
     // e.g. `antialias`, `alpha`) and writable instance props (e.g.
