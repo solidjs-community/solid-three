@@ -12,6 +12,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 import type { Context, Meta, RendererLike } from "../../src/types.ts"
+import { getPendingInit } from "../../src/utils.ts"
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>
 
@@ -680,6 +681,64 @@ describe("renderer", () => {
 
     expect(() => state.xr.connect()).not.toThrow()
     expect(() => state.xr.disconnect()).not.toThrow()
+  })
+
+  it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
+    // WebGPURenderer's XRManager has `enabled` but no `setAnimationLoop`. The
+    // duck-typed `isWebXRManager` guard must distinguish this from a real
+    // WebXRManager so we don't crash calling missing methods.
+    const addEventListener = vi.fn()
+    const fake = Object.assign(makeFakeRenderer(), {
+      xr: { enabled: false, addEventListener },
+    })
+    const state = test(() => <T.Group />, { gl: fake })
+
+    expect(() => state.xr.connect()).not.toThrow()
+    // Real wiring would have called addEventListener twice (sessionstart,
+    // sessionend). The guard should have skipped it.
+    expect(addEventListener).not.toHaveBeenCalled()
+  })
+
+  it("should apply shadowMap.enabled/type but not needsUpdate on non-WebGL shadow maps", async () => {
+    // WebGPURenderer's `shadowMap` is `{ enabled, type }` — no `needsUpdate`.
+    // The shared `enabled`/`type` writes should still happen; only the
+    // WebGL-specific `needsUpdate = true` write is gated.
+    const fake = Object.assign(makeFakeRenderer(), {
+      shadowMap: { enabled: false, type: 0 },
+    })
+    test(() => <T.Group />, { gl: fake, shadows: true })
+
+    expect(fake.shadowMap.enabled).toBe(true)
+    expect(fake.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+    expect("needsUpdate" in fake.shadowMap).toBe(false)
+  })
+
+  describe("getPendingInit", () => {
+    it("returns undefined when the renderer has no init", () => {
+      const fake = makeFakeRenderer()
+      expect(getPendingInit(fake)).toBeUndefined()
+    })
+
+    it("returns undefined when hasInitialized() reports true", () => {
+      const init = vi.fn(async () => {})
+      const fake = makeFakeRenderer({ init, hasInitialized: () => true })
+      expect(getPendingInit(fake)).toBeUndefined()
+      expect(init).not.toHaveBeenCalled()
+    })
+
+    it("returns a function that invokes init() with the renderer as `this`", async () => {
+      let capturedThis: unknown
+      const init = vi.fn(async function (this: unknown) {
+        capturedThis = this
+      })
+      const fake = makeFakeRenderer({ init })
+
+      const pending = getPendingInit(fake)
+      expect(typeof pending).toBe("function")
+      await pending!()
+      expect(init).toHaveBeenCalledTimes(1)
+      expect(capturedThis).toBe(fake)
+    })
   })
 
   it("should respect color management preferences via gl", async () => {
