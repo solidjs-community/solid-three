@@ -47,9 +47,9 @@ export default () => (
 )
 `} />
 
-A square — the front face of a cube, viewed head-on. The colour comes from
-`MeshNormalMaterial`, which tints each face by its surface normal: a handy
-debugging material because it makes geometry visible without any lights.
+> A square — the front face of a cube, viewed head-on. The colour comes from
+> `MeshNormalMaterial`, which tints each face by its surface normal: a handy
+> debugging material because it makes geometry visible without any lights.
 
 Because each class is imported by name, the bundler only ships the ones you
 reach for.
@@ -76,8 +76,10 @@ export default () => (
 )
 `} />
 
-Same cube. `T.Mesh` is exactly `<Entity from={THREE.Mesh}>` — `createT` just
-saves the typing.
+> Same cube.
+
+`T.Mesh` is exactly `<Entity from={THREE.Mesh}>` — `createT` just saves the
+typing.
 
 The tradeoff: `createT(THREE)` references the whole namespace, so the bundler
 ships every `three.js` class regardless of what you use. You can keep the

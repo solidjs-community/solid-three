@@ -4,4 +4,71 @@ title: Nesting & transforms
 
 # Nesting & transforms
 
-(chapter content goes here)
+A `three.js` scene is a tree. Every object has a parent and a (possibly empty)
+list of children. In `solid-three` that tree *is* your JSX — nest one element
+inside another and you've made a parent-child relationship in the scene.
+
+Every object takes three transform props:
+
+- `position={[x, y, z]}`
+- `rotation={[x, y, z]}` (radians)
+- `scale={[x, y, z]}` (or a single number — `scale={2}` doubles every axis)
+
+<Demo code={`
+import * as THREE from "three"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => (
+  <Canvas camera={{ position: [0, 0, 5] }}>
+    <T.Mesh position={[-1.5, 0, 0]}>
+      <T.BoxGeometry />
+      <T.MeshNormalMaterial />
+    </T.Mesh>
+    <T.Mesh position={[1.5, 0, 0]} rotation={[0, 0.6, 0]} scale={0.6}>
+      <T.BoxGeometry />
+      <T.MeshNormalMaterial />
+    </T.Mesh>
+  </Canvas>
+)
+`} />
+
+## Composing transforms
+
+When you nest, transforms compose. A child sits in its parent's frame: the
+parent's position, rotation and scale all apply first, then the child's on top.
+
+`T.Group` is the empty container you reach for when you want to move several
+things together without a visible mesh of their own.
+
+<Demo code={`
+import * as THREE from "three"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => (
+  <Canvas camera={{ position: [0, 0, 5] }}>
+    <T.Group rotation={[0, 0.6, 0]}>
+      <T.Mesh position={[-1.2, 0, 0]}>
+        <T.BoxGeometry />
+        <T.MeshNormalMaterial />
+      </T.Mesh>
+      <T.Mesh position={[1.2, 0, 0]}>
+        <T.BoxGeometry />
+        <T.MeshNormalMaterial />
+      </T.Mesh>
+    </T.Group>
+  </Canvas>
+)
+`} />
+
+> Same two cubes, but now they sit inside a `<T.Group>` that's rotated. The
+> rotation applies to the group's frame, so both cubes tilt together —
+> including their positions, which now swing slightly toward and away from
+> the camera.
+
+Rotate the group instead of the cubes any time you want the *arrangement*
+to move, not just the individual shapes. Almost every scene you'll build is
+some tree of groups holding meshes.
