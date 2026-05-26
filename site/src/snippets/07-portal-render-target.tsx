@@ -36,6 +36,21 @@ function SpinningKnot() {
   )
 }
 
+function TexturedCube() {
+  let mesh: THREE.Mesh | undefined
+  useFrame((_context, delta) => {
+    if (!mesh) return
+    mesh.rotation.x += delta * 0.4
+    mesh.rotation.y += delta * 0.6
+  })
+  return (
+    <T.Mesh ref={mesh}>
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial map={renderTarget.texture} />
+    </T.Mesh>
+  )
+}
+
 export default function App() {
   return (
     <Canvas
@@ -54,11 +69,8 @@ export default function App() {
       <CopyOffscreenToTexture />
 
       {/* The cube in the main scene wears the target's texture on every
-          face. */}
-      <T.Mesh>
-        <T.BoxGeometry />
-        <T.MeshBasicMaterial map={renderTarget.texture} />
-      </T.Mesh>
+          face — and rotates so all six are visible over time. */}
+      <TexturedCube />
     </Canvas>
   )
 }

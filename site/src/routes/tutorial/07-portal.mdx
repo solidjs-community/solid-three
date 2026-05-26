@@ -2,51 +2,59 @@
 title: Portal
 ---
 
-import portalSnippet from "../../snippets/07-portal.tsx?raw"
+import portalEscape from "../../snippets/07-portal-escape.tsx?raw"
+import portalRenderTarget from "../../snippets/07-portal-render-target.tsx?raw"
 
 # Portal
 
-So far the scene graph has been a faithful mirror of your JSX: nest `<A>`
-inside `<B>` and A becomes a child of B. `Portal` is the escape hatch —
-it sends a component's children into *somewhere else* in the scene
-graph, while keeping the JSX parent-child relationship for reactivity,
-ownership, and lifecycle.
+So far the scene graph has been a faithful mirror of your JSX: nest
+`<A>` inside `<B>` and A becomes a child of B. `Portal` is the escape
+hatch — it sends a component's children into *somewhere else* in the
+scene graph, while keeping the JSX parent-child relationship for
+reactivity, ownership, and lifecycle.
 
-The most spectacular use of that is **rendering one scene into a
-texture of another**. You hand `Portal` an off-screen `THREE.Scene`,
-populate it with anything you like, then render that scene into a
-`WebGLRenderTarget` each frame. The target's texture is just a
-`THREE.Texture` — you can use it as `map`, `envMap`, anywhere a
-texture is accepted.
+## Escaping a parent's transform
 
-<Demo code={portalSnippet} />
+The simplest use: no `element` prop. `Portal` defaults to the canvas's
+scene root, so the children render *as if* they were top-level — they
+don't inherit any transform their JSX parent imposes.
+
+<Demo code={portalEscape} />
+
+Click the button. The blue cube — a normal child of the group — slides
+with it. The red cube doesn't: it's portaled to the scene root, so the
+group's translation never touches it. Both cubes are still children of
+the group in JSX, sharing lifecycle, signals, refs, all of it — only
+one of them *lives* there in the scene tree.
+
+## Rendering into a separate scene
+
+`Portal` accepts an `element` prop — any `Object3D` you want the
+children attached to. Pass it a fresh `THREE.Scene` and you've made a
+detached world: physics-free, lighting-isolated, whatever you want.
+
+The really interesting thing is what you can do with that detached
+world: render it into a `WebGLRenderTarget` each frame, then use the
+target's texture as a `map` on a material back in the main scene.
+
+<Demo code={portalRenderTarget} />
 
 A cube whose faces are *each frame's render* of a spinning torus knot
 that lives in a separate scene. Six things to notice:
 
-- `<Portal element={offscreenScene}>` sends the knot into the off-screen
-  scene instead of the canvas's main one.
+- `<Portal element={offscreenScene}>` sends the knot into the
+  off-screen scene instead of the canvas's main one.
 - `CopyOffscreenToTexture` is a regular `solid-three` component that
-  uses `useThree()` to grab the renderer and copies the off-screen scene
-  into the render target every frame.
-- The cube in the main scene reads `renderTarget.texture` for its
-  `map` — solid-three's smart-prop pipeline accepts a `THREE.Texture`
-  the same as anything else.
-- The knot still spins reactively from inside `Portal` — same `useFrame`,
-  same ref, same lifecycle. Portal doesn't break Solid.
+  uses `useThree()` to grab the renderer and copies the off-screen
+  scene into the render target every frame.
+- The outer cube reads `renderTarget.texture` for its `map` —
+  solid-three's smart-prop pipeline accepts a `THREE.Texture` the same
+  as anything else.
+- The knot still spins reactively from inside `Portal` — same
+  `useFrame`, same ref, same lifecycle. Portal doesn't break Solid.
 - The off-screen scene has its own lights — they only affect the knot,
-  not the main cube.
-- If you click "Reset" you'd remount the whole demo cleanly; the
-  off-screen `Scene` and `WebGLRenderTarget` are disposed by their
-  module-level lifecycle (production code would create them inside a
-  component and use [`autodispose`](/api/utilities/autodispose)).
-
-## Other things Portal does
-
-Render-to-texture is the showy case, but `Portal` is just a generic
-"render-elsewhere" primitive. Pass it any `Object3D` as `element` and
-its children attach there. Default target (no `element`) is the scene
-root — useful when you want a HUD-style mesh that ignores its JSX
-parent's transform.
+  not the outer cube.
+- Both cubes rotate, so you see every face of the outer one with the
+  live render mapped onto it.
 
 The next chapter pulls all of this together into a small game.
