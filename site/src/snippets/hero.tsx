@@ -134,8 +134,55 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
   const startTime = performance.now()
   const meshes: (THREE.Mesh | undefined)[] = []
   const shadowMeshes: (THREE.Mesh | undefined)[] = []
+  const cursor = new THREE.Vector3()
+  let cursorActive = false
+  let isCoarsePointer = false
+  const raycaster = new THREE.Raycaster()
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+
+  onMount(() => {
+    isCoarsePointer = window.matchMedia("(pointer: coarse)").matches
+    if (isCoarsePointer) return
+    const onMove = (event: PointerEvent) => {
+      const ndc = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        -(event.clientY / window.innerHeight) * 2 + 1,
+      )
+      raycaster.setFromCamera(ndc, three.camera)
+      const hit = new THREE.Vector3()
+      if (raycaster.ray.intersectPlane(groundPlane, hit)) {
+        cursor.copy(hit)
+        cursorActive = true
+      }
+    }
+    const onLeave = () => {
+      cursorActive = false
+    }
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerleave", onLeave)
+    onCleanup(() => {
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerleave", onLeave)
+    })
+  })
 
   useFrame(() => {
+    if (cursorActive && !isCoarsePointer) {
+      const radius = 1.5
+      props.state.letters.forEach(letter => {
+        const dx = letter.body.position.x - cursor.x
+        const dz = letter.body.position.z - cursor.z
+        const distSq = dx * dx + dz * dz
+        if (distSq > radius * radius || distSq < 1e-4) return
+        const dist = Math.sqrt(distSq)
+        const falloff = (radius - dist) / radius
+        const strength = 30 * falloff
+        letter.body.applyForce(
+          new CANNON.Vec3((dx / dist) * strength, 0, (dz / dist) * strength),
+          letter.body.position,
+        )
+      })
+    }
     props.state.world.step(1 / 60)
     props.state.letters.forEach((letter, i) => {
       const mesh = meshes[i]
@@ -187,6 +234,14 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
           <T.Mesh
             ref={mesh => (meshes[i()] = mesh)}
             geometry={letter.geometry}
+            onPointerDown={() => {
+              const upward = 5 + Math.random() * 2
+              const sideways = (Math.random() - 0.5) * 3
+              letter.body.applyImpulse(
+                new CANNON.Vec3(sideways, upward, sideways),
+                new CANNON.Vec3(0, 0, 0),
+              )
+            }}
           >
             <T.MeshStandardMaterial color={letter.color} metalness={0.85} roughness={0.2} />
           </T.Mesh>
