@@ -19,6 +19,7 @@ import type {
   Vector4 as ThreeVector4,
   WebGLRenderer,
 } from "three"
+import type { WebGPURenderer } from "three/webgpu"
 import type { Intersect } from "../playground/controls/type-utils.ts"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
@@ -135,9 +136,11 @@ export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer 
 /**********************************************************************************/
 
 /**
- * Minimal structural interface satisfied by both `WebGLRenderer` and
- * `WebGPURenderer` (and any custom renderer). Pass any instance matching this
- * shape to the `gl` Canvas prop.
+ * Minimal structural interface for renderers (`SVGRenderer`, `CSS2DRenderer`,
+ * user-built). Concrete three renderers (`WebGLRenderer`, `WebGPURenderer`)
+ * structurally satisfy this too, but the {@link Renderer} union prefers their
+ * exact types so the WebGL-specific `WebXRManager` / `WebGLShadowMap` surface
+ * is reachable in user code.
  */
 export interface RendererLike {
   render(scene: any, camera: any): void
@@ -145,28 +148,26 @@ export interface RendererLike {
   setPixelRatio(value: number): void
   getPixelRatio(): number
   /**
-   * Optional XR manager. Typed loosely because three's `WebGLRenderer.xr`
-   * and `WebGPURenderer.xr` expose different surfaces across versions, and
-   * we runtime-narrow inside `create-three.tsx` before calling any method.
+   * Optional vendor XR manager. Typed as the union of three's two concrete
+   * managers (WebXR + WebGPU XR). solid-three's built-in xr wiring duck-types
+   * to `WebXRManager` at runtime; custom renderers may leave this `undefined`.
    */
-  xr?: {
-    enabled: boolean
-    isPresenting?: boolean
-    addEventListener?: (type: string, listener: () => void) => void
-    removeEventListener?: (type: string, listener: () => void) => void
-    setAnimationLoop?: (callback: XRFrameRequestCallback | null) => void
-  }
-  /** Optional shadow map (WebGL-specific; surface varies by renderer/version). */
-  shadowMap?: {
-    enabled: boolean
-    type: number
-    needsUpdate?: boolean
-  }
+  xr?: WebGLRenderer["xr"] | WebGPURenderer["xr"]
+  /** Optional shadow map (WebGL/WebGPU vary). */
+  shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
   /** Async initializer — awaited once before the first render (WebGPURenderer). */
   init?(): Promise<void>
   /** Returns true if `init()` has already completed. WebGPURenderer exposes this. */
   hasInitialized?(): boolean
 }
+
+/**
+ * Anything `<Canvas>` accepts as a renderer: a concrete three renderer (gets
+ * full three typing for `xr` / `shadowMap` etc.) or a custom `RendererLike`.
+ * Inspired by r3f's `Renderer` interface in store.ts, extended with the two
+ * concrete classes so the common cases keep exact types.
+ */
+export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
 
 /**********************************************************************************/
 /*                                                                                */
@@ -181,7 +182,7 @@ export interface Context {
   camera: CameraKind
   raycaster: Raycaster | EventRaycaster
   dpr: number
-  gl: Meta<RendererLike>
+  gl: Meta<Renderer>
   props: CanvasProps
   render: (delta: number) => void
   requestRender: () => void

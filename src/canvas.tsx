@@ -10,7 +10,7 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props, RendererLike } from "./types.ts"
+import type { CanvasEventHandlers, Context, Props, Renderer } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -31,13 +31,13 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   /**
    * Renderer to render the scene with. Accepts:
    * - a config object (applied to a default `WebGLRenderer`)
-   * - a factory returning a `RendererLike` (e.g. `canvas => new WebGPURenderer({ canvas })`)
-   * - a `RendererLike` instance (e.g. a pre-built `WebGLRenderer` or `WebGPURenderer`)
+   * - a factory returning a `Renderer` (e.g. `canvas => new WebGPURenderer({ canvas })`)
+   * - a `Renderer` instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
    */
   gl?:
     | Partial<Props<WebGLRenderer>>
-    | ((canvas: HTMLCanvasElement) => RendererLike)
-    | RendererLike
+    | ((canvas: HTMLCanvasElement) => Renderer)
+    | Renderer
   /** Toggles linear interpolation for texture filtering. */
   linear?: boolean
   /** Toggles between Orthographic and Perspective camera. */
