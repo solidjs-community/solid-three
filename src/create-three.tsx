@@ -288,16 +288,22 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   )
 
   const camera = createMemo(() => {
+    let cameraInstance: OrthographicCamera | PerspectiveCamera
     if (cameraIsInstance()) {
       debugContext("camera", () => ({ source: "custom" }))
-      return untrack(() => props.camera) as OrthographicCamera | PerspectiveCamera
-    }
-    if (orthographicFlag()) {
+      cameraInstance = untrack(() => props.camera) as OrthographicCamera | PerspectiveCamera
+    } else if (orthographicFlag()) {
       debugContext("camera", () => ({ source: "new OrthographicCamera" }))
-      return new OrthographicCamera()
+      cameraInstance = new OrthographicCamera()
+    } else {
+      debugContext("camera", () => ({ source: "new PerspectiveCamera" }))
+      cameraInstance = new PerspectiveCamera()
     }
-    debugContext("camera", () => ({ source: "new PerspectiveCamera" }))
-    return new PerspectiveCamera()
+    return meta(cameraInstance, {
+      get props() {
+        return props.camera || {}
+      },
+    })
   })
   const cameraStack = new Stack<CameraKind>("camera")
 
