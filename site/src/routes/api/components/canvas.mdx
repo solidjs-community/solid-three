@@ -10,9 +10,8 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
-- **gl**: How the renderer is constructed. Accepts one of four shapes:
-  - **properties object** (`gl={{ toneMapping: ACESFilmicToneMapping }}`) — applied to a default `WebGLRenderer` as instance-writable properties after construction.
-  - **`[constructorParameters, properties]` tuple** (`gl={[{ antialias: true }, { toneMapping: ACESFilmicToneMapping }]}`) — slot 0 is passed to the `WebGLRenderer` constructor (for WebGL-only flags like `antialias`/`alpha`/`stencil` that can't be set after); slot 1 is applied as instance properties.
+- **gl**: How the renderer is constructed. Accepts one of three shapes:
+  - **flat properties object** (`gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}`) — mixes `WebGLRendererParameters` (constructor-only flags like `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`). solid-three splits them internally: ctor args are baked once at construction; instance props stay reactive. Reactively changing a ctor-only key logs a warning — WebGL contexts are immutable once created, so to swap config at runtime, unmount and remount `<Canvas>`. Inspired by react-three-fiber's `gl` prop.
   - **factory** (`gl={canvas => new WebGPURenderer({ canvas })}`) — return any renderer you want (`WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom).
   - **pre-built instance** — a renderer you already constructed.
 
@@ -40,16 +39,11 @@ interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
   fallback?: JSX.Element
   gl?:
-    // The two config-shorthand branches collapse to `never` when Register
-    // narrows ResolvedRenderer away from WebGLRenderer — see "Narrowing the
+    // The flat-object branch collapses to `never` when Register narrows
+    // ResolvedRenderer away from WebGLRenderer — see "Narrowing the
     // renderer type project-wide" below.
     | (WebGLRenderer extends ResolvedRenderer
-        ?
-            | Partial<Props<WebGLRenderer>>
-            | readonly [
-                constructorParameters: Partial<WebGLRendererParameters>,
-                properties: Partial<Props<WebGLRenderer>>,
-              ]
+        ? Partial<Props<WebGLRenderer> & WebGLRendererParameters>
         : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
@@ -100,7 +94,7 @@ When a prop is omitted, `Canvas` falls back to the following:
 | Prop          | Default                                                                              |
 | ------------- | ------------------------------------------------------------------------------------ |
 | `frameloop`   | `"always"`                                                                           |
-| `gl`          | `new WebGLRenderer({ alpha: true, canvas })` (`alpha: true` is the implicit default — override it by passing the `[ctorArgs, properties]` tuple form, e.g. `gl={[{ alpha: false }, {}]}`) |
+| `gl`          | `new WebGLRenderer({ alpha: true, canvas })` (`alpha: true` is the implicit default — override it inline, e.g. `gl={{ alpha: false }}`) |
 | `camera`      | `new PerspectiveCamera()` — or `new OrthographicCamera()` if `orthographic` is set   |
 | `raycaster`   | `new CursorRaycaster()`                                                              |
 | `scene`       | `new Scene()`                                                                        |
