@@ -2,7 +2,7 @@
 title: A small game
 ---
 
-import interactiveScene from "../../snippets/13-interactive-scene.tsx?raw"
+import interactiveScene from "../../snippets/09-interactive-scene.tsx?raw"
 
 # A small game
 
@@ -30,7 +30,7 @@ Reading top-to-bottom:
   We render the cubes with `<For>` — Solid's keyed list primitive, working
   exactly the way it does in any DOM tree.
 - **Each `<Cube>`** is a custom component (the composition pattern from
-  [chapter 12](/tutorial/12-custom-components)). It uses `useFrame` to bob
+  [chapter 8](/tutorial/08-custom-components)). It uses `useFrame` to bob
   the active cube forward, and `onClick` with `event.stopPropagation()` to
   score.
 - **The countdown** is a regular `setInterval` driving the `timeLeft`
