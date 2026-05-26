@@ -624,8 +624,7 @@ describe("renderer", () => {
     expect(gl.toneMapping).toBe(THREE.NoToneMapping)
     expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
 
-    // @ts-expect-error TODO: fix type-error
-    gl.outputColorSpace = "test"
+    gl.outputColorSpace = THREE.LinearSRGBColorSpace as any
     texture.colorSpace = ""
 
     setLinear(false)
