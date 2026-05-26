@@ -71,11 +71,24 @@ export function isRenderer(value: unknown): value is Renderer {
 }
 
 /**
- * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
- * — three's WebGPU `XRManager` doesn't expose it.
+ * Returns true when `gl` can drive a WebXR-shaped session: `gl.xr` is an event
+ * target (has `addEventListener`) and `gl.setAnimationLoop` exists on the
+ * renderer. Unifies WebGL and WebGPU: WebGLRenderer.xr has setAnimationLoop,
+ * but WebGPURenderer's `XRManager` doesn't — both, however, expose
+ * `setAnimationLoop` on the renderer itself. Always call `_gl.setAnimationLoop`
+ * (not `_gl.xr.setAnimationLoop`) to stay portable.
  */
-export function isWebXRManager(value: unknown): value is WebXRManager {
-  return !!value && typeof (value as { setAnimationLoop?: unknown }).setAnimationLoop === "function"
+export function canDriveXR(
+  gl: unknown,
+): gl is { xr: WebXRManager; setAnimationLoop: (cb: XRFrameRequestCallback | null) => void } {
+  if (!gl || typeof gl !== "object") return false
+  const xr = (gl as { xr?: unknown }).xr
+  const setLoop = (gl as { setAnimationLoop?: unknown }).setAnimationLoop
+  return (
+    !!xr &&
+    typeof (xr as { addEventListener?: unknown }).addEventListener === "function" &&
+    typeof setLoop === "function"
+  )
 }
 
 /**
@@ -129,9 +142,10 @@ export function getPendingInit(renderer: Renderer): (() => Promise<void>) | unde
 /*                                                                                */
 /**********************************************************************************/
 
-export function autodispose<T extends { dispose?: () => void }>(object: T): T {
-  if (object.dispose) {
-    onCleanup(() => object.dispose?.())
+export function autodispose<T>(object: T): T {
+  const candidate = object as { dispose?: () => void } | null | undefined
+  if (candidate && typeof candidate.dispose === "function") {
+    onCleanup(() => candidate.dispose?.())
   }
   return object
 }

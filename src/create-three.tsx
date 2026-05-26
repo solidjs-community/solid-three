@@ -5,7 +5,7 @@ import {
   createRenderEffect,
   createRoot,
   createSignal,
-  isPending,
+  latest,
   merge,
   onCleanup,
   untrack,
@@ -45,14 +45,15 @@ import type {
   Renderer,
 } from "./types.ts"
 import {
+  autodispose,
   binarySearch,
+  canDriveXR,
   createDebug,
   defaultProps,
   getCurrentViewport,
   getPendingInit,
   isRenderer,
   isWebGLShadowMap,
-  isWebXRManager,
   meta,
   removeElementFromArray,
   shallowEqual,
@@ -169,33 +170,33 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       `solid-three: ${method} is a no-op — the active renderer has no WebXRManager-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
     )
   }
-  // Toggle render switching on session. Gated on `isWebXRManager` so that
-  // exotic renderers (WebGPU, custom) without `setAnimationLoop` are skipped.
+  // Toggle render switching on session. `canDriveXR` unifies WebGL and WebGPU:
+  // both expose `xr` (event target) + `setAnimationLoop` (on the renderer).
   function handleSessionChange() {
-    const xrManager = context.gl.xr
-    if (!isWebXRManager(xrManager)) return
+    const _gl = context.gl
+    if (!canDriveXR(_gl)) return
     debugXR("session", () => ({
-      presenting: xrManager.isPresenting,
-      enabled: xrManager.enabled,
+      presenting: _gl.xr.isPresenting,
+      enabled: _gl.xr.enabled,
     }))
-    xrManager.enabled = xrManager.isPresenting
-    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
+    _gl.xr.enabled = _gl.xr.isPresenting
+    _gl.setAnimationLoop(_gl.xr.isPresenting ? handleXRFrame : null)
   }
   // WebXR session-manager
   const xr = {
     connect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.connect()")
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.connect()")
       debugXR("connect")
-      xrManager.addEventListener("sessionstart", handleSessionChange)
-      xrManager.addEventListener("sessionend", handleSessionChange)
+      _gl.xr.addEventListener("sessionstart", handleSessionChange)
+      _gl.xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.disconnect()")
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.disconnect()")
       debugXR("disconnect")
-      xrManager.removeEventListener("sessionstart", handleSessionChange)
-      xrManager.removeEventListener("sessionend", handleSessionChange)
+      _gl.xr.removeEventListener("sessionstart", handleSessionChange)
+      _gl.xr.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -212,7 +213,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       debugRender("skipped", () => ({ reason: "no gl" }))
       return
     }
-    if (isPending(rendererReady)) {
+    // `latest()` reads the most-recently-committed signal value, bypassing
+    // any pending async overlay. The init signal commits `true` once
+    // `renderer.init()` resolves — before that, latest returns undefined.
+    if (latest(rendererReady) !== true) {
       debugRender("skipped", () => ({ reason: "gl not initialized" }))
       return
     }
@@ -340,11 +344,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     } else if (kind === "factory") {
       debugContext("gl", () => ({ source: "factory" }))
       const factory = untrack(() => props.gl) as (canvas: HTMLCanvasElement) => Renderer
-      rendererInstance = factory(canvas)
+      rendererInstance = autodispose(factory(canvas))
     } else {
       debugContext("gl", () => ({ source: "default" }))
       // `canvas` is solid-three's own and placed last so user ctor args can't override it.
-      rendererInstance = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas })
+      rendererInstance = autodispose(new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas }))
     }
 
     return meta(rendererInstance, {
@@ -570,19 +574,18 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // XR connect — duck-typed via `isWebXRManager` so WebGPU's `XRManager`
-      // (which lacks `setAnimationLoop`) and renderers without `xr` are skipped.
+      // XR connect — `canDriveXR` unifies WebGL and WebGPU: both expose `xr`
+      // (event target) + `setAnimationLoop` on the renderer.
       createRenderEffect(
         () => gl(),
         renderer => {
-          const xrManager = renderer.xr
-          if (isWebXRManager(xrManager)) {
+          if (canDriveXR(renderer)) {
             debugEffects("xr connect", () => ({ hasXR: true }))
-            xrManager.addEventListener("sessionstart", handleSessionChange)
-            xrManager.addEventListener("sessionend", handleSessionChange)
+            renderer.xr.addEventListener("sessionstart", handleSessionChange)
+            renderer.xr.addEventListener("sessionend", handleSessionChange)
             return () => {
-              xrManager.removeEventListener("sessionstart", handleSessionChange)
-              xrManager.removeEventListener("sessionend", handleSessionChange)
+              renderer.xr.removeEventListener("sessionstart", handleSessionChange)
+              renderer.xr.removeEventListener("sessionend", handleSessionChange)
             }
           } else {
             debugEffects("xr connect", () => ({ action: "skip", reason: "no xr on renderer" }))
