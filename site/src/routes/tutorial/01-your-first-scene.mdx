@@ -2,9 +2,7 @@
 title: Your first scene
 ---
 
-import entitySnippet from "../../snippets/01-entity.tsx?raw"
 import createTSnippet from "../../snippets/01-create-t.tsx?raw"
-import curatedSnippet from "../../snippets/01-curated.tsx?raw"
 
 # Your first scene
 
@@ -22,48 +20,26 @@ import { Canvas } from "solid-three"
 export default () => <Canvas />
 ```
 
-That `<Canvas>` is the whole boilerplate. Everything else — the cubes, the
-lights, the cameras you might want later — lives as children of it.
+That `<Canvas>` is the whole boilerplate. Everything else — the cubes,
+the lights, the cameras you might want later — lives as children of it.
 
-`solid-three` gives you two ways to put `three.js` classes into that tree:
-
-- [the explicit way, with `<Entity>`](#the-explicit-way-entity)
-- [the sugary way, with `createT`](#the-sugary-way-createt)
-
-They produce the same scene; they only differ in ergonomics.
-
-## The explicit way: `<Entity>`
-
-`<Entity from={...}>` is the most direct primitive: hand it a `three.js`
-class, and it instantiates one in the scene.
-
-<Demo code={entitySnippet} />
-
-The colour comes from `MeshNormalMaterial`, which tints each face by its
-surface normal: a handy debugging material because it makes geometry visible
-without any lights.
-
-Because each class is imported by name, the bundler only ships the ones you
-reach for.
-
-## The sugary way: `createT`
-
-Writing `<Entity from={THREE.Mesh}>` for every class gets old fast. `createT`
-takes a namespace of `three.js` classes and hands you back a proxy where every
-key is its own `<Entity>`-shaped component.
+To put a `three.js` class into that tree, hand a namespace of classes to
+`createT`. It returns a proxy where every key is its own JSX component.
 
 <Demo code={createTSnippet} />
 
-`T.Mesh` is exactly `<Entity from={THREE.Mesh}>` — `createT` just saves the
-typing.
+The colour comes from `MeshNormalMaterial`, which tints each face by its
+surface normal — a handy debugging material because it makes geometry
+visible without any lights.
 
-The tradeoff: `createT(THREE)` references the whole namespace, so the bundler
-ships every `three.js` class regardless of what you use. You can keep the
-sugar and stay tree-shakeable by handing `createT` a curated object instead:
+`T.Mesh`, `T.BoxGeometry`, `T.MeshNormalMaterial` — every class in the
+`THREE` namespace becomes available the same way. We'll pass the full
+namespace throughout this tutorial because it's easier to follow when
+imports aren't the point. (In real apps you'd hand `createT` a curated
+object to keep your bundle small; see
+[the API reference](/api/components/t) for the details.)
 
-<Demo code={curatedSnippet} />
-
-`T.*` stays terse, but only the classes you imported survive into the bundle.
-For the rest of this tutorial we'll pass the full `THREE` namespace — easier
-to follow when the imports aren't the point. In real apps, the curated object
-is usually what you want.
+Three new ideas snuck into that snippet — `createT`, the `T.*` namespace,
+and the way `<T.Mesh>` consumes its children as a geometry and a material.
+We unpack the last one in the next chapter, where nesting becomes the
+scene graph.
