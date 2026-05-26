@@ -97,7 +97,7 @@ export default function App() {
   return (
     <Canvas
       orthographic
-      camera={{ position: [0, 0, 20], zoom: 22 }}
+      camera={{ position: [0, 0, 20], zoom: 14 }}
     >
       <T.AmbientLight intensity={0.6} />
       <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />

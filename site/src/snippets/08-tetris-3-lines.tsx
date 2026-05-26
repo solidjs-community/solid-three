@@ -81,6 +81,25 @@ function Cell(props: { x: number; y: number; color: string }) {
   )
 }
 
+function Walls() {
+  return (
+    <>
+      <T.Mesh position={[-WIDTH / 2 - 0.5, 0, 0]}>
+        <T.BoxGeometry args={[1, HEIGHT + 1, 1]} />
+        <T.MeshStandardMaterial color="white" />
+      </T.Mesh>
+      <T.Mesh position={[WIDTH / 2 + 0.5, 0, 0]}>
+        <T.BoxGeometry args={[1, HEIGHT + 1, 1]} />
+        <T.MeshStandardMaterial color="white" />
+      </T.Mesh>
+      <T.Mesh position={[0, -HEIGHT / 2 - 0.5, 0]}>
+        <T.BoxGeometry args={[WIDTH + 2, 1, 1]} />
+        <T.MeshStandardMaterial color="white" />
+      </T.Mesh>
+    </>
+  )
+}
+
 function Tetromino(props: { piece: Piece }) {
   return (
     <Index each={props.piece.shape}>
@@ -275,10 +294,11 @@ export default function App() {
       </Portal>
       <Canvas
         orthographic
-        camera={{ position: [0, 0, 20], zoom: 22 }}
+        camera={{ position: [0, 0, 20], zoom: 14 }}
       >
         <T.AmbientLight intensity={0.6} />
         <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />
+        <Walls />
         <Index each={board}>
           {(row, y) => (
             <Index each={row()}>
