@@ -4,6 +4,14 @@
  * every page.
  */
 
+/* Left-align the sidebar's Part headings and chapter links. SolidBase's
+ * default theme inherits browser button centering on the section trigger. */
+[class*="sidenav"] [class*="section-trigger"],
+[class*="sidenav"] [class*="section-trigger"] h2,
+[class*="sidenav"] [class*="sidenav-link"] {
+  text-align: left;
+}
+
 .demo {
   margin: 1.5rem 0;
   border: 1px solid #222;
