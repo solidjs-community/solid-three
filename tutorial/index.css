@@ -77,3 +77,25 @@ html, body {
 .tutorial-chapter h1 {
   margin-top: 0;
 }
+
+.demo {
+  margin: 1.5rem 0;
+  border: 1px solid #222;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.demo-code {
+  margin: 0;
+  padding: 1rem;
+  background: #0a0c12;
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+.demo-canvas-placeholder {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-muted);
+  background: #14171f;
+}
