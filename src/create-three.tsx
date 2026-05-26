@@ -47,6 +47,7 @@ import {
   defaultProps,
   getCurrentViewport,
   getPendingInit,
+  isRenderer,
   isWebGLShadowMap,
   isWebXRManager,
   meta,
@@ -56,19 +57,6 @@ import {
   withMultiContexts,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
-
-/**
- * Returns true when `value` is an already-built renderer instance (anything
- * matching {@link Renderer}) rather than a config-props object or a factory.
- */
-function isRendererInstance(value: unknown): value is Renderer {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as Renderer).render === "function" &&
-    typeof (value as Renderer).setSize === "function"
-  )
-}
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
@@ -231,7 +219,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const glKind = createMemo<"factory" | "instance" | "default">(() => {
     const _propsGl = props.gl
     if (typeof _propsGl === "function") return "factory"
-    if (isRendererInstance(_propsGl)) return "instance"
+    if (isRenderer(_propsGl)) return "instance"
     return "default"
   })
   /**
@@ -523,7 +511,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       // the tuple form, the instance-writable side is slot 1; for the
       // single-object form, the whole object goes through.
       const _propsGl = props.gl
-      if (_propsGl && typeof _propsGl !== "function" && !isRendererInstance(_propsGl)) {
+      if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
         useProps(gl, Array.isArray(_propsGl) ? _propsGl[1] : _propsGl)
       }
     })

@@ -259,6 +259,23 @@ export function isObject3D(value: unknown): value is Object3D {
   return !!value && (value as { isObject3D?: boolean }).isObject3D === true
 }
 
+export function isWritable(object: object, propertyName: string) {
+  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
+}
+
+/**
+ * Returns true when `value` is an already-built renderer instance (anything
+ * matching {@link Renderer}) rather than a config-props object or a factory.
+ */
+export function isRenderer(value: unknown): value is Renderer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
+  )
+}
+
 /**
  * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
  * we both call and that three's WebGPU `XRManager` doesn't expose, so the

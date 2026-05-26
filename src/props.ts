@@ -31,12 +31,9 @@ import {
   isFog,
   isMaterial,
   isObject3D,
+  isWritable,
   resolve,
 } from "./utils.ts"
-
-function isWritable(object: object, propertyName: string) {
-  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
-}
 
 function applySceneGraph(parent: object, child: object) {
   const parentMeta = getMeta(parent)
