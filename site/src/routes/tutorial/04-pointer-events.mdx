@@ -87,15 +87,11 @@ handler can deal with the whole stack itself:
 
 Most scenes never need this — but it's there when you do.
 
-## What's actually in the event?
-
-The handler receives an enriched event object: the original DOM event
-plus the `three.js` intersection data — the hit `point`, the
-`distance`, the `face` and `faceIndex`, the mesh `object`, the
-unprojected `ray`. Useful when "click" alone isn't enough:
-drag-to-rotate, paint-on-surface, world-space gizmos. The
-[events API reference](/api/events/overview) has the full event-object
-shape and the complete list of supported handlers.
+The handler receives an enriched event object — the original DOM event
+plus the `three.js` intersection data — useful any time "click" alone
+isn't enough (drag-to-rotate, paint-on-surface, world-space gizmos).
+The [events API reference](/api/events/overview) has the full
+event-object shape and the complete handler list.
 
 So far every trigger has been a one-off — a click, a hover-in, a
 hover-out. The next chapter introduces the third kind: time.

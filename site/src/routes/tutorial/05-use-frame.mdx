@@ -55,15 +55,9 @@ The cube updates its position first (priority 0); the camera then reads
 that *new* position and follows it (priority 1). Swap the priorities and
 the camera will lag the cube by one frame.
 
-## Options: `stage`
-
-`stage: "before"` (the default) runs the callback before the render pass —
-your mutations show up this frame. `stage: "after"` runs it after — handy
-for post-render bookkeeping or custom render passes that need to come
-between frames.
-
-Most code never needs to set these, but they're there when you do —
-[the full options](/api/hooks/use-frame) are in the API reference.
+`useFrame` also accepts a `stage` option for running callbacks before
+or after the render pass, plus a couple of other knobs you'll rarely
+touch — see [`useFrame` in the API reference](/api/hooks/use-frame).
 
 The scenes so far have been hand-built — cubes, lights, geometry from
 constructors. The next chapter brings in *outside* data: textures,

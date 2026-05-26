@@ -73,37 +73,21 @@ For cases like this, pass an `args` array:
 Change `args` and the entity is rebuilt — which is what you want, since
 geometries and materials don't have setters for these fundamentals.
 
-## Reaching into nested props
-
-Sometimes you want to set something inside something —
-`light.shadow.mapSize.width`, for example. Use a dashed key:
-
-```tsx
-<T.DirectionalLight castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-```
-
-`solid-three` walks the chain and applies the same shorthand rules at
-the leaf. The whole prop system, all the way down.
-
 ## Why arrays work on a `Vector3`
 
 You've been writing `position={[0, 0, 3]}` — but `Mesh.position` isn't
 an array, it's a `Vector3`. `solid-three` is forgiving about the shape
-of what you hand it: arrays, single numbers, hex codes, CSS colours all
-work, and the right setter on the underlying object is called for you.
-
-A few shorthands worth knowing:
-
-- `position={[x, y, z]}` — arrays unpack into `Vector3.set(x, y, z)`.
-- `scale={1.2}` — a single number sets every axis (via `setScalar`).
-- `color="cornflowerblue"` or `color={[1, 0.4, 0.2]}` — both work;
-  `Color` accepts strings, hex numbers, and RGB tuples.
+of what you hand it: arrays unpack into `.set(...)`, single numbers
+broadcast via `.setScalar(...)`, strings and hex go through `.set(...)`
+on a `Color`, and so on.
 
 <Demo code={shorthandsSnippet} />
 
 The principle: pass whatever's most ergonomic for the shape of data you
-have. `solid-three` figures out the right call on the underlying
-object.
+have, and `solid-three` figures out the right call on the underlying
+object. The full coercion table — plus how `attach`, dashed paths like
+`shadow-mapSize-width={1024}`, and refs work — lives on
+[`useProps`](/api/hooks/use-props).
 
 Next: every Solid control-flow primitive you already know — `<Show>`,
 `<For>`, `<Switch>`, `<Index>`, `<Suspense>` — works inside the scene

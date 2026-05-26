@@ -40,21 +40,15 @@ target's texture as a `map` on a material back in the main scene.
 <Demo code={portalRenderTarget} />
 
 A cube whose faces are *each frame's render* of a spinning torus knot
-that lives in a separate scene. Six things to notice:
+in a separate scene. The two pieces that make it work:
 
-- `<Portal element={offscreenScene}>` sends the knot into the
-  off-screen scene instead of the canvas's main one.
-- `CopyOffscreenToTexture` is a regular `solid-three` component that
-  uses `useThree()` to grab the renderer and copies the off-screen
-  scene into the render target every frame.
-- The outer cube reads `renderTarget.texture` for its `map` —
-  solid-three's smart-prop pipeline accepts a `THREE.Texture` the same
-  as anything else.
-- The knot still spins reactively from inside `Portal` — same
-  `useFrame`, same ref, same lifecycle. Portal doesn't break Solid.
-- The off-screen scene has its own lights — they only affect the knot,
-  not the outer cube.
-- Both cubes rotate, so you see every face of the outer one with the
-  live render mapped onto it.
+- `<Portal element={offscreenScene}>` sends the knot into a
+  free-standing `Scene` instead of the canvas's main one.
+- A small helper grabs the renderer via `useThree()` and copies the
+  off-screen scene into a `WebGLRenderTarget` each frame; that target's
+  texture is what the outer cube wears as its `map`.
+
+The knot still spins reactively from inside the portal — same
+`useFrame`, same ref, same lifecycle. Portal doesn't break Solid.
 
 The next chapter pulls all of this together into a small game.
