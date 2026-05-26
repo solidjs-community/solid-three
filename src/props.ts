@@ -26,6 +26,7 @@ import {
   isFog,
   isMaterial,
   isObject3D,
+  isWritable,
   resolve,
 } from "./utils.ts"
 
@@ -33,10 +34,6 @@ const debugSceneGraph = createDebug("props:useSceneGraph", SHOULD_DEBUG)
 const debugAttach = createDebug("props:applySceneGraph", SHOULD_DEBUG)
 const debugApplyProp = createDebug("props:applyProp", SHOULD_DEBUG)
 const debugUseProps = createDebug("props:useProps", SHOULD_DEBUG)
-
-function isWritable(object: object, propertyName: string) {
-  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
-}
 
 function applySceneGraph(parent: object, child: object): (() => void) | undefined {
   const parentType = (parent as any).type ?? (parent as any).constructor?.name

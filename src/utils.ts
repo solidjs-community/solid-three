@@ -106,6 +106,9 @@ export function isFog(value: unknown): value is Fog {
 export function isObject3D(value: unknown): value is Object3D {
   return !!value && (value as { isObject3D?: boolean }).isObject3D === true
 }
+export function isWritable(object: object, propertyName: string) {
+  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
+}
 
 /**
  * Returns the renderer's `init()` if it both exists and hasn't been called yet,
