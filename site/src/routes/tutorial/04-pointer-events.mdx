@@ -47,7 +47,8 @@ Click the cube to select it; click anywhere else in the canvas to deselect.
 The two handlers cover the full "did you hit something?" question between
 them.
 
-That covers the everyday cases. There's a longer list of pointer events
+That covers the everyday cases. There's a
+[longer list of pointer events](/api/events/overview)
 (`onPointerMove`, `onPointerDown`, `onPointerUp`, `onWheel`, ...) — all
 following the same convention.
 
@@ -88,8 +89,13 @@ Most scenes never need this — but it's there when you do.
 
 ## What's actually in the event?
 
-The handler receives an enriched event object: the original DOM event plus
-the `three.js` intersection data — the hit `point`, the `distance`, the
-`face` and `faceIndex`, the mesh `object`, the unprojected `ray`. Useful
-when "click" alone isn't enough: drag-to-rotate, paint-on-surface,
-world-space gizmos.
+The handler receives an enriched event object: the original DOM event
+plus the `three.js` intersection data — the hit `point`, the
+`distance`, the `face` and `faceIndex`, the mesh `object`, the
+unprojected `ray`. Useful when "click" alone isn't enough:
+drag-to-rotate, paint-on-surface, world-space gizmos. The
+[events API reference](/api/events/overview) has the full event-object
+shape and the complete list of supported handlers.
+
+So far every trigger has been a one-off — a click, a hover-in, a
+hover-out. The next chapter introduces the third kind: time.

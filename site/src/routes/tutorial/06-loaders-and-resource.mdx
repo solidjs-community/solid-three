@@ -14,7 +14,8 @@ fetching.
 
 ## `useLoader`: the hook
 
-`useLoader(loaderClass, url)` returns an `Accessor` that resolves to the
+[`useLoader(loaderClass, url)`](/api/hooks/use-loader) returns an
+`Accessor` that resolves to the
 loaded asset. Wrap the consumer in a `<Suspense>` so Solid knows what to
 do while it's pending.
 
@@ -29,7 +30,7 @@ for the same texture share one load and one GPU upload.
 
 ## `Resource`: the component
 
-The declarative version. `<Resource loader={...} url="...">` does the same
+The declarative version. [`<Resource loader={...} url="...">`](/api/components/resource) does the same
 fetching, but you write it as JSX inside the scene tree. When the
 attachment is obvious — a `TextureLoader` result going into `.map` of the
 parent material — `attach` does the wiring for you.
@@ -45,8 +46,14 @@ Same outcome, different shape. Use whichever reads better in context:
   and forget about it.
 
 Both forms compose with the rest of Solid the way you'd expect — loader
-errors propagate to the nearest `<ErrorBoundary>`, multiple loaders share
-the cache, you can pass an array of URLs (`[a, b, c]`) or a labelled
-record (`{ albedo, normal, roughness }`) for material sets. The
-[API reference](/api/hooks/use-loader) has the full surface; the shapes
-above are what you'll reach for daily.
+errors propagate to the nearest `<ErrorBoundary>`, multiple loaders
+share the [cache](/api/utilities/loader-cache), you can pass an array
+of URLs (`[a, b, c]`) or a labelled record
+(`{ albedo, normal, roughness }`) for material sets. The
+[`useLoader` API reference](/api/hooks/use-loader) has the full surface;
+the shapes above are what you'll reach for daily.
+
+That's the everyday tree: components, props, signals, events, frames,
+loaders. The next chapter is a deliberate break from the mapping — a
+way to send children somewhere *other* than where their JSX would
+suggest.

@@ -62,4 +62,9 @@ your mutations show up this frame. `stage: "after"` runs it after — handy
 for post-render bookkeeping or custom render passes that need to come
 between frames.
 
-Most code never needs to set these, but they're there when you do.
+Most code never needs to set these, but they're there when you do —
+[the full options](/api/hooks/use-frame) are in the API reference.
+
+The scenes so far have been hand-built — cubes, lights, geometry from
+constructors. The next chapter brings in *outside* data: textures,
+models, anything you load from a URL.
