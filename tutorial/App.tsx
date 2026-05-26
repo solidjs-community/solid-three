@@ -1,3 +1,10 @@
+import Hello, { frontmatter } from "./chapters/00-hello.mdx"
+
 export function App() {
-  return <h1>solid-three tutorial</h1>
+  return (
+    <main>
+      <p>Frontmatter: {JSON.stringify(frontmatter)}</p>
+      <Hello />
+    </main>
+  )
 }
