@@ -593,6 +593,7 @@ describe("renderer", () => {
       setSize: vi.fn(),
       setPixelRatio: vi.fn(),
       getPixelRatio: vi.fn(() => 1),
+      domElement: document.createElement("canvas"),
       ...overrides,
     }
     return fake as typeof fake & RendererLike
@@ -704,7 +705,11 @@ describe("renderer", () => {
     // pixel-ratio API. They must still work — `context.dpr` falls back to `1`
     // (the renderer didn't scale anything, so reporting any other value
     // would be fabricating).
-    const fake: RendererLike = { render: vi.fn(), setSize: vi.fn() }
+    const fake: RendererLike = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      domElement: document.createElement("div"),
+    }
     const state = test(() => <T.Group />, { gl: fake })
 
     expect(() => state.gl.setSize(100, 100)).not.toThrow()

@@ -145,6 +145,12 @@ export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer 
 export interface RendererLike {
   render(scene: any, camera: any): void
   setSize(width: number, height: number, updateStyle?: boolean): void
+  /**
+   * Element the renderer outputs to — a `<canvas>` for WebGL/WebGPU, a
+   * `<div>` for CSS2D/3D, an `<svg>` for SVGRenderer. This is the natural
+   * target for pointer-event capture (orbit controls, picking).
+   */
+  domElement: Element
   /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */
   setPixelRatio?(value: number): void
   /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */

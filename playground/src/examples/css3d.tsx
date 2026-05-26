@@ -24,7 +24,6 @@ function mountCss3d(canvas: HTMLCanvasElement) {
   renderer.domElement.style.left = "0"
   renderer.domElement.style.width = "100%"
   renderer.domElement.style.height = "100%"
-  renderer.domElement.style.pointerEvents = "none"
   canvas.parentElement?.appendChild(renderer.domElement)
   return renderer
 }

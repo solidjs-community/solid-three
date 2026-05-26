@@ -46,7 +46,11 @@ export function OrbitControls(props: OrbitControlsProps) {
 
   useFrame(() => controls().update())
 
-  whenEffect(controls, controls => controls.connect(props.domElement ?? three.canvas))
+  whenEffect(controls, controls =>
+    // three's OrbitControls.connect is typed for HTMLElement; SVGElement and
+    // other Element subtypes work in practice (it uses pointer events).
+    controls.connect((props.domElement ?? three.gl.domElement) as HTMLElement),
+  )
 
   createEffect(() => {
     const callback = config.onStart
