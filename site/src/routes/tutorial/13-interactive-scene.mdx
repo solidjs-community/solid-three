@@ -1,55 +1,54 @@
 ---
-title: An interactive scene
+title: A small game
 ---
 
 import interactiveScene from "../../snippets/13-interactive-scene.tsx?raw"
 
-# An interactive scene
+# A small game
 
-You've now seen every piece. Time to put them together.
+You've now seen every piece. Time to put them together into something that
+actually plays.
 
 <Demo code={interactiveScene} />
 
-Click a cube. The DOM panel on the top-right shows which one is selected.
-The selected cube bobs gently up and down. Hover any cube and it scales
-up; leave and it shrinks back. Click empty space (or the "deselect"
-button) and selection clears.
+A 3x3 grid of cubes. One lights up at a time. Click the lit one before time
+runs out — every hit scores a point and lights up a new cube. You have 20
+seconds.
 
-That's a real interactive Solid component — and the only thing about it
-that's `three.js`-specific is the choice to use `<T.Mesh>` instead of
-`<div>`.
+That's a real game, written in fewer than 130 lines of `solid-three`. And
+the only thing about it that's specifically 3D is the choice to use
+`<T.Mesh>` instead of `<button>`.
 
 ## What's actually in here
 
 Reading top-to-bottom:
 
-- **Selection state** lives in a single `createSignal<number | null>`.
-  It's the same kind of signal you'd use for any other selection in a
+- **Game state** lives in four `createSignal`s — `running`, `score`,
+  `activeIndex`, `timeLeft`. They're the same primitives you'd use for any
   Solid app.
-- **A `<Cube>` custom component** wraps the per-cube logic — pointer
-  events, hover signal, frame loop. Same composition pattern as
-  [chapter 12](/tutorial/12-custom-components).
-- **`onPointerEnter` / `onPointerLeave`** drive a `hovered` signal that
-  feeds the `scale` prop. The scene's smart-prop pipeline turns a single
-  number into `Vector3.setScalar` — [smart props](/tutorial/03-smart-props)
-  doing its thing.
-- **`onClick`** with `event.stopPropagation()` selects the clicked cube
-  without bubbling. [Stopping events](/tutorial/06-event-propagation).
-- **`onClickMissed`** on the canvas clears the selection.
-- **`useFrame`** mutates `mesh.position.y` imperatively for the bob —
-  no signal involved, just a property assignment per frame. The
-  performance escape hatch from [`useFrame`](/tutorial/08-use-frame).
-- **The DOM panel** is a plain `<div>` overlay, gated by `<Show>`. It
-  reads `selected()` like any other Solid component would — proof that
-  the scene and the DOM are just two views over the same signals.
+- **The grid** is built once outside the component as a list of positions.
+  We render the cubes with `<For>` — Solid's keyed list primitive, working
+  exactly the way it does in any DOM tree.
+- **Each `<Cube>`** is a custom component (the composition pattern from
+  [chapter 12](/tutorial/12-custom-components)). It uses `useFrame` to bob
+  the active cube forward, and `onClick` with `event.stopPropagation()` to
+  score.
+- **The countdown** is a regular `setInterval` driving the `timeLeft`
+  signal. The DOM panel reads it the same way the scene's `active` prop
+  reads its signal — both are just Solid views over the same source of
+  truth.
+- **`<Show>`** swaps the "start" / "play again" button in and out — the
+  same control-flow component you'd use for a modal or a toggle anywhere
+  else.
 
-## What's next
+## That's the tour
 
-You could push this further in any direction — add more cubes, persist
-the selection, layer in a `useLoader`-ed texture, swap the camera based
-on which cube is selected ([camera stack](/tutorial/09-use-three)). The
-language for doing all of that is the language you already have. Have
-fun.
+You've now seen the whole library — the foundational pieces, the
+reactivity primitives, the event system, the loader/lifecycle utilities,
+the composition patterns, and how they assemble into a real interactive
+scene. From here on, the way to learn more is to build something. The
+[API reference](/api) covers anything we didn't touch; the rest is just
+three.js.
 
-If you want a look at where the library is going next, the encore is a
+If you want a look at where the library is heading next, the encore is a
 peek at WebGPU.

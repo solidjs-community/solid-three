@@ -1,119 +1,143 @@
 import * as THREE from "three"
-import { createSignal, For, Show } from "solid-js"
+import { createSignal, For, onCleanup, Show } from "solid-js"
 import { Canvas, createT, useFrame } from "solid-three"
 
 const T = createT(THREE)
 
-interface CubeData {
-  id: number
-  color: string
-  position: [number, number, number]
+const GRID_SIZE = 3
+const SPACING = 1.1
+const ROUND_DURATION_MS = 20_000
+
+// Build a 3x3 grid of cube positions centred on the origin.
+const positions: [number, number, number][] = []
+for (let y = 0; y < GRID_SIZE; y++) {
+  for (let x = 0; x < GRID_SIZE; x++) {
+    positions.push([
+      (x - (GRID_SIZE - 1) / 2) * SPACING,
+      (y - (GRID_SIZE - 1) / 2) * SPACING,
+      0,
+    ])
+  }
 }
 
-const initialCubes: CubeData[] = [
-  { id: 1, color: "cornflowerblue", position: [-1.4, 0, 0] },
-  { id: 2, color: "tomato", position: [0, 0, 0] },
-  { id: 3, color: "mediumseagreen", position: [1.4, 0, 0] },
-]
+function pickRandomIndex(exclude: number): number {
+  let next = exclude
+  while (next === exclude) next = Math.floor(Math.random() * positions.length)
+  return next
+}
 
 function Cube(props: {
-  data: CubeData
-  selected: boolean
-  onSelect: () => void
+  position: [number, number, number]
+  active: boolean
+  onHit: () => void
 }) {
-  const [hovered, setHovered] = createSignal(false)
   let mesh: THREE.Mesh | undefined
-
-  // Selected cubes bob gently up and down.
+  // The active cube bobs forward toward the camera.
   useFrame(context => {
     if (!mesh) return
-    if (props.selected) {
-      mesh.position.y = Math.sin(context.clock.elapsedTime * 3) * 0.15
-    } else {
-      mesh.position.y = 0
-    }
+    mesh.position.z = props.active
+      ? Math.sin(context.clock.elapsedTime * 6) * 0.1 + 0.2
+      : 0
   })
-
   return (
     <T.Mesh
       ref={mesh}
-      position={props.data.position}
-      scale={hovered() ? 1.15 : 1}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
+      position={props.position}
+      scale={0.7}
       onClick={event => {
         event.stopPropagation()
-        props.onSelect()
+        if (props.active) props.onHit()
       }}
     >
       <T.BoxGeometry />
       <T.MeshStandardMaterial
-        color={props.data.color}
-        emissive={props.selected ? props.data.color : "#000000"}
-        emissiveIntensity={props.selected ? 0.4 : 0}
+        color={props.active ? "tomato" : "#3a3f4b"}
+        emissive={props.active ? "tomato" : "#000000"}
+        emissiveIntensity={props.active ? 0.5 : 0}
       />
     </T.Mesh>
   )
 }
 
 export default function App() {
-  const [selectedId, setSelectedId] = createSignal<number | null>(null)
-  const selected = () => initialCubes.find(c => c.id === selectedId()) ?? null
+  const [running, setRunning] = createSignal(false)
+  const [score, setScore] = createSignal(0)
+  const [activeIndex, setActiveIndex] = createSignal(0)
+  const [timeLeft, setTimeLeft] = createSignal(ROUND_DURATION_MS)
+
+  function startRound() {
+    setScore(0)
+    setActiveIndex(Math.floor(Math.random() * positions.length))
+    setTimeLeft(ROUND_DURATION_MS)
+    setRunning(true)
+    const startedAt = performance.now()
+    const id = setInterval(() => {
+      const remaining = ROUND_DURATION_MS - (performance.now() - startedAt)
+      if (remaining <= 0) {
+        setTimeLeft(0)
+        setRunning(false)
+        clearInterval(id)
+      } else {
+        setTimeLeft(remaining)
+      }
+    }, 100)
+    onCleanup(() => clearInterval(id))
+  }
+
+  function handleHit() {
+    setScore(value => value + 1)
+    setActiveIndex(index => pickRandomIndex(index))
+  }
 
   return (
     <>
-      <Show when={selected()}>
-        {selected => (
-          <div
+      <div
+        style={{
+          position: "absolute",
+          top: "1rem",
+          left: "1rem",
+          "z-index": 1,
+          padding: "0.75rem 1rem",
+          background: "rgba(20,23,31,0.9)",
+          color: "#e8e8e8",
+          "font-family": "ui-monospace, monospace",
+          "font-size": "0.85rem",
+          "border-radius": "6px",
+          "min-width": "10rem",
+        }}
+      >
+        <div>score: {score()}</div>
+        <div>time: {(timeLeft() / 1000).toFixed(1)}s</div>
+        <Show when={!running()}>
+          <button
+            onClick={startRound}
             style={{
-              position: "absolute",
-              top: "1rem",
-              right: "1rem",
-              "z-index": 1,
-              padding: "0.75rem 1rem",
-              background: "rgba(20,23,31,0.9)",
-              color: "#e8e8e8",
-              "font-family": "ui-monospace, monospace",
+              "margin-top": "0.5rem",
+              padding: "0.3rem 0.75rem",
+              background: "tomato",
+              color: "#fff",
+              border: "0",
+              "border-radius": "4px",
+              cursor: "pointer",
               "font-size": "0.8rem",
-              "border-radius": "6px",
-              "min-width": "10rem",
             }}
           >
-            <div>cube #{selected().id}</div>
-            <div style={{ color: selected().color }}>{selected().color}</div>
-            <button
-              onClick={() => setSelectedId(null)}
-              style={{
-                "margin-top": "0.5rem",
-                padding: "0.25rem 0.5rem",
-                background: "transparent",
-                color: "#c8c8c8",
-                border: "1px solid #333",
-                "border-radius": "4px",
-                cursor: "pointer",
-                "font-size": "0.75rem",
-              }}
-            >
-              deselect
-            </button>
-          </div>
-        )}
-      </Show>
-      <Canvas
-        camera={{ position: [0, 0, 4] }}
-        onClickMissed={() => setSelectedId(null)}
-      >
-        <For each={initialCubes}>
-          {cube => (
+            {timeLeft() === 0 ? "play again" : "start"}
+          </button>
+        </Show>
+      </div>
+      <Canvas camera={{ position: [0, 0, 4] }}>
+        <For each={positions}>
+          {(position, index) => (
             <Cube
-              data={cube}
-              selected={selectedId() === cube.id}
-              onSelect={() => setSelectedId(cube.id)}
+              position={position}
+              active={running() && activeIndex() === index()}
+              onHit={handleHit}
             />
           )}
         </For>
         <T.AmbientLight intensity={0.4} />
-        <T.DirectionalLight position={[2, 2, 2]} />
+        <T.DirectionalLight position={[2, 2, 3]} />
       </Canvas>
     </>
   )
