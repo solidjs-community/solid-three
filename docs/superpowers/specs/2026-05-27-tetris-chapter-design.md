@@ -127,6 +127,10 @@ Adds, on top of Stage 1:
   - `ArrowDown` → `tryMove(0, 1)` (one-cell soft-drop; no auto-repeat
     handling beyond the OS default).
   - `ArrowUp` → `tryRotate()`.
+  - `Space` → `hardDrop()`: call `tryMove(0, 1)` in a loop until it
+    fails, then `lock()` + `spawn()` (same path as a downward collision
+    in the gravity tick). Prevent the page from scrolling
+    (`event.preventDefault()` when the key matches).
 - **`tryMove(dx, dy)`**:
   1. Compute next position.
   2. For every filled square in `piece.shape`, check `x<0 || x>=WIDTH ||
