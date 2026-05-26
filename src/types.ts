@@ -145,8 +145,10 @@ export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer 
 export interface RendererLike {
   render(scene: any, camera: any): void
   setSize(width: number, height: number, updateStyle?: boolean): void
-  setPixelRatio(value: number): void
-  getPixelRatio(): number
+  /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */
+  setPixelRatio?(value: number): void
+  /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */
+  getPixelRatio?(): number
   /**
    * Optional vendor XR manager. Typed as the union of three's two concrete
    * managers (WebXR + WebGPU XR). solid-three's built-in xr wiring duck-types

@@ -699,6 +699,17 @@ describe("renderer", () => {
     expect(addEventListener).not.toHaveBeenCalled()
   })
 
+  it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
+    // DOM-based renderers (CSS2DRenderer, CSS3DRenderer, SVGRenderer) have no
+    // pixel-ratio API. They must still work — solid-three falls back to the
+    // device's devicePixelRatio for `context.dpr`.
+    const fake: RendererLike = { render: vi.fn(), setSize: vi.fn() }
+    const state = test(() => <T.Group />, { gl: fake })
+
+    expect(() => state.gl.setSize(100, 100)).not.toThrow()
+    expect(state.dpr).toBe(globalThis.devicePixelRatio)
+  })
+
   it("should apply shadowMap.enabled/type but not needsUpdate on non-WebGL shadow maps", async () => {
     // WebGPURenderer's `shadowMap` is `{ enabled, type }` — no `needsUpdate`.
     // The shared `enabled`/`type` writes should still happen; only the

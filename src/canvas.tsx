@@ -71,7 +71,8 @@ export function Canvas(props: ParentProps<CanvasProps>) {
     createResizeObserver(container, function onResize() {
       const { width, height } = container.getBoundingClientRect()
       context.gl.setSize(width, height)
-      context.gl.setPixelRatio(globalThis.devicePixelRatio)
+      // DOM-based renderers (CSS2D/3D, SVG) don't have a pixel-ratio knob.
+      context.gl.setPixelRatio?.(globalThis.devicePixelRatio)
 
       if (context.camera instanceof OrthographicCamera) {
         context.camera.left = width / -2

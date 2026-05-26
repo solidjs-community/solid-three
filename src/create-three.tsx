@@ -276,7 +276,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     canvas,
     clock,
     get dpr() {
-      return this.gl.getPixelRatio()
+      // DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob — fall
+      // back to the device's ratio so downstream sizing math still works.
+      return this.gl.getPixelRatio?.() ?? globalThis.devicePixelRatio ?? 1
     },
     props,
     render,
