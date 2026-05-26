@@ -8,11 +8,31 @@ order: 1
 
 # Hello, Canvas
 
-Every solid-three app starts by mounting a `<Canvas>`.
+A three.js scene needs three things: a **renderer** to draw pixels, a **camera**
+to decide what gets drawn, and a **scene** to hold everything else. In
+solid-three you get all three by mounting one component — and then you fill the
+scene by nesting elements inside it:
 
 <Demo code={`
-import { Canvas } from "solid-three"
-export default () => <Canvas />
+import * as THREE from "three"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => (
+  <Canvas camera={{ position: [0, 0, 3] }}>
+    <T.Mesh>
+      <T.BoxGeometry />
+      <T.MeshNormalMaterial />
+    </T.Mesh>
+  </Canvas>
+)
 `} />
 
-The canvas is empty — we haven't put anything in the scene yet.
+A square — the front face of a cube, viewed head-on. The colour comes from
+`MeshNormalMaterial`, which tints each face by its surface normal: a handy
+debugging material because it makes geometry visible without any lights.
+
+Three new ideas snuck into that snippet — `createT`, the `T.*` namespace, and
+the way `<T.Mesh>` consumes its children as a geometry and a material. They're
+the heart of solid-three, and they get their own chapter next.
