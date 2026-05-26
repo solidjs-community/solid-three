@@ -5,6 +5,9 @@ title: Signals drive the scene
 import buttonToggleSnippet from "../../snippets/03-button-toggle.tsx?raw"
 import showSnippet from "../../snippets/03-show.tsx?raw"
 import forSnippet from "../../snippets/03-for.tsx?raw"
+import switchSnippet from "../../snippets/03-switch.tsx?raw"
+import indexSnippet from "../../snippets/03-index.tsx?raw"
+import suspenseSnippet from "../../snippets/03-suspense.tsx?raw"
 
 # Signals drive the scene
 
@@ -50,8 +53,49 @@ move on the JSX level — they just update their `position` because the
 expression `(index() - (cubes().length - 1) / 2) * 1.2` reads two reactive
 values. One assignment per moved cube, per change. No diffing, no remount.
 
-The point: you already know how to do this. `createSignal`, `<Show>`,
-`<For>` — every reactive Solid primitive maps cleanly into the scene.
+## Branching: `<Switch>` / `<Match>`
+
+For more than two possible states, reach for `<Switch>` with `<Match>`.
+
+<Demo code={switchSnippet} />
+
+Cycle through `idle`, `loading`, `ready`. Each state's scene is a
+different mesh entirely — when you click the button, the previous
+mesh's geometry and material are disposed and the next one mounts. Same
+control-flow component you'd use to swap routes or render different
+views in any other Solid app.
+
+## Lists that stay put: `<Index>`
+
+`<Index>` is `<For>`'s positional cousin. Where `<For>` tracks items by
+identity (so reordering an array can remount nothing), `<Index>` tracks
+*positions* — the item at slot 0 is always the same component, even if
+the value changes. Good for fixed-shape lists like a row of slots.
+
+<Demo code={indexSnippet} />
+
+Click "shuffle". The colours change, but each cube stays mounted —
+only its `color` prop updates. With `<For>` you'd see the cubes
+re-mount whenever the array's identity changed.
+
+## Async: `<Suspense>`
+
+`<Suspense>` waits for a `createResource` to resolve, falling back to
+something else in the meantime. Works the same in 3D — both the
+fallback and the resolved content can be `<T.*>`.
+
+<Demo code={suspenseSnippet} />
+
+Click "new colour". The cube's colour comes from a `createResource`
+that takes ~800ms to resolve. While it's pending, `<Suspense>` shows the
+grey torus fallback. When it resolves, the cube mounts with the new
+colour. Same `Suspense` you'd use to gate any async value.
+
+## That's the toolbox
+
+You already know how to do this. `createSignal`, `<Show>`, `<For>`,
+`<Switch>`/`<Match>`, `<Index>`, `<Suspense>` — every reactive Solid
+primitive maps cleanly into the scene.
 
 ## What about clicking the cube itself?
 
