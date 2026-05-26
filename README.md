@@ -581,17 +581,18 @@ const camera = useThree(ctx => ctx.camera)
 **Returns:**
 
 - **bounds** (`Measure`): Reactive canvas bounds measurement.
-- **camera** (`Camera`): The current camera.
-- **setCamera** (`(camera: Camera) => () => void`): A setter-function for setting the current camera.
+- **camera** (`CameraKind`): The current camera (`PerspectiveCamera | OrthographicCamera`).
+- **setCamera** (`(camera: CameraKind) => () => void`): A setter-function for setting the current camera. Accepts only `PerspectiveCamera` or `OrthographicCamera`. Returns a cleanup that pops the camera off the stack.
 - **canvas** (`HTMLCanvasElement`): The canvas DOM element.
 - **clock** (`Clock`): The `three.js` clock for timing.
 - **dpr** (`number`): Device pixel ratio reported by the active renderer (falls back to `1` for renderers without `getPixelRatio`, e.g. `CSS3DRenderer` / `SVGRenderer`).
-- **gl** (`Renderer`): The active renderer — `WebGLRenderer | WebGPURenderer | RendererLike` by default. Narrow to a concrete type project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
-- **raycaster** (`Raycaster`): The current raycaster used for pointer events.
-- **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster.
+- **gl** (`Meta<ResolvedRenderer>`): The active renderer, wrapped with `meta` so you can read solid-three metadata via `getMeta(three.gl)`. The underlying renderer is `WebGLRenderer | WebGPURenderer | RendererLike` by default — narrow project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
+- **raycaster** (`Raycaster | EventRaycaster`): The current raycaster used for pointer events.
+- **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster. Returns a cleanup that pops it off the stack.
 - **render** (`(delta: number) => void`): Function to manually trigger a render.
 - **requestRender** (`() => void`): Function to request a render on the next frame.
-- **scene** (`Scene`): The root scene.
+- **scene** (`Meta<Scene>`): The root scene, wrapped with `meta`.
+- **props** (`CanvasProps`): The props the host `<Canvas>` was rendered with.
 - **xr** (`{ connect: () => void; disconnect: () => void }`): WebXR connection management.
 
 **Camera and Raycaster Stack System:**
@@ -604,28 +605,7 @@ const camera = useThree(ctx => ctx.camera)
 - **Push To The Stack To Become Active**: By calling `setCamera(camera)` and `setRaycaster(raycaster)`, the camera/raycaster is pushed to the stack. This causes it to become the currently active camera/raycaster
 - **Pop From The Stack To Deactivate**: `setCamera(camera)` and `setRaycaster(raycaster)` return a cleanup-function to pop the camera/raycaster from the stack. If the camera/raycaster was on top of the stack, the previous camera/raycaster in the stack becomes active again
 
-**Usage:**
-
-```tsx
-const three = useThree()
-
-createEffect(() => {
-  if (useOrtho()) {
-    const orthoCamera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.1, 1000)
-    orthoCamera.position.set(0, 0, 5)
-
-    // Push ortho camera onto stack
-    const restore = three.setCamera(orthoCamera)
-
-    // Cleanup automatically restores previous camera
-    onCleanup(restore)
-  }
-})
-```
-
-([see](/playground/src/api/use-three/camera-switch.tsx))
-
-**Practical Example - Camera Switching:**
+**Camera Switching Example:**
 
 ```tsx
 const three = useThree()
