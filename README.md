@@ -103,7 +103,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
-- **gl**: Defines options for the default WebGLRenderer, a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
+- **gl**: A flat object mixing `WebGLRenderer` constructor params (e.g. `antialias`, `alpha`) and instance-writable props (e.g. `toneMapping`) — solid-three splits them internally; ctor args are baked at construction, instance props stay reactive. Reactively changing a ctor-only key logs a warning (WebGL contexts are immutable; remount `<Canvas>` to swap). Also accepts a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
 - **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
@@ -126,7 +126,7 @@ interface CanvasProps {
   camera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
   fallback?: JSX.Element
   gl?:
-    | Partial<WebGLRenderer>
+    | Partial<WebGLRenderer & WebGLRendererParameters>
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   scene?: Partial<Scene> | Scene
@@ -221,7 +221,7 @@ function Scene() {
 <Canvas gl={canvas => new WebGPURenderer({ canvas })}> {/* ✓ */}
 <Canvas gl={canvas => new WebGLRenderer({ canvas })}>  {/* ✗ type error */}
 <Canvas gl={{ toneMapping: ACESFilmicToneMapping }}>   {/* ✗ type error —
-                                                          the config shorthand
+                                                          the flat-object form
                                                           only builds a default
                                                           WebGLRenderer */}
 ```
