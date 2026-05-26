@@ -21,6 +21,22 @@ const TmTextarea = clientOnly(async () => {
   return { default: solid.TmTextarea }
 })
 
+// SolidBase sets `data-theme="sdark"` or `data-theme="slight"` on <html>
+// (with an "s" prefix). Mirror that into a signal so the editor's TextMate
+// theme follows the site's light/dark mode.
+function useSiteTheme(): () => "github-dark" | "github-light" {
+  const [isDark, setIsDark] = createSignal(false)
+  onMount(() => {
+    const root = document.documentElement
+    const read = () => setIsDark((root.dataset.theme ?? "").includes("dark"))
+    read()
+    const observer = new MutationObserver(read)
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
+    onCleanup(() => observer.disconnect())
+  })
+  return () => (isDark() ? "github-dark" : "github-light")
+}
+
 const externalEsmHost = "https://esm.sh"
 
 // Pin versions for the externalized deps so all esm.sh modules share singletons.
@@ -257,6 +273,7 @@ function DemoClient(props: DemoProps) {
   const [code, setCode] = createSignal(initialCode)
   const [pane, setPane] = createSignal<"canvas" | "editor">("canvas")
   const [isNarrow, setIsNarrow] = createSignal(false)
+  const editorTheme = useSiteTheme()
 
   onMount(() => {
     const media = window.matchMedia("(max-width: 900px)")
@@ -315,7 +332,7 @@ function DemoClient(props: DemoProps) {
             <TmTextarea
               class="demo-editor"
               grammar="tsx"
-              theme="github-dark"
+              theme={editorTheme()}
               value={code()}
               editable
               onInput={event => setCode(event.currentTarget.value)}
