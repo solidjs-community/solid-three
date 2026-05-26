@@ -136,7 +136,20 @@ export default defineConfig({
         ],
       },
     }),
-    solidStart({ ...solidBase.startConfig(), ssr: false }),
+    solidStart({
+      ...solidBase.startConfig(),
+      ssr: false,
+      // Solid Start's dev-overlay (`DevOverlayDialog.jsx`) uses the
+      // `import attributes` syntax (`with { type: "json" }`), which the
+      // bundled @babel/parser doesn't recognise unless this plugin is
+      // wired in. Without it, any page-level error gets masked by the
+      // overlay's own parse failure.
+      solid: {
+        babel: {
+          plugins: ["@babel/plugin-syntax-import-attributes"],
+        },
+      },
+    }),
     nitro({
       preset: "static",
     }),

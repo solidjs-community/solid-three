@@ -14,10 +14,10 @@
     "@solidjs/router": "^0.15.3",
     "@solidjs/start": "https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080",
     "cannon-es": "^0.20.0",
-    "solid-three": "link:..",
     "nitro": "3.0.260311-beta",
     "resolve": "^1.22.12",
     "solid-js": "^1.9.11",
+    "solid-three": "link:..",
     "three": "^0.181.2",
     "tm": "^0.0.1",
     "tm-textarea": "^0.1.1",
@@ -25,6 +25,7 @@
     "vite": "^8.0.0"
   },
   "devDependencies": {
+    "@babel/plugin-syntax-import-attributes": "^7.29.7",
     "@iconify-json/ri": "^1.2.6",
     "@types/three": "^0.181.0",
     "esbuild": "^0.25.12",
