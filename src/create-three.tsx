@@ -5,6 +5,7 @@ import {
   BasicShadowMap,
   Camera,
   Clock,
+  LinearSRGBColorSpace,
   NoToneMapping,
   OrthographicCamera,
   PCFShadowMap,
@@ -12,6 +13,7 @@ import {
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SRGBColorSpace,
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
@@ -24,7 +26,14 @@ import { frameContext, threeContext } from "./hooks.ts"
 import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
-import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
+import type {
+  CameraKind,
+  Context,
+  FrameListener,
+  FrameListenerCallback,
+  Renderer,
+  RendererLike,
+} from "./types.ts"
 import {
   binarySearch,
   createDebug,
@@ -140,26 +149,35 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     debugXR("frame", () => ({ timestamp }))
     render(timestamp, frame)
   }
-  // Toggle render switching on session
+  // Toggle render switching on session. The current wiring is built for
+  // `WebXRManager` (WebGL build). Task 4 introduces `isWebXRManager` for
+  // proper duck-typing — for now we early-return when absent and cast the
+  // present manager to `WebXRManager` to preserve the existing API surface.
   function handleSessionChange() {
+    const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
+    if (!xrManager) return
     debugXR("session", () => ({
-      presenting: context.gl.xr.isPresenting,
-      enabled: context.gl.xr.enabled,
+      presenting: xrManager.isPresenting,
+      enabled: xrManager.enabled,
     }))
-    context.gl.xr.enabled = context.gl.xr.isPresenting
-    context.gl.xr.setAnimationLoop(context.gl.xr.isPresenting ? handleXRFrame : null)
+    xrManager.enabled = xrManager.isPresenting
+    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
   }
   // WebXR session-manager
   const xr = {
     connect() {
+      const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
+      if (!xrManager) return
       debugXR("connect")
-      context.gl.xr.addEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.addEventListener("sessionend", handleSessionChange)
+      xrManager.addEventListener("sessionstart", handleSessionChange)
+      xrManager.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
+      const xrManager = context.gl.xr as WebGLRenderer["xr"] | undefined
+      if (!xrManager) return
       debugXR("disconnect")
-      context.gl.xr.removeEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.removeEventListener("sessionend", handleSessionChange)
+      xrManager.removeEventListener("sessionstart", handleSessionChange)
+      xrManager.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -170,10 +188,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
+  // Render loop spins harmlessly until `renderer.init()` resolves (WebGPU).
+  // WebGL renderers report ready synchronously, so this flips to `true`
+  // immediately in the init effect below. Task 6 will refactor this into
+  // a `createResource`.
+  let glInitialized = true
 
   function render(timestamp: number, frame?: XRFrame) {
     if (!context.gl) {
       debugRender("skipped", () => ({ reason: "no gl" }))
+      return
+    }
+    if (!glInitialized) {
+      debugRender("skipped", () => ({ reason: "gl not initialized" }))
       return
     }
     if (props.frameloop === "never") {
@@ -258,13 +285,23 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    let rendererInstance: WebGLRenderer
-    if (props.gl instanceof WebGLRenderer) {
+    const propsGl = props.gl
+    let rendererInstance: Renderer
+    // Instance check first — recognise any RendererLike (incl. WebGPURenderer)
+    // regardless of class, otherwise an `instanceof WebGLRenderer` would skip it.
+    // Task 4 will replace this inline check with `isRenderer()`.
+    if (
+      propsGl &&
+      typeof propsGl === "object" &&
+      !Array.isArray(propsGl) &&
+      typeof (propsGl as Renderer).render === "function" &&
+      typeof (propsGl as Renderer).setSize === "function"
+    ) {
       debugContext("gl", () => ({ source: "custom" }))
-      rendererInstance = props.gl
-    } else if (typeof props.gl === "function") {
+      rendererInstance = propsGl as Renderer
+    } else if (typeof propsGl === "function") {
       debugContext("gl", () => ({ source: "factory" }))
-      rendererInstance = props.gl(canvas)
+      rendererInstance = propsGl(canvas)
     } else {
       debugContext("gl", () => ({ source: "default" }))
       rendererInstance = new WebGLRenderer({ canvas, alpha: true })
@@ -276,6 +313,48 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     })
   })
+
+  // Await `renderer.init()` before the first frame (WebGPU). WebGL renderers
+  // have no `init()` and resolve synchronously. Intermediate form — Task 6
+  // will lift this into a `createResource`.
+  createRenderEffect(
+    () => gl(),
+    renderer => {
+      glInitialized = false
+      let cancelled = false
+      onCleanup(() => {
+        cancelled = true
+      })
+
+      const initFn = (renderer as RendererLike).init
+      const hasInitialized = (renderer as RendererLike).hasInitialized
+      const alreadyInitialized = hasInitialized?.call(renderer) === true
+
+      if (!initFn || alreadyInitialized) {
+        debugEffects("gl init", () => ({ action: "skip", reason: !initFn ? "no-init" : "already" }))
+        glInitialized = true
+        return
+      }
+
+      // Pre-size the canvas backing buffer before init so WebGPU's depth
+      // attachment matches the container; otherwise the default 300×150
+      // buffer mismatches on the first resize.
+      const rect = canvas.getBoundingClientRect()
+      const ratio = globalThis.devicePixelRatio || 1
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width * ratio
+        canvas.height = rect.height * ratio
+      }
+
+      debugEffects("gl init", () => ({ action: "await" }))
+      initFn.call(renderer).then(() => {
+        if (!cancelled) {
+          debugEffects("gl init", () => ({ action: "ready" }))
+          glInitialized = true
+        }
+      })
+    },
+  )
 
   const measure = useMeasure({ element: canvas })
 
@@ -292,7 +371,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     canvas,
     clock,
     get dpr() {
-      return this.gl.getPixelRatio()
+      // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
+      // anything — reporting `1` is honest.
+      return this.gl.getPixelRatio?.() ?? 1
     },
     props,
     render,
@@ -448,7 +529,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             _gl.shadowMap.type = type
           }
           if (changed) {
-            _gl.shadowMap.needsUpdate = true
+            // `needsUpdate` only exists on `WebGLShadowMap`; Task 4 introduces
+            // `isWebGLShadowMap` for proper narrowing.
+            if ("needsUpdate" in _gl.shadowMap) {
+              ;(_gl.shadowMap as { needsUpdate: boolean }).needsUpdate = true
+            }
             debugEffects("shadow", () => ({
               action: "changed",
               enabled,
@@ -461,17 +546,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // XR connect
+      // XR connect — duck-typed to WebGLRenderer's `xr` until Task 4 lands
+      // `isWebXRManager` to discriminate WebGL vs WebGPU XR managers.
       createRenderEffect(
         () => gl(),
         renderer => {
-          if (renderer.xr) {
+          const xrManager = renderer.xr as WebGLRenderer["xr"] | undefined
+          if (xrManager) {
             debugEffects("xr connect", () => ({ hasXR: true }))
-            renderer.xr.addEventListener("sessionstart", handleSessionChange)
-            renderer.xr.addEventListener("sessionend", handleSessionChange)
+            xrManager.addEventListener("sessionstart", handleSessionChange)
+            xrManager.addEventListener("sessionend", handleSessionChange)
             return () => {
-              renderer.xr.removeEventListener("sessionstart", handleSessionChange)
-              renderer.xr.removeEventListener("sessionend", handleSessionChange)
+              xrManager.removeEventListener("sessionstart", handleSessionChange)
+              xrManager.removeEventListener("sessionend", handleSessionChange)
             }
           } else {
             debugEffects("xr connect", () => ({ action: "skip", reason: "no xr on renderer" }))
@@ -479,26 +566,54 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // Color space and tone mapping
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
+      // Color management — structural gate so exotic renderers (SVGRenderer,
+      // custom) without `outputColorSpace` are skipped instead of crashing.
+      createRenderEffect(
+        () => ({ renderer: gl(), linear: !!props.linear }),
+        ({ renderer, linear }) => {
+          if (!("outputColorSpace" in renderer)) {
+            debugEffects("outputColorSpace", () => ({ action: "skip", reason: "not supported" }))
+            return
+          }
+          debugEffects("outputColorSpace", () => ({ linear }))
+          ;(renderer as { outputColorSpace: string }).outputColorSpace = linear
+            ? LinearSRGBColorSpace
+            : SRGBColorSpace
         },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
+      )
+
+      // Tone mapping — structural gate (same reason as color management).
+      createRenderEffect(
+        () => ({ renderer: gl(), flat: !!props.flat }),
+        ({ renderer, flat }) => {
+          if (!("toneMapping" in renderer)) {
+            debugEffects("toneMapping", () => ({ action: "skip", reason: "not supported" }))
+            return
+          }
+          debugEffects("toneMapping", () => ({ flat }))
+          ;(renderer as { toneMapping: number }).toneMapping = flat
+            ? NoToneMapping
+            : ACESFilmicToneMapping
         },
-      })
+      )
 
       // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+      // Apply props only for the config-object branch (not a renderer instance,
+      // not a factory function).
+      const _propsGl = props.gl
+      const isRendererInstance =
+        _propsGl &&
+        typeof _propsGl === "object" &&
+        !Array.isArray(_propsGl) &&
+        typeof (_propsGl as Renderer).render === "function" &&
+        typeof (_propsGl as Renderer).setSize === "function"
+      if (_propsGl && typeof _propsGl !== "function" && !isRendererInstance) {
         debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
-        useProps(gl, props.gl)
+        useProps(gl, _propsGl as object)
       } else {
         debugEffects("gl", () => ({
           action: "skip",
-          reason: !props.gl ? "no gl prop" : "gl is WebGLRenderer instance",
+          reason: !_propsGl ? "no gl prop" : "gl is renderer instance or factory",
         }))
       }
     },

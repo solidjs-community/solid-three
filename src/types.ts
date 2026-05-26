@@ -217,7 +217,7 @@ export interface Context {
   camera: CameraKind
   raycaster: Raycaster | EventRaycaster
   dpr: number
-  gl: Meta<WebGLRenderer>
+  gl: Meta<ResolvedRenderer>
   props: CanvasProps
   render: (delta: number) => void
   requestRender: () => void

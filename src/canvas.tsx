@@ -17,7 +17,7 @@ import {
 import { SHOULD_DEBUG } from "./constants.ts"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props } from "./types.ts"
+import type { CanvasEventHandlers, Context, Props, ResolvedRenderer } from "./types.ts"
 import { createDebug, createResizeObserver, describeOwnerChain } from "./utils.ts"
 
 const debug = createDebug("canvas:Canvas", SHOULD_DEBUG)
@@ -40,9 +40,11 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   frameloop?: "never" | "demand" | "always"
   /** Options for the WebGLRenderer or a function returning a customized renderer. */
   gl?:
-    | Partial<Props<WebGLRenderer>>
-    | ((canvas: HTMLCanvasElement) => WebGLRenderer)
-    | WebGLRenderer
+    | (WebGLRenderer extends ResolvedRenderer
+        ? Partial<Props<WebGLRenderer>>
+        : never)
+    | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
+    | ResolvedRenderer
   /** Toggles linear interpolation for texture filtering. */
   linear?: boolean
   /** Toggles between Orthographic and Perspective camera. */
@@ -85,7 +87,8 @@ export function Canvas(props: ParentProps<CanvasProps>) {
           debug("resize", () => ({ width, height, camera: cameraKind }))
 
           context.gl.setSize(width, height)
-          context.gl.setPixelRatio(globalThis.devicePixelRatio)
+          // DOM-based renderers (CSS2D/3D, SVG) don't have a pixel-ratio knob.
+          context.gl.setPixelRatio?.(globalThis.devicePixelRatio)
 
           if (context.camera instanceof OrthographicCamera) {
             debug("resize", () => ({ camera: "orthographic", width, height }))
