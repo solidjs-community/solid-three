@@ -1,9 +1,10 @@
 import * as THREE from "three"
 import * as CANNON from "cannon-es"
-import { Canvas, createT, useFrame } from "solid-three"
+import { Canvas, createT, useFrame, useThree } from "solid-three"
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { FontLoader, type Font } from "three/examples/jsm/loaders/FontLoader.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 
 const T = createT(THREE)
 
@@ -77,6 +78,24 @@ function createWorld(): CANNON.World {
   return world
 }
 
+function EnvironmentSetup() {
+  const three = useThree()
+  onMount(() => {
+    const { scene, gl } = three
+    const pmrem = new THREE.PMREMGenerator(gl)
+    const envScene = new RoomEnvironment()
+    const envTexture = pmrem.fromScene(envScene, 0.04).texture
+    const previous = scene.environment
+    scene.environment = envTexture
+    onCleanup(() => {
+      scene.environment = previous
+      envTexture.dispose()
+      pmrem.dispose()
+    })
+  })
+  return null
+}
+
 export default function Hero() {
   const [font, setFont] = createSignal<Font | undefined>()
 
@@ -100,6 +119,7 @@ export default function Hero() {
 
   return (
     <Canvas camera={{ position: [0, 1.5, 6], fov: 45 }}>
+      <EnvironmentSetup />
       <T.AmbientLight intensity={0.6} />
       <T.DirectionalLight position={[3, 6, 4]} intensity={1.1} />
       <Show when={world()}>
@@ -142,7 +162,7 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
           ref={mesh => (meshes[i()] = mesh)}
           geometry={letter.geometry}
         >
-          <T.MeshStandardMaterial color={letter.color} />
+          <T.MeshStandardMaterial color={letter.color} metalness={0.85} roughness={0.2} />
         </T.Mesh>
       )}
     </For>
