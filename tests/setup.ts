@@ -7,6 +7,9 @@ console.warn = (...args: any[]) => {
   if (typeof args[0] === "string" && args[0].includes("Signal was written")) {
     console.trace("↑ stack trace for above warning")
   }
+  if (typeof args[0] === "string" && args[0].includes("STRICT_READ_UNTRACKED")) {
+    console.trace("↑ STRICT_READ_UNTRACKED stack trace")
+  }
 }
 
 // Matches any @solidjs/signals diagnostic: [ALL_CAPS_CODE] message
