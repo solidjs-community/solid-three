@@ -131,7 +131,16 @@ export function meta<T>(instance: T, augmentation = { props: {} }) {
     return instance
   }
   const _instance = instance as Meta<T>
-  _instance[$S3C] = { children: new Set(), parent: undefined, ...augmentation }
+  // `merge` preserves getters on `augmentation` (e.g.
+  // `get props() { ... }`) without invoking them at merge time. The
+  // earlier `{ ..., ...augmentation }` form ran every getter once and
+  // froze the value — which both lost reactivity downstream AND tracked
+  // every signal the getter touched into whatever scope `meta()` was
+  // called from.
+  _instance[$S3C] = merge(
+    { children: new Set(), parent: undefined },
+    augmentation,
+  ) as Data<T>
   return _instance
 }
 
