@@ -25,12 +25,12 @@ class MockResource {
   constructor(public readonly url: string) {}
   dispose = vi.fn()
 }
-class MockLoader extends THREE.Loader {
+class MockLoader extends THREE.Loader<MockResource> {
   load(url: string, onLoad: (result: MockResource) => void) {
     onLoad(new MockResource(url))
   }
 }
-class MockObject3DLoader extends THREE.Loader {
+class MockObject3DLoader extends THREE.Loader<THREE.Object3D> {
   load(url: string, onLoad: (result: THREE.Object3D) => void) {
     const object = new THREE.Object3D()
     object.name = url
@@ -122,6 +122,14 @@ describe("Resource", () => {
   it("adds an Object3D resource to the parent scene graph", async () => {
     const { scene } = test(() => <Resource loader={MockObject3DLoader} url="model.glb" />)
     await waitFor(() => expect(scene.children[0]?.name).toBe("model.glb"))
+  })
+
+  it("propagates `attach` to the loaded resource so the parent attaches it to the right slot", async () => {
+    const { scene } = test(() => (
+      <Resource loader={MockLoader} url="tex.png" attach="userData-asset" />
+    ))
+    await waitFor(() => expect(scene.userData.asset).toBeDefined())
+    expect((scene.userData.asset as MockResource).url).toBe("tex.png")
   })
 
   it("renders via children render function with the loaded resource", async () => {
