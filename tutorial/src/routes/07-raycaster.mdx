@@ -2,6 +2,54 @@
 title: Configuring the raycaster
 ---
 
+import pointsSnippet from "../snippets/07-points.tsx?raw"
+import layersSnippet from "../snippets/07-layers.tsx?raw"
+
 # Configuring the raycaster
 
-(chapter content goes here)
+The raycaster is the small piece of machinery that turns "you pressed the
+mouse" into "you hit *this* mesh." Most of the time, the defaults are exactly
+what you want. Two cases come up where you'll want to tweak it:
+
+- **Points and Lines** are mathematically zero-volume — the default raycaster
+  will basically never hit them. You need to give it a tolerance.
+- **Layers** let you exclude meshes from raycasting (a HUD overlay, a debug
+  gizmo, a particle field) without removing them from the scene.
+
+Both knobs hang off the `raycaster` prop on `<Canvas>`.
+
+## Thresholds for Points and Lines
+
+`<Canvas raycaster={{ params: { Points: { threshold: 0.1 } } }}>` tells the
+raycaster "treat points as if they had a 0.1-unit radius." Same idea for
+lines.
+
+<Demo code={pointsSnippet} />
+
+Click anywhere near a point. Without the `Points.threshold` setting, you'd
+have to land the pointer on a mathematically infinitesimal point — i.e., never.
+
+## Layers
+
+Every `Object3D` carries a `layers` mask. By default the raycaster checks
+layer 0 only. Move a mesh to a different layer and it disappears from the
+raycaster (but stays visible to the camera).
+
+<Demo code={layersSnippet} />
+
+The grey cube behind sits on layer 1. Click straight through it — only the
+front blue cube responds. The grey cube is still rendered; it just isn't a
+ray target.
+
+## Beyond defaults
+
+`solid-three` exports two raycaster classes:
+
+- `CursorRaycaster` (the default) — casts from the camera through the
+  pointer.
+- `CenterRaycaster` — casts from the centre of the canvas, useful for
+  VR-style gaze interaction.
+
+Pass an instance via the `raycaster` prop to swap behaviours, or write your
+own by extending `Raycaster` and implementing `update(event, context)`. Rare
+in practice, but it's there.
