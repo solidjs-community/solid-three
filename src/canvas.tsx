@@ -79,10 +79,11 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
 export function Canvas(props: ParentProps<CanvasProps>) {
-  let canvas: HTMLCanvasElement = null!
-  let container: HTMLDivElement = null!
+  let canvas: HTMLCanvasElement | undefined
+  let container: HTMLDivElement | undefined
 
   onMount(() => {
+    if (!canvas || !container) return
     const context = createThree(canvas, props)
 
     // Resize observer for the canvas to adjust camera and renderer on size change
@@ -108,7 +109,7 @@ export function Canvas(props: ParentProps<CanvasProps>) {
 
   return (
     <div
-      ref={container!}
+      ref={container}
       style={{
         position: "relative",
         width: "100%",
@@ -120,7 +121,7 @@ export function Canvas(props: ParentProps<CanvasProps>) {
       }}
       class={props.class}
     >
-      <canvas ref={canvas!} />
+      <canvas ref={canvas} />
     </div>
   )
 }
