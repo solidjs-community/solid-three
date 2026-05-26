@@ -679,9 +679,16 @@ describe("renderer", () => {
   it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
     const fake = makeFakeRenderer()
     const state = test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
 
     expect(() => state.xr.connect()).not.toThrow()
     expect(() => state.xr.disconnect()).not.toThrow()
+    // The no-op path warns so users debugging "why isn't my XR working" can
+    // see it in the console.
+    expect(warn).toHaveBeenCalledTimes(2)
+    expect(warn.mock.calls[0][0]).toMatch(/no-op/)
+
+    warn.mockRestore()
   })
 
   it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
@@ -693,11 +700,15 @@ describe("renderer", () => {
       xr: { enabled: false, addEventListener },
     })
     const state = test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
 
     expect(() => state.xr.connect()).not.toThrow()
     // Real wiring would have called addEventListener twice (sessionstart,
     // sessionend). The guard should have skipped it.
     expect(addEventListener).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    warn.mockRestore()
   })
 
   it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
