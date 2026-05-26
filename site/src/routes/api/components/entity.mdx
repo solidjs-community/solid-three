@@ -41,6 +41,22 @@ interface EntityProps {
 
 </details>
 
+## createEntity
+
+`createT` is built on top of `createEntity`, which creates a single typed component from one Three.js constructor. Use it directly when you need a one-off component without building a full namespace:
+
+```tsx
+import { createEntity } from "solid-three"
+import { Mesh } from "three"
+
+const MeshComponent = createEntity(Mesh)
+
+// Equivalent to <T.Mesh /> but without the full namespace
+<MeshComponent position={[0, 1, 0]}>
+  ...
+</MeshComponent>
+```
+
 ## Manual disposal of instance-entities
 
 When passing an instance to `<Entity from={...}/>` disposal need to be handled manually. This can be done via the [`autodispose`](/api/utilities/autodispose) utility.
