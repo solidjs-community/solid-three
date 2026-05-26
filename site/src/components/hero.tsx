@@ -1,5 +1,12 @@
+import { clientOnly } from "@solidjs/start"
 import { createSignal, Show } from "solid-js"
 import HeroScene from "../snippets/hero"
+import heroSource from "../snippets/hero.tsx?raw"
+
+const LazyDemo = clientOnly(async () => {
+  const mod = await import("./demo")
+  return { default: mod.Demo }
+})
 
 export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
@@ -29,7 +36,9 @@ export function Hero() {
         {editorOpen() ? "Close editor" : "Edit"}
       </button>
       <Show when={editorOpen()}>
-        <div class="hero-editor-overlay">{/* lazy <Demo /> mounts in Task 8 */}</div>
+        <div class="hero-editor-overlay">
+          <LazyDemo code={heroSource} />
+        </div>
       </Show>
     </div>
   )
