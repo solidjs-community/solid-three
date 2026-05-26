@@ -12,6 +12,7 @@ import {
   BasicShadowMap,
   Camera,
   Clock,
+  LinearSRGBColorSpace,
   NoToneMapping,
   OrthographicCamera,
   PCFShadowMap,
@@ -19,6 +20,7 @@ import {
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SRGBColorSpace,
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
@@ -400,15 +402,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         if (!cancelled) glInitialized = true
       })
 
-      // Color management and tone-mapping are WebGL-specific; WebGPURenderer
-      // and others handle output color space through their own node pipelines.
-      if (gl() instanceof WebGLRenderer) {
-        const LinearEncoding = 3000
-        const sRGBEncoding = 3001
+      // Color management and tone-mapping. Both WebGLRenderer and
+      // WebGPURenderer expose `outputColorSpace` and `toneMapping`; we
+      // structurally check so exotic renderers (SVGRenderer, custom) that
+      // don't have them are skipped instead of crashing.
+      const _gl = gl()
+      if ("outputColorSpace" in _gl) {
         useProps(gl, {
-          get outputEncoding() {
-            return props.linear ? LinearEncoding : sRGBEncoding
+          get outputColorSpace() {
+            return props.linear ? LinearSRGBColorSpace : SRGBColorSpace
           },
+        })
+      }
+      if ("toneMapping" in _gl) {
+        useProps(gl, {
           get toneMapping() {
             return props.flat ? NoToneMapping : ACESFilmicToneMapping
           },

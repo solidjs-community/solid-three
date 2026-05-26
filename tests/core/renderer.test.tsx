@@ -501,13 +501,12 @@ describe("renderer", () => {
     expect(gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
   })
 
-  it("should set tonemapping to ACESFilmicToneMapping and outputEncoding to sRGBEncoding if linear is false", async () => {
+  it("should set tonemapping to ACESFilmicToneMapping and outputColorSpace to SRGBColorSpace if linear is false", async () => {
     let state = test(() => <T.Group />, { linear: false })
     const gl = state.gl as unknown as THREE.WebGLRenderer
 
     expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(gl.outputEncoding).toBe(THREE.sRGBEncoding)
+    expect(gl.outputColorSpace).toBe(THREE.SRGBColorSpace)
   })
 
   it("should toggle render mode in xr", async () => {
@@ -652,15 +651,27 @@ describe("renderer", () => {
     expect(fake.render).toHaveBeenCalled()
   })
 
-  it("should not apply outputEncoding/toneMapping to a non-WebGL renderer", async () => {
+  it("should skip color-management props on a renderer that lacks them", async () => {
+    // SVGRenderer / custom renderers don't have outputColorSpace or toneMapping.
     const fake = makeFakeRenderer() as RendererLike & {
-      outputEncoding?: unknown
+      outputColorSpace?: unknown
       toneMapping?: unknown
     }
     test(() => <T.Group />, { gl: fake, linear: false, flat: false })
 
-    expect(fake.outputEncoding).toBeUndefined()
+    expect(fake.outputColorSpace).toBeUndefined()
     expect(fake.toneMapping).toBeUndefined()
+  })
+
+  it("should apply color-management props to a renderer that exposes them", async () => {
+    const fake = Object.assign(makeFakeRenderer(), {
+      outputColorSpace: "" as string,
+      toneMapping: 0,
+    })
+    test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputColorSpace).toBe(THREE.SRGBColorSpace)
+    expect(fake.toneMapping).toBe(THREE.ACESFilmicToneMapping)
   })
 
   it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
