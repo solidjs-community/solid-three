@@ -1107,21 +1107,23 @@ const material = autodispose(new THREE.MeshStandardMaterial())
 
 ### Metadata Utilities
 
-These utilities help manage metadata associated with THREE.js objects:
+These utilities manage `solid-three`'s per-instance metadata. Metadata lives **on the three.js instance itself** under a non-enumerable symbol key (`$S3C`) — there is no external `WeakMap`. Each entry stores the entity's solid-three props, its scene-graph parent, and its set of children.
 
-- **getMeta(object)**: Get metadata associated with a THREE.js object
-- **hasMeta(object)**: Check if an object has metadata
-- **meta**: WeakMap storing object metadata
-- **$S3C**: Symbol used internally for component metadata
+- **`meta(instance, augmentation?)`**: Attaches `solid-three` metadata to `instance` (idempotent). `augmentation` defaults to `{ props: {} }`; pass a `{ props }` object (commonly with a getter) when you want the entity's props to be reactive. Returns the same instance, narrowed to `Meta<T>`.
+- **`getMeta(object)`**: Returns the metadata `Data<T>` attached to `object`, or `undefined` if no metadata is present.
+- **`hasMeta(object)`**: Type guard — returns `true` (narrowing to `Meta<T>`) when the object carries solid-three metadata.
+- **`$S3C`**: The `Symbol` key used to store metadata on instances. Exposed for advanced introspection; prefer `getMeta`/`hasMeta` in normal code.
 
 ```tsx
-import { getMeta, hasMeta } from "solid-three"
+import { getMeta, hasMeta, meta, $S3C } from "solid-three"
 
-// Check if an object has solid-three metadata
 if (hasMeta(mesh)) {
   const metadata = getMeta(mesh)
-  console.log(metadata)
+  console.log(metadata.props, metadata.parent, metadata.children)
 }
+
+const tagged = meta(new Mesh(), { props: {} })
+tagged[$S3C] // same shape as getMeta(tagged)
 ```
 
 ### Testing Utilities
