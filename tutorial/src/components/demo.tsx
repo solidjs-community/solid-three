@@ -5,6 +5,7 @@ import {
   transformModulePaths,
   type Extension,
 } from "@bigmistqke/repl"
+import { isServer } from "solid-js/web"
 import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import ts from "typescript"
 
@@ -20,12 +21,13 @@ const externalDepsParam = "external=solid-js,three&deps=solid-js@1.8,three@0.181
  * between snippet code and solid-three internals.
  *
  * Resolved relative to the document so it works whether the tutorial is
- * served from / or a sub-path.
+ * served from / or a sub-path. Deferred until first access so this module is
+ * safe to evaluate during SSR (where `window` is undefined).
  */
-const localSolidThreeUrl = new URL(
-  "/@tutorial/solid-three.js",
-  window.location.href,
-).toString()
+function getLocalSolidThreeUrl(): string {
+  if (typeof window === "undefined") return "/@tutorial/solid-three.js"
+  return new URL("/@tutorial/solid-three.js", window.location.href).toString()
+}
 
 /**
  * Map a bare specifier to a URL the iframe can load.
@@ -43,7 +45,7 @@ function resolveBareSpecifier(specifier: string): string {
     return specifier
   }
   if (specifier === "solid-three") {
-    return localSolidThreeUrl
+    return getLocalSolidThreeUrl()
   }
   if (specifier.startsWith("solid-js/")) {
     return `${externalEsmHost}/${specifier}?${externalDepsParam}`
@@ -159,7 +161,18 @@ function storageKey(props: DemoProps): string {
 }
 
 export function Demo(props: DemoProps) {
+  // `@bigmistqke/repl` relies on DOMParser, which is unavailable in Node SSR.
+  // Render an empty placeholder during SSR; the client takes over after
+  // hydration.
+  if (isServer) {
+    return <div class="demo" data-demo-placeholder="" />
+  }
+  return <DemoClient {...props} />
+}
+
+function DemoClient(props: DemoProps) {
   const initialCode = (): string => {
+    if (typeof localStorage === "undefined") return props.code
     try {
       const stored = localStorage.getItem(storageKey(props))
       return stored ?? props.code

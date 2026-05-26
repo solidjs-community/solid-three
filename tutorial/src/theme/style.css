@@ -1,0 +1,83 @@
+/*
+ * Demo-specific styles salvaged from the previous tutorial scaffolding.
+ * Loaded from src/theme/mdx-components.tsx so SolidBase bundles it alongside
+ * every page.
+ */
+
+.demo {
+  margin: 1.5rem 0;
+  border: 1px solid #222;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.demo-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 320px;
+}
+
+.demo-narrow .demo-panes {
+  grid-template-columns: 1fr;
+}
+
+.demo-editor {
+  background: #0a0c12;
+  color: #e8e8e8;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  padding: 1rem;
+  border: 0;
+  border-right: 1px solid #222;
+  resize: none;
+}
+
+.demo-narrow .demo-editor {
+  border-right: 0;
+}
+
+.demo-canvas {
+  border: 0;
+  background: #000;
+  width: 100%;
+  height: 100%;
+}
+
+.demo-tabs {
+  display: flex;
+  background: #14171f;
+}
+
+.demo-tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  background: transparent;
+  color: #8b8f9a;
+  border: 0;
+  cursor: pointer;
+}
+
+.demo-tabs button.active {
+  background: #0a0c12;
+  color: #e8e8e8;
+}
+
+.demo-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem;
+  background: #14171f;
+}
+
+.demo-controls button {
+  background: transparent;
+  color: #8b8f9a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.demo-controls button:hover {
+  color: #e8e8e8;
+}
