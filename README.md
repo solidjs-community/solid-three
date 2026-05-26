@@ -41,9 +41,8 @@
    - [Event Propagation](#event-propagation)
    - [Missed Events](#missed-events)
    - [Hover Events](#hover-events)
-7. [Performance Optimization](#performance-optimization)
-8. [Contributing](#contributing)
-9. [License](#license)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 ## Installation
 
@@ -237,14 +236,14 @@ You can pass a constructor
 ```tsx
 <Entity from={Mesh}>
   <Entity from={BoxGeometry} args={[1, 1, 1]} />
-  <Entity from={MeshBasicMaterial} args={[{"orange"}]} />
+  <Entity from={MeshBasicMaterial} args={["orange"]} />
 </Entity>
 ```
 
 or pass an instance
 
 ```tsx
-const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial('orange))
+const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial("orange"))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
@@ -1298,7 +1297,7 @@ The `raycastable` prop controls whether an Object3D can be targeted by raycastin
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTION.md) for details on how to get started.
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
 
 ## License
 
