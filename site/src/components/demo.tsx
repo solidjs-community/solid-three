@@ -230,13 +230,14 @@ const hostHtml = `<!doctype html>
     <script type="importmap">
       {
         "imports": {
-          "solid-js": "https://esm.sh/solid-js@1.8?bundle",
-          "solid-js/web": "https://esm.sh/solid-js@1.8/web?external=solid-js&bundle",
-          "solid-js/jsx-runtime": "https://esm.sh/solid-js@1.8/jsx-runtime?external=solid-js&bundle",
-          "solid-js/jsx-dev-runtime": "https://esm.sh/solid-js@1.8/jsx-dev-runtime?external=solid-js&bundle",
-          "three": "https://esm.sh/three@0.181?bundle",
-          "three/webgpu": "https://esm.sh/three@0.181/webgpu?bundle",
-          "three/tsl": "https://esm.sh/three@0.181/tsl?bundle"
+          "solid-js": "https://esm.sh/solid-js@1.8",
+          "solid-js/web": "https://esm.sh/solid-js@1.8/web?external=solid-js",
+          "solid-js/jsx-runtime": "https://esm.sh/solid-js@1.8/jsx-runtime?external=solid-js",
+          "solid-js/jsx-dev-runtime": "https://esm.sh/solid-js@1.8/jsx-dev-runtime?external=solid-js",
+          "three": "https://esm.sh/three@0.181",
+          "three/webgpu": "https://esm.sh/three@0.181/webgpu?external=three",
+          "three/tsl": "https://esm.sh/three@0.181/tsl?external=three",
+          "three/": "https://esm.sh/three@0.181/"
         }
       }
     </script>
