@@ -1,5 +1,14 @@
 import { setContext } from "@solidjs/signals"
-import { children, createMemo, createRenderEffect, createRoot, merge, onCleanup } from "solid-js"
+import {
+  children,
+  createMemo,
+  createRenderEffect,
+  createRoot,
+  createSignal,
+  isPending,
+  merge,
+  onCleanup,
+} from "solid-js"
 import {
   ACESFilmicToneMapping,
   BasicShadowMap,
@@ -32,13 +41,13 @@ import type {
   FrameListener,
   FrameListenerCallback,
   Renderer,
-  RendererLike,
 } from "./types.ts"
 import {
   binarySearch,
   createDebug,
   defaultProps,
   getCurrentViewport,
+  getPendingInit,
   isRenderer,
   isWebGLShadowMap,
   isWebXRManager,
@@ -194,18 +203,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
-  // Render loop spins harmlessly until `renderer.init()` resolves (WebGPU).
-  // WebGL renderers report ready synchronously, so this flips to `true`
-  // immediately in the init effect below. Task 6 will refactor this into
-  // a `createResource`.
-  let glInitialized = true
 
   function render(timestamp: number, frame?: XRFrame) {
     if (!context.gl) {
       debugRender("skipped", () => ({ reason: "no gl" }))
       return
     }
-    if (!glInitialized) {
+    if (isPending(rendererReady)) {
       debugRender("skipped", () => ({ reason: "gl not initialized" }))
       return
     }
@@ -314,46 +318,30 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   })
 
   // Await `renderer.init()` before the first frame (WebGPU). WebGL renderers
-  // have no `init()` and resolve synchronously. Intermediate form — Task 6
-  // will lift this into a `createResource`.
-  createRenderEffect(
-    () => gl(),
-    renderer => {
-      glInitialized = false
-      let cancelled = false
-      onCleanup(() => {
-        cancelled = true
-      })
-
-      const initFn = (renderer as RendererLike).init
-      const hasInitialized = (renderer as RendererLike).hasInitialized
-      const alreadyInitialized = hasInitialized?.call(renderer) === true
-
-      if (!initFn || alreadyInitialized) {
-        debugEffects("gl init", () => ({ action: "skip", reason: !initFn ? "no-init" : "already" }))
-        glInitialized = true
-        return
-      }
-
-      // Pre-size the canvas backing buffer before init so WebGPU's depth
-      // attachment matches the container; otherwise the default 300×150
-      // buffer mismatches on the first resize.
-      const rect = canvas.getBoundingClientRect()
-      const ratio = globalThis.devicePixelRatio || 1
-      if (rect.width > 0 && rect.height > 0) {
-        canvas.width = rect.width * ratio
-        canvas.height = rect.height * ratio
-      }
-
-      debugEffects("gl init", () => ({ action: "await" }))
-      initFn.call(renderer).then(() => {
-        if (!cancelled) {
-          debugEffects("gl init", () => ({ action: "ready" }))
-          glInitialized = true
-        }
-      })
-    },
-  )
+  // have no `init()` and resolve synchronously. `createSignal(async fn)` is the
+  // Solid 2.x idiom — the signal stays pending until the Promise resolves and
+  // `isPending(rendererReady)` gates the render loop.
+  const [rendererReady] = createSignal<boolean>(async () => {
+    const renderer = gl()
+    const init = getPendingInit(renderer)
+    if (!init) {
+      debugEffects("gl init", () => ({ action: "skip", reason: "no-init-or-already" }))
+      return true
+    }
+    // Pre-size the canvas backing buffer before init so WebGPU's depth
+    // attachment matches the container; otherwise the default 300×150
+    // buffer mismatches on the first resize.
+    const rect = canvas.getBoundingClientRect()
+    const ratio = globalThis.devicePixelRatio || 1
+    if (rect.width > 0 && rect.height > 0) {
+      canvas.width = rect.width * ratio
+      canvas.height = rect.height * ratio
+    }
+    debugEffects("gl init", () => ({ action: "await" }))
+    await init()
+    debugEffects("gl init", () => ({ action: "ready" }))
+    return true
+  })
 
   const measure = useMeasure({ element: canvas })
 
