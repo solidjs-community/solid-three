@@ -10,6 +10,22 @@
 
 **Reference spec:** `docs/superpowers/specs/2026-05-26-port-next-to-next-solid-2-design.md` (read first if context is missing — it has the architecture delta, per-feature intent, and risk register).
 
+## Solid 1.x → Solid 2.x API delta (audit during Task 6)
+
+The `fixes` branch uses Solid 1.x. `next-solid-2` targets Solid 2.x beta.10. Several primitives referenced in the source-of-truth code (and in this plan's earlier drafts) do NOT exist in Solid 2.x. Audited against `node_modules/solid-js/types/` and `node_modules/@solidjs/signals/dist/types/`:
+
+| Solid 1.x | Solid 2.x | Affected tasks |
+|---|---|---|
+| `mergeProps` | `merge` | T7 (already noted as risk #1) |
+| `splitProps(props, [keys])` | `omit(props, ...keys)` (returns rest only) | T12 already handled by existing solid-2 Resource |
+| `createComputed` | `createRenderEffect` | next-solid-2 already rewrote `useSceneGraph` accordingly; T10's `isMaterial`/etc swap doesn't touch this |
+| `createResource` | `createSignal(() => Promise<T>)` + `isPending(signal)` | **T6 corrected below** |
+| `Suspense` | `Loading` | **T14 test imports** |
+| `ErrorBoundary` | `Errored` | not referenced |
+| `JSX` from `solid-js` | `JSX` from `@solidjs/web` | next-solid-2 already uses correct import |
+
+Quick verification: `grep -E "^export" node_modules/solid-js/types/index.d.ts` confirms the current export set.
+
 **Working directory:** All commands run from `/Users/bigmistqke/Documents/GitHub/solid-three-port` unless noted.
 
 ---
@@ -661,9 +677,9 @@ git commit -m "feat(xr): warn when context.xr.connect/disconnect is a no-op"
 
 ---
 
-## Task 6: Use createResource for renderer init
+## Task 6: Use createSignal(async fn) for renderer init
 
-Source commit: `addab6f`. Strategy: fresh (replaces Task 3's async-createEffect form).
+**Plan correction (2026-05-26):** Solid 2.x beta.10 does NOT export `createResource`. The idiomatic replacement is `createSignal(() => Promise<T>)` (an async derived signal). The signal's read access surfaces as `NotReadyError` or via `isPending(signal)` while the Promise is pending. Source commit on `fixes`: `addab6f` (uses 1.x `createResource`). Strategy: fresh (replaces Task 3's async-createEffect form).
 
 **Files:** Modify `src/create-three.tsx`
 
@@ -673,42 +689,40 @@ Source commit: `addab6f`. Strategy: fresh (replaces Task 3's async-createEffect 
 grep -n "glInitialized\|cancelled" src/create-three.tsx
 ```
 
-- [ ] **Step 2: Confirm createResource is available**
-
-```bash
-grep -n "createResource" src/create-three.tsx
-```
-
-If not yet imported, add to the `solid-js` import:
+- [ ] **Step 2: Add `isPending` to the solid-js import**
 
 ```ts
-import { createMemo, createRenderEffect, createResource, createRoot, merge, onCleanup, /* … */ } from "solid-js"
+import { /* existing */ createSignal, isPending, /* … */ } from "solid-js"
 ```
 
-- [ ] **Step 3: Replace the async-effect block with createResource**
+`createSignal` may already be imported; `isPending` is the new addition. NOT `createResource` — that doesn't exist in Solid 2.x.
+
+- [ ] **Step 3: Replace the async-effect block with `createSignal(async fn)`**
 
 Remove the `let glInitialized = true` declaration and the `createRenderEffect(() => { ...init... })` block.
 
-Insert after the `gl` memo (and after the helper `getPendingInit` is imported):
+Insert after the `gl` memo:
 
 ```ts
-const [rendererReady] = createResource(
-  () => gl(),
-  renderer => {
-    const init = getPendingInit(renderer)
-    if (!init) return true
-    // Pre-size the canvas before init so WebGPU's depth attachment matches
-    // the container — workaround for the 300×150 default backing buffer.
-    const rect = canvas.getBoundingClientRect()
-    const ratio = globalThis.devicePixelRatio || 1
-    if (rect.width > 0 && rect.height > 0) {
-      canvas.width = rect.width * ratio
-      canvas.height = rect.height * ratio
-    }
-    return init().then(() => true)
-  },
-)
+const [rendererReady] = createSignal<boolean>(async () => {
+  const renderer = gl()
+  const init = getPendingInit(renderer)
+  if (!init) return true
+  // Pre-size the canvas before init so WebGPU's depth attachment matches
+  // the container — workaround for the 300×150 default backing buffer
+  // (see pmndrs/react-three-fiber#3651).
+  const rect = canvas.getBoundingClientRect()
+  const ratio = globalThis.devicePixelRatio || 1
+  if (rect.width > 0 && rect.height > 0) {
+    canvas.width = rect.width * ratio
+    canvas.height = rect.height * ratio
+  }
+  await init()
+  return true
+})
 ```
+
+The signal's `ComputeFunction<T>` re-runs when its tracked sources (`gl()`) change. When the fn returns a Promise, the signal's value becomes pending until the Promise resolves. Solid 2.x handles cancellation automatically when sources change.
 
 Add `getPendingInit` to the utils import.
 
@@ -717,8 +731,10 @@ Add `getPendingInit` to the utils import.
 Replace `if (!glInitialized) return` with:
 
 ```ts
-if (rendererReady.state !== "ready") return
+if (isPending(rendererReady)) return
 ```
+
+`render()` is called from `requestAnimationFrame`, not inside a tracking scope, so `isPending(rendererReady)` checks the state without subscribing.
 
 - [ ] **Step 5: Type-check + tests**
 
@@ -727,19 +743,17 @@ pnpm exec tsc --noEmit
 pnpm exec vitest run
 ```
 
-Expected: passes. If a context-owner error fires from `createResource` (it can need access to the owner), wrap the resource setup inside the existing root or use `runWithOwner`:
+Expected: passes.
 
-```ts
-const [rendererReady] = runWithOwner(rootOwner, () => createResource(...))
-```
+If `tsc` errors with "Type 'Promise<true>' is not assignable to type 'boolean'" — the `createSignal<boolean>` type parameter combined with a `Promise<boolean>` return value is what `ComputeFunction` accepts (`(prev) => Promise<T> | T`). Confirm against `node_modules/@solidjs/signals/dist/types/signals.d.ts` if the inference is fighting you.
 
-(Determine `rootOwner` from the surrounding create-three structure.)
+If reading `rendererReady` outside a tracking scope throws `NotReadyError` instead of returning a value, wrap the call: `try { rendererReady() } catch { /* still pending */ }`. Prefer `isPending(rendererReady)` first.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add src/create-three.tsx
-git commit -m "refactor(create-three): use createResource for renderer init"
+git commit -m "refactor(create-three): use createSignal(async fn) for renderer init"
 ```
 
 ---
@@ -1216,7 +1230,9 @@ git commit -m "fix(create-three): drop merge when calling useSceneGraph"
 
 ## Task 12: Resource attach via meta()
 
-Source commit: `4ac1ac7`. Strategy: diff.
+**Plan correction (2026-05-26):** `next-solid-2` already has its OWN `Resource` implementation in `src/components.tsx` that diverges from the `fixes` version — it uses `omit(props, ...keys)` instead of `splitProps` (which Solid 2.x removed) and wraps children in `<Loading>` instead of `<Suspense>`. Re-base the port on that existing shape, not on `fixes`'s `splitProps`+`<Suspense>` form.
+
+Source commit on `fixes`: `4ac1ac7`. Strategy: fresh (against the existing solid-2 Resource).
 
 **Files:** Modify `src/components.tsx`
 
@@ -1224,22 +1240,34 @@ Source commit: `4ac1ac7`. Strategy: diff.
 
 ```bash
 grep -n "export function Resource\|useLoader\|useProps(resource" src/components.tsx
-sed -n '/export function Resource/,/^}/p' src/components.tsx | head -30
+sed -n '/export function Resource/,/^}/p' src/components.tsx | head -40
 ```
 
-- [ ] **Step 2: Replace the `resource → useProps → Show` flow with a meta-wrapped accessor**
-
-Find:
+Expected shape (as of next-solid-2-port HEAD):
 
 ```tsx
-const resource = useLoader(...)
-useProps(resource, rest)
-return (
-  <Show when={"children" in config && resource()} fallback={resource() as JSX.Element}>
-    {resource => props.children?.(resource)}
-  </Show>
-)
+export function Resource<...>(props: ResourceProps<TLoader>) {
+  debugResource("mount", () => ({ /* … */ }))
+  const rest = omit(props, "base", "cache", "onBeforeLoad", "onLoad", "loader", "url", "children")
+  const resource = useLoader(
+    () => props.loader,
+    () => props.url,
+    { get base() { … }, get cache() { … }, get onBeforeLoad() { … }, get onLoad() { … } },
+  )
+  useProps(resource, rest)
+  return (
+    <Loading>
+      <Show when={"children" in props && resource()} fallback={resource() as unknown as Element}>
+        {r => props.children?.(r)}
+      </Show>
+    </Loading>
+  )
+}
 ```
+
+- [ ] **Step 2: Insert meta-tagging between `useLoader` and `useProps`**
+
+The fix is identical in spirit to fixes' `4ac1ac7`: wrap the resource accessor with `meta(value, { props })` so the parent scene graph reads `attach` off the child's meta when this is rendered as JSX. Adapt to next-solid-2's call shape:
 
 Replace with:
 
@@ -1257,13 +1285,15 @@ const tagged = createMemo(() => {
 useProps(tagged, rest)
 
 return (
-  <Show when={"children" in config && tagged()} fallback={tagged() as JSX.Element}>
-    {value => props.children?.(value as Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>)}
-  </Show>
+  <Loading>
+    <Show when={"children" in props && tagged()} fallback={tagged() as unknown as Element}>
+      {r => props.children?.(r as Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>)}
+    </Show>
+  </Loading>
 )
 ```
 
-Add `createMemo` to the solid-js import, and `hasMeta` + `meta` to the utils import (likely already present).
+Add `createMemo` to the solid-js import, and `hasMeta` + `meta` to the utils import (likely already present). Keep the surrounding `<Loading>` wrapper from the existing solid-2 Resource.
 
 - [ ] **Step 3: Type-check + tests**
 
@@ -1335,10 +1365,14 @@ git commit -m "refactor(utils): consolidate isWritable into utils.ts"
 
 Source commits: `37903eb`, `5018338`, `03fd4a6`, `7bade2e`, `7cb2ecb`, `fa97fd6`, `a31ee8c`, `a635c3c`, `5338b52`, `f4d310b`, `2ee594a`, `5d27743`, `b78b048`, `068b8a4`, `dbbe477`. Strategy: diff per file, reconcile against any solid-2 test additions.
 
+**Plan correction (2026-05-26):** when porting from `fixes`, every test that does `import { Suspense } from "solid-js"` must be swapped to `import { Loading } from "solid-js"` and the `<Suspense>` tags renamed to `<Loading>` — Solid 2.x removed `Suspense` and renamed the concept to `Loading`. Comments and JSDoc that reference `Suspense` or `mergeProps` may stay or be updated to `Loading`/`merge` for clarity. Applies to:
+- `tests/core/use-loader-suspense.test.tsx` (every occurrence)
+- `tests/core/hooks.test.tsx` (lines 77/79/139/141 are commented-out `Suspense` blocks in next-solid-2 — uncomment and convert to `Loading`)
+
 **Files:**
 - Modify: `tests/core/renderer.test.tsx`
-- Create: `tests/core/use-loader-suspense.test.tsx`
-- Modify: `tests/core/hooks.test.tsx`
+- Create: `tests/core/use-loader-suspense.test.tsx` (use `<Loading>`)
+- Modify: `tests/core/hooks.test.tsx` (uncomment + convert)
 - Create: `tests/core/api-coverage.test.tsx`
 
 - [ ] **Step 1: renderer.test.tsx — capture the fixes-branch additions**
