@@ -44,7 +44,7 @@ html[data-theme*="light"] {
   position: relative;
   height: 100%;
   border-right: 1px solid var(--demo-border);
-  overflow: hidden;
+  overflow: auto;
 }
 
 .demo-narrow .demo-editor-wrapper {
@@ -56,16 +56,27 @@ html[data-theme*="light"] {
   font-size: 0.85rem;
   padding: 1rem;
   border: 0;
-  height: 100%;
-  min-height: 0;
-  overflow: auto;
+  overflow: visible;
+  min-height: 100%;
   box-sizing: border-box;
 }
 
+/* Sticky overlay that pins the Reset button to the top-right of the
+ * scrolling editor. The container itself has no pointer events so it
+ * doesn't intercept clicks on code under it. */
+.demo-reset-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem;
+  pointer-events: none;
+  z-index: 1;
+  margin-bottom: -2.5rem;
+}
+
 .demo-reset {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  pointer-events: auto;
   padding: 0.25rem 0.75rem;
   background: rgba(20, 23, 31, 0.85);
   color: #c8c8c8;
