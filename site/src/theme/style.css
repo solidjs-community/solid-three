@@ -14,8 +14,14 @@
 
 /* SolidBase sets data-theme="sdark" / "slight" on <html>. Mirror that into
  * a CSS variable so the demo chrome adapts to the site's theme. */
-html { --demo-border: #222; }
-html[data-theme*="light"] { --demo-border: #e7e7e7; }
+html {
+  --demo-border: #222;
+  --demo-canvas-bg: #0a0c12;
+}
+html[data-theme*="light"] {
+  --demo-border: #e7e7e7;
+  --demo-canvas-bg: #e7e7e7;
+}
 
 .demo {
   margin: 1.5rem 0;
@@ -81,7 +87,7 @@ html[data-theme*="light"] { --demo-border: #e7e7e7; }
 
 .demo-canvas {
   border: 0;
-  background: #000;
+  background: var(--demo-canvas-bg);
   width: 100%;
   height: 100%;
 }
