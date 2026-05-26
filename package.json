@@ -80,7 +80,7 @@
   "devDependencies": {
     "@solidjs/router": "^0.15.3",
     "@solidjs/testing-library": "^0.8.8",
-    "@types/three": "^0.164.1",
+    "@types/three": "^0.181.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "dpdm": "^3.14.0",
@@ -99,7 +99,7 @@
     "rollup-plugin-dts": "^6.1.1",
     "solid-app-router": "^0.1.14",
     "solid-js": "^1.8.17",
-    "three": "^0.164.1",
+    "three": "^0.181.2",
     "three-stdlib": "^2.36.0",
     "tsm": "^2.3.0",
     "tsup": "^8.0.2",

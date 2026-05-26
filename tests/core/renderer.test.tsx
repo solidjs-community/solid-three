@@ -714,8 +714,9 @@ describe("renderer", () => {
     expect(gl.outputColorSpace).toBe(LinearSRGBColorSpace)
     expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
 
-    // @ts-expect-error TODO: fix type-error
-    gl.outputColorSpace = "test"
+    // Pick a valid-but-wrong value as a sentinel; setting an unregistered
+    // color space crashes three 0.181's renderer on the next frame.
+    gl.outputColorSpace = LinearSRGBColorSpace
     texture.colorSpace = ""
 
     setLinear(false)
