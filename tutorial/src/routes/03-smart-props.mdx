@@ -16,8 +16,7 @@ A few shorthands worth knowing:
 - `color="cornflowerblue"` or `color={[1, 0.4, 0.2]}` — both work; `Color`
   accepts strings, hex numbers, and RGB tuples.
 
-<Demo code={`
-import * as THREE from "three"
+<Demo code={`import * as THREE from "three"
 import { Canvas, createT } from "solid-three"
 
 const T = createT(THREE)
@@ -41,8 +40,7 @@ export default () => (
     <T.AmbientLight intensity={0.3} />
     <T.DirectionalLight position={[2, 2, 2]} />
   </Canvas>
-)
-`} />
+)`} />
 
 The principle: pass whatever's most ergonomic for the shape of data you have.
 `solid-three` figures out the right call on the underlying object.
@@ -79,11 +77,7 @@ Sometimes you want to set something inside something — `light.shadow.mapSize.w
 for example. Use a dashed key:
 
 ```tsx
-<T.DirectionalLight
-  castShadow
-  shadow-mapSize-width={1024}
-  shadow-mapSize-height={1024}
-/>
+<T.DirectionalLight castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
 ```
 
 `solid-three` walks the chain and applies the same shorthand rules at the

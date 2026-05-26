@@ -22,11 +22,22 @@
 .demo-panes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  min-height: 320px;
+  height: 320px;
 }
 
 .demo-narrow .demo-panes {
   grid-template-columns: 1fr;
+}
+
+.demo-editor-wrapper {
+  position: relative;
+  height: 100%;
+  border-right: 1px solid #222;
+  overflow: hidden;
+}
+
+.demo-narrow .demo-editor-wrapper {
+  border-right: 0;
 }
 
 .demo-editor {
@@ -34,9 +45,29 @@
   font-size: 0.85rem;
   padding: 1rem;
   border: 0;
-  border-right: 1px solid #222;
-  min-height: 320px;
+  height: 100%;
+  min-height: 0;
   overflow: auto;
+  box-sizing: border-box;
+}
+
+.demo-reset {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(20, 23, 31, 0.85);
+  color: #c8c8c8;
+  border: 1px solid #333;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.demo-reset:hover {
+  color: #fff;
+  border-color: #555;
 }
 
 .demo-narrow .demo-editor {

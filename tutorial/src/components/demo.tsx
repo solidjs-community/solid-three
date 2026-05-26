@@ -248,8 +248,13 @@ export function Demo(props: DemoProps) {
   return <DemoClient {...props} />
 }
 
+function trimBlankLines(input: string): string {
+  return input.replace(/^\n+|\n+$/g, "")
+}
+
 function DemoClient(props: DemoProps) {
-  const [code, setCode] = createSignal(props.code)
+  const initialCode = trimBlankLines(props.code)
+  const [code, setCode] = createSignal(initialCode)
   const [pane, setPane] = createSignal<"canvas" | "editor">("canvas")
   const [isNarrow, setIsNarrow] = createSignal(false)
 
@@ -262,7 +267,7 @@ function DemoClient(props: DemoProps) {
   })
 
   function resetCode(): void {
-    setCode(props.code)
+    setCode(initialCode)
   }
 
   const files: Record<string, string> = {
@@ -306,14 +311,21 @@ function DemoClient(props: DemoProps) {
       </Show>
       <div class="demo-panes">
         <Show when={!isNarrow() || pane() === "editor"}>
-          <TmTextarea
-            class="demo-editor"
-            grammar="tsx"
-            theme="andromeeda"
-            value={code()}
-            editable
-            onInput={event => setCode(event.currentTarget.value)}
-          />
+          <div class="demo-editor-wrapper">
+            <TmTextarea
+              class="demo-editor"
+              grammar="tsx"
+              theme="github-dark"
+              value={code()}
+              editable
+              onInput={event => setCode(event.currentTarget.value)}
+            />
+            <Show when={code() !== initialCode}>
+              <button type="button" class="demo-reset" onClick={resetCode}>
+                Reset
+              </button>
+            </Show>
+          </div>
         </Show>
         <Show when={!isNarrow() || pane() === "canvas"}>
           <iframe
@@ -322,11 +334,6 @@ function DemoClient(props: DemoProps) {
             sandbox="allow-scripts allow-same-origin"
           />
         </Show>
-      </div>
-      <div class="demo-controls">
-        <button type="button" onClick={resetCode}>
-          Reset
-        </button>
       </div>
     </div>
   )
