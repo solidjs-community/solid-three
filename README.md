@@ -641,6 +641,8 @@ Registers a callback that will be called before every frame is rendered, useful 
   - **priority** - Execution priority (lower numbers run first, default: 0)
   - **stage** - Whether to run before or after rendering (default: "before")
 
+**Returns:** A cleanup function (`() => void`) that unregisters the callback. Solid calls it automatically when the owning component unmounts, but you can also call it manually to detach the listener earlier.
+
 <details>
 <summary>Typescript Interface</summary>
 
