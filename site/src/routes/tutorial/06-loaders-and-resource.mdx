@@ -44,15 +44,9 @@ Same outcome, different shape. Use whichever reads better in context:
 - **`<Resource>`** when you just want to drop a loaded asset into the tree
   and forget about it.
 
-## Errors, options, base URLs
-
-Both APIs accept the same options:
-
-- `base` — base URL for resolving relative paths
-- `cache` — `true` (default) / `false` / a custom registry
-- `onBeforeLoad`, `onLoad` — lifecycle hooks
-- `url` can also be an array (`[a, b, c]`) or a record (`{ albedo, normal,
-  roughness }`) — useful for material sets
-
-Loader errors propagate to the nearest `<ErrorBoundary>`, the same way any
-Solid resource would.
+Both forms compose with the rest of Solid the way you'd expect — loader
+errors propagate to the nearest `<ErrorBoundary>`, multiple loaders share
+the cache, you can pass an array of URLs (`[a, b, c]`) or a labelled
+record (`{ albedo, normal, roughness }`) for material sets. The
+[API reference](/api/hooks/use-loader) has the full surface; the shapes
+above are what you'll reach for daily.

@@ -6,13 +6,9 @@ import createTSnippet from "../../snippets/01-create-t.tsx?raw"
 
 # Your first scene
 
-A `three.js` scene needs three things:
-
-- a **renderer** to draw pixels,
-- a **camera** to decide what gets drawn,
-- and a **scene** to hold everything else.
-
-In `solid-three` you get all three by mounting one component:
+Mounting a `<Canvas>` is the whole boilerplate. It wires up a renderer,
+a camera, and a scene — all the three.js machinery you'd normally
+construct by hand — and gives you back a JSX tree to fill.
 
 ```tsx
 import { Canvas } from "solid-three"
@@ -20,8 +16,8 @@ import { Canvas } from "solid-three"
 export default () => <Canvas />
 ```
 
-That `<Canvas>` is the whole boilerplate. Everything else — the cubes,
-the lights, the cameras you might want later — lives as children of it.
+Empty for now. Everything else — cubes, lights, cameras — lives as
+children of it.
 
 To put a `three.js` class into that tree, hand a namespace of classes to
 `createT`. It returns a proxy where every key is its own JSX component.

@@ -41,14 +41,17 @@ Reading top-to-bottom:
   same control-flow component you'd use for a modal or a toggle anywhere
   else.
 
-## That's the tour
+## What you just shipped
 
-You've now seen the whole library — the foundational pieces, the
-reactivity primitives, the event system, the loader/lifecycle utilities,
-the composition patterns, and how they assemble into a real interactive
-scene. From here on, the way to learn more is to build something. The
-[API reference](/api) covers anything we didn't touch; the rest is just
-three.js.
+A small whack-a-cube. Pointer events, signals, frame loop, custom
+components, control flow — every chapter feeding into a single hundred-line
+component that's complete enough to play. From here, you can keep building.
+More cubes, a high-score table, a sound effect, a second player.
 
-If you want a look at where the library is heading next, the encore is a
-peek at WebGPU.
+The shape of every other `solid-three` app you'll write is the same as
+this one: signals describing state, JSX describing the scene, the smart-prop
+pipeline keeping them in sync. The [API reference](/api) is there when you
+need a specific export.
+
+If you'd like a peek at where the library is heading next, the encore is
+WebGPU.

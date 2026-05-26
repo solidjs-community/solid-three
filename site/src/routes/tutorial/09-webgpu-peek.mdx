@@ -83,12 +83,14 @@ material rebuild. The same one-property-per-frame discipline you saw with
 [`useFrame`](/tutorial/05-use-frame), but the property happens to live on
 the GPU.
 
-## That's the tour
+## Where this is going
 
-You've now seen the whole library — the foundational pieces, the
-reactivity primitives, the event system, the loader/lifecycle utilities,
-the composition patterns, and a glimpse of where it's heading. From here
-on, the way to learn more is to build something. The API reference
-covers anything we didn't touch; the rest is just three.js.
+`three.js`'s WebGPU + TSL story is still landing, but the through-line is
+worth holding onto: the move from string-based shaders and hand-wired
+uniforms to a typed, composable, GPU-resident graph. `solid-three` doesn't
+do anything special to support it — it just stays out of the way, and the
+Solid plumbing you already know (signals → effects → uniforms) carries
+across cleanly.
 
-Have fun.
+That's the whole tutorial. Build something — and if you make something
+interesting, send it.
