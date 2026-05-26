@@ -210,53 +210,89 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  const camera = createMemo(() =>
-    meta(
-      props.camera instanceof Camera
-        ? (props.camera as OrthographicCamera | PerspectiveCamera)
-        : props.orthographic
-          ? new OrthographicCamera()
-          : new PerspectiveCamera(),
+  // Construction firewall — only track inputs that actually decide WHICH
+  // object to construct (instanceof checks, orthographic flag, gl kind).
+  // The full prop config is read INSIDE the branch that needs it, so
+  // reactive config-objects (e.g. `<Canvas camera={{ position: pos() }}>`)
+  // whose contents change but whose "shape category" stays the same don't
+  // re-run the construction memo. Post-construction updates flow through
+  // the existing `useProps(…)` effects unchanged.
+  //
+  // The booleans/strings here are === comparable, so a fresh JSX getter
+  // call producing the same kind doesn't propagate.
+  const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
+  const orthographicFlag = createMemo(() => !!props.orthographic)
+  const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
+  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
+  const glKind = createMemo<"factory" | "instance" | "default">(() => {
+    const _propsGl = props.gl
+    if (typeof _propsGl === "function") return "factory"
+    if (isRendererInstance(_propsGl)) return "instance"
+    return "default"
+  })
+
+  const camera = createMemo(() => {
+    if (cameraIsInstance()) {
+      // Read props.camera reactively here so swapping instances at runtime works.
+      return meta(props.camera as OrthographicCamera | PerspectiveCamera, {
+        get props() {
+          return props.camera || {}
+        },
+      })
+    }
+    // Config-object branch: don't read props.camera in the memo body — the
+    // contents don't affect construction (they're applied via useProps later).
+    return meta(
+      orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(),
       {
         get props() {
           return props.camera || {}
         },
       },
-    ),
-  )
+    )
+  })
   const cameraStack = new Stack<CameraKind>("camera")
 
-  const scene = createMemo(() =>
-    meta(props.scene instanceof Scene ? props.scene : new Scene(), {
+  const scene = createMemo(() => {
+    if (sceneIsInstance()) {
+      return meta(props.scene as Scene, {
+        get props() {
+          return props.scene || {}
+        },
+      })
+    }
+    return meta(new Scene(), {
       get props() {
         return props.scene || {}
       },
-    }),
-  )
+    })
+  })
 
-  const raycaster = createMemo(() =>
-    meta<Raycaster | EventRaycaster>(
-      props.raycaster instanceof Raycaster ? props.raycaster : new CursorRaycaster(),
-      {
+  const raycaster = createMemo(() => {
+    if (raycasterIsInstance()) {
+      return meta<Raycaster | EventRaycaster>(props.raycaster as Raycaster, {
         get props() {
           return props.raycaster || {}
         },
+      })
+    }
+    return meta<Raycaster | EventRaycaster>(new CursorRaycaster(), {
+      get props() {
+        return props.raycaster || {}
       },
-    ),
-  )
+    })
+  })
 
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
+    const kind = glKind()
     const _gl: Renderer =
-      typeof props.gl === "function"
-        ? // factory callback that returns a renderer
-          props.gl(canvas)
-        : isRendererInstance(props.gl)
-          ? // an already-built renderer instance (WebGLRenderer, WebGPURenderer, …)
-            props.gl
-          : // no renderer supplied (or a config-props object) → default WebGLRenderer
-            new WebGLRenderer({ canvas, alpha: true })
+      kind === "factory"
+        ? (props.gl as (canvas: HTMLCanvasElement) => Renderer)(canvas)
+        : kind === "instance"
+          ? (props.gl as Renderer)
+          : new WebGLRenderer({ canvas, alpha: true })
 
     return meta(_gl, {
       get props() {
