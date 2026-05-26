@@ -83,14 +83,16 @@ export function meta<T>(instance: T, augmentation = { props: {} }) {
     return instance
   }
   const _instance = instance as Meta<T>
-  // Use defineProperties so getters on `augmentation` (e.g. `get props() { ... }`)
-  // are preserved instead of being invoked at spread time. The earlier
-  // `{ ..., ...augmentation }` form ran every getter once and froze the
-  // value — which both lost reactivity downstream AND tracked every signal
-  // the getter touched into whatever scope `meta()` was called from.
-  const data = { children: new Set(), parent: undefined } as Data<T>
-  Object.defineProperties(data, Object.getOwnPropertyDescriptors(augmentation))
-  _instance[$S3C] = data
+  // `mergeProps` preserves getters on `augmentation` (e.g.
+  // `get props() { ... }`) without invoking them at merge time. The
+  // earlier `{ ..., ...augmentation }` form ran every getter once and
+  // froze the value — which both lost reactivity downstream AND tracked
+  // every signal the getter touched into whatever scope `meta()` was
+  // called from.
+  _instance[$S3C] = mergeProps(
+    { children: new Set(), parent: undefined },
+    augmentation,
+  ) as Data<T>
   return _instance
 }
 
