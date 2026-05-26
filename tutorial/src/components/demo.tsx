@@ -205,22 +205,6 @@ if (root) {
 
 export interface DemoProps {
   code: string
-  id?: string
-}
-
-const STORAGE_PREFIX = "solid-three-tutorial-demo:"
-
-function hashString(input: string): string {
-  let hash = 0
-  for (let index = 0; index < input.length; index++) {
-    hash = (hash << 5) - hash + input.charCodeAt(index)
-    hash |= 0
-  }
-  return hash.toString(36)
-}
-
-function storageKey(props: DemoProps): string {
-  return STORAGE_PREFIX + (props.id ?? hashString(props.code))
 }
 
 export function Demo(props: DemoProps) {
@@ -234,17 +218,7 @@ export function Demo(props: DemoProps) {
 }
 
 function DemoClient(props: DemoProps) {
-  const initialCode = (): string => {
-    if (typeof localStorage === "undefined") return props.code
-    try {
-      const stored = localStorage.getItem(storageKey(props))
-      return stored ?? props.code
-    } catch {
-      return props.code
-    }
-  }
-
-  const [code, setCode] = createSignal(initialCode())
+  const [code, setCode] = createSignal(props.code)
   const [pane, setPane] = createSignal<"canvas" | "editor">("canvas")
   const [isNarrow, setIsNarrow] = createSignal(false)
 
@@ -256,21 +230,7 @@ function DemoClient(props: DemoProps) {
     onCleanup(() => media.removeEventListener("change", handler))
   })
 
-  function updateCode(next: string): void {
-    setCode(next)
-    try {
-      localStorage.setItem(storageKey(props), next)
-    } catch {
-      // ignore quota errors
-    }
-  }
-
   function resetCode(): void {
-    try {
-      localStorage.removeItem(storageKey(props))
-    } catch {
-      // ignore
-    }
     setCode(props.code)
   }
 
@@ -319,7 +279,7 @@ function DemoClient(props: DemoProps) {
             class="demo-editor"
             spellcheck={false}
             value={code()}
-            onInput={event => updateCode(event.currentTarget.value)}
+            onInput={event => setCode(event.currentTarget.value)}
           />
         </Show>
         <Show when={!isNarrow() || pane() === "canvas"}>
