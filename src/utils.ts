@@ -16,7 +16,6 @@ import {
   OrthographicCamera,
   Texture,
   Vector3,
-  type WebGLRenderer,
 } from "three"
 import { $S3C } from "./constants.ts"
 import type {
@@ -28,6 +27,7 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  Renderer,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -196,8 +196,8 @@ export function defaultProps<
  * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
  */
 export const hasColorSpace = <
-  T extends WebGLRenderer | Texture | object,
-  P = T extends WebGLRenderer ? { outputColorSpace: string } : { colorSpace: string },
+  T extends Renderer | Texture | object,
+  P = T extends Renderer ? { outputColorSpace: string } : { colorSpace: string },
 >(
   object: T,
 ): object is T & P => "colorSpace" in object || "outputColorSpace" in object
