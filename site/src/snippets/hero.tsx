@@ -130,7 +130,10 @@ export default function Hero() {
 }
 
 function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }) {
+  const three = useThree()
+  const startTime = performance.now()
   const meshes: (THREE.Mesh | undefined)[] = []
+  const shadowMeshes: (THREE.Mesh | undefined)[] = []
 
   useFrame(() => {
     props.state.world.step(1 / 60)
@@ -149,6 +152,21 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
         letter.body.quaternion.w,
       )
     })
+    props.state.letters.forEach((letter, i) => {
+      const shadow = shadowMeshes[i]
+      if (!shadow) return
+      const height = Math.max(0, letter.body.position.y)
+      const opacity = Math.max(0, 0.45 - height * 0.15)
+      const scale = 1 - Math.min(0.6, height * 0.1)
+      shadow.position.set(letter.body.position.x, 0.01, letter.body.position.z)
+      shadow.scale.setScalar(scale)
+      ;(shadow.material as THREE.MeshBasicMaterial).opacity = opacity
+    })
+    const t = (performance.now() - startTime) / 1000
+    const angle = Math.sin(t * 0.05) * 0.3
+    three.camera.position.x = Math.sin(angle) * 6
+    three.camera.position.z = Math.cos(angle) * 6
+    three.camera.lookAt(0, 0.5, 0)
   })
 
   onCleanup(() => {
@@ -158,12 +176,21 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
   return (
     <For each={props.state.letters}>
       {(letter, i) => (
-        <T.Mesh
-          ref={mesh => (meshes[i()] = mesh)}
-          geometry={letter.geometry}
-        >
-          <T.MeshStandardMaterial color={letter.color} metalness={0.85} roughness={0.2} />
-        </T.Mesh>
+        <>
+          <T.Mesh
+            ref={mesh => (shadowMeshes[i()] = mesh)}
+            rotation={[-Math.PI / 2, 0, 0]}
+          >
+            <T.CircleGeometry args={[letter.halfExtents.x * 1.6, 16]} />
+            <T.MeshBasicMaterial color="#000000" transparent opacity={0.45} />
+          </T.Mesh>
+          <T.Mesh
+            ref={mesh => (meshes[i()] = mesh)}
+            geometry={letter.geometry}
+          >
+            <T.MeshStandardMaterial color={letter.color} metalness={0.85} roughness={0.2} />
+          </T.Mesh>
+        </>
       )}
     </For>
   )
