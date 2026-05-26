@@ -122,5 +122,5 @@ The handler receives an enriched event object: the original DOM event plus
 the `three.js` intersection data — the hit `point`, the `distance`, the
 `face` and `faceIndex`, the mesh `object`, the unprojected `ray`. Useful
 when "click" alone isn't enough: drag-to-rotate, paint-on-surface,
-world-space gizmos. The next chapter looks at how to tune the raycaster that
-produces those hits.
+world-space gizmos. It also carries one critical bit of control — what to do
+when the ray passes through multiple meshes. That's the next chapter.

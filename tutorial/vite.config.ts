@@ -89,45 +89,46 @@ export default defineConfig({
             items: [
               { title: "Signals drive the scene", link: "/04-signals-drive-the-scene" },
               { title: "Pointer events", link: "/05-pointer-events" },
-              { title: "Configuring the raycaster", link: "/06-raycaster" },
+              { title: "Stopping events", link: "/06-event-propagation" },
+              { title: "Configuring the raycaster", link: "/07-raycaster" },
             ],
           },
           {
             title: "Part 3 — Frame by frame",
             collapsed: true,
             items: [
-              { title: "useFrame", link: "/07-use-frame" },
-              { title: "useThree", link: "/08-use-three" },
+              { title: "useFrame", link: "/08-use-frame" },
+              { title: "useThree", link: "/09-use-three" },
             ],
           },
           {
             title: "Part 4 — Stuff that's not in the scene",
             collapsed: true,
             items: [
-              { title: "Loaders & Resource", link: "/09-loaders-and-resource" },
-              { title: "autodispose & meta", link: "/10-autodispose-and-meta" },
+              { title: "Loaders & Resource", link: "/10-loaders-and-resource" },
+              { title: "autodispose & meta", link: "/11-autodispose-and-meta" },
             ],
           },
           {
             title: "Part 5 — Compose your own",
             collapsed: true,
             items: [
-              { title: "Portal", link: "/11-portal" },
-              { title: "useProps & custom components", link: "/12-use-props" },
+              { title: "Portal", link: "/12-portal" },
+              { title: "useProps & custom components", link: "/13-use-props" },
             ],
           },
           {
             title: "Part 6 — Ship something real",
             collapsed: true,
             items: [
-              { title: "An interactive scene", link: "/13-interactive-scene" },
+              { title: "An interactive scene", link: "/14-interactive-scene" },
             ],
           },
           {
             title: "Encore",
             collapsed: true,
             items: [
-              { title: "A peek at WebGPU", link: "/14-webgpu-peek" },
+              { title: "A peek at WebGPU", link: "/15-webgpu-peek" },
             ],
           },
         ],
