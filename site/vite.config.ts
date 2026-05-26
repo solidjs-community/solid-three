@@ -80,7 +80,7 @@ export default defineConfig({
             items: [
               { title: "Your first scene", link: "/tutorial/01-your-first-scene" },
               { title: "Props and children", link: "/tutorial/02-props-and-children" },
-              { title: "Signals drive the scene", link: "/tutorial/03-signals-drive-the-scene" },
+              { title: "Control flow", link: "/tutorial/03-control-flow" },
               { title: "Pointer events", link: "/tutorial/04-pointer-events" },
               { title: "useFrame", link: "/tutorial/05-use-frame" },
               { title: "Loaders & Resource", link: "/tutorial/06-loaders-and-resource" },

@@ -6,6 +6,7 @@ import transformsSnippet from "../../snippets/02-transforms.tsx?raw"
 import groupSnippet from "../../snippets/02-group.tsx?raw"
 import shorthandsSnippet from "../../snippets/02-shorthands.tsx?raw"
 import argsSnippet from "../../snippets/02-args.tsx?raw"
+import buttonToggleSnippet from "../../snippets/02-button-toggle.tsx?raw"
 
 # Props and children
 
@@ -84,3 +85,22 @@ Sometimes you want to set something inside something —
 
 `solid-three` walks the chain and applies the same shorthand rules at
 the leaf. The whole prop system, all the way down.
+
+## Reactive props
+
+Any of these prop shapes can be a signal. Pass one and the scene tracks
+it the same way any other Solid view would — no remount, no manual
+diffing, no special bindings.
+
+<Demo code={buttonToggleSnippet} />
+
+Click the button repeatedly. The counter at the top: "App body has run:
+1 time" — and it stays at 1, no matter how often you click. The
+component's body runs once. Only the small reactive expression that
+reads `hot()` re-runs, and all it does is hand a new value to
+`material.color.set(...)`. The mesh stays mounted, the canvas keeps the
+same renderer, nothing else moves.
+
+That's the through-line of the whole library: a scene in `solid-three`
+is a reactive view over a `three.js` graph. Anything that drives a
+Solid component also drives the scene.
