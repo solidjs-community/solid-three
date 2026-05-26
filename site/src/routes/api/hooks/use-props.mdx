@@ -10,16 +10,18 @@ Call it directly when you wrap your own `three.js` object (custom controls, thir
 
 **Parameters:**
 
-- **object**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
+- **accessor**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
 - **props**: Object containing props to apply (including `ref`, `args`, `attach`, `children`, and any `three.js` properties).
+- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) the pipeline reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
 
 <details>
 <summary>Typescript Signature</summary>
 
 ```tsx
-function useProps<T extends object>(
-  object: T | undefined | Accessor<T | undefined>,
+function useProps<T extends Record<string, any>>(
+  accessor: T | undefined | Accessor<T | undefined>,
   props: any,
+  context?: Pick<Context, "requestRender" | "gl" | "props">,
 ): void
 ```
 
@@ -66,21 +68,25 @@ The wrapper function itself (the component body) runs **once** at mount. Reactiv
 
 ## Coercion rules
 
-The first rule that matches wins. `source` is the target object, `key` is the prop name, `value` is the new value.
+Applied top-to-bottom by `applyProp`. The first rule that matches wins; later rules only run if earlier rules fell through. `source` is the target object, `key` is the prop name, `value` is the new value.
 
-| Condition                                                                   | Action                                                     |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `value === undefined`                                                       | skip (never overwrites with `undefined`)                   |
-| `key` contains `-`                                                          | split on `-`, recurse into nested object (see [Dashed paths](#dashed-paths)) |
-| `key` is an event name (`onClick`, `onPointerMove`, …)                      | register on the event system (Object3D only)               |
-| `source[key]` has `.copy` and `value.constructor === source[key].constructor` and is read-only | `source[key].copy(value)`                  |
-| `source[key]` has `.set` and `value` is an array                            | `source[key].fromArray(value)` if available, else `source[key].set(...value)` |
-| `source[key]` is a `Color` and `value` is a string/number/etc.              | `source[key].set(value)` — accepts CSS strings, hex, etc.  |
-| `source[key]` has `.setScalar` and `value` is a number                      | `source[key].setScalar(value)`                             |
-| `source[key]` has `.set` and `value` is not an object                       | `source[key].set(value)`                                   |
-| otherwise                                                                   | `source[key] = value`                                      |
+| #  | Condition                                                                                       | Action                                                                                                       |
+| -- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1  | `value === undefined`                                                                            | skip (never overwrites with `undefined`)                                                                     |
+| 2  | `key` contains `-`                                                                               | split on `-`, recurse into the nested object (see [Dashed paths](#dashed-paths))                              |
+| 3  | `key` is in the `NEEDS_UPDATE` list (see below) and its truthiness flips                          | set `source.needsUpdate = true` **before** the assignment continues                                          |
+| 4  | `source` has `colorSpace`/`outputColorSpace` and `key` is `encoding` / `outputEncoding`           | alias to `colorSpace` / `outputColorSpace`, mapping `sRGBEncoding → "srgb"`, anything else → `"srgb-linear"` |
+| 5  | `key` is an event name (`onClick`, `onPointerMove`, …)                                            | register on the event system (`Object3D` instances only — warns otherwise) and **return**                    |
+| 6  | `source[key].copy` exists, `value.constructor === source[key].constructor`, and `source[key]` is not a writable own property | `source[key].copy(value)`                                                          |
+| 7  | `source[key].set` exists and `value` is an array                                                 | `source[key].fromArray(value)` if available, else `source[key].set(...value)`                                |
+| 8  | `source[key].set` exists, `value` is not an object, `source[key]` is **not** a `Color`, and `source[key].setScalar` exists, and `value` is a number | `source[key].setScalar(value)`                          |
+| 9  | `source[key].set` exists and `value` is not an object                                            | `source[key].set(value)` — this is where `color="red"`, `color={0xff8800}`, etc. land via `Color.set`        |
+| 10 | otherwise                                                                                        | `source[key] = value` (overwrite); if the assigned value is a `Texture` with `RGBAFormat`/`UnsignedByteType`, auto-reconcile its `colorSpace` against the renderer's `outputColorSpace` (subscribing to canvas-level `linear`/`flat`) |
 
-After every assignment, if the target has a `needsUpdate` field, it's set to `true`.
+Then, in a `finally` after every prop (rules 5–10):
+
+- if `"needsUpdate" in source`, set `source.needsUpdate = true` — every assigned prop bumps `needsUpdate` on materials/geometries that have it, not only the `NEEDS_UPDATE` list;
+- if `frameloop === "demand"`, `context.requestRender()` is called.
 
 ### What this means in practice
 
@@ -104,13 +110,25 @@ After every assignment, if the target has a `needsUpdate` field, it's set to `tr
 </T.Mesh>
 ```
 
-### Textures and `needsUpdate`
+### `NEEDS_UPDATE` truthiness list
 
-A specific set of material props auto-toggle `needsUpdate` when their truthiness changes (so swapping a `map` on or off doesn't silently keep the compiled shader):
+These material props additionally flip `needsUpdate = true` *before* the new value is assigned, when their truthiness changes — so swapping a `map` on or off doesn't silently keep the compiled shader:
 
 `map`, `envMap`, `bumpMap`, `normalMap`, `transparent`, `morphTargets`, `skinning`, `alphaTest`, `useVertexColors`, `flatShading`.
 
-When a sRGB-eligible texture is assigned, its `colorSpace` is also reconciled with the renderer's `outputColorSpace` automatically, respecting the canvas-level `linear` and `flat` props.
+This is on top of the unconditional `needsUpdate = true` that runs in the `finally` after every prop application.
+
+### Encoding aliasing (since three r152)
+
+`encoding` and `outputEncoding` are legacy aliases. When the target has a `colorSpace` / `outputColorSpace` field, the pipeline rewrites them in place:
+
+- `encoding` → `colorSpace`
+- `outputEncoding` → `outputColorSpace`
+- the legacy `sRGBEncoding` numeric value maps to `"srgb"`; anything else maps to `"srgb-linear"`.
+
+### Texture sRGB auto-reconciliation
+
+When a `Texture` value lands via the overwrite branch (rule 10) **and** the texture is `RGBAFormat` / `UnsignedByteType` (the formats three requires for sRGB textures since r137), its `colorSpace` is auto-set to the renderer's `outputColorSpace`. This effect subscribes to the canvas-level `linear` and `flat` props, so flipping either updates assigned textures automatically.
 
 ## Dashed paths
 
