@@ -596,56 +596,51 @@ describe("renderer", () => {
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
-  it("should accept the tuple `[constructorArgs, properties]` form for gl", async () => {
-    // Smoke test — tuple is recognised and tuple[1] is applied as instance props.
+  it("should accept a flat gl prop mixing ctor args and instance props", async () => {
+    // `antialias` is a ctor arg → baked into WebGLRenderer({...}).
+    // `toneMapping` is an instance prop → applied via useProps after construction.
+    // The split is internal; users pass one flat object.
     const gl = test(() => <T.Group />, {
-      gl: [{ antialias: false }, { toneMapping: THREE.NoToneMapping }],
+      gl: { antialias: false, toneMapping: THREE.NoToneMapping },
     }).gl as unknown as THREE.WebGLRenderer
     expect(gl).toBeInstanceOf(THREE.WebGLRenderer)
     expect(gl.toneMapping).toBe(THREE.NoToneMapping)
   })
 
-  it("should not recreate the renderer when tuple[1] changes but tuple[0] is shallow-equal", async () => {
-    const [tick, setTick] = createSignal(0)
+  it("should reactively update instance props in the flat gl prop", async () => {
+    const [tone, setTone] = createSignal<THREE.ToneMapping>(THREE.NoToneMapping)
     const state = test(() => <T.Group />, {
       get gl() {
-        return [
-          { antialias: false },
-          { toneMapping: tick() === 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping },
-        ] as [{ antialias: boolean }, { toneMapping: THREE.ToneMapping }]
+        return { antialias: false, toneMapping: tone() }
       },
     })
+    const renderer = state.gl as unknown as THREE.WebGLRenderer
+    expect(renderer.toneMapping).toBe(THREE.NoToneMapping)
+    setTone(THREE.ACESFilmicToneMapping)
+    expect(renderer.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+  })
 
+  it("should warn (and not recreate) when a ctor-arg key is changed reactively", async () => {
+    // WebGL bakes ctor args (antialias etc.) into the context at creation —
+    // they can't be changed without a new canvas. solid-three keeps the
+    // existing renderer and warns once instead of silently ignoring.
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return { antialias: aa() }
+      },
+    })
     const initial = state.gl
-    setTick(1)
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    setAa(false)
+
     expect(state.gl).toBe(initial)
-  })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toMatch(/antialias/)
+    expect(warn.mock.calls[0][0]).toMatch(/unmount and remount/)
 
-  it("should recreate the renderer when tuple[0] changes shape", async () => {
-    const [aa, setAa] = createSignal(true)
-    const state = test(() => <T.Group />, {
-      get gl() {
-        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
-      },
-    })
-
-    const initial = state.gl
-    setAa(false)
-    expect(state.gl).not.toBe(initial)
-  })
-
-  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
-    const [aa, setAa] = createSignal(true)
-    const state = test(() => <T.Group />, {
-      get gl() {
-        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
-      },
-    })
-
-    const initial = state.gl as unknown as THREE.WebGLRenderer
-    const disposeSpy = vi.spyOn(initial, "dispose")
-    setAa(false)
-    expect(disposeSpy).toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it("should update scene via scene prop", async () => {
