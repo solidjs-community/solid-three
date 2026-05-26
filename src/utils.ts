@@ -6,9 +6,10 @@ import {
   Material,
   Object3D,
   OrthographicCamera,
-  type Renderer,
   Texture,
   Vector3,
+  type WebGLShadowMap,
+  type WebXRManager,
 } from "three"
 import { $S3C } from "./constants.ts"
 import type {
@@ -20,6 +21,8 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  Renderer,
+  RendererLike,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -204,6 +207,51 @@ export const hasColorSpace = <
 
 export function isConstructor<T>(value: T | Constructor): value is Constructor {
   return typeof value === "function" && value.prototype !== undefined
+}
+
+/**
+ * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
+ * we both call and that three's WebGPU `XRManager` doesn't expose, so the
+ * check is meaningful — not an arbitrary brand probe.
+ */
+export function isWebXRManager(value: unknown): value is WebXRManager {
+  return (
+    !!value && typeof (value as { setAnimationLoop?: unknown }).setAnimationLoop === "function"
+  )
+}
+
+/**
+ * Duck-typed narrow to `WebGLShadowMap`. `needsUpdate` is the WebGL-only
+ * field we set; WebGPURenderer's `shadowMap` is `{ enabled, type }` without it.
+ */
+export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
+  return !!value && "needsUpdate" in (value as object)
+}
+
+/**
+ * Returns the renderer's `init()` if it both exists and hasn't been called yet,
+ * otherwise `undefined`. Used to await async setup (e.g. `WebGPURenderer.init`)
+ * before the first render.
+ *
+ * Why a util: `Renderer = WebGLRenderer | WebGPURenderer | RendererLike`, but
+ * `WebGLRenderer` has no `init` method at all — so direct union access errors
+ * ("property `init` does not exist on type `WebGLRenderer`"). Narrowing through
+ * `RendererLike` (where `init?` is optional) makes the access well-typed and
+ * contains that cast to one place. As a bonus, it also resolves a secondary
+ * return-type mismatch — three's `Renderer.init()` is `Promise<this>` while
+ * `RendererLike.init?()` is `Promise<void>`; we discard the resolved value.
+ *
+ * Returns `undefined` when:
+ * - the renderer has no `init` method (WebGLRenderer, custom static renderers)
+ * - the renderer's `hasInitialized()` reports `true` (user passed a pre-built,
+ *   pre-initialized renderer — matches r3f's #3651 fix)
+ */
+export function getPendingInit(renderer: Renderer): (() => Promise<unknown>) | undefined {
+  const init = (renderer as RendererLike).init
+  const hasInitialized = (renderer as RendererLike).hasInitialized
+  if (typeof init !== "function") return undefined
+  if (hasInitialized?.call(renderer)) return undefined
+  return () => init.call(renderer)
 }
 
 /**********************************************************************************/

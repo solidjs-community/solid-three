@@ -11,7 +11,8 @@ import * as THREE from "three"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
-import type { Context, Meta } from "../../src/types.ts"
+import type { Context, Meta, RendererLike } from "../../src/types.ts"
+import { getPendingInit } from "../../src/utils.ts"
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>
 
@@ -497,29 +498,31 @@ describe("renderer", () => {
 
   it("should set PCFSoftShadowMap as the default shadow map", async () => {
     let state = test(() => <T.Group />, { shadows: true })
-    expect(state.gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+    expect(gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
   })
 
-  it("should set tonemapping to ACESFilmicToneMapping and outputEncoding to sRGBEncoding if linear is false", async () => {
+  it("should set tonemapping to ACESFilmicToneMapping and outputColorSpace to SRGBColorSpace if linear is false", async () => {
     let state = test(() => <T.Group />, { linear: false })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
 
-    expect(state.gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-    // @ts-expect-error TODO: fix type-error
-    expect(state.gl.outputEncoding).toBe(THREE.sRGBEncoding)
+    expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+    expect(gl.outputColorSpace).toBe(THREE.SRGBColorSpace)
   })
 
   it("should toggle render mode in xr", async () => {
     const state = test(() => <T.Group />)
+    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
 
-    state.gl.xr.isPresenting = true
-    state.gl.xr.dispatchEvent({ type: "sessionstart" })
+    xr.isPresenting = true
+    xr.dispatchEvent({ type: "sessionstart" })
 
-    expect(state.gl.xr.enabled).toEqual(true)
+    expect(xr.enabled).toEqual(true)
 
-    state.gl.xr.isPresenting = false
-    state.gl.xr.dispatchEvent({ type: "sessionend" })
+    xr.isPresenting = false
+    xr.dispatchEvent({ type: "sessionend" })
 
-    expect(state.gl.xr.enabled).toEqual(false)
+    expect(xr.enabled).toEqual(false)
   })
 
   it('should respect frameloop="never" in xr', async () => {
@@ -532,8 +535,9 @@ describe("renderer", () => {
       return <T.Group />
     }
     const state = test(() => <TestGroup />, { frameloop: "never" })
-    state.gl.xr.isPresenting = true
-    state.gl.xr.dispatchEvent({ type: "sessionstart" })
+    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
+    xr.isPresenting = true
+    xr.dispatchEvent({ type: "sessionstart" })
 
     await new Promise(resolve => requestAnimationFrame(resolve))
 
@@ -578,6 +582,193 @@ describe("renderer", () => {
     expect(gl instanceof Renderer).toBe(true)
   })
 
+  /**
+   * External-renderer (RendererLike) tests — cover the structural-typed `gl`
+   * prop that lets users pass any renderer (WebGPURenderer, SVGRenderer,
+   * custom). Mirrors r3f's external-renderer.test.tsx.
+   */
+  function makeFakeRenderer(overrides: Partial<RendererLike> = {}) {
+    const fake = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      setPixelRatio: vi.fn(),
+      getPixelRatio: vi.fn(() => 1),
+      domElement: document.createElement("canvas"),
+      ...overrides,
+    }
+    return fake as typeof fake & RendererLike
+  }
+
+  it("should accept a RendererLike instance as the gl prop", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should accept a RendererLike instance returned from the gl factory", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: () => fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should await renderer.init() before the first render", async () => {
+    let resolveInit!: () => void
+    const initPromise = new Promise<void>(resolve => {
+      resolveInit = resolve
+    })
+    const fake = makeFakeRenderer({ init: vi.fn(() => initPromise) })
+
+    const state = test(() => <T.Group />, { gl: fake })
+
+    // Loop is spinning, but render() must early-return until init resolves.
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(fake.init).toHaveBeenCalledTimes(1)
+    expect(fake.render).not.toHaveBeenCalled()
+
+    resolveInit()
+    await initPromise
+    await state.waitTillNextFrame()
+
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should skip init() when hasInitialized() returns true", async () => {
+    const fake = makeFakeRenderer({
+      init: vi.fn(async () => {}),
+      hasInitialized: vi.fn(() => true),
+    })
+
+    const state = test(() => <T.Group />, { gl: fake })
+    await state.waitTillNextFrame()
+
+    expect(fake.init).not.toHaveBeenCalled()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should render immediately for a RendererLike without init()", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+
+    await state.waitTillNextFrame()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should skip color-management props on a renderer that lacks them", async () => {
+    // SVGRenderer / custom renderers don't have outputColorSpace or toneMapping.
+    const fake = makeFakeRenderer() as RendererLike & {
+      outputColorSpace?: unknown
+      toneMapping?: unknown
+    }
+    test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputColorSpace).toBeUndefined()
+    expect(fake.toneMapping).toBeUndefined()
+  })
+
+  it("should apply color-management props to a renderer that exposes them", async () => {
+    const fake = Object.assign(makeFakeRenderer(), {
+      outputColorSpace: "" as string,
+      toneMapping: 0,
+    })
+    test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputColorSpace).toBe(THREE.SRGBColorSpace)
+    expect(fake.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+  })
+
+  it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
+    const fake = makeFakeRenderer()
+    const state = test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    expect(() => state.xr.connect()).not.toThrow()
+    expect(() => state.xr.disconnect()).not.toThrow()
+    // The no-op path warns so users debugging "why isn't my XR working" can
+    // see it in the console.
+    expect(warn).toHaveBeenCalledTimes(2)
+    expect(warn.mock.calls[0][0]).toMatch(/no-op/)
+
+    warn.mockRestore()
+  })
+
+  it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
+    // WebGPURenderer's XRManager has `enabled` but no `setAnimationLoop`. The
+    // duck-typed `isWebXRManager` guard must distinguish this from a real
+    // WebXRManager so we don't crash calling missing methods.
+    const addEventListener = vi.fn()
+    const fake = Object.assign(makeFakeRenderer(), {
+      xr: { enabled: false, addEventListener },
+    })
+    const state = test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    expect(() => state.xr.connect()).not.toThrow()
+    // Real wiring would have called addEventListener twice (sessionstart,
+    // sessionend). The guard should have skipped it.
+    expect(addEventListener).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    warn.mockRestore()
+  })
+
+  it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
+    // DOM-based renderers (CSS2DRenderer, CSS3DRenderer, SVGRenderer) have no
+    // pixel-ratio API. They must still work — `context.dpr` falls back to `1`
+    // (the renderer didn't scale anything, so reporting any other value
+    // would be fabricating).
+    const fake: RendererLike = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      domElement: document.createElement("div"),
+    }
+    const state = test(() => <T.Group />, { gl: fake })
+
+    expect(() => state.gl.setSize(100, 100)).not.toThrow()
+    expect(state.dpr).toBe(1)
+  })
+
+  it("should apply shadowMap.enabled/type but not needsUpdate on non-WebGL shadow maps", async () => {
+    // WebGPURenderer's `shadowMap` is `{ enabled, type }` — no `needsUpdate`.
+    // The shared `enabled`/`type` writes should still happen; only the
+    // WebGL-specific `needsUpdate = true` write is gated.
+    const fake = Object.assign(makeFakeRenderer(), {
+      shadowMap: { enabled: false, type: 0 },
+    })
+    test(() => <T.Group />, { gl: fake, shadows: true })
+
+    expect(fake.shadowMap.enabled).toBe(true)
+    expect(fake.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+    expect("needsUpdate" in fake.shadowMap).toBe(false)
+  })
+
+  describe("getPendingInit", () => {
+    it("returns undefined when the renderer has no init", () => {
+      const fake = makeFakeRenderer()
+      expect(getPendingInit(fake)).toBeUndefined()
+    })
+
+    it("returns undefined when hasInitialized() reports true", () => {
+      const init = vi.fn(async () => {})
+      const fake = makeFakeRenderer({ init, hasInitialized: () => true })
+      expect(getPendingInit(fake)).toBeUndefined()
+      expect(init).not.toHaveBeenCalled()
+    })
+
+    it("returns a function that invokes init() with the renderer as `this`", async () => {
+      let capturedThis: unknown
+      const init = vi.fn(async function (this: unknown) {
+        capturedThis = this
+      })
+      const fake = makeFakeRenderer({ init })
+
+      const pending = getPendingInit(fake)
+      expect(typeof pending).toBe("function")
+      await pending!()
+      expect(init).toHaveBeenCalledTimes(1)
+      expect(capturedThis).toBe(fake)
+    })
+  })
+
   it("should respect color management preferences via gl", async () => {
     const texture = new THREE.Texture() as THREE.Texture & { colorSpace?: string }
     function Test() {
@@ -610,8 +801,9 @@ describe("renderer", () => {
     expect(gl.outputColorSpace).toBe(LinearSRGBColorSpace)
     expect(texture.colorSpace).toBe(LinearSRGBColorSpace)
 
-    // @ts-expect-error TODO: fix type-error
-    gl.outputColorSpace = "test"
+    // Pick a valid-but-wrong value as a sentinel; setting an unregistered
+    // color space crashes three 0.181's renderer on the next frame.
+    gl.outputColorSpace = LinearSRGBColorSpace
     texture.colorSpace = ""
 
     setLinear(false)

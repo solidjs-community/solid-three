@@ -10,7 +10,7 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props } from "./types.ts"
+import type { CanvasEventHandlers, Context, Props, ResolvedRenderer } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -28,11 +28,23 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   flat?: boolean
   /** Controls the rendering loop's operation mode. */
   frameloop?: "never" | "demand" | "always"
-  /** Options for the WebGLRenderer or a function returning a customized renderer. */
+  /**
+   * Renderer to render the scene with. Accepts:
+   * - a config object (applied to a default `WebGLRenderer`)
+   * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
+   * - a renderer instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
+   *
+   * The accepted renderer type narrows when you declare it via the `Register`
+   * module-augmentation interface — see {@link Register} in `types.ts`.
+   */
   gl?:
-    | Partial<Props<WebGLRenderer>>
-    | ((canvas: HTMLCanvasElement) => WebGLRenderer)
-    | WebGLRenderer
+    // Config-object shorthand creates a default WebGLRenderer at runtime.
+    // When `Register` narrows `ResolvedRenderer` away from WebGL, this branch
+    // collapses to `never` so the user is forced into the factory or
+    // instance form that actually matches their declared renderer.
+    | (WebGLRenderer extends ResolvedRenderer ? Partial<Props<WebGLRenderer>> : never)
+    | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
+    | ResolvedRenderer
   /** Toggles linear interpolation for texture filtering. */
   linear?: boolean
   /** Toggles between Orthographic and Perspective camera. */
@@ -66,7 +78,8 @@ export function Canvas(props: ParentProps<CanvasProps>) {
     createResizeObserver(container, function onResize() {
       const { width, height } = container.getBoundingClientRect()
       context.gl.setSize(width, height)
-      context.gl.setPixelRatio(globalThis.devicePixelRatio)
+      // DOM-based renderers (CSS2D/3D, SVG) don't have a pixel-ratio knob.
+      context.gl.setPixelRatio?.(globalThis.devicePixelRatio)
 
       if (context.camera instanceof OrthographicCamera) {
         context.camera.left = width / -2

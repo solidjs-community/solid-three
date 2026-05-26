@@ -301,7 +301,7 @@ function applyProp<T extends Record<string, any>>(
           const texture = source[type] as Texture
 
           if (hasColorSpace(texture) && hasColorSpace(context.gl)) {
-            texture.colorSpace = context.gl.outputColorSpace
+            texture.colorSpace = context.gl.outputColorSpace as typeof texture.colorSpace
           } else {
             // @ts-expect-error TODO: fix type-error
             texture.encoding = context.gl.outputEncoding

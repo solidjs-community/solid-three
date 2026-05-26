@@ -12,6 +12,7 @@ import {
   BasicShadowMap,
   Camera,
   Clock,
+  LinearSRGBColorSpace,
   NoToneMapping,
   OrthographicCamera,
   PCFShadowMap,
@@ -19,6 +20,7 @@ import {
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SRGBColorSpace,
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
@@ -30,17 +32,39 @@ import { frameContext, threeContext } from "./hooks.ts"
 import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
-import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
+import type {
+  CameraKind,
+  Context,
+  FrameListener,
+  FrameListenerCallback,
+  Renderer,
+} from "./types.ts"
 import {
   binarySearch,
   defaultProps,
   getCurrentViewport,
+  getPendingInit,
+  isWebGLShadowMap,
+  isWebXRManager,
   meta,
   removeElementFromArray,
   useRef,
   withMultiContexts,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
+
+/**
+ * Returns true when `value` is an already-built renderer instance (anything
+ * matching {@link Renderer}) rather than a config-props object or a factory.
+ */
+function isRendererInstance(value: unknown): value is Renderer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
+  )
+}
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
@@ -118,20 +142,34 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     if (canvasProps.frameloop === "never") return
     render(timestamp, frame)
   }
-  // Toggle render switching on session
-  function handleSessionChange() {
-    context.gl.xr.enabled = context.gl.xr.isPresenting
-    context.gl.xr.setAnimationLoop(context.gl.xr.isPresenting ? handleXRFrame : null)
+  // XR session wiring is built for `WebXRManager` (WebGL build of three's
+  // XR). WebGPURenderer ships a different `XRManager` class that handles
+  // animation loops via the renderer itself — duck-typing on
+  // `setAnimationLoop` cleanly excludes it without needing instanceof checks
+  // (which would force runtime imports of the manager classes).
+  function warnNonXR(method: string) {
+    console.warn(
+      `solid-three: ${method} is a no-op — the active renderer has no \`WebXRManager\`-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
+    )
   }
-  // WebXR session-manager
+  function handleSessionChange() {
+    const xrManager = context.gl.xr
+    if (!isWebXRManager(xrManager)) return
+    xrManager.enabled = xrManager.isPresenting
+    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
+  }
   const xr = {
     connect() {
-      context.gl.xr.addEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.addEventListener("sessionend", handleSessionChange)
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return warnNonXR("xr.connect()")
+      xrManager.addEventListener("sessionstart", handleSessionChange)
+      xrManager.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      context.gl.xr.removeEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.removeEventListener("sessionend", handleSessionChange)
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return warnNonXR("xr.disconnect()")
+      xrManager.removeEventListener("sessionstart", handleSessionChange)
+      xrManager.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -142,9 +180,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
+  // WebGPURenderer needs `await renderer.init()` before its first render. The
+  // render loop spins harmlessly until this flips true.
+  let glInitialized = false
 
   function render(timestamp: number, frame?: XRFrame) {
-    if (!context.gl) {
+    if (!context.gl || !glInitialized) {
       return
     }
     if (props.frameloop === "never") {
@@ -174,8 +215,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       props.camera instanceof Camera
         ? (props.camera as OrthographicCamera | PerspectiveCamera)
         : props.orthographic
-        ? new OrthographicCamera()
-        : new PerspectiveCamera(),
+          ? new OrthographicCamera()
+          : new PerspectiveCamera(),
       {
         get props() {
           return props.camera || {}
@@ -207,17 +248,17 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const gl =
-      props.gl instanceof WebGLRenderer
-        ? // props.gl can be a WebGLRenderer provided by the user
-          props.gl
-        : typeof props.gl === "function"
-        ? // or a callback that returns a Renderer
+    const _gl: Renderer =
+      typeof props.gl === "function"
+        ? // factory callback that returns a renderer
           props.gl(canvas)
-        : // if props.gl is not defined we default to a WebGLRenderer
-          new WebGLRenderer({ canvas, alpha: true })
+        : isRendererInstance(props.gl)
+          ? // an already-built renderer instance (WebGLRenderer, WebGPURenderer, …)
+            props.gl
+          : // no renderer supplied (or a config-props object) → default WebGLRenderer
+            new WebGLRenderer({ canvas, alpha: true })
 
-    return meta(gl, {
+    return meta(_gl, {
       get props() {
         return props.gl || {}
       },
@@ -228,9 +269,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   measure.setElement(canvas)
 
   const defaultTarget = new Vector3()
-  const viewport = createMemo(() =>
-    getCurrentViewport(camera(), defaultTarget, measure.bounds()),
-  )
+  const viewport = createMemo(() => getCurrentViewport(camera(), defaultTarget, measure.bounds()))
 
   const clock = new Clock()
   clock.start()
@@ -242,7 +281,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     canvas,
     clock,
     get dpr() {
-      return this.gl.getPixelRatio()
+      // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
+      // anything — reporting `1` is honest. Users who need the device's
+      // ratio for non-rendering math read `globalThis.devicePixelRatio`
+      // directly, or pass a renderer that actually has `getPixelRatio`.
+      return this.gl.getPixelRatio?.() ?? 1
     },
     props,
     render,
@@ -271,14 +314,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return gl()
     },
   }
-
-  withMultiContexts(
-    () => useRef(props, context),
-    [
-      [threeContext, context],
-      [frameContext, addFrameListener],
-    ],
-  )
 
   /**********************************************************************************/
   /*                                                                                */
@@ -320,54 +355,96 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
     // Manage gl
     createRenderEffect(() => {
-      // Set shadow-map
+      // Set shadow-map. `enabled` and `type` exist on both WebGL/WebGPU
+      // shadow maps; `needsUpdate` is WebGL-only, gated by isWebGLShadowMap.
       createRenderEffect(() => {
-        const _gl = gl()
-        if (_gl.shadowMap) {
-          const oldEnabled = _gl.shadowMap.enabled
-          const oldType = _gl.shadowMap.type
-          _gl.shadowMap.enabled = !!props.shadows
+        const shadowMap = gl().shadowMap
+        if (!shadowMap) return
+        const oldEnabled = shadowMap.enabled
+        const oldType = shadowMap.type
+        shadowMap.enabled = !!props.shadows
 
-          if (typeof props.shadows === "boolean") {
-            _gl.shadowMap.type = PCFSoftShadowMap
-          } else if (typeof props.shadows === "string") {
-            const types = {
-              basic: BasicShadowMap,
-              percentage: PCFShadowMap,
-              soft: PCFSoftShadowMap,
-              variance: VSMShadowMap,
-            }
-            _gl.shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
-          } else if (typeof props.shadows === "object") {
-            Object.assign(_gl.shadowMap, props.shadows)
+        if (typeof props.shadows === "boolean") {
+          shadowMap.type = PCFSoftShadowMap
+        } else if (typeof props.shadows === "string") {
+          const types = {
+            basic: BasicShadowMap,
+            percentage: PCFShadowMap,
+            soft: PCFSoftShadowMap,
+            variance: VSMShadowMap,
           }
+          shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
+        } else if (typeof props.shadows === "object") {
+          Object.assign(shadowMap, props.shadows)
+        }
 
-          if (oldEnabled !== _gl.shadowMap.enabled || oldType !== _gl.shadowMap.type)
-            _gl.shadowMap.needsUpdate = true
+        if (
+          isWebGLShadowMap(shadowMap) &&
+          (oldEnabled !== shadowMap.enabled || oldType !== shadowMap.type)
+        ) {
+          shadowMap.needsUpdate = true
         }
       })
 
       createEffect(() => {
+        // Wire XR only when the active renderer exposes a `WebXRManager`-
+        // shaped manager. Inner `xr.connect()`/`disconnect()` guards
+        // reinforce this if `context.gl` swaps later.
+        if (isWebXRManager(gl().xr)) context.xr.connect()
+      })
+
+      // Await async renderer init (WebGPURenderer requires this before the
+      // first render). For WebGLRenderer this branch is a no-op and
+      // `glInitialized` flips true synchronously.
+      createEffect(async () => {
         const renderer = gl()
-        // Connect to xr if property exists
-        if (renderer.xr) context.xr.connect()
+        glInitialized = false
+        // Register synchronously so a renderer swap mid-init can abort.
+        let cancelled = false
+        onCleanup(() => {
+          cancelled = true
+        })
+
+        const init = getPendingInit(renderer)
+        if (init) {
+          // Size the canvas backing buffer before init so WebGPU allocates the
+          // depth attachment at the correct dimensions (otherwise the default
+          // 300×150 causes a size mismatch on the first resize).
+          const rect = canvas.getBoundingClientRect()
+          const ratio = globalThis.devicePixelRatio || 1
+          if (rect.width > 0 && rect.height > 0) {
+            canvas.width = rect.width * ratio
+            canvas.height = rect.height * ratio
+          }
+          await init()
+        }
+
+        if (!cancelled) glInitialized = true
       })
 
-      // Set color space and tonemapping preferences
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      // Color management and tone-mapping
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
-        },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
-        },
-      })
+      // Color management and tone-mapping. Both WebGLRenderer and
+      // WebGPURenderer expose `outputColorSpace` and `toneMapping`; we
+      // structurally check so exotic renderers (SVGRenderer, custom) that
+      // don't have them are skipped instead of crashing.
+      const _gl = gl()
+      if ("outputColorSpace" in _gl) {
+        useProps(gl, {
+          get outputColorSpace() {
+            return props.linear ? LinearSRGBColorSpace : SRGBColorSpace
+          },
+        })
+      }
+      if ("toneMapping" in _gl) {
+        useProps(gl, {
+          get toneMapping() {
+            return props.flat ? NoToneMapping : ACESFilmicToneMapping
+          },
+        })
+      }
 
-      // Manage props
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+      // Apply props.gl as renderer config only when it's a plain config object
+      // (i.e. not a factory or a renderer instance).
+      if (props.gl && typeof props.gl !== "function" && !isRendererInstance(props.gl)) {
         useProps(gl, props.gl)
       }
     })
@@ -421,6 +498,14 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         return c()
       },
     }),
+  )
+
+  withMultiContexts(
+    () => useRef(props, context),
+    [
+      [threeContext, context],
+      [frameContext, addFrameListener],
+    ],
   )
 
   // Return context merged with `addFrameListeners``
