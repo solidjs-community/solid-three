@@ -24,9 +24,11 @@
    - [T](#t)
    - [Portal](#portal)
    - [Resource](#resource)
+   - [The `S3` type namespace](#the-s3-type-namespace)
 4. [Hooks](#hooks)
    - [useThree](#usethree)
    - [useFrame](#useframe)
+   - [useLoader](#useloader)
    - [useProps](#useprops)
 5. [Utilities](#utilities)
    - [Raycasters](#raycasters)
@@ -476,6 +478,30 @@ Wrapper-component around ['useLoader'](#useloader).
 
 ([see](/playground/src/api/resource/usage.tsx))
 
+### The `S3` type namespace
+
+All public type aliases live in a single re-exported namespace:
+
+```ts
+import { S3 } from "solid-three"
+
+type Position = S3.Vector3
+type Controls = S3.Props<typeof OrbitControls>
+```
+
+The namespace re-exports [`src/types.ts`](src/types.ts) and includes:
+
+- **Renderer surface** — `Renderer`, `RendererLike`, `ResolvedRenderer`, `Register`
+- **Context** — `Context`, `Viewport`, `CameraKind`
+- **Frame loop** — `FrameListener`, `FrameListenerCallback`, `FrameListenerOptions`
+- **Events** — `ThreeEvent`, `EventHandlers`, `CanvasEventHandlers`, `EventName`
+- **Three representations** — `Representation`, `Vector2`, `Vector3`, `Vector4`, `Color`, `Layers`, `Quaternion`, `Euler`, `Matrix3`, `Matrix4`
+- **Solid-three metadata** — `Meta`, `Data`, `MapToRepresentation`, `Props`
+- **Loaders** — `LoaderData`, `LoaderUrl`
+- **Utility helpers** — `AccessorMaybe`, `PromiseMaybe`, `Constructor`, `InstanceOf`, `Overwrite`, `Prettify`, `ConstructorOverloadParameters`
+
+The same names are also reachable as named type imports, e.g. `import type { Context, Props } from "solid-three"`.
+
 ## Hooks
 
 ### useThree
@@ -748,6 +774,26 @@ interface LoaderRegistry {
 ```
 
 </details>
+
+#### `load` — the lower-level primitive
+
+`useLoader` is built on top of `load`, a plain async function that wraps `loader.load` in a `Promise` (no caching, no Suspense integration, no reactivity). Use it directly when you need to await a resource imperatively.
+
+```tsx
+import { load } from "solid-three"
+import { TextureLoader } from "three"
+
+// Single URL → resolves to the loader's data type
+const texture = await load(new TextureLoader(), "/wood.jpg")
+
+// Record of URLs → resolves to a record of resources, preserving keys
+const textures = await load(new TextureLoader(), {
+  diffuse: "/wood-diffuse.jpg",
+  normal: "/wood-normal.jpg",
+})
+```
+
+`useLoader` calls `load` internally when there's a cache miss.
 
 ### useProps
 

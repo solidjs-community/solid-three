@@ -81,3 +81,41 @@ const T = createT(THREE)
 
 - [Overview](/api/events/overview)
 - [raycastable](/api/events/raycastable)
+
+## The `S3` type namespace
+
+All public type aliases live in a single re-exported namespace:
+
+```ts
+import { S3 } from "solid-three"
+
+type Position = S3.Vector3
+type Controls = S3.Props<typeof OrbitControls>
+```
+
+The namespace is the re-export of [`src/types.ts`](https://github.com/bigmistqke/solid-three/blob/main/src/types.ts) and includes:
+
+- **Renderer surface** — `Renderer`, `RendererLike`, `ResolvedRenderer`, `Register`
+- **Context** — `Context`, `Viewport`, `CameraKind`
+- **Frame loop** — `FrameListener`, `FrameListenerCallback`, `FrameListenerOptions`
+- **Events** — `ThreeEvent`, `EventHandlers`, `CanvasEventHandlers`, `EventName`
+- **Three representations** — `Representation`, `Vector2`, `Vector3`, `Vector4`, `Color`, `Layers`, `Quaternion`, `Euler`, `Matrix3`, `Matrix4`
+- **Solid-three metadata** — `Meta`, `Data`, `MapToRepresentation`, `Props`
+- **Loaders** — `LoaderData`, `LoaderUrl`
+- **Utility helpers** — `AccessorMaybe`, `PromiseMaybe`, `Constructor`, `InstanceOf`, `Overwrite`, `Prettify`, `ConstructorOverloadParameters`
+
+The same names are also reachable as named imports, e.g. `import type { Context, Props } from "solid-three"` — but the namespace form is what the examples in these docs use.
+
+## Top-level exports — at a glance
+
+```
+Canvas, CanvasProps
+Entity, Portal, Resource
+$S3C
+createEntity, createT
+useFrame, useLoader, useThree
+useProps
+EventRaycaster, CursorRaycaster, CenterRaycaster
+S3 (namespace re-export of types.ts)
+autodispose, getMeta, hasMeta, load, meta
+```

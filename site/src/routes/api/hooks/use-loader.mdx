@@ -124,4 +124,41 @@ interface LoaderRegistry {
 
 </details>
 
+## `load` — the lower-level primitive
+
+`useLoader` is built on top of `load`, a plain async function that wraps `loader.load` in a `Promise` (with no caching, no Suspense integration, no reactivity). Use it directly when you need to await a resource imperatively — e.g. inside an event handler, a one-shot setup effect, or non-component code.
+
+```tsx
+import { load } from "solid-three"
+import { TextureLoader } from "three"
+
+// Single URL → resolves to the loader's data type
+const texture = await load(new TextureLoader(), "/wood.jpg")
+
+// Record of URLs → resolves to a record of resources, preserving keys
+const textures = await load(new TextureLoader(), {
+  diffuse: "/wood-diffuse.jpg",
+  normal: "/wood-normal.jpg",
+})
+```
+
+<details>
+<summary>Typescript Signature</summary>
+
+```tsx
+function load<TLoader extends Loader<any, any>>(
+  loader: TLoader,
+  input: LoaderUrl<TLoader>,
+): Promise<LoaderData<TLoader>>
+
+function load<TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader>>(
+  loader: TLoader,
+  input: TInput,
+): Promise<LoadOutput<TLoader, TInput>>
+```
+
+</details>
+
+`useLoader` calls `load` internally when there's a cache miss; reach for `load` when you want the same URL-normalisation and record-spread behaviour without going through Solid's reactive resource machinery.
+
 See also the [Loaders & Resource tutorial chapter](/tutorial/06-loaders-and-resource).
