@@ -2,9 +2,9 @@
 title: A peek at WebGPU
 ---
 
-import webgpuSimple from "../../snippets/10-webgpu-simple.tsx?raw"
-import webgpuTsl from "../../snippets/10-webgpu-tsl.tsx?raw"
-import webgpuTslUniform from "../../snippets/10-webgpu-tsl-uniform.tsx?raw"
+import webgpuSimple from "../../snippets/09-webgpu-simple.tsx?raw"
+import webgpuTsl from "../../snippets/09-webgpu-tsl.tsx?raw"
+import webgpuTslUniform from "../../snippets/09-webgpu-tsl-uniform.tsx?raw"
 
 # A peek at WebGPU
 
@@ -63,7 +63,7 @@ Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
 <T.MeshBasicNodeMaterial colorNode={buildColorNode()} />
 ```
 
-The same smart-prop machinery you saw in [chapter 3](/tutorial/03-smart-props)
+The same smart-prop machinery you saw in [chapter 3](/tutorial/02-transforms-and-smart-props)
 still applies — `colorNode` is just a prop. `MeshBasicNodeMaterial`
 isn't in the global `THREE` namespace, so we extended `createT` with it:
 `createT({ ...THREE, MeshBasicNodeMaterial })`.
@@ -80,7 +80,7 @@ Drag the slider. The `frequency` signal updates → the `createEffect`
 writes to `frequencyUniform.value` → the next frame's shader sees the new
 value and the stripe density changes. No re-render of the scene tree, no
 material rebuild. The same one-property-per-frame discipline you saw with
-[`useFrame`](/tutorial/06-use-frame), but the property happens to live on
+[`useFrame`](/tutorial/05-use-frame), but the property happens to live on
 the GPU.
 
 ## That's the tour

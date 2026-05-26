@@ -2,8 +2,8 @@
 title: Custom components
 ---
 
-import compositionSnippet from "../../snippets/08-composition.tsx?raw"
-import usePropsSnippet from "../../snippets/08-use-props.tsx?raw"
+import compositionSnippet from "../../snippets/07-composition.tsx?raw"
+import usePropsSnippet from "../../snippets/07-use-props.tsx?raw"
 
 # Custom components
 
@@ -18,7 +18,7 @@ There are two ways to build one in `solid-three`, depending on whether you
 
 Most custom components are just composition. Spread the caller's props
 onto a `<T.Mesh>` (or whatever else) — the smart-prop pipeline from
-[Smart props](/tutorial/03-smart-props) already handles arrays, single
+[Smart props](/tutorial/02-transforms-and-smart-props) already handles arrays, single
 numbers, strings, dashed paths. Nothing extra to wire up.
 
 <Demo code={compositionSnippet} />
