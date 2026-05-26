@@ -497,29 +497,32 @@ describe("renderer", () => {
 
   it("should set PCFSoftShadowMap as the default shadow map", async () => {
     let state = test(() => <T.Group />, { shadows: true })
-    expect(state.gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+    expect(gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
   })
 
   it("should set tonemapping to ACESFilmicToneMapping and outputEncoding to sRGBEncoding if linear is false", async () => {
     let state = test(() => <T.Group />, { linear: false })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
 
-    expect(state.gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+    expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
     // @ts-expect-error TODO: fix type-error
-    expect(state.gl.outputEncoding).toBe(THREE.sRGBEncoding)
+    expect(gl.outputEncoding).toBe(THREE.sRGBEncoding)
   })
 
   it("should toggle render mode in xr", async () => {
     const state = test(() => <T.Group />)
+    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
 
-    state.gl.xr.isPresenting = true
-    state.gl.xr.dispatchEvent({ type: "sessionstart" })
+    xr.isPresenting = true
+    xr.dispatchEvent({ type: "sessionstart" })
 
-    expect(state.gl.xr.enabled).toEqual(true)
+    expect(xr.enabled).toEqual(true)
 
-    state.gl.xr.isPresenting = false
-    state.gl.xr.dispatchEvent({ type: "sessionend" })
+    xr.isPresenting = false
+    xr.dispatchEvent({ type: "sessionend" })
 
-    expect(state.gl.xr.enabled).toEqual(false)
+    expect(xr.enabled).toEqual(false)
   })
 
   it('should respect frameloop="never" in xr', async () => {
@@ -532,8 +535,9 @@ describe("renderer", () => {
       return <T.Group />
     }
     const state = test(() => <TestGroup />, { frameloop: "never" })
-    state.gl.xr.isPresenting = true
-    state.gl.xr.dispatchEvent({ type: "sessionstart" })
+    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
+    xr.isPresenting = true
+    xr.dispatchEvent({ type: "sessionstart" })
 
     await new Promise(resolve => requestAnimationFrame(resolve))
 

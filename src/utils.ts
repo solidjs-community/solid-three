@@ -6,7 +6,6 @@ import {
   Material,
   Object3D,
   OrthographicCamera,
-  type Renderer,
   Texture,
   Vector3,
 } from "three"
@@ -20,6 +19,7 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  RendererLike,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -190,8 +190,8 @@ export function defaultProps<
  * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
  */
 export const hasColorSpace = <
-  T extends Renderer | Texture | object,
-  P = T extends Renderer ? { outputColorSpace: string } : { colorSpace: string },
+  T extends RendererLike | Texture | object,
+  P = T extends RendererLike ? { outputColorSpace: string } : { colorSpace: string },
 >(
   object: T,
 ): object is T & P => "colorSpace" in object || "outputColorSpace" in object

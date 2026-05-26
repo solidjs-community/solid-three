@@ -129,7 +129,43 @@ export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer 
   : never
 
 /**********************************************************************************/
-/*                                                s                                */
+/*                                                                                */
+/*                                  RendererLike                                  */
+/*                                                                                */
+/**********************************************************************************/
+
+/**
+ * Minimal structural interface satisfied by both `WebGLRenderer` and
+ * `WebGPURenderer` (and any custom renderer). Pass any instance matching this
+ * shape to the `gl` Canvas prop.
+ */
+export interface RendererLike {
+  render(scene: any, camera: any): void
+  setSize(width: number, height: number, updateStyle?: boolean): void
+  setPixelRatio(value: number): void
+  getPixelRatio(): number
+  /** Optional XR manager. */
+  xr?: {
+    isPresenting: boolean
+    enabled: boolean
+    addEventListener(type: string, listener: () => void): void
+    removeEventListener(type: string, listener: () => void): void
+    setAnimationLoop(callback: XRFrameRequestCallback | null): void
+  }
+  /** Optional shadow map (WebGL-specific). */
+  shadowMap?: {
+    enabled: boolean
+    type: number
+    needsUpdate: boolean
+  }
+  /** Async initializer — awaited once before the first render (WebGPURenderer). */
+  init?(): Promise<void>
+  /** Returns true if `init()` has already completed. WebGPURenderer exposes this. */
+  hasInitialized?(): boolean
+}
+
+/**********************************************************************************/
+/*                                                                                */
 /*                                     Context                                    */
 /*                                                                                */
 /**********************************************************************************/
@@ -141,7 +177,7 @@ export interface Context {
   camera: CameraKind
   raycaster: Raycaster | EventRaycaster
   dpr: number
-  gl: Meta<WebGLRenderer>
+  gl: Meta<RendererLike>
   props: CanvasProps
   render: (delta: number) => void
   requestRender: () => void

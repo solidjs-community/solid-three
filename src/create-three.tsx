@@ -118,20 +118,27 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     if (canvasProps.frameloop === "never") return
     render(timestamp, frame)
   }
-  // Toggle render switching on session
+  // Toggle render switching on session. No-op when the active renderer
+  // doesn't expose an `xr` manager (e.g. a non-XR `WebGPURenderer` build).
   function handleSessionChange() {
-    context.gl.xr.enabled = context.gl.xr.isPresenting
-    context.gl.xr.setAnimationLoop(context.gl.xr.isPresenting ? handleXRFrame : null)
+    const _xr = context.gl.xr
+    if (!_xr) return
+    _xr.enabled = _xr.isPresenting
+    _xr.setAnimationLoop(_xr.isPresenting ? handleXRFrame : null)
   }
   // WebXR session-manager
   const xr = {
     connect() {
-      context.gl.xr.addEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.addEventListener("sessionend", handleSessionChange)
+      const _xr = context.gl.xr
+      if (!_xr) return
+      _xr.addEventListener("sessionstart", handleSessionChange)
+      _xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      context.gl.xr.removeEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.removeEventListener("sessionend", handleSessionChange)
+      const _xr = context.gl.xr
+      if (!_xr) return
+      _xr.removeEventListener("sessionstart", handleSessionChange)
+      _xr.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
