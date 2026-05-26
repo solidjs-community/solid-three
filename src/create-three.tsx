@@ -37,12 +37,15 @@ import type {
   Context,
   FrameListener,
   FrameListenerCallback,
-  RendererLike,
+  Renderer,
 } from "./types.ts"
 import {
   binarySearch,
   defaultProps,
   getCurrentViewport,
+  getPendingInit,
+  isWebGLShadowMap,
+  isWebXRManager,
   meta,
   removeElementFromArray,
   useRef,
@@ -52,14 +55,14 @@ import { useMeasure } from "./utils/use-measure.ts"
 
 /**
  * Returns true when `value` is an already-built renderer instance (anything
- * matching {@link RendererLike}) rather than a config-props object or a factory.
+ * matching {@link Renderer}) rather than a config-props object or a factory.
  */
-function isRendererInstance(value: unknown): value is RendererLike {
+function isRendererInstance(value: unknown): value is Renderer {
   return (
     typeof value === "object" &&
     value !== null &&
-    typeof (value as RendererLike).render === "function" &&
-    typeof (value as RendererLike).setSize === "function"
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
   )
 }
 
@@ -139,27 +142,29 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     if (canvasProps.frameloop === "never") return
     render(timestamp, frame)
   }
-  // Toggle render switching on session. No-op when the active renderer
-  // doesn't expose a full `xr` manager (e.g. a non-XR `WebGPURenderer` build,
-  // whose `xr` may carry only `{ enabled }` and none of the methods).
+  // XR session wiring is built for `WebXRManager` (WebGL build of three's
+  // XR). WebGPURenderer ships a different `XRManager` class that handles
+  // animation loops via the renderer itself — duck-typing on
+  // `setAnimationLoop` cleanly excludes it without needing instanceof checks
+  // (which would force runtime imports of the manager classes).
   function handleSessionChange() {
-    const _xr = context.gl.xr
-    if (!_xr?.setAnimationLoop) return
-    _xr.enabled = !!_xr.isPresenting
-    _xr.setAnimationLoop(_xr.isPresenting ? handleXRFrame : null)
+    const xrManager = context.gl.xr
+    if (!isWebXRManager(xrManager)) return
+    xrManager.enabled = xrManager.isPresenting
+    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
   }
   const xr = {
     connect() {
-      const _xr = context.gl.xr
-      if (!_xr?.addEventListener) return
-      _xr.addEventListener("sessionstart", handleSessionChange)
-      _xr.addEventListener("sessionend", handleSessionChange)
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return
+      xrManager.addEventListener("sessionstart", handleSessionChange)
+      xrManager.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      const _xr = context.gl.xr
-      if (!_xr?.removeEventListener) return
-      _xr.removeEventListener("sessionstart", handleSessionChange)
-      _xr.removeEventListener("sessionend", handleSessionChange)
+      const xrManager = context.gl.xr
+      if (!isWebXRManager(xrManager)) return
+      xrManager.removeEventListener("sessionstart", handleSessionChange)
+      xrManager.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -238,7 +243,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const _gl: RendererLike =
+    const _gl: Renderer =
       typeof props.gl === "function"
         ? // factory callback that returns a renderer
           props.gl(canvas)
@@ -341,39 +346,42 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
     // Manage gl
     createRenderEffect(() => {
-      // Set shadow-map
+      // Set shadow-map. `enabled` and `type` exist on both WebGL/WebGPU
+      // shadow maps; `needsUpdate` is WebGL-only, gated by isWebGLShadowMap.
       createRenderEffect(() => {
-        const _gl = gl()
-        if (_gl.shadowMap) {
-          const oldEnabled = _gl.shadowMap.enabled
-          const oldType = _gl.shadowMap.type
-          _gl.shadowMap.enabled = !!props.shadows
+        const shadowMap = gl().shadowMap
+        if (!shadowMap) return
+        const oldEnabled = shadowMap.enabled
+        const oldType = shadowMap.type
+        shadowMap.enabled = !!props.shadows
 
-          if (typeof props.shadows === "boolean") {
-            _gl.shadowMap.type = PCFSoftShadowMap
-          } else if (typeof props.shadows === "string") {
-            const types = {
-              basic: BasicShadowMap,
-              percentage: PCFShadowMap,
-              soft: PCFSoftShadowMap,
-              variance: VSMShadowMap,
-            }
-            _gl.shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
-          } else if (typeof props.shadows === "object") {
-            Object.assign(_gl.shadowMap, props.shadows)
+        if (typeof props.shadows === "boolean") {
+          shadowMap.type = PCFSoftShadowMap
+        } else if (typeof props.shadows === "string") {
+          const types = {
+            basic: BasicShadowMap,
+            percentage: PCFShadowMap,
+            soft: PCFSoftShadowMap,
+            variance: VSMShadowMap,
           }
+          shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
+        } else if (typeof props.shadows === "object") {
+          Object.assign(shadowMap, props.shadows)
+        }
 
-          if (oldEnabled !== _gl.shadowMap.enabled || oldType !== _gl.shadowMap.type)
-            _gl.shadowMap.needsUpdate = true
+        if (
+          isWebGLShadowMap(shadowMap) &&
+          (oldEnabled !== shadowMap.enabled || oldType !== shadowMap.type)
+        ) {
+          shadowMap.needsUpdate = true
         }
       })
 
       createEffect(() => {
-        const renderer = gl()
-        // Only wire up the XR session manager when the renderer's `xr`
-        // actually has the methods we'll call. WebGPURenderer ships a stub
-        // `xr: { enabled: false }` when built without XR — truthy but unusable.
-        if (typeof renderer.xr?.addEventListener === "function") context.xr.connect()
+        // Wire XR only when the active renderer exposes a `WebXRManager`-
+        // shaped manager. Inner `xr.connect()`/`disconnect()` guards
+        // reinforce this if `context.gl` swaps later.
+        if (isWebXRManager(gl().xr)) context.xr.connect()
       })
 
       // Await async renderer init (WebGPURenderer requires this before the
@@ -388,7 +396,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
           cancelled = true
         })
 
-        if (typeof renderer.init === "function" && !renderer.hasInitialized?.()) {
+        const init = getPendingInit(renderer)
+        if (init) {
           // Size the canvas backing buffer before init so WebGPU allocates the
           // depth attachment at the correct dimensions (otherwise the default
           // 300×150 causes a size mismatch on the first resize).
@@ -398,7 +407,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             canvas.width = rect.width * ratio
             canvas.height = rect.height * ratio
           }
-          await renderer.init()
+          await init()
         }
 
         if (!cancelled) glInitialized = true
