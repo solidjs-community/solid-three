@@ -11,7 +11,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
 - **gl**: How the renderer is constructed. Accepts one of three shapes:
-  - **flat properties object** (`gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}`) — mixes `WebGLRendererParameters` (constructor-only flags like `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`). solid-three splits them internally: ctor args are baked once at construction; instance props stay reactive. Reactively changing a ctor-only key logs a warning — WebGL contexts are immutable once created, so to swap config at runtime, unmount and remount `<Canvas>`. Inspired by react-three-fiber's `gl` prop.
+  - **flat properties object** (`gl={{ antialias: true, toneMapping: ACESFilmicToneMapping }}`) — mixes `WebGLRendererParameters` (constructor-only flags like `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`). solid-three splits them internally: constructor args are baked once at construction; instance props stay reactive. Reactively changing a constructor-only key logs a warning — WebGL contexts are immutable once created, so to swap config at runtime, unmount and remount `<Canvas>`. Inspired by react-three-fiber's `gl` prop.
   - **factory** (`gl={canvas => new WebGPURenderer({ canvas })}`) — return any renderer you want (`WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom).
   - **pre-built instance** — a renderer you already constructed.
 

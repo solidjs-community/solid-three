@@ -33,8 +33,8 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
    * Renderer to render the scene with. Accepts:
    * - a flat properties object mixing `WebGLRendererParameters` (e.g. `antialias`,
    *   `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`).
-   *   Ctor args are baked at first construction; instance props stay reactive.
-   *   Reactively changing a ctor-only key logs a warning — WebGL contexts are
+   *   Constructor args are baked at first construction; instance props stay reactive.
+   *   Reactively changing a constructor-only key logs a warning — WebGL contexts are
    *   immutable once created, so to swap config at runtime, unmount and remount
    *   `<Canvas>`.
    * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
@@ -46,8 +46,8 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   gl?:
     // Flat object accepts both `WebGLRendererParameters` (constructor-only,
     // e.g. `antialias`, `alpha`) and writable instance props (e.g.
-    // `toneMapping`). solid-three splits them at construction: ctor args are
-    // baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
+    // `toneMapping`). solid-three splits them at construction: constructor args
+    // are baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
     // When `Register` narrows `ResolvedRenderer` away from WebGL this branch
     // collapses to `never` so the user is forced into the factory or instance
     // form that matches their declared renderer.
