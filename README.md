@@ -129,19 +129,25 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 <summary>Typescript Interface</summary>
 
 ```tsx
-interface CanvasProps {
-  camera?: Partial<PerspectiveCamera | OrthographicCamera> | Camera
+interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
+  ref?: Ref<Context>
+  camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
   fallback?: JSX.Element
   gl?:
-    | Partial<WebGLRenderer>
-    | readonly [
-        constructorParameters: Partial<WebGLRendererParameters>,
-        properties: Partial<WebGLRenderer>,
-      ]
+    // The two config-shorthand branches collapse to `never` when Register
+    // narrows ResolvedRenderer away from WebGLRenderer.
+    | (WebGLRenderer extends ResolvedRenderer
+        ?
+            | Partial<Props<WebGLRenderer>>
+            | readonly [
+                constructorParameters: Partial<WebGLRendererParameters>,
+                properties: Partial<Props<WebGLRenderer>>,
+              ]
+        : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
-  scene?: Partial<Scene> | Scene
-  raycaster?: Partial<Raycaster> | Raycaster
+  scene?: Partial<Props<Scene>> | Scene
+  raycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   orthographic?: boolean
   linear?: boolean
@@ -149,9 +155,11 @@ interface CanvasProps {
   frameloop?: "never" | "demand" | "always"
   style?: JSX.CSSProperties
   class?: string
-  // Plus all event handlers
+  // Plus all event handlers (Partial<CanvasEventHandlers>)
 }
 ```
+
+`CanvasProps` is also exported as a type: `import type { CanvasProps } from "solid-three"`.
 
 </details>
 
@@ -238,6 +246,33 @@ function Scene() {
 ```
 
 Same pattern as Vite's `ImportMetaEnv` or Next's `getServerSideProps`.
+
+##### Renderer types
+
+The renderer-related types used in `CanvasProps` are all public via the `S3` namespace.
+
+```ts
+type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
+
+/** Effective renderer type — narrowed by user `Register` augmentation if provided. */
+type ResolvedRenderer = Register extends { renderer: infer R } ? R : Renderer
+
+/** Module-augmentation point — declare `renderer` to narrow project-wide. */
+interface Register {}
+
+/** Minimal structural interface for custom / DOM-based renderers. */
+interface RendererLike {
+  render(scene: any, camera: any): void
+  setSize(width: number, height: number, updateStyle?: boolean): void
+  domElement: Element
+  setPixelRatio?(value: number): void
+  getPixelRatio?(): number
+  xr?: WebGLRenderer["xr"] | WebGPURenderer["xr"]
+  shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
+  init?(): Promise<void>
+  hasInitialized?(): boolean
+}
+```
 
 ### Entity
 
