@@ -4,6 +4,7 @@ title: A peek at WebGPU
 
 import webgpuSimple from "../../snippets/14-webgpu-simple.tsx?raw"
 import webgpuTsl from "../../snippets/14-webgpu-tsl.tsx?raw"
+import webgpuTslUniform from "../../snippets/14-webgpu-tsl-uniform.tsx?raw"
 
 # A peek at WebGPU
 
@@ -66,6 +67,21 @@ The same smart-prop machinery you saw in [chapter 3](/tutorial/03-smart-props)
 still applies — `colorNode` is just a prop. `MeshBasicNodeMaterial`
 isn't in the global `THREE` namespace, so we extended `createT` with it:
 `createT({ ...THREE, MeshBasicNodeMaterial })`.
+
+## Driving a uniform from a signal
+
+The static TSL above runs entirely on the GPU. To make it *react* to the
+outside world, build a `uniform()` and push values into it from a Solid
+effect.
+
+<Demo code={webgpuTslUniform} />
+
+Drag the slider. The `frequency` signal updates → the `createEffect`
+writes to `frequencyUniform.value` → the next frame's shader sees the new
+value and the stripe density changes. No re-render of the scene tree, no
+material rebuild. The same one-property-per-frame discipline you saw with
+[`useFrame`](/tutorial/08-use-frame), but the property happens to live on
+the GPU.
 
 ## That's the tour
 
