@@ -17,7 +17,7 @@ import {
   Texture,
   Vector3,
 } from "three"
-import type { WebGLShadowMap, WebXRManager } from "three"
+import type { BufferGeometry, Fog, WebGLShadowMap, WebXRManager } from "three"
 import { $S3C } from "./constants.ts"
 import type {
   CameraKind,
@@ -84,6 +84,27 @@ export function isWebXRManager(value: unknown): value is WebXRManager {
  */
 export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
   return !!value && "needsUpdate" in (value as object)
+}
+
+/**
+ * Duck-typed three.js class checks. These match three's own internal
+ * pattern (`obj.isMaterial`, `obj.isObject3D`, etc.) and survive cases
+ * where the `Material` / `Object3D` class identities differ across
+ * module instances — e.g. `three/webgpu`'s `MeshBasicNodeMaterial`
+ * doesn't share class identity with `three`'s `Material`, but both set
+ * `isMaterial = true`.
+ */
+export function isMaterial(value: unknown): value is Material {
+  return !!value && (value as { isMaterial?: boolean }).isMaterial === true
+}
+export function isBufferGeometry(value: unknown): value is BufferGeometry {
+  return !!value && (value as { isBufferGeometry?: boolean }).isBufferGeometry === true
+}
+export function isFog(value: unknown): value is Fog {
+  return !!value && (value as { isFog?: boolean }).isFog === true
+}
+export function isObject3D(value: unknown): value is Object3D {
+  return !!value && (value as { isObject3D?: boolean }).isObject3D === true
 }
 
 /**

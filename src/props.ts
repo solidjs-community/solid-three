@@ -10,22 +10,24 @@ import {
   runWithOwner,
   untrack,
 } from "solid-js"
-import {
-  BufferGeometry,
-  Color,
-  Fog,
-  Material,
-  Object3D,
-  RGBAFormat,
-  Texture,
-  UnsignedByteType,
-} from "three"
+import { Color, RGBAFormat, Texture, UnsignedByteType } from "three"
+import type { BufferGeometry, Fog, Material, Object3D } from "three"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
 import { addToEventListeners } from "./internal-context.ts"
 import type { AccessorMaybe, Context, Meta } from "./types.ts"
-import { createDebug, getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
+import {
+  createDebug,
+  getMeta,
+  hasColorSpace,
+  hasMeta,
+  isBufferGeometry,
+  isFog,
+  isMaterial,
+  isObject3D,
+  resolve,
+} from "./utils.ts"
 
 const debugSceneGraph = createDebug("props:useSceneGraph", SHOULD_DEBUG)
 const debugAttach = createDebug("props:applySceneGraph", SHOULD_DEBUG)
@@ -83,15 +85,15 @@ function applySceneGraph(parent: object, child: object): (() => void) | undefine
   let defaultedFrom: string | undefined
   if (!attachProp) {
     debugAttach("check-defaults", () => ({ childType }))
-    if (child instanceof Material) {
+    if (isMaterial(child)) {
       debugAttach("default", () => ({ type: "Material", childType }))
       attachProp = "material"
       defaultedFrom = "Material"
-    } else if (child instanceof BufferGeometry) {
+    } else if (isBufferGeometry(child)) {
       debugAttach("default", () => ({ type: "BufferGeometry", childType }))
       attachProp = "geometry"
       defaultedFrom = "BufferGeometry"
-    } else if (child instanceof Fog) {
+    } else if (isFog(child)) {
       debugAttach("default", () => ({ type: "Fog", childType }))
       attachProp = "fog"
       defaultedFrom = "Fog"
@@ -140,7 +142,7 @@ function applySceneGraph(parent: object, child: object): (() => void) | undefine
   }
 
   // If no attach-prop is defined, add the child to the parent.
-  if (child instanceof Object3D && parent instanceof Object3D) {
+  if (isObject3D(child) && isObject3D(parent)) {
     debugAttach("check-add", () => ({ parentType, childType }))
     if (!parent.children.includes(child)) {
       debugAttach("attached", () => ({ via: "add", parentType, childType }))
@@ -187,7 +189,7 @@ export const useSceneGraph = <T extends object>(
     kids
       .toArray()
       .map(kid => resolve(kid as unknown as Meta<object>))
-      .filter(kid => kid instanceof Object3D),
+      .filter(kid => isObject3D(kid)),
   )
 
   createRenderEffect(
@@ -228,7 +230,7 @@ export const useSceneGraph = <T extends object>(
   createRenderEffect(
     () => [filteredKids(), resolve(_parent)] as const,
     ([kids, parent]) => {
-      if (!(parent instanceof Object3D)) {
+      if (!isObject3D(parent)) {
         debugSceneGraph("reorder-skipped", () => ({ reason: "parent not Object3D" }))
         return
       }
@@ -495,7 +497,7 @@ export function useProps<T extends Record<string, any>>(
         () => {
           const keys = Object.keys(instanceProps)
           for (const key of keys) {
-            if (isEventType(key) && object instanceof Object3D && hasMeta(object)) {
+            if (isEventType(key) && isObject3D(object) && hasMeta(object)) {
               debugUseProps("event registered", () => ({
                 key,
                 objectType: object.constructor.name,
@@ -508,7 +510,7 @@ export function useProps<T extends Record<string, any>>(
             } else if (isEventType(key)) {
               debugUseProps("event skipped", () => ({
                 key,
-                reason: !(object instanceof Object3D) ? "not Object3D" : "no meta",
+                reason: !isObject3D(object) ? "not Object3D" : "no meta",
               }))
             } else {
               debugUseProps("non-event key", () => ({ key }))
