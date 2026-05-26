@@ -8,6 +8,7 @@ import {
   isPending,
   merge,
   onCleanup,
+  untrack,
 } from "solid-js"
 import {
   ACESFilmicToneMapping,
@@ -246,12 +247,34 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
+  // Construction firewall — only track inputs that actually decide WHICH
+  // object to construct (instanceof checks, orthographic flag, gl kind).
+  // The full prop config is read INSIDE the branch that needs it via
+  // `untrack`, so reactive config-objects (e.g. `<Canvas camera={{ position: pos() }}>`)
+  // whose contents change but whose "shape category" stays the same don't
+  // re-run the construction memo. Post-construction updates flow through
+  // the existing `useProps(…)` effects unchanged.
+  //
+  // The booleans/strings here are === comparable, so a fresh JSX getter
+  // call producing the same kind doesn't propagate.
+  const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
+  const orthographicFlag = createMemo(() => !!props.orthographic)
+  const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
+  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
+  const glKind = createMemo<"factory" | "instance" | "default">(() => {
+    const _propsGl = props.gl
+    if (typeof _propsGl === "function") return "factory"
+    if (isRenderer(_propsGl)) return "instance"
+    // TODO(Task 9): tuple form `gl={[ctorArgs, properties]}` — treat as default for now.
+    return "default"
+  })
+
   const camera = createMemo(() => {
-    if (props.camera instanceof Camera) {
+    if (cameraIsInstance()) {
       debugContext("camera", () => ({ source: "custom" }))
-      return props.camera as OrthographicCamera | PerspectiveCamera
+      return untrack(() => props.camera) as OrthographicCamera | PerspectiveCamera
     }
-    if (props.orthographic) {
+    if (orthographicFlag()) {
       debugContext("camera", () => ({ source: "new OrthographicCamera" }))
       return new OrthographicCamera()
     }
@@ -262,9 +285,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const scene = createMemo(() => {
     let sceneInstance: Scene
-    if (props.scene instanceof Scene) {
+    if (sceneIsInstance()) {
       debugContext("scene", () => ({ source: "custom" }))
-      sceneInstance = props.scene
+      sceneInstance = untrack(() => props.scene) as Scene
     } else {
       debugContext("scene", () => ({ source: "new Scene" }))
       sceneInstance = new Scene()
@@ -278,9 +301,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const raycaster = createMemo(() => {
     let instance: Raycaster | EventRaycaster
-    if (props.raycaster instanceof Raycaster) {
+    if (raycasterIsInstance()) {
       debugContext("raycaster", () => ({ source: "custom" }))
-      instance = props.raycaster
+      instance = untrack(() => props.raycaster) as Raycaster
     } else {
       debugContext("raycaster", () => ({ source: "new CursorRaycaster" }))
       instance = new CursorRaycaster()
@@ -295,16 +318,15 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const propsGl = props.gl
+    const kind = glKind()
     let rendererInstance: Renderer
-    // Instance check first — recognise any RendererLike (incl. WebGPURenderer)
-    // regardless of class, otherwise an `instanceof WebGLRenderer` would skip it.
-    if (isRenderer(propsGl)) {
+    if (kind === "instance") {
       debugContext("gl", () => ({ source: "custom" }))
-      rendererInstance = propsGl
-    } else if (typeof propsGl === "function") {
+      rendererInstance = untrack(() => props.gl) as Renderer
+    } else if (kind === "factory") {
       debugContext("gl", () => ({ source: "factory" }))
-      rendererInstance = propsGl(canvas)
+      const factory = untrack(() => props.gl) as (canvas: HTMLCanvasElement) => Renderer
+      rendererInstance = factory(canvas)
     } else {
       debugContext("gl", () => ({ source: "default" }))
       rendererInstance = new WebGLRenderer({ canvas, alpha: true })
