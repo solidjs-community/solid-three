@@ -2,6 +2,64 @@
 title: useFrame
 ---
 
+import useFrameSignal from "../snippets/08-use-frame-signal.tsx?raw"
+import useFrameImperative from "../snippets/08-use-frame-imperative.tsx?raw"
+import useFrameOptions from "../snippets/08-use-frame-options.tsx?raw"
+
 # useFrame
 
-(chapter content goes here)
+`<Canvas>` is already running an animation loop to render each frame.
+`useFrame` is the hook that lets you plug a callback into that loop — no
+extra `requestAnimationFrame`, and the callback gets a proper delta time
+in seconds.
+
+<Demo code={useFrameSignal} />
+
+`useFrame((context, delta) => ...)` runs once per rendered frame. Here we
+drive a signal forward by `delta` each frame and read it back into
+`rotation`. The cube spins at one radian per second on each axis,
+regardless of monitor refresh rate.
+
+## Imperative: skip the signal
+
+Driving a signal each frame is cheap in Solid — only the expressions that
+read it re-run — but you can shave even that off by mutating the `three.js`
+object directly. Get a ref to the mesh and write to its properties from
+inside `useFrame`.
+
+<Demo code={useFrameImperative} />
+
+No signal, no smart-prop call, no allocation per frame — just a property
+assignment. This is the pattern to reach for in hot paths (per-particle
+animations, big instanced meshes), where even a handful of property
+assignments per frame might add up.
+
+The reactive version is usually fine. Reach for the imperative one when the
+profiler tells you to.
+
+## What else is in `context`?
+
+The first argument to your callback is the same scene context you'll meet
+in the next chapter — `gl`, `scene`, `camera`, `clock`, `size`. Useful when
+your animation depends on more than just elapsed time.
+
+## Options: ordering with `priority`
+
+When two `useFrame` callbacks depend on each other, the order they run in
+matters. Pass `priority` to make the order explicit — lower numbers run
+first within the same stage.
+
+<Demo code={useFrameOptions} />
+
+The cube updates its position first (priority 0); the camera then reads
+that *new* position and follows it (priority 1). Swap the priorities and
+the camera will lag the cube by one frame.
+
+## Options: `stage`
+
+`stage: "before"` (the default) runs the callback before the render pass —
+your mutations show up this frame. `stage: "after"` runs it after — handy
+for post-render bookkeeping or custom render passes that need to come
+between frames.
+
+Most code never needs to set these, but they're there when you do.
