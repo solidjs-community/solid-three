@@ -277,13 +277,26 @@ export function isRenderer(value: unknown): value is Renderer {
 }
 
 /**
- * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
- * we both call and that three's WebGPU `XRManager` doesn't expose, so the
- * check is meaningful — not an arbitrary brand probe.
+ * Returns true if the renderer can host an XR session: its `xr` manager is an
+ * event target (so we can subscribe to `sessionstart`/`sessionend`) and the
+ * renderer itself exposes `setAnimationLoop` (the XR-aware loop driver, which
+ * lives on the renderer in both WebGL and WebGPU builds — only the WebGL
+ * `WebXRManager` *also* mirrors it).
+ *
+ * Unifies WebGL and WebGPU XR wiring: we always drive the loop via
+ * `gl.setAnimationLoop(...)` rather than `gl.xr.setAnimationLoop(...)`, which
+ * three's WebGPU `XRManager` doesn't expose.
  */
-export function isWebXRManager(value: unknown): value is WebXRManager {
+export function canDriveXR(
+  gl: unknown,
+): gl is { xr: WebXRManager; setAnimationLoop: (cb: XRFrameRequestCallback | null) => void } {
+  if (!gl || typeof gl !== "object") return false
+  const xr = (gl as { xr?: unknown }).xr
+  const setLoop = (gl as { setAnimationLoop?: unknown }).setAnimationLoop
   return (
-    !!value && typeof (value as { setAnimationLoop?: unknown }).setAnimationLoop === "function"
+    !!xr &&
+    typeof (xr as { addEventListener?: unknown }).addEventListener === "function" &&
+    typeof setLoop === "function"
   )
 }
 

@@ -49,7 +49,7 @@ import {
   getPendingInit,
   isRenderer,
   isWebGLShadowMap,
-  isWebXRManager,
+  canDriveXR,
   meta,
   removeElementFromArray,
   shallowEqual,
@@ -134,34 +134,33 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     if (canvasProps.frameloop === "never") return
     render(timestamp, frame)
   }
-  // XR session wiring is built for `WebXRManager` (WebGL build of three's
-  // XR). WebGPURenderer ships a different `XRManager` class that handles
-  // animation loops via the renderer itself — duck-typing on
-  // `setAnimationLoop` cleanly excludes it without needing instanceof checks
-  // (which would force runtime imports of the manager classes).
+  // Both WebGL and WebGPU expose `setAnimationLoop` on the *renderer* — that's
+  // the XR-aware loop driver. WebGL's `WebXRManager` mirrors it on `xr` as
+  // well; WebGPU's `XRManager` does not. Driving the loop via the renderer
+  // unifies both paths.
   function warnNonXR(method: string) {
     console.warn(
-      `solid-three: ${method} is a no-op — the active renderer has no \`WebXRManager\`-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
+      `solid-three: ${method} is a no-op — the active renderer can't host an XR session (needs an event-target \`xr\` manager and \`setAnimationLoop\` on the renderer). Pass a WebGLRenderer or a WebGPURenderer.`,
     )
   }
   function handleSessionChange() {
-    const xrManager = context.gl.xr
-    if (!isWebXRManager(xrManager)) return
-    xrManager.enabled = xrManager.isPresenting
-    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
+    const _gl = context.gl
+    if (!canDriveXR(_gl)) return
+    _gl.xr.enabled = _gl.xr.isPresenting
+    _gl.setAnimationLoop(_gl.xr.isPresenting ? handleXRFrame : null)
   }
   const xr = {
     connect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.connect()")
-      xrManager.addEventListener("sessionstart", handleSessionChange)
-      xrManager.addEventListener("sessionend", handleSessionChange)
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.connect()")
+      _gl.xr.addEventListener("sessionstart", handleSessionChange)
+      _gl.xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.disconnect()")
-      xrManager.removeEventListener("sessionstart", handleSessionChange)
-      xrManager.removeEventListener("sessionend", handleSessionChange)
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.disconnect()")
+      _gl.xr.removeEventListener("sessionstart", handleSessionChange)
+      _gl.xr.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -480,10 +479,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       })
 
       createEffect(() => {
-        // Wire XR only when the active renderer exposes a `WebXRManager`-
-        // shaped manager. Inner `xr.connect()`/`disconnect()` guards
-        // reinforce this if `context.gl` swaps later.
-        if (isWebXRManager(gl().xr)) context.xr.connect()
+        // Wire XR only when the active renderer can host a session. Inner
+        // `xr.connect()`/`disconnect()` guards reinforce this if `context.gl`
+        // swaps later.
+        if (canDriveXR(gl())) context.xr.connect()
       })
 
       // Color management and tone-mapping. Both WebGLRenderer and
