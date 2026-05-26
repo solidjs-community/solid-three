@@ -32,6 +32,9 @@ importers:
       solid-js:
         specifier: ^1.9.11
         version: 1.9.13
+      solid-three:
+        specifier: link:..
+        version: link:..
       three:
         specifier: ^0.181.2
         version: 0.181.2

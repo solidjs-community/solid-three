@@ -1,12 +1,9 @@
 import { clientOnly } from "@solidjs/start"
 import { createSignal, Show } from "solid-js"
-import HeroScene from "../snippets/hero"
 import heroSource from "../snippets/hero.tsx?raw"
 
-const LazyDemo = clientOnly(async () => {
-  const mod = await import("./demo")
-  return { default: mod.Demo }
-})
+const LazyHeroScene = clientOnly(() => import("../snippets/hero"))
+const LazyDemo = clientOnly(() => import("./demo"))
 
 export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
@@ -14,7 +11,7 @@ export function Hero() {
   return (
     <div class="hero">
       <div class="hero-canvas">
-        <HeroScene />
+        <LazyHeroScene />
       </div>
       <div class="hero-overlay">
         <h1 class="hero-title">solid-three</h1>
@@ -28,11 +25,7 @@ export function Hero() {
           </a>
         </div>
       </div>
-      <button
-        type="button"
-        class="hero-edit-toggle"
-        onClick={() => setEditorOpen(value => !value)}
-      >
+      <button type="button" class="hero-edit-toggle" onClick={() => setEditorOpen(value => !value)}>
         {editorOpen() ? "Close editor" : "Edit"}
       </button>
       <Show when={editorOpen()}>

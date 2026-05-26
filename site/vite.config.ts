@@ -51,9 +51,6 @@ const theme = defineTheme({
 const solidBase = createSolidBase(theme)
 
 export default defineConfig({
-  // SolidBase 0.6.3's published dist references sibling source files via the
-  // `.js` extension even when only `.jsx` exists on disk (e.g. Layout.jsx →
-  // `../client/index.js`). Map `.js` to `.jsx` so vite can resolve them.
   resolve: {
     extensionAlias: {
       ".js": [".js", ".jsx", ".ts", ".tsx"],

@@ -134,10 +134,11 @@ html[data-theme*="light"] {
 .hero {
   position: relative;
   width: 100vw;
-  height: 70vh;
-  min-height: 480px;
+  height: 100vh;
   overflow: hidden;
-  margin-inline: calc(-50vw + 50%);
+  position: fixed;
+  left: 0px;
+  top: 0px;
 }
 
 .hero-canvas {

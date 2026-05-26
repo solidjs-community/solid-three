@@ -1,15 +1,14 @@
-import * as THREE from "three"
 import * as CANNON from "cannon-es"
-import { Canvas, createT, useFrame, useThree } from "solid-three"
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
-import { FontLoader, type Font } from "three/examples/jsm/loaders/FontLoader.js"
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
+import { Canvas, createT, useFrame, useThree } from "solid-three"
+import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
+import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
+import { FontLoader, type Font } from "three/examples/jsm/loaders/FontLoader.js"
 
 const T = createT(THREE)
 
-const FONT_URL =
-  "https://esm.sh/three@0.181/examples/fonts/helvetiker_bold.typeface.json"
+const FONT_URL = "https://esm.sh/three@0.181/examples/fonts/helvetiker_bold.typeface.json"
 
 const LETTERS = ["S", "O", "L", "I", "D", "T", "H", "R", "E", "E"] as const
 const SOLID_BLUE = "#2c4f7c"
@@ -38,11 +37,11 @@ function buildLetterStates(font: Font): LetterState[] {
     const geometry = new TextGeometry(letter, {
       font,
       size: 0.8,
-      height: 0.25,
+      depth: 0.1,
       curveSegments: 8,
       bevelEnabled: true,
       bevelSize: 0.02,
-      bevelThickness: 0.02,
+      bevelThickness: 0.005,
       bevelSegments: 2,
     })
     geometry.center()
@@ -51,9 +50,7 @@ function buildLetterStates(font: Font): LetterState[] {
     const size = new THREE.Vector3()
     box.getSize(size)
     const halfExtents = size.clone().multiplyScalar(0.5)
-    const shape = new CANNON.Box(
-      new CANNON.Vec3(halfExtents.x, halfExtents.y, halfExtents.z),
-    )
+    const shape = new CANNON.Box(new CANNON.Vec3(halfExtents.x, halfExtents.y, halfExtents.z))
     const body = new CANNON.Body({ mass: 1, shape })
     body.position.set(startXFor(index), 4 + Math.random() * 2, (Math.random() - 0.5) * 0.5)
     body.quaternion.setFromEuler(
@@ -96,44 +93,10 @@ function EnvironmentSetup() {
   return null
 }
 
-export default function Hero() {
-  const [font, setFont] = createSignal<Font | undefined>()
-
-  onMount(() => {
-    new FontLoader().load(
-      FONT_URL,
-      loaded => setFont(loaded),
-      undefined,
-      error => console.error("[hero] font load failed", error),
-    )
-  })
-
-  const world = createMemo(() => {
-    const f = font()
-    if (!f) return undefined
-    const w = createWorld()
-    const letters = buildLetterStates(f)
-    letters.forEach(letter => w.addBody(letter.body))
-    return { world: w, letters }
-  })
-
-  return (
-    <Canvas camera={{ position: [0, 1.5, 6], fov: 45 }}>
-      <EnvironmentSetup />
-      <T.AmbientLight intensity={0.6} />
-      <T.DirectionalLight position={[3, 6, 4]} intensity={1.1} />
-      <Show when={world()}>
-        {worldRef => <Scene state={worldRef()} />}
-      </Show>
-    </Canvas>
-  )
-}
-
 function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }) {
   const three = useThree()
   const startTime = performance.now()
   const meshes: (THREE.Mesh | undefined)[] = []
-  const shadowMeshes: (THREE.Mesh | undefined)[] = []
   const cursor = new THREE.Vector3()
   let cursorActive = false
   let isCoarsePointer = false
@@ -187,11 +150,7 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
     props.state.letters.forEach((letter, i) => {
       const mesh = meshes[i]
       if (!mesh) return
-      mesh.position.set(
-        letter.body.position.x,
-        letter.body.position.y,
-        letter.body.position.z,
-      )
+      mesh.position.set(letter.body.position.x, letter.body.position.y, letter.body.position.z)
       mesh.quaternion.set(
         letter.body.quaternion.x,
         letter.body.quaternion.y,
@@ -199,21 +158,12 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
         letter.body.quaternion.w,
       )
     })
-    props.state.letters.forEach((letter, i) => {
-      const shadow = shadowMeshes[i]
-      if (!shadow) return
-      const height = Math.max(0, letter.body.position.y)
-      const opacity = Math.max(0, 0.45 - height * 0.15)
-      const scale = 1 - Math.min(0.6, height * 0.1)
-      shadow.position.set(letter.body.position.x, 0.01, letter.body.position.z)
-      shadow.scale.setScalar(scale)
-      ;(shadow.material as THREE.MeshBasicMaterial).opacity = opacity
-    })
     const t = (performance.now() - startTime) / 1000
-    const angle = Math.sin(t * 0.05) * 0.3
-    three.camera.position.x = Math.sin(angle) * 6
-    three.camera.position.z = Math.cos(angle) * 6
-    three.camera.lookAt(0, 0.5, 0)
+    const angle = t * 0.08
+    const radius = 0.8
+    three.camera.position.x = Math.sin(angle) * radius
+    three.camera.position.z = Math.cos(angle) * radius + 2.5
+    three.camera.lookAt(0, 0, 0)
   })
 
   onCleanup(() => {
@@ -221,19 +171,14 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
   })
 
   return (
-    <For each={props.state.letters}>
-      {(letter, i) => (
-        <>
-          <T.Mesh
-            ref={mesh => (shadowMeshes[i()] = mesh)}
-            rotation={[-Math.PI / 2, 0, 0]}
-          >
-            <T.CircleGeometry args={[letter.halfExtents.x * 1.6, 16]} />
-            <T.MeshBasicMaterial color="#000000" transparent opacity={0.45} />
-          </T.Mesh>
+    <>
+      <T.GridHelper args={[8, 12]} />
+      <For each={props.state.letters}>
+        {(letter, i) => (
           <T.Mesh
             ref={mesh => (meshes[i()] = mesh)}
             geometry={letter.geometry}
+            castShadow
             onPointerDown={() => {
               const upward = 5 + Math.random() * 2
               const sideways = (Math.random() - 0.5) * 3
@@ -245,8 +190,56 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
           >
             <T.MeshStandardMaterial color={letter.color} metalness={0.85} roughness={0.2} />
           </T.Mesh>
-        </>
-      )}
-    </For>
+        )}
+      </For>
+    </>
+  )
+}
+
+export default function Hero() {
+  const [font, setFont] = createSignal<Font | undefined>()
+
+  onMount(() => {
+    new FontLoader().load(
+      FONT_URL,
+      loaded => setFont(loaded),
+      undefined,
+      error => console.error("[hero] font load failed", error),
+    )
+  })
+
+  const world = createMemo(() => {
+    const f = font()
+    if (!f) return undefined
+    const w = createWorld()
+    const letters = buildLetterStates(f)
+    letters.forEach(letter => w.addBody(letter.body))
+    return { world: w, letters }
+  })
+
+  return (
+    <Canvas camera={{ position: [0, 6, 3], fov: 40 }} shadows>
+      <EnvironmentSetup />
+      <T.AmbientLight intensity={0.6} />
+      <T.DirectionalLight
+        position={[3, 6, 4]}
+        intensity={1.1}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-8}
+        shadow-camera-right={8}
+        shadow-camera-top={8}
+        shadow-camera-bottom={-2}
+        shadow-camera-near={0.5}
+        shadow-camera-far={16}
+        shadow-bias={-0.001}
+      />
+      <T.Mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <T.PlaneGeometry args={[20, 20]} />
+        <T.ShadowMaterial color="#000000" opacity={0.4} />
+      </T.Mesh>
+      <Show when={world()}>{worldRef => <Scene state={worldRef()} />}</Show>
+    </Canvas>
   )
 }

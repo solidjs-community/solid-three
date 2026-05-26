@@ -72,8 +72,10 @@ type Piece = {
   `emptyBoard()` returns `HEIGHT` rows × `WIDTH` columns of `undefined`.
   Indexed as `board[y][x]` (row-major; y grows downward).
 - **Piece store**: `createStore<Piece>(spawn())`.
-- **Cell component**: a `<RoundedBox>` (from `@solid-three/drei`) with a
-  plain `<T.MeshStandardMaterial color={…} />`. No textures, no env-map.
+- **Cell component**: a `<T.Mesh>` containing `<T.BoxGeometry>` and
+  `<T.MeshStandardMaterial color={…} />`. No textures, no env-map. (The
+  codebase uses plain `solid-three` primitives via `createT(THREE)`; no
+  `@solid-three/drei`.)
 - **Tetromino component**: takes `piece` and renders one `Cell` per filled
   square in `piece.shape`, offset by `piece.position`.
 - **Two parallel renders** (the punchline):

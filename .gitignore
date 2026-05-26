@@ -7,3 +7,4 @@ packed/
 .vitest-attachments/
 tests/**/__screenshots__/
 .claude/worktrees/
+site/.output

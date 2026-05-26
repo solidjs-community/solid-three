@@ -6,4 +6,4 @@
  */
 import "./style.css"
 
-export { Demo } from "../components/demo"
+export { default as Demo } from "../components/demo"
