@@ -41,13 +41,15 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   frameloop?: "never" | "demand" | "always"
   /** Options for the WebGLRenderer or a function returning a customized renderer. */
   gl?:
+    // Flat object accepts both `WebGLRendererParameters` (constructor-only,
+    // e.g. `antialias`, `alpha`) and writable instance props (e.g.
+    // `toneMapping`). solid-three splits them at construction: ctor args are
+    // baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
+    // When `Register` narrows `ResolvedRenderer` away from WebGL this branch
+    // collapses to `never` so the user is forced into the factory or instance
+    // form that matches their declared renderer.
     | (WebGLRenderer extends ResolvedRenderer
-        ?
-            | Partial<Props<WebGLRenderer>>
-            | readonly [
-                constructorParameters: Partial<WebGLRendererParameters>,
-                properties: Partial<Props<WebGLRenderer>>,
-              ]
+        ? Partial<Props<WebGLRenderer> & WebGLRendererParameters>
         : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer

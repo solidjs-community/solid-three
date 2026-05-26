@@ -1,6 +1,7 @@
 import { setContext } from "@solidjs/signals"
 import {
   children,
+  createEffect,
   createMemo,
   createRenderEffect,
   createRoot,
@@ -56,7 +57,6 @@ import {
   isWebGLShadowMap,
   meta,
   removeElementFromArray,
-  shallowEqual,
   useRef,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
@@ -274,18 +274,30 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     return "default"
   })
   /**
-   * Constructor arguments for the default WebGLRenderer branch. Tuple form
-   * `gl={[ctorArgs, properties]}` puts them in slot 0; single-object form
-   * implies empty ctor args. Firewalled by `shallowEqual` so a fresh-reference
-   * same-content config (typical JSX getter behaviour) doesn't recreate.
+   * Keys of `WebGLRendererParameters` that configure context creation or are
+   * otherwise constructor-only. The default-branch of the `gl` memo
+   * partitions a flat `gl={...}` prop into ctor args (baked once at
+   * construction, since WebGL's `getContext` is idempotent per canvas) and
+   * instance props (reactive via `useProps`). See the warn-on-update effect
+   * below for what happens when the user changes a ctor key reactively.
    */
-  const glConstructorArgs = createMemo<Partial<WebGLRendererParameters>>(
-    () => {
-      const _propsGl = props.gl
-      return Array.isArray(_propsGl) ? _propsGl[0] : {}
-    },
-    { equals: shallowEqual },
-  )
+  const WEBGL_CTOR_KEYS = [
+    "alpha",
+    "antialias",
+    "depth",
+    "failIfMajorPerformanceCaveat",
+    "logarithmicDepthBuffer",
+    "powerPreference",
+    "precision",
+    "premultipliedAlpha",
+    "preserveDrawingBuffer",
+    "reversedDepthBuffer",
+    "stencil",
+  ] as const satisfies readonly (keyof WebGLRendererParameters)[]
+  // Initial ctor-arg snapshot (untracked) — used to detect post-construction
+  // changes the user might be expecting to take effect, but can't (WebGL
+  // contexts are immutable once created).
+  let initialCtorArgs: Partial<WebGLRendererParameters> = {}
 
   const camera = createMemo(() => {
     let cameraInstance: OrthographicCamera | PerspectiveCamera
@@ -353,8 +365,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       rendererInstance = autodispose(factory(canvas))
     } else {
       debugContext("gl", () => ({ source: "default" }))
-      // `canvas` is solid-three's own and placed last so user ctor args can't override it.
-      rendererInstance = autodispose(new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas }))
+      // Default branch — construct a WebGLRenderer with the user's flat `gl`
+      // prop. Split via `WEBGL_CTOR_KEYS`: those keys go to the constructor
+      // (baked in for the renderer's lifetime, since WebGL won't give us a
+      // fresh context on the same canvas), the rest are applied as instance
+      // props via the `useProps` call below. `alpha: true` is our default;
+      // the user's value (if any) wins. `canvas` is last so the user can't
+      // override it.
+      const flat = untrack(() => (props.gl as Partial<WebGLRendererParameters>) ?? {})
+      const ctorArgs: Partial<WebGLRendererParameters> = {}
+      for (const key of WEBGL_CTOR_KEYS) {
+        if (key in flat) ctorArgs[key] = flat[key] as never
+      }
+      initialCtorArgs = ctorArgs
+      rendererInstance = autodispose(new WebGLRenderer({ alpha: true, ...ctorArgs, canvas }))
     }
 
     return meta(rendererInstance, {
@@ -630,23 +654,45 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
-      // Apply props only for the config-object / tuple branch (not a renderer
-      // instance, not a factory function). For the tuple form, slot 1 carries
-      // the reactive properties; slot 0 went through `glConstructorArgs`.
+      // Apply props.gl as renderer instance properties — only when it's a
+      // config object, not a factory or a pre-built instance. Ctor-only keys
+      // in the flat object (e.g. `antialias`) get assigned to the instance
+      // too; that's a harmless junk property on the renderer (three doesn't
+      // re-read them). The warn effect below catches users who *expect*
+      // those changes to take effect.
       const _propsGl = props.gl
       if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
-        debugEffects("gl", () => ({
-          action: "apply",
-          type: Array.isArray(_propsGl) ? "tuple-properties" : "user-options",
-        }))
-        useProps(gl, (Array.isArray(_propsGl) ? _propsGl[1] : _propsGl) as object)
+        debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
+        useProps(gl, _propsGl as object)
       } else {
         debugEffects("gl", () => ({
           action: "skip",
           reason: !_propsGl ? "no gl prop" : "gl is renderer instance or factory",
         }))
       }
+
+      // Warn when the user reactively changes a constructor-only key. WebGL
+      // bakes these into the context at creation and never re-reads them, so
+      // a Solid-style reactive change here is a silent no-op without this.
+      let warnedCtorKeys = false
+      createEffect(
+        () => props.gl,
+        flatProp => {
+          if (warnedCtorKeys) return
+          const flat = (flatProp as Partial<WebGLRendererParameters>) ?? {}
+          for (const key of WEBGL_CTOR_KEYS) {
+            if (key in flat && flat[key] !== initialCtorArgs[key]) {
+              console.warn(
+                `solid-three: <Canvas gl={...}> received a new value for "${String(key)}", ` +
+                  `but WebGLRenderer constructor args are immutable for the canvas's lifetime. ` +
+                  `To swap renderer config at runtime, unmount and remount <Canvas>.`,
+              )
+              warnedCtorKeys = true
+              return
+            }
+          }
+        },
+      )
     },
     () => {},
   )
