@@ -83,7 +83,16 @@ export function meta<T>(instance: T, augmentation = { props: {} }) {
     return instance
   }
   const _instance = instance as Meta<T>
-  _instance[$S3C] = { children: new Set(), parent: undefined, ...augmentation }
+  // `mergeProps` preserves getters on `augmentation` (e.g.
+  // `get props() { ... }`) without invoking them at merge time. The
+  // earlier `{ ..., ...augmentation }` form ran every getter once and
+  // froze the value — which both lost reactivity downstream AND tracked
+  // every signal the getter touched into whatever scope `meta()` was
+  // called from.
+  _instance[$S3C] = mergeProps(
+    { children: new Set(), parent: undefined },
+    augmentation,
+  ) as Data<T>
   return _instance
 }
 
@@ -207,6 +216,24 @@ export const hasColorSpace = <
 
 export function isConstructor<T>(value: T | Constructor): value is Constructor {
   return typeof value === "function" && value.prototype !== undefined
+}
+
+/**
+ * Shallow object equality. Used as the `equals` argument to `createMemo` so
+ * a fresh-reference-same-content object (e.g. `{ antialias: true }` returned
+ * by a JSX getter each tick) doesn't propagate downstream. Same keys + each
+ * value `===` ⇒ equal.
+ */
+export function shallowEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false
+  }
+  return true
 }
 
 /**

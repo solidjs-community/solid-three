@@ -560,6 +560,58 @@ describe("renderer", () => {
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
+  it("should accept the tuple `[constructorArgs, properties]` form for gl", async () => {
+    // Smoke test — tuple is recognised and tuple[1] is applied as instance props.
+    const gl = test(() => <T.Group />, {
+      gl: [{ antialias: false }, { toneMapping: THREE.NoToneMapping }],
+    }).gl as unknown as THREE.WebGLRenderer
+    expect(gl).toBeInstanceOf(THREE.WebGLRenderer)
+    expect(gl.toneMapping).toBe(THREE.NoToneMapping)
+  })
+
+  it("should not recreate the renderer when tuple[1] changes but tuple[0] is shallow-equal", async () => {
+    const [tick, setTick] = createSignal(0)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [
+          { antialias: false },
+          { toneMapping: tick() === 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping },
+        ] as [{ antialias: boolean }, { toneMapping: THREE.ToneMapping }]
+      },
+    })
+
+    const initial = state.gl
+    setTick(1)
+    expect(state.gl).toBe(initial)
+  })
+
+  it("should recreate the renderer when tuple[0] changes shape", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl
+    setAa(false)
+    expect(state.gl).not.toBe(initial)
+  })
+
+  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl as unknown as THREE.WebGLRenderer
+    const disposeSpy = vi.spyOn(initial, "dispose")
+    setAa(false)
+    expect(disposeSpy).toHaveBeenCalled()
+  })
+
   it("should update scene via scene prop", async () => {
     const scene = test(() => <T.Group />, { scene: { name: "test" } }).scene
 
@@ -766,6 +818,87 @@ describe("renderer", () => {
       await pending!()
       expect(init).toHaveBeenCalledTimes(1)
       expect(capturedThis).toBe(fake)
+    })
+  })
+
+  /**
+   * Construction firewall — see `cameraInput`/`sceneInput`/`raycasterInput`/
+   * `glInput` memos in `create-three.tsx`. Each prop is read through a
+   * `createMemo({equals: shallowEqual})` so reactive config-objects with
+   * fresh references but identical *shape* don't re-allocate three.js
+   * objects (which would break held refs).
+   */
+  describe("construction firewall", () => {
+    it("camera memo doesn't recreate when prop reference changes but shape is equal", () => {
+      const [tick, setTick] = createSignal(0)
+      const state = test(() => <T.Group />, {
+        get camera() {
+          tick() // track signal
+          return { position: [0, 0, 5] as [number, number, number] }
+        },
+      })
+
+      const initial = state.camera
+      setTick(1)
+      setTick(2)
+      expect(state.camera).toBe(initial)
+    })
+
+    it("camera memo does recreate when orthographic flag flips", () => {
+      const [ortho, setOrtho] = createSignal(false)
+      const state = test(() => <T.Group />, {
+        get orthographic() {
+          return ortho()
+        },
+      })
+
+      const initial = state.camera
+      expect(initial).toBeInstanceOf(THREE.PerspectiveCamera)
+      setOrtho(true)
+      expect(state.camera).not.toBe(initial)
+      expect(state.camera).toBeInstanceOf(THREE.OrthographicCamera)
+    })
+
+    it("scene memo doesn't recreate when prop reference changes but shape is equal", () => {
+      const [tick, setTick] = createSignal(0)
+      const state = test(() => <T.Group />, {
+        get scene() {
+          tick()
+          return { name: "main" }
+        },
+      })
+
+      const initial = state.scene
+      setTick(1)
+      expect(state.scene).toBe(initial)
+    })
+
+    it("raycaster memo doesn't recreate when prop reference changes but shape is equal", () => {
+      const [tick, setTick] = createSignal(0)
+      const state = test(() => <T.Group />, {
+        get raycaster() {
+          tick()
+          return { near: 0.1, far: 1000 }
+        },
+      })
+
+      const initial = state.raycaster
+      setTick(1)
+      expect(state.raycaster).toBe(initial)
+    })
+
+    it("gl memo doesn't recreate when prop reference changes but shape is equal", () => {
+      const [tick, setTick] = createSignal(0)
+      const state = test(() => <T.Group />, {
+        get gl() {
+          tick()
+          return { toneMappingExposure: 1 }
+        },
+      })
+
+      const initial = state.gl
+      setTick(1)
+      expect(state.gl).toBe(initial)
     })
   })
 

@@ -24,6 +24,7 @@ import {
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
 import { createEvents } from "./create-events.ts"
@@ -37,6 +38,7 @@ import type {
   Context,
   FrameListener,
   FrameListenerCallback,
+  Meta,
   Renderer,
 } from "./types.ts"
 import {
@@ -48,6 +50,7 @@ import {
   isWebXRManager,
   meta,
   removeElementFromArray,
+  shallowEqual,
   useRef,
   withMultiContexts,
 } from "./utils.ts"
@@ -210,53 +213,121 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
-  const camera = createMemo(() =>
-    meta(
-      props.camera instanceof Camera
-        ? (props.camera as OrthographicCamera | PerspectiveCamera)
-        : props.orthographic
-          ? new OrthographicCamera()
-          : new PerspectiveCamera(),
+  // Construction firewall — only track inputs that actually decide WHICH
+  // object to construct (instanceof checks, orthographic flag, gl kind).
+  // The full prop config is read INSIDE the branch that needs it, so
+  // reactive config-objects (e.g. `<Canvas camera={{ position: pos() }}>`)
+  // whose contents change but whose "shape category" stays the same don't
+  // re-run the construction memo. Post-construction updates flow through
+  // the existing `useProps(…)` effects unchanged.
+  //
+  // The booleans/strings here are === comparable, so a fresh JSX getter
+  // call producing the same kind doesn't propagate.
+  const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
+  const orthographicFlag = createMemo(() => !!props.orthographic)
+  const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
+  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
+  const glKind = createMemo<"factory" | "instance" | "default">(() => {
+    const _propsGl = props.gl
+    if (typeof _propsGl === "function") return "factory"
+    if (isRendererInstance(_propsGl)) return "instance"
+    return "default"
+  })
+  /**
+   * Constructor arguments for the default WebGLRenderer branch. Tuple form
+   * `gl={[ctorArgs, properties]}` puts them in slot 0; single-object form
+   * implies empty ctor args. Firewalled by `shallowEqual` so a fresh-reference
+   * same-content config (typical JSX getter behaviour) doesn't recreate.
+   */
+  const glConstructorArgs = createMemo<Partial<WebGLRendererParameters>>(
+    () => {
+      const _propsGl = props.gl
+      return Array.isArray(_propsGl) ? _propsGl[0] : {}
+    },
+    {},
+    { equals: shallowEqual },
+  )
+
+  const camera = createMemo(() => {
+    if (cameraIsInstance()) {
+      // Read props.camera reactively here so swapping instances at runtime works.
+      return meta(props.camera as OrthographicCamera | PerspectiveCamera, {
+        get props() {
+          return props.camera || {}
+        },
+      })
+    }
+    // Config-object branch: don't read props.camera in the memo body — the
+    // contents don't affect construction (they're applied via useProps later).
+    return meta(
+      orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(),
       {
         get props() {
           return props.camera || {}
         },
       },
-    ),
-  )
+    )
+  })
   const cameraStack = new Stack<CameraKind>("camera")
 
-  const scene = createMemo(() =>
-    meta(props.scene instanceof Scene ? props.scene : new Scene(), {
+  const scene = createMemo(() => {
+    if (sceneIsInstance()) {
+      return meta(props.scene as Scene, {
+        get props() {
+          return props.scene || {}
+        },
+      })
+    }
+    return meta(new Scene(), {
       get props() {
         return props.scene || {}
       },
-    }),
-  )
+    })
+  })
 
-  const raycaster = createMemo(() =>
-    meta<Raycaster | EventRaycaster>(
-      props.raycaster instanceof Raycaster ? props.raycaster : new CursorRaycaster(),
-      {
+  const raycaster = createMemo(() => {
+    if (raycasterIsInstance()) {
+      return meta<Raycaster | EventRaycaster>(props.raycaster as Raycaster, {
         get props() {
           return props.raycaster || {}
         },
+      })
+    }
+    return meta<Raycaster | EventRaycaster>(new CursorRaycaster(), {
+      get props() {
+        return props.raycaster || {}
       },
-    ),
-  )
+    })
+  })
 
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
-  const gl = createMemo(() => {
-    const _gl: Renderer =
-      typeof props.gl === "function"
-        ? // factory callback that returns a renderer
-          props.gl(canvas)
-        : isRendererInstance(props.gl)
-          ? // an already-built renderer instance (WebGLRenderer, WebGPURenderer, …)
-            props.gl
-          : // no renderer supplied (or a config-props object) → default WebGLRenderer
-            new WebGLRenderer({ canvas, alpha: true })
+  // Tracks whether the *previous* renderer was built by us (vs supplied by
+  // the user via factory/instance). Only our own renderers get disposed when
+  // the memo re-runs — disposing a user's renderer would be rude.
+  let ownsCurrentRenderer = false
+  const gl = createMemo<Meta<Renderer>>(previous => {
+    if (previous && ownsCurrentRenderer) {
+      const old = previous as unknown as WebGLRenderer
+      old.dispose?.()
+      if ("forceContextLoss" in old) old.forceContextLoss()
+    }
+    const kind = glKind()
+    let _gl: Renderer
+    if (kind === "factory") {
+      _gl = (props.gl as (canvas: HTMLCanvasElement) => Renderer)(canvas)
+      ownsCurrentRenderer = false
+    } else if (kind === "instance") {
+      _gl = props.gl as Renderer
+      ownsCurrentRenderer = false
+    } else {
+      // Default branch — construct a WebGLRenderer with the user's ctor args
+      // (if they passed a `[ctorArgs, props]` tuple). The default `alpha: true`
+      // can be overridden by the user; `canvas` is solid-three's own and
+      // intentionally placed last so it can't be.
+      _gl = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas })
+      ownsCurrentRenderer = true
+    }
 
     return meta(_gl, {
       get props() {
@@ -442,10 +513,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         })
       }
 
-      // Apply props.gl as renderer config only when it's a plain config object
-      // (i.e. not a factory or a renderer instance).
-      if (props.gl && typeof props.gl !== "function" && !isRendererInstance(props.gl)) {
-        useProps(gl, props.gl)
+      // Apply props.gl as renderer instance properties only when it's a
+      // config object or tuple — not a factory or a pre-built instance. For
+      // the tuple form, the instance-writable side is slot 1; for the
+      // single-object form, the whole object goes through.
+      const _propsGl = props.gl
+      if (_propsGl && typeof _propsGl !== "function" && !isRendererInstance(_propsGl)) {
+        useProps(gl, Array.isArray(_propsGl) ? _propsGl[1] : _propsGl)
       }
     })
   }, [[threeContext, context]])
