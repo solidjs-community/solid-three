@@ -75,44 +75,67 @@ export default defineConfig({
         },
         sidebar: [
           {
-            title: "Part I — Foundations",
+            title: "Part 1 — It's just Solid",
             collapsed: false,
             items: [
-              { title: "Hello, Canvas", link: "/01-hello-canvas" },
-              { title: "The T proxy", link: "/02-t-proxy" },
+              { title: "Your first scene", link: "/01-your-first-scene" },
+              { title: "Nesting & transforms", link: "/02-nesting-and-transforms" },
+              { title: "Smart props", link: "/03-smart-props" },
             ],
           },
           {
-            title: "Part II — Reactivity",
+            title: "Part 2 — Signals are the animation loop",
             collapsed: true,
-            items: [],
+            items: [
+              { title: "Signals drive the scene", link: "/04-signals-drive-the-scene" },
+              { title: "useFrame", link: "/05-use-frame" },
+              { title: "useThree", link: "/06-use-three" },
+            ],
           },
           {
-            title: "Part III — Beyond primitives",
+            title: "Part 3 — The scene talks back",
             collapsed: true,
-            items: [],
+            items: [
+              { title: "Pointer events", link: "/07-pointer-events" },
+              { title: "Configuring the raycaster", link: "/08-raycaster" },
+            ],
           },
           {
-            title: "Part IV — Interaction",
+            title: "Part 4 — Stuff that's not in the scene",
             collapsed: true,
-            items: [],
+            items: [
+              { title: "Loaders & Resource", link: "/09-loaders-and-resource" },
+              { title: "autodispose & meta", link: "/10-autodispose-and-meta" },
+            ],
           },
           {
-            title: "Part V — Composition",
+            title: "Part 5 — Compose your own",
             collapsed: true,
-            items: [],
+            items: [
+              { title: "Portal", link: "/11-portal" },
+              { title: "useProps & custom components", link: "/12-use-props" },
+            ],
           },
           {
-            title: "Part VI — Putting it together",
+            title: "Part 6 — Ship something real",
             collapsed: true,
-            items: [],
+            items: [
+              { title: "An interactive scene", link: "/13-interactive-scene" },
+            ],
+          },
+          {
+            title: "Encore",
+            collapsed: true,
+            items: [
+              { title: "A peek at WebGPU", link: "/14-webgpu-peek" },
+            ],
           },
         ],
       },
     }),
-    solidStart(solidBase.startConfig()),
+    solidStart({ ...solidBase.startConfig(), ssr: false }),
     nitro({
-      preset: "node-server",
+      preset: "static",
     }),
   ],
 })

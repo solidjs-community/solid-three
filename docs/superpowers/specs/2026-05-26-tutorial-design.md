@@ -57,40 +57,54 @@ A thin `<Demo>` wrapper inside `tutorial/src/components/` provides:
 
 Six parts, 17 chapters. Each chapter introduces one concept.
 
-### Part I — Foundations
+The arc is built around what the reader **feels** in each part, not the API surface ticked off. Each chapter introduces at most one new idea.
 
-1. **Hello, Canvas** — mount a `<Canvas>`, see an empty scene
-2. **The T proxy** — `createT(THREE)`; render a `T.Mesh` with `T.BoxGeometry` + `T.MeshBasicMaterial`
-3. **Scene graph** — JSX nesting maps to parent/child; transforms (`position`, `rotation`, `scale`)
-4. **Smart props** — `position={[x,y,z]}`, color strings, `args` for constructor params, `set` / `setScalar` inference
+### Part 1 — It's just Solid
 
-### Part II — Reactivity
+You already know how to read this. JSX nesting becomes a scene graph.
 
-5. **Signals drive the scene** — a rotating cube driven by `createSignal`
-6. **`useFrame`** — animating without re-rendering
-7. **`useThree`** — reading `gl`, `camera`, `size`, `clock`
+1. **Your first scene** — `<Canvas>` + introduction to both `<Entity>` and `createT` (including the tree-shaking tradeoff)
+2. **Nesting & transforms** — JSX nesting maps to parent/child; `position` / `rotation` / `scale`
+3. **Smart props** — `position={[x,y,z]}`, color strings, `args`, `set` / `setScalar` inference
 
-### Part III — Beyond primitives
+### Part 2 — Signals are the animation loop
 
-8. **`Entity`** — using arbitrary three classes / custom subclasses
-9. **`Resource` + `useLoader`** — async assets, suspense boundaries
+Reactivity drives the scene; no `useEffect` needed to animate.
+
+4. **Signals drive the scene** — a rotating cube driven by `createSignal`
+5. **`useFrame`** — animating per-frame without re-rendering
+6. **`useThree`** — reading `gl`, `camera`, `size`, `clock`
+
+### Part 3 — The scene talks back
+
+The scene reacts to the user, not just to props.
+
+7. **Pointer events** — `onClick`, `onPointerOver`, `onClickMissed`
+8. **Configuring the raycaster** — layers, thresholds
+
+### Part 4 — Stuff that's not in the scene
+
+Async, lifecycle, ownership.
+
+9. **Loaders & `Resource`** — async assets and suspense
 10. **`autodispose` & `meta`** — lifecycle and resource ownership
 
-### Part IV — Interaction
+### Part 5 — Compose your own
 
-11. **Pointer events** — `onClick`, `onPointerOver`, `onClickMissed`
-12. **The raycaster** — configuring layers / thresholds
+Going from consumer to library author.
 
-### Part V — Composition
+11. **`Portal`** — rendering into another scene/target
+12. **`useProps` & custom components** — building reusable helpers
 
-13. **`Portal`** — rendering into another scene/target
-14. **`useProps`** — building your own helper components
-15. **Custom renderers** — swapping `gl` for WebGPU; a peek at TSL
+### Part 6 — Ship something real
 
-### Part VI — Putting it together
+The climax: an interactive 3D scene that feels like a real Solid app.
 
-16. **A solar system** — built from scratch, step by step (reuses the existing `examples/solar.tsx` material)
-17. **An environment scene** — loaders + lighting + post
+13. **An interactive scene** — clickable + hoverable objects, signal-driven UI panel, end-to-end build (absorbs the old solar-system and environment-scene examples as ingredients)
+
+### Encore
+
+14. **A peek at WebGPU** — short, optional, "where this is going" (TSL primer)
 
 ## Authoring format — MDX
 
