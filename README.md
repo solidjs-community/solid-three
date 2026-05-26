@@ -493,13 +493,17 @@ Example:
 
 ### Resource
 
-Wrapper-component around ['useLoader'](#useloader).
+Wrapper-component around [`useLoader`](#useloader).
 
 **Props:**
 
 - `loader` - Three.js loader constructor (e.g., `TextureLoader`, `GLTFLoader`)
 - `url` - URL(s) to load, depending on what the passed loader expects
 - `children` - Optional render function
+- `base` - Base URL for resolving relative paths (forwarded to `useLoader`)
+- `cache` - `true` (default global cache), `false` (disable), or a custom `LoaderRegistry` instance
+- `onBeforeLoad` - Callback fired with the loader instance before loading starts (e.g. to configure decoders)
+- `onLoad` - Callback fired with the resolved resource after loading succeeds
 - `*` - Additional props are passed to the loaded resource
 
 **Examples:**
