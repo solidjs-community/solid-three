@@ -491,8 +491,8 @@ const camera = useThree(ctx => ctx.camera)
 - **setCamera** (`(camera: Camera) => () => void`): A setter-function for setting the current camera.
 - **canvas** (`HTMLCanvasElement`): The canvas DOM element.
 - **clock** (`Clock`): The `three.js` clock for timing.
-- **dpr** (`number`): Device pixel ratio.
-- **gl** (`WebGLRenderer`): The WebGL renderer instance.
+- **dpr** (`number`): Device pixel ratio reported by the active renderer (falls back to `1` for renderers without `getPixelRatio`, e.g. `CSS3DRenderer` / `SVGRenderer`).
+- **gl** (`Renderer`): The active renderer — `WebGLRenderer | WebGPURenderer | RendererLike` by default. Narrow to a concrete type project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
 - **raycaster** (`Raycaster`): The current raycaster used for pointer events.
 - **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster.
 - **render** (`(delta: number) => void`): Function to manually trigger a render.
