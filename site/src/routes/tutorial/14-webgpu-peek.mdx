@@ -2,6 +2,77 @@
 title: A peek at WebGPU
 ---
 
+import webgpuSimple from "../../snippets/14-webgpu-simple.tsx?raw"
+import webgpuTsl from "../../snippets/14-webgpu-tsl.tsx?raw"
+
 # A peek at WebGPU
 
-(chapter content goes here)
+`three.js` is in the middle of moving from WebGL to WebGPU. The new
+renderer is a drop-in replacement — same scene graph, same materials,
+same APIs you've been using — but it also unlocks **TSL**, a node-based
+shader language you can write in TypeScript instead of GLSL.
+
+This chapter is a short peek at both.
+
+## Swapping the renderer
+
+`<Canvas>` accepts a `gl` callback that lets you build any renderer you
+want. To use WebGPU, return a `WebGPURenderer` from `three/webgpu`.
+`solid-three` awaits its `init()` for you before the first frame.
+
+<Demo code={webgpuSimple} />
+
+Same `<Canvas>`, same `<T.Mesh>`, same `useFrame` — only the `gl` line
+changed. Everything you've learned still applies.
+
+> Heads up: WebGPU is desktop-Chrome/Edge first. Other browsers are still
+> shipping support. If the canvas above is blank, your browser doesn't
+> have WebGPU enabled yet.
+
+## TSL: shaders in TypeScript
+
+The bigger reason to reach for WebGPU is **Three Shading Language**.
+Instead of writing GLSL strings and wiring uniforms by hand, you compose
+shader nodes — math, samplers, time — directly in TypeScript. The result
+runs on the GPU.
+
+<Demo code={webgpuTsl} />
+
+That stripey, washy material is one function:
+
+```tsx
+function buildColorNode() {
+  const stripes = sin(uv().x.mul(20).add(time.mul(2)))
+  const wash = sin(uv().y.mul(8).sub(time))
+  return mix(
+    vec3(0.95, 0.3, 0.6),
+    vec3(0.2, 0.7, 1.0),
+    stripes.mul(0.5).add(wash.mul(0.5)),
+  )
+}
+```
+
+`uv()`, `time`, `sin`, `mix`, `vec3` — they look like math, but they're
+nodes describing a tiny program that the GPU compiles and runs once per
+fragment. No GLSL, no shader cache, no uniform plumbing.
+
+Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
+
+```tsx
+<T.MeshBasicNodeMaterial colorNode={buildColorNode()} />
+```
+
+The same smart-prop machinery you saw in [chapter 3](/tutorial/03-smart-props)
+still applies — `colorNode` is just a prop. `MeshBasicNodeMaterial`
+isn't in the global `THREE` namespace, so we extended `createT` with it:
+`createT({ ...THREE, MeshBasicNodeMaterial })`.
+
+## That's the tour
+
+You've now seen the whole library — the foundational pieces, the
+reactivity primitives, the event system, the loader/lifecycle utilities,
+the composition patterns, and a glimpse of where it's heading. From here
+on, the way to learn more is to build something. The API reference
+covers anything we didn't touch; the rest is just three.js.
+
+Have fun.

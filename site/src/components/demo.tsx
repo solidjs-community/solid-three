@@ -69,7 +69,12 @@ function getLocalSolidThreeUrl(): string {
  * version on esm.sh.
  */
 function resolveBareSpecifier(specifier: string): string {
-  if (specifier === "solid-js" || specifier === "three") {
+  if (
+    specifier === "solid-js" ||
+    specifier === "three" ||
+    specifier === "three/webgpu" ||
+    specifier === "three/tsl"
+  ) {
     return specifier
   }
   if (specifier === "solid-three") {
@@ -229,7 +234,9 @@ const hostHtml = `<!doctype html>
           "solid-js/web": "https://esm.sh/solid-js@1.8/web?external=solid-js&bundle",
           "solid-js/jsx-runtime": "https://esm.sh/solid-js@1.8/jsx-runtime?external=solid-js&bundle",
           "solid-js/jsx-dev-runtime": "https://esm.sh/solid-js@1.8/jsx-dev-runtime?external=solid-js&bundle",
-          "three": "https://esm.sh/three@0.181?bundle"
+          "three": "https://esm.sh/three@0.181?bundle",
+          "three/webgpu": "https://esm.sh/three@0.181/webgpu?bundle",
+          "three/tsl": "https://esm.sh/three@0.181/tsl?bundle"
         }
       }
     </script>
