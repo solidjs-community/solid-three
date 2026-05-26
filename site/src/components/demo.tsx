@@ -40,7 +40,7 @@ function useSiteTheme(): () => "dark" | "light" {
 const externalEsmHost = "https://esm.sh"
 
 // Pin versions for the externalized deps so all esm.sh modules share singletons.
-const externalDepsParam = "external=solid-js,three&deps=solid-js@1.8,three@0.181"
+const externalDepsParam = "external=solid-js,three&deps=solid-js@1.8,three@0.181,cannon-es@0.20"
 
 /**
  * URL of the local solid-three bundle served by the Vite dev plugin. The
