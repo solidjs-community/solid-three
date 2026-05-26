@@ -8,7 +8,7 @@ import {
 } from "@bigmistqke/repl"
 import { clientOnly } from "@solidjs/start"
 import { isServer } from "solid-js/web"
-import { createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import ts from "typescript"
 
 // `tm-textarea` touches the DOM at import time, so it must only load
@@ -24,7 +24,7 @@ const TmTextarea = clientOnly(async () => {
 // SolidBase sets `data-theme="sdark"` or `data-theme="slight"` on <html>
 // (with an "s" prefix). Mirror that into a signal so the editor's TextMate
 // theme follows the site's light/dark mode.
-function useSiteTheme(): () => "github-dark" | "github-light" {
+function useSiteTheme(): () => "dark" | "light" {
   const [isDark, setIsDark] = createSignal(false)
   onMount(() => {
     const root = document.documentElement
@@ -34,7 +34,7 @@ function useSiteTheme(): () => "github-dark" | "github-light" {
     observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
     onCleanup(() => observer.disconnect())
   })
-  return () => (isDark() ? "github-dark" : "github-light")
+  return () => (isDark() ? "dark" : "light")
 }
 
 const externalEsmHost = "https://esm.sh"
@@ -224,9 +224,19 @@ const hostHtml = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <style>
-      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; color-scheme: light dark; }
+      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
     </style>
+    <script>
+      // Parent posts { type: "theme", value: "dark"|"light" } whenever the
+      // site theme toggles. Mirror it into color-scheme so the browser uses
+      // the right user-agent canvas behind any transparent body.
+      window.addEventListener("message", event => {
+        if (event.data && event.data.type === "theme") {
+          document.documentElement.style.colorScheme = event.data.value
+        }
+      })
+    </script>
     <script type="importmap">
       {
         "imports": {
@@ -340,7 +350,7 @@ function DemoClient(props: DemoProps) {
             <TmTextarea
               class="demo-editor"
               grammar="tsx"
-              theme={editorTheme()}
+              theme={editorTheme() === "dark" ? "github-dark" : "github-light"}
               value={code()}
               editable
               onInput={event => setCode(event.currentTarget.value)}
@@ -353,11 +363,25 @@ function DemoClient(props: DemoProps) {
           </div>
         </Show>
         <Show when={!isNarrow() || pane() === "canvas"}>
-          <iframe
-            class="demo-canvas"
-            src={iframeSrc() ?? "about:blank"}
-            sandbox="allow-scripts allow-same-origin"
-          />
+          {(() => {
+            let iframeRef: HTMLIFrameElement | undefined
+            function postTheme() {
+              iframeRef?.contentWindow?.postMessage({ type: "theme", value: editorTheme() }, "*")
+            }
+            createEffect(() => {
+              editorTheme() // track
+              postTheme()
+            })
+            return (
+              <iframe
+                ref={iframeRef}
+                class="demo-canvas"
+                src={iframeSrc() ?? "about:blank"}
+                sandbox="allow-scripts allow-same-origin"
+                onLoad={postTheme}
+              />
+            )
+          })()}
         </Show>
       </div>
     </div>
