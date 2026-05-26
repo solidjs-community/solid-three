@@ -6,3 +6,4 @@ demo/node_modules
 packed/
 .vitest-attachments/
 tests/**/__screenshots__/
+.claude/worktrees/
