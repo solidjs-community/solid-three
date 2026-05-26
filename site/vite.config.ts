@@ -75,60 +75,31 @@ export default defineConfig({
         },
         sidebar: [
           {
-            title: "Part 1 — It's just Solid",
+            title: "Tutorial",
             collapsed: false,
             items: [
-              { title: "Your first scene", link: "/01-your-first-scene" },
-              { title: "Nesting & transforms", link: "/02-nesting-and-transforms" },
-              { title: "Smart props", link: "/03-smart-props" },
+              { title: "Your first scene", link: "/tutorial/01-your-first-scene" },
+              { title: "Nesting & transforms", link: "/tutorial/02-nesting-and-transforms" },
+              { title: "Smart props", link: "/tutorial/03-smart-props" },
+              { title: "Signals drive the scene", link: "/tutorial/04-signals-drive-the-scene" },
+              { title: "Pointer events", link: "/tutorial/05-pointer-events" },
+              { title: "Stopping events", link: "/tutorial/06-event-propagation" },
+              { title: "Configuring the raycaster", link: "/tutorial/07-raycaster" },
+              { title: "useFrame", link: "/tutorial/08-use-frame" },
+              { title: "useThree", link: "/tutorial/09-use-three" },
+              { title: "Loaders & Resource", link: "/tutorial/10-loaders-and-resource" },
+              { title: "autodispose", link: "/tutorial/11-autodispose" },
+              { title: "Portal", link: "/tutorial/12-portal" },
+              { title: "useProps & custom components", link: "/tutorial/13-use-props" },
+              { title: "An interactive scene", link: "/tutorial/14-interactive-scene" },
+              { title: "A peek at WebGPU", link: "/tutorial/15-webgpu-peek" },
             ],
           },
           {
-            title: "Part 2 — The scene talks back",
-            collapsed: true,
+            title: "API reference",
+            collapsed: false,
             items: [
-              { title: "Signals drive the scene", link: "/04-signals-drive-the-scene" },
-              { title: "Pointer events", link: "/05-pointer-events" },
-              { title: "Stopping events", link: "/06-event-propagation" },
-              { title: "Configuring the raycaster", link: "/07-raycaster" },
-            ],
-          },
-          {
-            title: "Part 3 — Frame by frame",
-            collapsed: true,
-            items: [
-              { title: "useFrame", link: "/08-use-frame" },
-              { title: "useThree", link: "/09-use-three" },
-            ],
-          },
-          {
-            title: "Part 4 — Stuff that's not in the scene",
-            collapsed: true,
-            items: [
-              { title: "Loaders & Resource", link: "/10-loaders-and-resource" },
-              { title: "autodispose & meta", link: "/11-autodispose-and-meta" },
-            ],
-          },
-          {
-            title: "Part 5 — Compose your own",
-            collapsed: true,
-            items: [
-              { title: "Portal", link: "/12-portal" },
-              { title: "useProps & custom components", link: "/13-use-props" },
-            ],
-          },
-          {
-            title: "Part 6 — Ship something real",
-            collapsed: true,
-            items: [
-              { title: "An interactive scene", link: "/14-interactive-scene" },
-            ],
-          },
-          {
-            title: "Encore",
-            collapsed: true,
-            items: [
-              { title: "A peek at WebGPU", link: "/15-webgpu-peek" },
+              { title: "Introduction", link: "/api" },
             ],
           },
         ],
