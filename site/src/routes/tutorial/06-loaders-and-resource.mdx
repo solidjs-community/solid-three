@@ -25,8 +25,10 @@ A cube with a random photo from `picsum.photos` mapped onto every face.
 While the image is loading, `<Suspense>` shows nothing (you can give it a
 `fallback` if you want a placeholder).
 
-`useLoader` caches by URL across the whole app, so two components asking
-for the same texture share one load and one GPU upload.
+`useLoader` caches by URL across the whole app, so two components
+asking for the same texture share one load and one GPU upload. The
+[`LoaderCache`](/api/utilities/loader-cache) is configurable per call
+when you need different scoping.
 
 ## `Resource`: the component
 

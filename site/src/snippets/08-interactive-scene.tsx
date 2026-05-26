@@ -1,6 +1,6 @@
 import * as THREE from "three"
-import { createSignal, For, onCleanup, Show } from "solid-js"
-import { Canvas, createT, useFrame } from "solid-three"
+import { createSignal, For, onCleanup, Show, Suspense } from "solid-js"
+import { Canvas, createT, useFrame, useLoader } from "solid-three"
 
 const T = createT(THREE)
 
@@ -31,6 +31,11 @@ function Cube(props: {
   active: boolean
   onHit: () => void
 }) {
+  // A loaded texture wraps every cube; the active one tints + glows
+  // tomato on top of it. `useLoader` caches per URL, so all nine cubes
+  // share one upload.
+  const texture = useLoader(THREE.TextureLoader, "https://picsum.photos/seed/whack/256")
+
   let mesh: THREE.Mesh | undefined
   // The active cube bobs forward toward the camera.
   useFrame(context => {
@@ -51,7 +56,8 @@ function Cube(props: {
     >
       <T.BoxGeometry />
       <T.MeshStandardMaterial
-        color={props.active ? "tomato" : "#3a3f4b"}
+        map={texture()}
+        color={props.active ? "tomato" : "#ffffff"}
         emissive={props.active ? "tomato" : "#000000"}
         emissiveIntensity={props.active ? 0.5 : 0}
       />
@@ -127,15 +133,17 @@ export default function App() {
         </Show>
       </div>
       <Canvas camera={{ position: [0, 0, 4] }}>
-        <For each={positions}>
-          {(position, index) => (
-            <Cube
-              position={position}
-              active={running() && activeIndex() === index()}
-              onHit={handleHit}
-            />
-          )}
-        </For>
+        <Suspense>
+          <For each={positions}>
+            {(position, index) => (
+              <Cube
+                position={position}
+                active={running() && activeIndex() === index()}
+                onHit={handleHit}
+              />
+            )}
+          </For>
+        </Suspense>
         <T.AmbientLight intensity={0.4} />
         <T.DirectionalLight position={[2, 2, 3]} />
       </Canvas>

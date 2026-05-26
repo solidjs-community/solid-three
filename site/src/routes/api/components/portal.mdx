@@ -33,3 +33,96 @@ Example:
   </T.Mesh>
 </Portal>
 ```
+
+## Defaults to the scene root
+
+If `element` is omitted, `Portal` attaches its children to
+`context.scene` — the root of the canvas's main scene. This is the
+escape hatch for "render *as if* this child were top-level," ignoring
+any transform on the JSX parent. Useful for HUD-style overlays.
+
+```tsx
+<T.Group position={[10, 0, 0]}>
+  {/* lives in the group's frame */}
+  <T.Mesh>...</T.Mesh>
+
+  {/* portaled to the scene root — the group's translation never reaches it */}
+  <Portal>
+    <T.Mesh>...</T.Mesh>
+  </Portal>
+</T.Group>
+```
+
+## Render-to-texture
+
+The most powerful use of `element` is a free-standing `THREE.Scene` you
+populate with `Portal` and render to a `WebGLRenderTarget` each frame.
+The target's `.texture` is a regular `THREE.Texture` and can be used
+wherever a texture is accepted (`map`, `envMap`, etc.).
+
+```tsx
+import { Canvas, createT, Portal, useFrame, useThree } from "solid-three"
+
+const T = createT(THREE)
+
+const offscreenScene = new THREE.Scene()
+const offscreenCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 100)
+offscreenCamera.position.z = 2.5
+const renderTarget = new THREE.WebGLRenderTarget(512, 512)
+
+function CopyOffscreenToTexture() {
+  const context = useThree()
+  useFrame(() => {
+    context.gl.setRenderTarget(renderTarget)
+    context.gl.render(offscreenScene, offscreenCamera)
+    context.gl.setRenderTarget(null)
+  })
+  return null
+}
+
+function App() {
+  return (
+    <Canvas>
+      <Portal element={offscreenScene}>
+        {/* anything you want rendered to the texture */}
+        <T.Mesh>
+          <T.TorusKnotGeometry />
+          <T.MeshNormalMaterial />
+        </T.Mesh>
+      </Portal>
+      <CopyOffscreenToTexture />
+
+      {/* the main scene, wearing the off-screen render as a texture */}
+      <T.Mesh>
+        <T.BoxGeometry />
+        <T.MeshBasicMaterial map={renderTarget.texture} />
+      </T.Mesh>
+    </Canvas>
+  )
+}
+```
+
+The off-screen scene can have its own lights, its own animations, even
+its own pointer events — they only affect children rendered through the
+portal, not the main scene. The
+[Portal tutorial chapter](/tutorial/07-portal) walks through a working
+demo end-to-end.
+
+## `onUpdate`
+
+Called with the resolved `element` whenever Portal mounts or re-attaches.
+Useful when you need to do extra wiring on the target — e.g., set
+properties on the foreign scene that aren't expressible as solid-three
+props.
+
+## Notes
+
+- `Portal` doesn't break ownership. Children remain in the JSX tree for
+  reactivity, refs, and lifecycle — only the *render destination*
+  changes.
+- The `element` you pass keeps its identity across re-renders; Portal
+  doesn't dispose it. If you constructed the scene/group yourself, you
+  manage its lifetime.
+- Combined with multiple cameras
+  ([`useThree`'s `setCamera`](/api/hooks/use-three)), Portal underpins
+  picture-in-picture, mirrors, and gizmo overlays.
