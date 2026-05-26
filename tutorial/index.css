@@ -1,1 +1,79 @@
-/* tutorial styles — populated in later tasks */
+:root {
+  --sidebar-width: 260px;
+  --reading-max: 70ch;
+  --color-bg: #0f1117;
+  --color-fg: #e8e8e8;
+  --color-muted: #8b8f9a;
+  --color-accent: #d39bff;
+}
+
+html, body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  scroll-behavior: smooth;
+}
+
+.tutorial-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem 1rem;
+  border-right: 1px solid #222;
+  font-size: 0.9rem;
+}
+
+.sidebar-part-title {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.sidebar-chapter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-chapter-list a {
+  display: block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: var(--color-fg);
+  text-decoration: none;
+}
+
+.sidebar-chapter-list a:hover {
+  background: #1a1d26;
+}
+
+.sidebar-chapter-list a.active {
+  background: #1a1d26;
+  color: var(--color-accent);
+}
+
+.tutorial-body {
+  padding: 3rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4rem;
+}
+
+.tutorial-chapter {
+  max-width: var(--reading-max);
+}
+
+.tutorial-chapter h1 {
+  margin-top: 0;
+}
