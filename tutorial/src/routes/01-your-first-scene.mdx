@@ -47,9 +47,9 @@ export default () => (
 )
 `} />
 
-> A square — the front face of a cube, viewed head-on. The colour comes from
-> `MeshNormalMaterial`, which tints each face by its surface normal: a handy
-> debugging material because it makes geometry visible without any lights.
+The colour comes from `MeshNormalMaterial`, which tints each face by its
+surface normal: a handy debugging material because it makes geometry visible
+without any lights.
 
 Because each class is imported by name, the bundler only ships the ones you
 reach for.
@@ -75,8 +75,6 @@ export default () => (
   </Canvas>
 )
 `} />
-
-> Same cube.
 
 `T.Mesh` is exactly `<Entity from={THREE.Mesh}>` — `createT` just saves the
 typing.

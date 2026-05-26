@@ -67,20 +67,22 @@ You already know how to read this. JSX nesting becomes a scene graph.
 2. **Nesting & transforms** — JSX nesting maps to parent/child; `position` / `rotation` / `scale`
 3. **Smart props** — `position={[x,y,z]}`, color strings, `args`, `set` / `setScalar` inference
 
-### Part 2 — Signals are the animation loop
+### Part 2 — The scene talks back
 
-Reactivity drives the scene; no `useEffect` needed to animate.
+A scene that responds to clicks lands the "it's just Solid" idea before
+animation does. Signals drive the scene via interaction first; animation
+comes next.
 
-4. **Signals drive the scene** — a rotating cube driven by `createSignal`
-5. **`useFrame`** — animating per-frame without re-rendering
-6. **`useThree`** — reading `gl`, `camera`, `size`, `clock`
+4. **Signals drive the scene** — a button click flips a cube's colour via `createSignal`
+5. **Pointer events** — `onClick` etc. on `<T.Mesh>`; the click target moves from the DOM into the scene
+6. **Configuring the raycaster** — layers, thresholds
 
-### Part 3 — The scene talks back
+### Part 3 — Frame by frame
 
-The scene reacts to the user, not just to props.
+Now that the scene reacts to events, react to time.
 
-7. **Pointer events** — `onClick`, `onPointerOver`, `onClickMissed`
-8. **Configuring the raycaster** — layers, thresholds
+7. **`useFrame`** — running code inside the canvas's render loop; imperative updates as the perf-friendly escape hatch
+8. **`useThree`** — reading `gl`, `camera`, `size`, `clock`
 
 ### Part 4 — Stuff that's not in the scene
 

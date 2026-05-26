@@ -84,20 +84,20 @@ export default defineConfig({
             ],
           },
           {
-            title: "Part 2 — Signals are the animation loop",
+            title: "Part 2 — The scene talks back",
             collapsed: true,
             items: [
               { title: "Signals drive the scene", link: "/04-signals-drive-the-scene" },
-              { title: "useFrame", link: "/05-use-frame" },
-              { title: "useThree", link: "/06-use-three" },
+              { title: "Pointer events", link: "/05-pointer-events" },
+              { title: "Configuring the raycaster", link: "/06-raycaster" },
             ],
           },
           {
-            title: "Part 3 — The scene talks back",
+            title: "Part 3 — Frame by frame",
             collapsed: true,
             items: [
-              { title: "Pointer events", link: "/07-pointer-events" },
-              { title: "Configuring the raycaster", link: "/08-raycaster" },
+              { title: "useFrame", link: "/07-use-frame" },
+              { title: "useThree", link: "/08-use-three" },
             ],
           },
           {

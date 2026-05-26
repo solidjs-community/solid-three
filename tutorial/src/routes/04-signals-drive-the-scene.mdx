@@ -4,4 +4,61 @@ title: Signals drive the scene
 
 # Signals drive the scene
 
-(chapter content goes here)
+A `solid-three` prop is a Solid prop. Pass it a signal and the scene tracks
+the signal the same way any other Solid view would — no remount, no manual
+diffing, no special bindings.
+
+<Demo code={`
+import * as THREE from "three"
+import { createSignal } from "solid-js"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => {
+  const [hot, setHot] = createSignal(false)
+
+  return (
+    <>
+      <button
+        onClick={() => setHot(value => !value)}
+        style={{
+          position: "absolute",
+          top: "1rem",
+          left: "1rem",
+          padding: "0.5rem 0.75rem",
+          background: "#fff",
+          border: "0",
+          "border-radius": "4px",
+          cursor: "pointer",
+        }}
+      >
+        Toggle colour
+      </button>
+      <Canvas camera={{ position: [0, 0, 3] }}>
+        <T.Mesh>
+          <T.BoxGeometry />
+          <T.MeshStandardMaterial color={hot() ? "tomato" : "cornflowerblue"} />
+        </T.Mesh>
+        <T.AmbientLight intensity={0.4} />
+        <T.DirectionalLight position={[2, 2, 2]} />
+      </Canvas>
+    </>
+  )
+}
+`} />
+
+Click the button. The cube's `color` prop reads `hot()`, so when the signal
+flips, only that one property assignment runs — the mesh stays mounted, the
+canvas keeps the same renderer, nothing else moves.
+
+That's the through-line of the whole library: a scene in `solid-three` is a
+reactive view over a `three.js` graph. Anything that drives a Solid component
+also drives the scene.
+
+## What about clicking the cube itself?
+
+The button works because it's a regular DOM element with an `onClick`
+handler. But what if you wanted to click the cube — the actual `<T.Mesh>` —
+and have *that* be the trigger? Same `onClick`, different target. That's the
+next chapter.
