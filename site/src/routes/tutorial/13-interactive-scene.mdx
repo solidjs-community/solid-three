@@ -2,6 +2,54 @@
 title: An interactive scene
 ---
 
+import interactiveScene from "../../snippets/13-interactive-scene.tsx?raw"
+
 # An interactive scene
 
-(chapter content goes here)
+You've now seen every piece. Time to put them together.
+
+<Demo code={interactiveScene} />
+
+Click a cube. The DOM panel on the top-right shows which one is selected.
+The selected cube bobs gently up and down. Hover any cube and it scales
+up; leave and it shrinks back. Click empty space (or the "deselect"
+button) and selection clears.
+
+That's a real interactive Solid component — and the only thing about it
+that's `three.js`-specific is the choice to use `<T.Mesh>` instead of
+`<div>`.
+
+## What's actually in here
+
+Reading top-to-bottom:
+
+- **Selection state** lives in a single `createSignal<number | null>`.
+  It's the same kind of signal you'd use for any other selection in a
+  Solid app.
+- **A `<Cube>` custom component** wraps the per-cube logic — pointer
+  events, hover signal, frame loop. Same composition pattern as
+  [chapter 12](/tutorial/12-custom-components).
+- **`onPointerEnter` / `onPointerLeave`** drive a `hovered` signal that
+  feeds the `scale` prop. The scene's smart-prop pipeline turns a single
+  number into `Vector3.setScalar` — [smart props](/tutorial/03-smart-props)
+  doing its thing.
+- **`onClick`** with `event.stopPropagation()` selects the clicked cube
+  without bubbling. [Stopping events](/tutorial/06-event-propagation).
+- **`onClickMissed`** on the canvas clears the selection.
+- **`useFrame`** mutates `mesh.position.y` imperatively for the bob —
+  no signal involved, just a property assignment per frame. The
+  performance escape hatch from [`useFrame`](/tutorial/08-use-frame).
+- **The DOM panel** is a plain `<div>` overlay, gated by `<Show>`. It
+  reads `selected()` like any other Solid component would — proof that
+  the scene and the DOM are just two views over the same signals.
+
+## What's next
+
+You could push this further in any direction — add more cubes, persist
+the selection, layer in a `useLoader`-ed texture, swap the camera based
+on which cube is selected ([camera stack](/tutorial/09-use-three)). The
+language for doing all of that is the language you already have. Have
+fun.
+
+If you want a look at where the library is going next, the encore is a
+peek at WebGPU.
