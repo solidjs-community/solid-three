@@ -751,25 +751,30 @@ interface LoaderRegistry {
 
 ### useProps
 
-The `useProps` hook manages and applies `solid-three` props to THREE.js objects. It sets up reactive effects to ensure properties are correctly applied and updated, manages children attachment, and handles automatic disposal.
+`useProps` is the smart-prop pipeline that powers every `<T.*>` and `<Entity/>` component. It applies a record of props to a `three.js` object reactively — coercing values into the shapes three expects, walking dashed paths into nested setters, wiring up event listeners, and attaching children.
+
+Call it directly when you wrap your own `three.js` object (custom controls, third-party libraries, ad-hoc instances).
 
 **Parameters:**
 
-- **object**: An accessor function that returns the target THREE.js object
-- **props**: Object containing props to apply (including `ref`, `children`, and THREE.js properties)
+- **accessor**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
+- **props**: Object containing props to apply (including `ref`, `args`, `attach`, `children`, and any `three.js` properties).
+- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) the pipeline reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
 
 <details>
 <summary>Typescript Signature</summary>
 
 ```tsx
-function useProps<T extends object>(object: Accessor<T>, props: any): void
+function useProps<T extends Record<string, any>>(
+  accessor: T | undefined | Accessor<T | undefined>,
+  props: any,
+  context?: Pick<Context, "requestRender" | "gl" | "props">,
+): void
 ```
 
 </details>
 
 **Usage:**
-
-This hook is primarily used internally by `solid-three` components, but can be useful when creating custom components or integrating existing THREE.js objects:
 
 ```tsx
 const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
@@ -778,36 +783,121 @@ const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
 useProps(mesh, props)
 ```
 
-([see](/playground/src/api/use-props/usage.tsx))
-
-**What it handles:**
-
-- **Reactive prop updates**: Automatically applies prop changes to the THREE.js object
-- **Ref assignment**: Handles both function refs and object refs
-- **Children management**: Attaches/detaches child objects from the scene graph
-- **Automatic disposal**: Cleans up the object when the component unmounts
-- **Special props**: Processes `onUpdate` callbacks after prop applications
-
-**Advanced usage:**
+A typical wrapper looks like this — instantiate (often via `createMemo` so the object rebuilds when `args` change), hand the accessor to `useProps`, and return `null`:
 
 ```tsx
 export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
   const three = useThree()
-  const controls = createMemo<ThreeOrbitControls>(previous => {
-    const controls = autodispose(new ThreeOrbitControls(three.camera))
-    controls.connect(three.gl.domElement)
-    return controls
+  const controls = createMemo<ThreeOrbitControls>(() => {
+    const next = autodispose(new ThreeOrbitControls(three.camera))
+    next.connect(three.gl.domElement)
+    return next
   })
 
   useFrame(() => controls().update())
 
-  useProps(controls, rest)
+  useProps(controls, props)
 
-  return null!
+  return null
 }
 ```
 
-[see](/playground/controls/orbit-controls.tsx)
+([see](/playground/controls/orbit-controls.tsx))
+
+**What it handles:**
+
+- **Reactive prop updates**: Each prop is wrapped in its own `createRenderEffect`. When a signal a prop reads updates, only that prop's effect re-runs.
+- **Ref assignment**: Handles both function refs and object refs.
+- **Children management**: Attaches child objects to the scene graph (via `applySceneGraph`) and removes them on cleanup.
+- **Event wiring**: Registers event handlers on `Object3D` instances.
+- **`onUpdate` callback**: Fires after every prop application pass for the entity.
+
+Disposal of the wrapped object is **not** automatic — use [`autodispose`](#autodispose) for that.
+
+#### Coercion rules
+
+Applied top-to-bottom by the internal `applyProp`. The first rule that matches wins.
+
+| #  | Condition                                                                                       | Action                                                                                                       |
+| -- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 1  | `value === undefined`                                                                            | skip (never overwrites with `undefined`)                                                                     |
+| 2  | `key` contains `-`                                                                               | split on `-`, recurse into the nested object                                                                  |
+| 3  | `key` is in the `NEEDS_UPDATE` list (see below) and its truthiness flips                          | set `source.needsUpdate = true` **before** the assignment continues                                          |
+| 4  | `source` has `colorSpace`/`outputColorSpace` and `key` is `encoding` / `outputEncoding`           | alias to `colorSpace` / `outputColorSpace`, mapping `sRGBEncoding → "srgb"`, anything else → `"srgb-linear"` |
+| 5  | `key` is an event name                                                                           | register on the event system (`Object3D` instances only — warns otherwise) and **return**                    |
+| 6  | `source[key].copy` exists, constructors match, `source[key]` is not a writable own property      | `source[key].copy(value)`                                                                                    |
+| 7  | `source[key].set` exists and `value` is an array                                                 | `source[key].fromArray(value)` if available, else `source[key].set(...value)`                                |
+| 8  | `source[key].set` exists, `value` is a number, `source[key]` is **not** a `Color`, and `.setScalar` exists | `source[key].setScalar(value)`                                                                      |
+| 9  | `source[key].set` exists and `value` is not an object                                            | `source[key].set(value)` — this is where `color="red"`, `color={0xff8800}` land via `Color.set`             |
+| 10 | otherwise                                                                                        | `source[key] = value`; if the assigned value is a `Texture` with `RGBAFormat`/`UnsignedByteType`, auto-reconcile its `colorSpace` against the renderer (subscribing to canvas-level `linear`/`flat`) |
+
+Then, in a `finally` after every prop (rules 5–10):
+
+- if `"needsUpdate" in source`, set `source.needsUpdate = true` — every assigned prop bumps `needsUpdate` on materials/geometries that have it;
+- if `frameloop === "demand"`, `context.requestRender()` is called.
+
+#### `NEEDS_UPDATE` truthiness list
+
+These props additionally flip `needsUpdate = true` *before* assignment, when their truthiness changes:
+
+`map`, `envMap`, `bumpMap`, `normalMap`, `transparent`, `morphTargets`, `skinning`, `alphaTest`, `useVertexColors`, `flatShading`.
+
+#### `args` — constructor parameters
+
+`args` is spread into the entity's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it determines how the object is *built*. Changing `args` therefore **rebuilds the entity** (old disposed, new mounted in its place).
+
+```tsx
+const [size, setSize] = createSignal(1)
+
+<T.Mesh>
+  {/* Resizing rebuilds the BoxGeometry */}
+  <T.BoxGeometry args={[size(), size(), size()]} />
+  <T.MeshStandardMaterial color="cornflowerblue" />
+</T.Mesh>
+```
+
+For everything that *does* have a runtime setter, use a regular prop — it mutates in place instead of rebuilding.
+
+#### `attach` — slot assignment
+
+By default, `solid-three` figures out where a child belongs:
+
+- `Material` instances → `parent.material`
+- `BufferGeometry` instances → `parent.geometry`
+- `Fog` instances → `parent.scene.fog`
+- `Object3D` instances → added to `parent.children`
+
+Override with an explicit `attach` prop when the default isn't what you want:
+
+```tsx
+<T.MeshStandardMaterial>
+  <Resource loader={TextureLoader} url="diffuse.jpg" attach="map" />
+  <Resource loader={TextureLoader} url="normal.jpg" attach="normalMap" />
+</T.MeshStandardMaterial>
+```
+
+`attach` accepts:
+
+- a **string** — dashed paths work the same way they do for props (`attach="material-emissiveMap"`);
+- a **function** — `(parent, child) => cleanup`. The returned cleanup runs on unmount.
+
+#### `ref`
+
+Both function refs and object refs are supported:
+
+```tsx
+let mesh: Mesh | undefined
+<T.Mesh ref={mesh}>…</T.Mesh>
+
+// or
+<T.Mesh ref={instance => doSomethingWith(instance)} />
+```
+
+Function refs fire inside a `createRenderEffect`, so they re-run if the underlying object identity changes (e.g. after an `args` rebuild).
+
+#### `onUpdate`
+
+A special prop, not a `three.js` field. Fires after every prop application pass for the entity, with the entity itself as the argument. Useful as a "props are settled" hook for derived setup that can't be expressed as a single prop.
 
 ## Utilities
 
