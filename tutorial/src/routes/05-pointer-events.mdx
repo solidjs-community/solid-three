@@ -4,4 +4,123 @@ title: Pointer events
 
 # Pointer events
 
-(chapter content goes here)
+The button you wrote in the last chapter handled an `onClick` from the DOM.
+`solid-three` lets you put the same handler on a `<T.Mesh>` — and gives it
+the right semantics for a 3D world: it only fires when the click actually
+hits that mesh.
+
+<Demo code={`
+import * as THREE from "three"
+import { createSignal } from "solid-js"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => {
+  const [hot, setHot] = createSignal(false)
+
+  return (
+    <Canvas camera={{ position: [0, 0, 3] }}>
+      <T.Mesh onClick={() => setHot(value => !value)}>
+        <T.BoxGeometry />
+        <T.MeshStandardMaterial color={hot() ? "tomato" : "cornflowerblue"} />
+      </T.Mesh>
+      <T.AmbientLight intensity={0.4} />
+      <T.DirectionalLight position={[2, 2, 2]} />
+    </Canvas>
+  )
+}
+`} />
+
+Click the cube. Same toggle as before — just the target moved into the
+scene.
+
+Under the hood, `solid-three` runs a `Raycaster` against the pointer's
+position each event, finds which meshes the ray hits, and fires the
+corresponding handler on the nearest one. You don't have to wire any of
+that — adding `onClick` is enough.
+
+## Hover
+
+`onPointerEnter` and `onPointerLeave` work the same way: they fire when
+the ray first enters or finally leaves a mesh. Combine them with a signal
+to react to hover.
+
+<Demo code={`
+import * as THREE from "three"
+import { createSignal } from "solid-js"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => {
+  const [hovered, setHovered] = createSignal(false)
+
+  return (
+    <Canvas camera={{ position: [0, 0, 3] }}>
+      <T.Mesh
+        scale={hovered() ? 1.2 : 1}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+      >
+        <T.BoxGeometry />
+        <T.MeshStandardMaterial color="cornflowerblue" />
+      </T.Mesh>
+      <T.AmbientLight intensity={0.4} />
+      <T.DirectionalLight position={[2, 2, 2]} />
+    </Canvas>
+  )
+}
+`} />
+
+Move the pointer over the cube — it grows. Leave — it shrinks. The signal
+flips; `scale` reads it; one property assignment runs.
+
+## Clicking nothing
+
+Sometimes the interesting event is when the user clicks but *doesn't* hit any
+mesh — to deselect the current selection, dismiss a tooltip, that sort of
+thing. `<Canvas>` exposes `onClickMissed` for exactly that case:
+
+<Demo code={`
+import * as THREE from "three"
+import { createSignal } from "solid-js"
+import { Canvas, createT } from "solid-three"
+
+const T = createT(THREE)
+
+export default () => {
+  const [selected, setSelected] = createSignal(false)
+
+  return (
+    <Canvas
+      camera={{ position: [0, 0, 3] }}
+      onClickMissed={() => setSelected(false)}
+    >
+      <T.Mesh onClick={() => setSelected(true)}>
+        <T.BoxGeometry />
+        <T.MeshStandardMaterial color={selected() ? "tomato" : "cornflowerblue"} />
+      </T.Mesh>
+      <T.AmbientLight intensity={0.4} />
+      <T.DirectionalLight position={[2, 2, 2]} />
+    </Canvas>
+  )
+}
+`} />
+
+Click the cube to select it; click anywhere else in the canvas to deselect.
+The two handlers cover the full "did you hit something?" question between
+them.
+
+That covers the everyday cases. There's a longer list of pointer events
+(`onPointerMove`, `onPointerDown`, `onPointerUp`, `onWheel`, ...) — all
+following the same convention.
+
+## What's actually in the event?
+
+The handler receives an enriched event object: the original DOM event plus
+the `three.js` intersection data — the hit `point`, the `distance`, the
+`face` and `faceIndex`, the mesh `object`, the unprojected `ray`. Useful
+when "click" alone isn't enough: drag-to-rotate, paint-on-surface,
+world-space gizmos. The next chapter looks at how to tune the raycaster that
+produces those hits.
