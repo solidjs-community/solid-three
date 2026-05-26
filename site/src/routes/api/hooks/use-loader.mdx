@@ -25,11 +25,14 @@ You can customize caching behavior:
 <summary>Typescript Interface</summary>
 
 ```tsx
-interface UseLoaderOptions<TLoader, TResult> {
+interface UseLoaderOptions<
+  TLoader extends Loader<any, any>,
+  TInput extends LoadInput<TLoader>,
+> {
   base?: string
-  cache?: true | LoaderRegistry | false
+  cache?: boolean | LoaderRegistry
   onBeforeLoad?(loader: TLoader): void
-  onLoad?(resource: TResult): void
+  onLoad?(resource: LoadOutput<TLoader, TInput>): void
 }
 ```
 
@@ -108,14 +111,14 @@ A cache registry needs two methods:
 
 ```tsx
 interface LoaderRegistry {
-  set<TLoader extends Loader<object, any>>(
+  set<TLoader extends Loader<any, any>>(
     loader: TLoader,
     url: LoaderUrl<TLoader>,
     data: PromiseMaybe<LoaderData<TLoader>>,
   ): void
 
-  get<TLoader extends Loader<object, any>>(
-    loader: Loader<TData, TUrl>,
+  get<TLoader extends Loader<any, any>>(
+    loader: TLoader,
     url: LoaderUrl<TLoader>,
     warn?: boolean,
   ): PromiseMaybe<LoaderData<TLoader>> | undefined
