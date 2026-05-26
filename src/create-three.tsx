@@ -27,6 +27,7 @@ import {
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
 import { SHOULD_DEBUG } from "./constants.ts"
@@ -54,6 +55,7 @@ import {
   isWebXRManager,
   meta,
   removeElementFromArray,
+  shallowEqual,
   useRef,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
@@ -265,9 +267,21 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     const _propsGl = props.gl
     if (typeof _propsGl === "function") return "factory"
     if (isRenderer(_propsGl)) return "instance"
-    // TODO(Task 9): tuple form `gl={[ctorArgs, properties]}` — treat as default for now.
     return "default"
   })
+  /**
+   * Constructor arguments for the default WebGLRenderer branch. Tuple form
+   * `gl={[ctorArgs, properties]}` puts them in slot 0; single-object form
+   * implies empty ctor args. Firewalled by `shallowEqual` so a fresh-reference
+   * same-content config (typical JSX getter behaviour) doesn't recreate.
+   */
+  const glConstructorArgs = createMemo<Partial<WebGLRendererParameters>>(
+    () => {
+      const _propsGl = props.gl
+      return Array.isArray(_propsGl) ? _propsGl[0] : {}
+    },
+    { equals: shallowEqual },
+  )
 
   const camera = createMemo(() => {
     if (cameraIsInstance()) {
@@ -329,7 +343,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       rendererInstance = factory(canvas)
     } else {
       debugContext("gl", () => ({ source: "default" }))
-      rendererInstance = new WebGLRenderer({ canvas, alpha: true })
+      // `canvas` is solid-three's own and placed last so user ctor args can't override it.
+      rendererInstance = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas })
     }
 
     return meta(rendererInstance, {
@@ -607,12 +622,16 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       )
 
       // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
-      // Apply props only for the config-object branch (not a renderer instance,
-      // not a factory function).
+      // Apply props only for the config-object / tuple branch (not a renderer
+      // instance, not a factory function). For the tuple form, slot 1 carries
+      // the reactive properties; slot 0 went through `glConstructorArgs`.
       const _propsGl = props.gl
       if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
-        debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
-        useProps(gl, _propsGl as object)
+        debugEffects("gl", () => ({
+          action: "apply",
+          type: Array.isArray(_propsGl) ? "tuple-properties" : "user-options",
+        }))
+        useProps(gl, (Array.isArray(_propsGl) ? _propsGl[1] : _propsGl) as object)
       } else {
         debugEffects("gl", () => ({
           action: "skip",

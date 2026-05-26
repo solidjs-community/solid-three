@@ -266,6 +266,29 @@ export function isConstructor<T>(value: T | Constructor): value is Constructor {
 
 /**********************************************************************************/
 /*                                                                                */
+/*                                Shallow Equal                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+/**
+ * Shallow equality (one level of key comparison) for the gl-tuple
+ * constructor-args memo: a fresh `[ctorArgs, properties]` reference with
+ * the same `ctorArgs` shape should NOT trigger renderer recreation.
+ */
+export function shallowEqual(a: any, b: any): boolean {
+  if (a === b) return true
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) return false
+  }
+  return true
+}
+
+/**********************************************************************************/
+/*                                                                                */
 /*                            Remove Element From Array                           */
 /*                                                                                */
 /**********************************************************************************/

@@ -13,6 +13,7 @@ import {
   Raycaster,
   Scene,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { createThree } from "./create-three.tsx"
@@ -41,7 +42,12 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   /** Options for the WebGLRenderer or a function returning a customized renderer. */
   gl?:
     | (WebGLRenderer extends ResolvedRenderer
-        ? Partial<Props<WebGLRenderer>>
+        ?
+            | Partial<Props<WebGLRenderer>>
+            | readonly [
+                constructorParameters: Partial<WebGLRendererParameters>,
+                properties: Partial<Props<WebGLRenderer>>,
+              ]
         : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
