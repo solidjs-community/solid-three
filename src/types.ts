@@ -177,6 +177,36 @@ export interface RendererLike {
  */
 export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
 
+/**
+ * Module-augmentation point. Declare your concrete renderer choice in a
+ * project-local `.d.ts` and `useThree().gl`, `Context.gl`, and the
+ * `<Canvas gl>` prop all type-narrow project-wide.
+ *
+ * @example
+ * ```ts
+ * // src/solid-three.d.ts
+ * import type { WebGPURenderer } from "three/webgpu"
+ *
+ * declare module "solid-three" {
+ *   interface Register {
+ *     renderer: WebGPURenderer
+ *   }
+ * }
+ * ```
+ *
+ * With this declaration, `useThree().gl.init()` is typed (no narrowing
+ * needed) and accidentally passing a `WebGLRenderer` to `<Canvas gl>`
+ * becomes a type error.
+ *
+ * Without augmentation, `Context.gl` falls back to the open
+ * {@link Renderer} union.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface Register {}
+
+/** Effective renderer type — narrowed by user augmentation if provided. */
+export type ResolvedRenderer = Register extends { renderer: infer R } ? R : Renderer
+
 /**********************************************************************************/
 /*                                                                                */
 /*                                     Context                                    */
@@ -190,7 +220,7 @@ export interface Context {
   camera: CameraKind
   raycaster: Raycaster | EventRaycaster
   dpr: number
-  gl: Meta<Renderer>
+  gl: Meta<ResolvedRenderer>
   props: CanvasProps
   render: (delta: number) => void
   requestRender: () => void
