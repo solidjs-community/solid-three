@@ -11,14 +11,14 @@ You can pass a constructor
 ```tsx
 <Entity from={Mesh}>
   <Entity from={BoxGeometry} args={[1, 1, 1]} />
-  <Entity from={MeshBasicMaterial} args={[{"orange"}]} />
+  <Entity from={MeshBasicMaterial} args={["orange"]} />
 </Entity>
 ```
 
 or pass an instance
 
 ```tsx
-const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial('orange))
+const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial("orange"))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
