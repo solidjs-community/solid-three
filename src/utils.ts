@@ -1,10 +1,12 @@
 import type { Accessor, Context, JSX } from "solid-js"
 import { createRenderEffect, mergeProps, onCleanup, type Ref } from "solid-js"
 import {
+  type BufferGeometry,
   Camera,
+  type Fog,
   Loader,
-  Material,
-  Object3D,
+  type Material,
+  type Object3D,
   OrthographicCamera,
   Texture,
   Vector3,
@@ -234,6 +236,27 @@ export function shallowEqual(a: unknown, b: unknown): boolean {
     if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false
   }
   return true
+}
+
+/**
+ * Duck-typed three.js class checks. These match three's own internal pattern
+ * (`obj.isMaterial`, `obj.isObject3D`, etc.) and survive cases where the
+ * `Material` / `Object3D` class identities differ across module instances
+ * — e.g. `three/webgpu`'s `MeshBasicNodeMaterial` doesn't extend the same
+ * `Material` as `three`'s `MeshBasicMaterial`, but both set
+ * `isMaterial = true`.
+ */
+export function isMaterial(value: unknown): value is Material {
+  return !!value && (value as { isMaterial?: boolean }).isMaterial === true
+}
+export function isBufferGeometry(value: unknown): value is BufferGeometry {
+  return !!value && (value as { isBufferGeometry?: boolean }).isBufferGeometry === true
+}
+export function isFog(value: unknown): value is Fog {
+  return !!value && (value as { isFog?: boolean }).isFog === true
+}
+export function isObject3D(value: unknown): value is Object3D {
+  return !!value && (value as { isObject3D?: boolean }).isObject3D === true
 }
 
 /**
