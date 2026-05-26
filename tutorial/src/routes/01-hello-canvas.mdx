@@ -8,23 +8,25 @@ order: 1
 
 # Hello, Canvas
 
-A three.js scene needs three things: a **renderer** to draw pixels, a **camera**
-to decide what gets drawn, and a **scene** to hold everything else. In
-solid-three you get all three by mounting one component — and then you fill the
-scene by nesting elements inside it:
+A `three.js` scene needs three things:
+
+- a **renderer** to draw pixels,
+- a **camera** to decide what gets drawn,
+- and a **scene** to hold everything else.
+
+In `solid-three` you get all three by mounting one component — and then you
+fill the scene by nesting elements inside it:
 
 <Demo code={`
 import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
+import { Canvas, Entity } from "solid-three"
 
 export default () => (
   <Canvas camera={{ position: [0, 0, 3] }}>
-    <T.Mesh>
-      <T.BoxGeometry />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
+    <Entity from={THREE.Mesh}>
+      <Entity from={THREE.BoxGeometry} />
+      <Entity from={THREE.MeshNormalMaterial} />
+    </Entity>
   </Canvas>
 )
 `} />
@@ -33,6 +35,11 @@ A square — the front face of a cube, viewed head-on. The colour comes from
 `MeshNormalMaterial`, which tints each face by its surface normal: a handy
 debugging material because it makes geometry visible without any lights.
 
-Three new ideas snuck into that snippet — `createT`, the `T.*` namespace, and
-the way `<T.Mesh>` consumes its children as a geometry and a material. They're
-the heart of solid-three, and they get their own chapter next.
+`<Entity from={...}>` is `solid-three`'s most direct primitive: give it a
+`three.js` class, and it instantiates one. Because you import each class
+explicitly, the bundler only ships the ones you actually use.
+
+Three other ideas snuck into that snippet — the way `<Entity from={THREE.Mesh}>`
+swallows its children as a geometry and a material, the relationship between
+JSX nesting and the scene graph, and a more convenient way to write all of
+this. They each get their own chapter, starting with the convenience.
