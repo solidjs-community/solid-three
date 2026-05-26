@@ -1,0 +1,52 @@
+---
+title: Portal
+---
+
+import portalSnippet from "../../snippets/08-portal.tsx?raw"
+
+# Portal
+
+So far the scene graph has been a faithful mirror of your JSX: nest `<A>`
+inside `<B>` and A becomes a child of B. `Portal` is the escape hatch —
+it sends a component's children into *somewhere else* in the scene
+graph, while keeping the JSX parent-child relationship for reactivity,
+ownership, and lifecycle.
+
+The most spectacular use of that is **rendering one scene into a
+texture of another**. You hand `Portal` an off-screen `THREE.Scene`,
+populate it with anything you like, then render that scene into a
+`WebGLRenderTarget` each frame. The target's texture is just a
+`THREE.Texture` — you can use it as `map`, `envMap`, anywhere a
+texture is accepted.
+
+<Demo code={portalSnippet} />
+
+A cube whose faces are *each frame's render* of a spinning torus knot
+that lives in a separate scene. Six things to notice:
+
+- `<Portal element={offscreenScene}>` sends the knot into the off-screen
+  scene instead of the canvas's main one.
+- `CopyOffscreenToTexture` is a regular `solid-three` component that
+  uses `useThree()` to grab the renderer and copies the off-screen scene
+  into the render target every frame.
+- The cube in the main scene reads `renderTarget.texture` for its
+  `map` — solid-three's smart-prop pipeline accepts a `THREE.Texture`
+  the same as anything else.
+- The knot still spins reactively from inside `Portal` — same `useFrame`,
+  same ref, same lifecycle. Portal doesn't break Solid.
+- The off-screen scene has its own lights — they only affect the knot,
+  not the main cube.
+- If you click "Reset" you'd remount the whole demo cleanly; the
+  off-screen `Scene` and `WebGLRenderTarget` are disposed by their
+  module-level lifecycle (production code would create them inside a
+  component and use [`autodispose`](/api/utilities/autodispose)).
+
+## Other things Portal does
+
+Render-to-texture is the showy case, but `Portal` is just a generic
+"render-elsewhere" primitive. Pass it any `Object3D` as `element` and
+its children attach there. Default target (no `element`) is the scene
+root — useful when you want a HUD-style mesh that ignores its JSX
+parent's transform.
+
+The next chapter pulls all of this together into a small game.

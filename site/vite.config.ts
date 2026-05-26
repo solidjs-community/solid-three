@@ -85,8 +85,9 @@ export default defineConfig({
               { title: "useFrame", link: "/tutorial/05-use-frame" },
               { title: "Loaders & Resource", link: "/tutorial/06-loaders-and-resource" },
               { title: "Custom components", link: "/tutorial/07-custom-components" },
-              { title: "A small game", link: "/tutorial/08-interactive-scene" },
-              { title: "A peek at WebGPU", link: "/tutorial/09-webgpu-peek" },
+              { title: "Portal", link: "/tutorial/08-portal" },
+              { title: "A small game", link: "/tutorial/09-interactive-scene" },
+              { title: "A peek at WebGPU", link: "/tutorial/10-webgpu-peek" },
             ],
           },
           {
