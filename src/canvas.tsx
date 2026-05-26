@@ -38,7 +38,11 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
    * module-augmentation interface — see {@link Register} in `types.ts`.
    */
   gl?:
-    | Partial<Props<WebGLRenderer>>
+    // Config-object shorthand creates a default WebGLRenderer at runtime.
+    // When `Register` narrows `ResolvedRenderer` away from WebGL, this branch
+    // collapses to `never` so the user is forced into the factory or
+    // instance form that actually matches their declared renderer.
+    | (WebGLRenderer extends ResolvedRenderer ? Partial<Props<WebGLRenderer>> : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   /** Toggles linear interpolation for texture filtering. */
