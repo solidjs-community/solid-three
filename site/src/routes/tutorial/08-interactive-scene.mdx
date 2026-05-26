@@ -2,7 +2,7 @@
 title: A small game
 ---
 
-import interactiveScene from "../../snippets/09-interactive-scene.tsx?raw"
+import interactiveScene from "../../snippets/08-interactive-scene.tsx?raw"
 
 # A small game
 
@@ -29,10 +29,10 @@ Reading top-to-bottom:
 - **The grid** is built once outside the component as a list of positions.
   We render the cubes with `<For>` — Solid's keyed list primitive, working
   exactly the way it does in any DOM tree.
-- **Each `<Cube>`** is a custom component (the composition pattern from
-  [chapter 8](/tutorial/07-custom-components)). It uses `useFrame` to bob
-  the active cube forward, and `onClick` with `event.stopPropagation()` to
-  score.
+- **Each `<Cube>`** is a custom component wrapping `<T.Mesh>` — same
+  composition you'd use for any Solid component; props pass through. It
+  uses `useFrame` to bob the active cube forward, and `onClick` with
+  `event.stopPropagation()` to score.
 - **The countdown** is a regular `setInterval` driving the `timeLeft`
   signal. The DOM panel reads it the same way the scene's `active` prop
   reads its signal — both are just Solid views over the same source of
