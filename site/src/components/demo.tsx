@@ -8,7 +8,7 @@ import {
 } from "@bigmistqke/repl"
 import { clientOnly } from "@solidjs/start"
 import { isServer } from "solid-js/web"
-import { createEffect, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
+import { createMemo, createRenderEffect, createSignal, onCleanup, onMount, Show } from "solid-js"
 import ts from "typescript"
 
 // `tm-textarea` touches the DOM at import time, so it must only load
@@ -370,7 +370,7 @@ function DemoClient(props: DemoProps) {
             function postTheme() {
               iframeRef?.contentWindow?.postMessage({ type: "theme", value: editorTheme() }, "*")
             }
-            createEffect(() => {
+            createRenderEffect(() => {
               editorTheme() // track
               postTheme()
             })
