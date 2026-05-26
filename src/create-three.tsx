@@ -30,7 +30,13 @@ import { frameContext, threeContext } from "./hooks.ts"
 import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
-import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
+import type {
+  CameraKind,
+  Context,
+  FrameListener,
+  FrameListenerCallback,
+  RendererLike,
+} from "./types.ts"
 import {
   binarySearch,
   defaultProps,
@@ -41,6 +47,19 @@ import {
   withMultiContexts,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
+
+/**
+ * Returns true when `value` is an already-built renderer instance (anything
+ * matching {@link RendererLike}) rather than a config-props object or a factory.
+ */
+function isRendererInstance(value: unknown): value is RendererLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as RendererLike).render === "function" &&
+    typeof (value as RendererLike).setSize === "function"
+  )
+}
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
@@ -214,17 +233,17 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    const gl =
-      props.gl instanceof WebGLRenderer
-        ? // props.gl can be a WebGLRenderer provided by the user
-          props.gl
-        : typeof props.gl === "function"
-          ? // or a callback that returns a Renderer
-            props.gl(canvas)
-          : // if props.gl is not defined we default to a WebGLRenderer
+    const _gl =
+      typeof props.gl === "function"
+        ? // factory callback that returns a renderer
+          props.gl(canvas)
+        : isRendererInstance(props.gl)
+          ? // an already-built renderer instance (WebGLRenderer, WebGPURenderer, …)
+            props.gl
+          : // no renderer supplied (or a config-props object) → default WebGLRenderer
             new WebGLRenderer({ canvas, alpha: true })
 
-    return meta(gl, {
+    return meta(_gl, {
       get props() {
         return props.gl || {}
       },
@@ -350,21 +369,24 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         if (renderer.xr) context.xr.connect()
       })
 
-      // Set color space and tonemapping preferences
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      // Color management and tone-mapping
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
-        },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
-        },
-      })
+      // Color management and tone-mapping are WebGL-specific; WebGPURenderer
+      // and others handle output color space through their own node pipelines.
+      if (gl() instanceof WebGLRenderer) {
+        const LinearEncoding = 3000
+        const sRGBEncoding = 3001
+        useProps(gl, {
+          get outputEncoding() {
+            return props.linear ? LinearEncoding : sRGBEncoding
+          },
+          get toneMapping() {
+            return props.flat ? NoToneMapping : ACESFilmicToneMapping
+          },
+        })
+      }
 
-      // Manage props
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+      // Apply props.gl as renderer config only when it's a plain config object
+      // (i.e. not a factory or a renderer instance).
+      if (props.gl && typeof props.gl !== "function" && !isRendererInstance(props.gl)) {
         useProps(gl, props.gl)
       }
     })
