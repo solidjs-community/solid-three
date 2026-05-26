@@ -183,6 +183,12 @@ export function useMeasure(options?: UseMeasureOptions) {
         return
       }
       debug("observer", () => ({ action: "attached" }))
+      // Eagerly populate bounds on attach — ResizeObserver fires async, but
+      // raycasting and other downstream readers need a non-zero rect from the
+      // first frame (otherwise event handlers fire with stale 0×0 bounds).
+      // Deferred via microtask because we can't write signals inside an owned
+      // compute scope (Solid 2 SIGNAL_WRITE_IN_OWNED_SCOPE).
+      queueMicrotask(() => forceRefresh())
       const observer = new ResizeObserver(onResize)
       observer.observe(el)
       return () => observer.disconnect()

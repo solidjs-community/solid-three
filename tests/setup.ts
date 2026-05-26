@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, vi } from "vitest"
+import { cleanup } from "../src/testing/index.tsx"
 
 // Patch console.warn to include a stack trace for "Signal was written to in an owned scope"
 const _warn = console.warn.bind(console)
@@ -30,23 +31,6 @@ afterEach(() => {
   expect(relevant, `Dev warnings emitted during test:\n${relevant.join("\n")}`).toEqual([])
 })
 
-// jsdom does not include ResizeObserver — provide a mock that immediately invokes the callback
-// on observe() so that useMeasure picks up the canvas dimensions.
-if (typeof globalThis.ResizeObserver === "undefined") {
-  globalThis.ResizeObserver = class ResizeObserver {
-    private callback: ResizeObserverCallback
-
-    constructor(callback: ResizeObserverCallback) {
-      this.callback = callback
-    }
-
-    observe(target: Element) {
-      // Defer to match real browser behaviour — ResizeObserver callbacks are never synchronous.
-      // Firing synchronously here writes a signal inside a reactive effect, triggering a warning.
-      queueMicrotask(() => this.callback([] as unknown as ResizeObserverEntry[], this))
-    }
-
-    unobserve() {}
-    disconnect() {}
-  } as unknown as typeof ResizeObserver
-}
+// Free WebGL contexts after each test. Browsers cap concurrent contexts
+// (~16 in Chromium) — without this the suite crashes the page mid-run.
+afterEach(() => cleanup())

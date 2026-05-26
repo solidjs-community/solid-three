@@ -1,27 +1,7 @@
-import { render as solidRender } from "@solidjs/web"
-import { Loading, type Element } from "solid-js"
-import { afterEach } from "vitest"
-
-// Minimal inline replacement for @solidjs/testing-library's render. The library
-// (v0.8.10) imports from `solid-js/web`, a subpath Solid 2 doesn't expose
-// (it moved to `@solidjs/web`). Until a Solid-2-compatible release ships, we
-// drive the renderer directly and clean up between tests.
-const mountedContainers: { container: HTMLElement; unmount: () => void }[] = []
-function render(code: () => Element) {
-  const container = document.body.appendChild(document.createElement("div"))
-  const dispose = solidRender(code, container)
-  const handle = { container, unmount: dispose }
-  mountedContainers.push(handle)
-  return handle
-}
-afterEach(() => {
-  for (const { container, unmount } of mountedContainers.splice(0)) {
-    unmount()
-    container.remove()
-  }
-})
+import { Loading } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it } from "vitest"
+import { render } from "../../libs/testing-library.ts"
 import { Canvas, createT, useLoader, useThree } from "../../src/index.ts"
 import type { Context, RendererLike } from "../../src/types.ts"
 
