@@ -2,6 +2,9 @@
 title: Smart props
 ---
 
+import shorthandsSnippet from "../snippets/03-shorthands.tsx?raw"
+import argsSnippet from "../snippets/03-args.tsx?raw"
+
 # Smart props
 
 You've been writing `position={[0, 0, 3]}` — but `Mesh.position` isn't an
@@ -16,31 +19,7 @@ A few shorthands worth knowing:
 - `color="cornflowerblue"` or `color={[1, 0.4, 0.2]}` — both work; `Color`
   accepts strings, hex numbers, and RGB tuples.
 
-<Demo code={`import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 4] }}>
-    <T.Mesh
-      position={[-1.5, 0, 0]}
-      scale={1.2}
-    >
-      <T.BoxGeometry />
-      <T.MeshStandardMaterial color="cornflowerblue" />
-    </T.Mesh>
-    <T.Mesh
-      position={[1.5, 0, 0]}
-      scale={0.8}
-    >
-      <T.BoxGeometry />
-      <T.MeshStandardMaterial color={[1, 0.4, 0.2]} />
-    </T.Mesh>
-    <T.AmbientLight intensity={0.3} />
-    <T.DirectionalLight position={[2, 2, 2]} />
-  </Canvas>
-)`} />
+<Demo code={shorthandsSnippet} />
 
 The principle: pass whatever's most ergonomic for the shape of data you have.
 `solid-three` figures out the right call on the underlying object.
@@ -51,21 +30,7 @@ Not everything has a setter. `BoxGeometry`'s width, height and depth are
 constructor parameters — you set them when the geometry is born. For cases
 like this, pass an `args` array:
 
-<Demo code={`
-import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 4] }}>
-    <T.Mesh>
-      <T.BoxGeometry args={[2, 1, 1]} />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
-  </Canvas>
-)
-`} />
+<Demo code={argsSnippet} />
 
 `args` is spread into the constructor: `new BoxGeometry(...args)`. Change
 `args` and the entity is rebuilt — which is what you want, since geometries

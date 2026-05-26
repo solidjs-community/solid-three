@@ -2,6 +2,9 @@
 title: Nesting & transforms
 ---
 
+import transformsSnippet from "../snippets/02-transforms.tsx?raw"
+import groupSnippet from "../snippets/02-group.tsx?raw"
+
 # Nesting & transforms
 
 A `three.js` scene is a tree. Every object has a parent and a (possibly empty)
@@ -14,25 +17,7 @@ Every object takes three transform props:
 - `rotation={[x, y, z]}` (radians)
 - `scale={[x, y, z]}` (or a single number — `scale={2}` doubles every axis)
 
-<Demo code={`
-import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 5] }}>
-    <T.Mesh position={[-1.5, 0, 0]}>
-      <T.BoxGeometry />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
-    <T.Mesh position={[1.5, 0, 0]} rotation={[0, 0.6, 0]} scale={0.6}>
-      <T.BoxGeometry />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
-  </Canvas>
-)
-`} />
+<Demo code={transformsSnippet} />
 
 ## Composing transforms
 
@@ -42,27 +27,7 @@ parent's position, rotation and scale all apply first, then the child's on top.
 `T.Group` is the empty container you reach for when you want to move several
 things together without a visible mesh of their own.
 
-<Demo code={`
-import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 5] }}>
-    <T.Group rotation={[0, 0.6, 0]}>
-      <T.Mesh position={[-1.2, 0, 0]}>
-        <T.BoxGeometry />
-        <T.MeshNormalMaterial />
-      </T.Mesh>
-      <T.Mesh position={[1.2, 0, 0]}>
-        <T.BoxGeometry />
-        <T.MeshNormalMaterial />
-      </T.Mesh>
-    </T.Group>
-  </Canvas>
-)
-`} />
+<Demo code={groupSnippet} />
 
 > Same two cubes, but now they sit inside a `<T.Group>` that's rotated. The
 > rotation applies to the group's frame, so both cubes tilt together —

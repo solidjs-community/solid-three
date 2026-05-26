@@ -2,6 +2,8 @@
 title: Stopping events
 ---
 
+import stopPropagationSnippet from "../snippets/06-stop-propagation.tsx?raw"
+
 # Stopping events
 
 When you click in a scene, the ray usually hits more than one mesh — the
@@ -10,43 +12,7 @@ default, `solid-three` fires the same event on every hit, from the closest
 to the furthest. Each handler can choose to "consume" the event by calling
 `event.stopPropagation()`, just like a DOM event.
 
-<Demo code={`
-import * as THREE from "three"
-import { createSignal } from "solid-js"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => {
-  const [front, setFront] = createSignal(false)
-  const [back, setBack] = createSignal(false)
-
-  return (
-    <Canvas camera={{ position: [0, 0, 4] }}>
-      <T.Mesh
-        position={[0, 0, -1]}
-        onClick={() => setBack(value => !value)}
-      >
-        <T.BoxGeometry />
-        <T.MeshStandardMaterial color={back() ? "tomato" : "#888"} />
-      </T.Mesh>
-      <T.Mesh
-        position={[0, 0, 0]}
-        scale={0.6}
-        onClick={event => {
-          event.stopPropagation()
-          setFront(value => !value)
-        }}
-      >
-        <T.BoxGeometry />
-        <T.MeshStandardMaterial color={front() ? "tomato" : "cornflowerblue"} />
-      </T.Mesh>
-      <T.AmbientLight intensity={0.4} />
-      <T.DirectionalLight position={[2, 2, 2]} />
-    </Canvas>
-  )
-}
-`} />
+<Demo code={stopPropagationSnippet} />
 
 Click the small front cube — only it changes colour, because its handler
 called `event.stopPropagation()`. Click the larger background cube on either

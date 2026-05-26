@@ -2,6 +2,10 @@
 title: Your first scene
 ---
 
+import entitySnippet from "../snippets/01-entity.tsx?raw"
+import createTSnippet from "../snippets/01-create-t.tsx?raw"
+import curatedSnippet from "../snippets/01-curated.tsx?raw"
+
 # Your first scene
 
 A `three.js` scene needs three things:
@@ -33,19 +37,7 @@ They produce the same scene; they only differ in ergonomics.
 `<Entity from={...}>` is the most direct primitive: hand it a `three.js`
 class, and it instantiates one in the scene.
 
-<Demo code={`
-import * as THREE from "three"
-import { Canvas, Entity } from "solid-three"
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 3] }}>
-    <Entity from={THREE.Mesh}>
-      <Entity from={THREE.BoxGeometry} />
-      <Entity from={THREE.MeshNormalMaterial} />
-    </Entity>
-  </Canvas>
-)
-`} />
+<Demo code={entitySnippet} />
 
 The colour comes from `MeshNormalMaterial`, which tints each face by its
 surface normal: a handy debugging material because it makes geometry visible
@@ -60,21 +52,7 @@ Writing `<Entity from={THREE.Mesh}>` for every class gets old fast. `createT`
 takes a namespace of `three.js` classes and hands you back a proxy where every
 key is its own `<Entity>`-shaped component.
 
-<Demo code={`
-import * as THREE from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 3] }}>
-    <T.Mesh>
-      <T.BoxGeometry />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
-  </Canvas>
-)
-`} />
+<Demo code={createTSnippet} />
 
 `T.Mesh` is exactly `<Entity from={THREE.Mesh}>` — `createT` just saves the
 typing.
@@ -83,21 +61,7 @@ The tradeoff: `createT(THREE)` references the whole namespace, so the bundler
 ships every `three.js` class regardless of what you use. You can keep the
 sugar and stay tree-shakeable by handing `createT` a curated object instead:
 
-<Demo code={`
-import { Mesh, BoxGeometry, MeshNormalMaterial } from "three"
-import { Canvas, createT } from "solid-three"
-
-const T = createT({ Mesh, BoxGeometry, MeshNormalMaterial })
-
-export default () => (
-  <Canvas camera={{ position: [0, 0, 3] }}>
-    <T.Mesh>
-      <T.BoxGeometry />
-      <T.MeshNormalMaterial />
-    </T.Mesh>
-  </Canvas>
-)
-`} />
+<Demo code={curatedSnippet} />
 
 `T.*` stays terse, but only the classes you imported survive into the bundle.
 For the rest of this tutorial we'll pass the full `THREE` namespace — easier

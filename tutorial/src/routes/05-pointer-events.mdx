@@ -2,6 +2,10 @@
 title: Pointer events
 ---
 
+import clickSnippet from "../snippets/05-click.tsx?raw"
+import hoverSnippet from "../snippets/05-hover.tsx?raw"
+import clickMissedSnippet from "../snippets/05-click-missed.tsx?raw"
+
 # Pointer events
 
 The button you wrote in the last chapter handled an `onClick` from the DOM.
@@ -9,28 +13,7 @@ The button you wrote in the last chapter handled an `onClick` from the DOM.
 the right semantics for a 3D world: it only fires when the click actually
 hits that mesh.
 
-<Demo code={`
-import * as THREE from "three"
-import { createSignal } from "solid-js"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => {
-  const [hot, setHot] = createSignal(false)
-
-  return (
-    <Canvas camera={{ position: [0, 0, 3] }}>
-      <T.Mesh onClick={() => setHot(value => !value)}>
-        <T.BoxGeometry />
-        <T.MeshStandardMaterial color={hot() ? "tomato" : "cornflowerblue"} />
-      </T.Mesh>
-      <T.AmbientLight intensity={0.4} />
-      <T.DirectionalLight position={[2, 2, 2]} />
-    </Canvas>
-  )
-}
-`} />
+<Demo code={clickSnippet} />
 
 Click the cube. Same toggle as before — just the target moved into the
 scene.
@@ -46,32 +29,7 @@ that — adding `onClick` is enough.
 the ray first enters or finally leaves a mesh. Combine them with a signal
 to react to hover.
 
-<Demo code={`
-import * as THREE from "three"
-import { createSignal } from "solid-js"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => {
-  const [hovered, setHovered] = createSignal(false)
-
-  return (
-    <Canvas camera={{ position: [0, 0, 3] }}>
-      <T.Mesh
-        scale={hovered() ? 1.2 : 1}
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-      >
-        <T.BoxGeometry />
-        <T.MeshStandardMaterial color="cornflowerblue" />
-      </T.Mesh>
-      <T.AmbientLight intensity={0.4} />
-      <T.DirectionalLight position={[2, 2, 2]} />
-    </Canvas>
-  )
-}
-`} />
+<Demo code={hoverSnippet} />
 
 Move the pointer over the cube — it grows. Leave — it shrinks. The signal
 flips; `scale` reads it; one property assignment runs.
@@ -82,31 +40,7 @@ Sometimes the interesting event is when the user clicks but *doesn't* hit any
 mesh — to deselect the current selection, dismiss a tooltip, that sort of
 thing. `<Canvas>` exposes `onClickMissed` for exactly that case:
 
-<Demo code={`
-import * as THREE from "three"
-import { createSignal } from "solid-js"
-import { Canvas, createT } from "solid-three"
-
-const T = createT(THREE)
-
-export default () => {
-  const [selected, setSelected] = createSignal(false)
-
-  return (
-    <Canvas
-      camera={{ position: [0, 0, 3] }}
-      onClickMissed={() => setSelected(false)}
-    >
-      <T.Mesh onClick={() => setSelected(true)}>
-        <T.BoxGeometry />
-        <T.MeshStandardMaterial color={selected() ? "tomato" : "cornflowerblue"} />
-      </T.Mesh>
-      <T.AmbientLight intensity={0.4} />
-      <T.DirectionalLight position={[2, 2, 2]} />
-    </Canvas>
-  )
-}
-`} />
+<Demo code={clickMissedSnippet} />
 
 Click the cube to select it; click anywhere else in the canvas to deselect.
 The two handlers cover the full "did you hit something?" question between
