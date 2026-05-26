@@ -464,6 +464,7 @@ The `Portal` component allows you to place children outside the regular scene gr
 
 - **element**: Optional `three.js` object to render into. If not provided, renders into the root scene.
 - **children**: Elements to render in the portal.
+- **onUpdate**: Called with the resolved `element` whenever `Portal` mounts or re-attaches. Useful for extra wiring on the target (e.g. setting properties on a foreign scene that aren't expressible as solid-three props).
 
 <details>
 <summary>Typescript Interface</summary>
