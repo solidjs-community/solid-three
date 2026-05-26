@@ -130,3 +130,87 @@ html[data-theme*="light"] {
 .demo-controls button:hover {
   color: #e8e8e8;
 }
+
+.hero {
+  position: relative;
+  width: 100vw;
+  height: 70vh;
+  min-height: 480px;
+  overflow: hidden;
+  margin-inline: calc(-50vw + 50%);
+}
+
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  pointer-events: none;
+  padding: 2rem;
+  gap: 1rem;
+}
+
+.hero-title {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  margin: 0;
+}
+
+.hero-tagline {
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  margin: 0;
+  opacity: 0.85;
+}
+
+.hero-ctas {
+  display: flex;
+  gap: 0.75rem;
+  pointer-events: auto;
+  margin-top: 1rem;
+}
+
+.hero-cta {
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid currentColor;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.hero-cta-primary {
+  background: var(--sb-color-text, #1a1a1a);
+  color: var(--sb-color-background, #ffffff);
+  border-color: transparent;
+}
+
+.hero-edit-toggle {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid currentColor;
+  background: var(--sb-color-background, #ffffff);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.hero-editor-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--sb-color-background, #ffffff);
+  z-index: 1;
+}
