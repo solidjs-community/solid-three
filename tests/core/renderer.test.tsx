@@ -11,7 +11,8 @@ import * as THREE from "three"
 import { beforeAll, describe, expect, it, vi } from "vitest"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
 import { settled, test } from "../../src/testing/index.tsx"
-import type { Context, Meta } from "../../src/types.ts"
+import type { Context, Meta, RendererLike } from "../../src/types.ts"
+import { getPendingInit } from "../../src/utils.ts"
 
 type ComponentMesh = THREE.Mesh<THREE.BoxGeometry, THREE.MeshBasicMaterial>
 
@@ -233,6 +234,42 @@ describe("renderer", () => {
     expect(attachedScene?.type).toBe("Scene")
     // attaching is *instead of* being a regular child
     expect(scene.children[0].children.length).toBe(0)
+  })
+
+  it("attaches a foreign Material (duck-typed isMaterial: true)", async () => {
+    // Reproduces the failure mode hit by `three/webgpu`'s
+    // `MeshBasicNodeMaterial` (and any other Material from a separate
+    // module instance of three): the class doesn't share the `Material`
+    // prototype that solid-three imports from "three", so the
+    // `child instanceof Material` check in `applySceneGraph` fails and the
+    // material is never wired up as `mesh.material`. Duck-typing on
+    // `isMaterial` should handle this case.
+    class ForeignMaterial {
+      isMaterial = true
+      type = "ForeignMaterial"
+      // three's Material API surface that solid-three may touch
+      dispose() {}
+      copy(_other: ForeignMaterial) {
+        return this
+      }
+    }
+    const TF = createT({ ...THREE, ForeignMaterial })
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const scene = (await test(() => (
+      <TF.Mesh>
+        <TF.BoxGeometry />
+        <TF.ForeignMaterial />
+      </TF.Mesh>
+    ))).scene
+
+    const mesh = scene.children[0] as THREE.Mesh
+    expect(mesh.type).toBe("Mesh")
+    expect((mesh.material as ForeignMaterial).type).toBe("ForeignMaterial")
+    expect(errorSpy).not.toHaveBeenCalled()
+
+    errorSpy.mockRestore()
   })
 
   describe("attaches Object3D children that use attachFns", () => {
@@ -570,6 +607,61 @@ describe("renderer", () => {
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
+  it("should accept the tuple `[constructorArgs, properties]` form for gl", async () => {
+    // Smoke test — tuple is recognised and tuple[1] is applied as instance props.
+    const gl = (await test(() => <T.Group />, {
+      gl: [{ antialias: false }, { toneMapping: THREE.NoToneMapping }],
+    })).gl as unknown as THREE.WebGLRenderer
+    expect(gl).toBeInstanceOf(THREE.WebGLRenderer)
+    expect(gl.toneMapping).toBe(THREE.NoToneMapping)
+  })
+
+  it("should not recreate the renderer when tuple[1] changes but tuple[0] is shallow-equal", async () => {
+    const [tick, setTick] = createSignal(0)
+    const state = await test(() => <T.Group />, {
+      get gl() {
+        return [
+          { antialias: false },
+          { toneMapping: tick() === 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping },
+        ] as [{ antialias: boolean }, { toneMapping: THREE.ToneMapping }]
+      },
+    })
+
+    const initial = state.gl
+    setTick(1)
+    await settled()
+    expect(state.gl).toBe(initial)
+  })
+
+  it("should recreate the renderer when tuple[0] changes shape", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = await test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl
+    setAa(false)
+    await settled()
+    expect(state.gl).not.toBe(initial)
+  })
+
+  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = await test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl as unknown as THREE.WebGLRenderer
+    const disposeSpy = vi.spyOn(initial, "dispose")
+    setAa(false)
+    await settled()
+    expect(disposeSpy).toHaveBeenCalled()
+  })
+
   it("should update scene via scene prop", async () => {
     const scene = (await test(() => <T.Group />, { scene: { name: "test" } })).scene
 
@@ -590,6 +682,318 @@ describe("renderer", () => {
     const gl = (await test(() => <T.Group />, { gl: canvas => new Renderer({ canvas }) })).gl
 
     expect(gl instanceof Renderer).toBe(true)
+  })
+
+  /**
+   * External-renderer (RendererLike) tests — cover the structural-typed `gl`
+   * prop that lets users pass any renderer (WebGPURenderer, SVGRenderer,
+   * custom). Mirrors r3f's external-renderer.test.tsx.
+   */
+  function makeFakeRenderer(overrides: Partial<RendererLike> = {}) {
+    const fake = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      setPixelRatio: vi.fn(),
+      getPixelRatio: vi.fn(() => 1),
+      domElement: document.createElement("canvas"),
+      ...overrides,
+    }
+    return fake as typeof fake & RendererLike
+  }
+
+  it("should accept a RendererLike instance as the gl prop", async () => {
+    const fake = makeFakeRenderer()
+    const state = await test(() => <T.Group />, { gl: fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should accept a RendererLike instance returned from the gl factory", async () => {
+    const fake = makeFakeRenderer()
+    const state = await test(() => <T.Group />, { gl: () => fake })
+    expect(state.gl).toBe(fake)
+  })
+
+  it("should await renderer.init() before the first render", async () => {
+    let resolveInit!: () => void
+    const initPromise = new Promise<void>(resolve => {
+      resolveInit = resolve
+    })
+    const fake = makeFakeRenderer({ init: vi.fn(() => initPromise) })
+
+    const state = await test(() => <T.Group />, { gl: fake })
+
+    // Loop is spinning, but render() must early-return until init resolves.
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(fake.init).toHaveBeenCalledTimes(1)
+    expect(fake.render).not.toHaveBeenCalled()
+
+    resolveInit()
+    await initPromise
+    await state.waitTillNextFrame()
+
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should skip init() when hasInitialized() returns true", async () => {
+    const fake = makeFakeRenderer({
+      init: vi.fn(async () => {}),
+      hasInitialized: vi.fn(() => true),
+    })
+
+    const state = await test(() => <T.Group />, { gl: fake })
+    await state.waitTillNextFrame()
+
+    expect(fake.init).not.toHaveBeenCalled()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should render immediately for a RendererLike without init()", async () => {
+    const fake = makeFakeRenderer()
+    const state = await test(() => <T.Group />, { gl: fake })
+
+    await state.waitTillNextFrame()
+    expect(fake.render).toHaveBeenCalled()
+  })
+
+  it("should skip color-management props on a renderer that lacks them", async () => {
+    // SVGRenderer / custom renderers don't have outputColorSpace or toneMapping.
+    const fake = makeFakeRenderer() as RendererLike & {
+      outputColorSpace?: unknown
+      toneMapping?: unknown
+    }
+    await test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputColorSpace).toBeUndefined()
+    expect(fake.toneMapping).toBeUndefined()
+  })
+
+  it("should apply color-management props to a renderer that exposes them", async () => {
+    const fake = Object.assign(makeFakeRenderer(), {
+      outputColorSpace: "" as string,
+      toneMapping: 0,
+    })
+    await test(() => <T.Group />, { gl: fake, linear: false, flat: false })
+
+    expect(fake.outputColorSpace).toBe(THREE.SRGBColorSpace)
+    expect(fake.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+  })
+
+  it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
+    const fake = makeFakeRenderer()
+    const state = await test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    expect(() => state.xr.connect()).not.toThrow()
+    expect(() => state.xr.disconnect()).not.toThrow()
+    // The no-op path warns so users debugging "why isn't my XR working" can
+    // see it in the console.
+    expect(warn).toHaveBeenCalledTimes(2)
+    expect(warn.mock.calls[0][0]).toMatch(/no-op/)
+
+    warn.mockRestore()
+  })
+
+  it("should wire XR on a WebGPU-shaped renderer (setAnimationLoop on the renderer, not on xr)", async () => {
+    // WebGPURenderer's XRManager has no `setAnimationLoop` — that method lives on
+    // the renderer itself. On `sessionstart`, solid-three must:
+    //   1. set `gl.xr.enabled = true`
+    //   2. drive frames via `gl.setAnimationLoop(cb)` on the renderer (not xr).
+    // On `sessionend`, it must clear both.
+    const listeners: Record<string, ((e: unknown) => void)[]> = {}
+    const xrManager = {
+      enabled: false,
+      isPresenting: false,
+      addEventListener: (type: string, fn: (e: unknown) => void) => {
+        ;(listeners[type] ??= []).push(fn)
+      },
+      removeEventListener: (type: string, fn: (e: unknown) => void) => {
+        listeners[type] = (listeners[type] ?? []).filter(l => l !== fn)
+      },
+      dispatch(type: string) {
+        for (const fn of listeners[type] ?? []) fn({ type })
+      },
+    }
+    const setAnimationLoop = vi.fn()
+    const fake = Object.assign(makeFakeRenderer(), { xr: xrManager, setAnimationLoop })
+
+    await test(() => <T.Group />, { gl: fake })
+
+    xrManager.isPresenting = true
+    xrManager.dispatch("sessionstart")
+
+    expect(xrManager.enabled).toBe(true)
+    expect(setAnimationLoop).toHaveBeenCalledTimes(1)
+    expect(typeof setAnimationLoop.mock.calls[0][0]).toBe("function")
+
+    xrManager.isPresenting = false
+    xrManager.dispatch("sessionend")
+
+    expect(xrManager.enabled).toBe(false)
+    expect(setAnimationLoop).toHaveBeenLastCalledWith(null)
+  })
+
+  it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
+    // WebGPURenderer's XRManager has `enabled` but no `setAnimationLoop`. The
+    // duck-typed `isWebXRManager` guard must distinguish this from a real
+    // WebXRManager so we don't crash calling missing methods.
+    const addEventListener = vi.fn()
+    const fake = Object.assign(makeFakeRenderer(), {
+      xr: { enabled: false, addEventListener },
+    })
+    const state = await test(() => <T.Group />, { gl: fake })
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    expect(() => state.xr.connect()).not.toThrow()
+    // Real wiring would have called addEventListener twice (sessionstart,
+    // sessionend). The guard should have skipped it.
+    expect(addEventListener).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    warn.mockRestore()
+  })
+
+  it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
+    // DOM-based renderers (CSS2DRenderer, CSS3DRenderer, SVGRenderer) have no
+    // pixel-ratio API. They must still work — `context.dpr` falls back to `1`
+    // (the renderer didn't scale anything, so reporting any other value
+    // would be fabricating).
+    const fake: RendererLike = {
+      render: vi.fn(),
+      setSize: vi.fn(),
+      domElement: document.createElement("div"),
+    }
+    const state = await test(() => <T.Group />, { gl: fake })
+
+    expect(() => state.gl.setSize(100, 100)).not.toThrow()
+    expect(state.dpr).toBe(1)
+  })
+
+  it("should apply shadowMap.enabled/type but not needsUpdate on non-WebGL shadow maps", async () => {
+    // WebGPURenderer's `shadowMap` is `{ enabled, type }` — no `needsUpdate`.
+    // The shared `enabled`/`type` writes should still happen; only the
+    // WebGL-specific `needsUpdate = true` write is gated.
+    const fake = Object.assign(makeFakeRenderer(), {
+      shadowMap: { enabled: false, type: 0 },
+    })
+    await test(() => <T.Group />, { gl: fake, shadows: true })
+
+    expect(fake.shadowMap.enabled).toBe(true)
+    expect(fake.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
+    expect("needsUpdate" in fake.shadowMap).toBe(false)
+  })
+
+  describe("getPendingInit", () => {
+    it("returns undefined when the renderer has no init", () => {
+      const fake = makeFakeRenderer()
+      expect(getPendingInit(fake)).toBeUndefined()
+    })
+
+    it("returns undefined when hasInitialized() reports true", () => {
+      const init = vi.fn(async () => {})
+      const fake = makeFakeRenderer({ init, hasInitialized: () => true })
+      expect(getPendingInit(fake)).toBeUndefined()
+      expect(init).not.toHaveBeenCalled()
+    })
+
+    it("returns a function that invokes init() with the renderer as `this`", async () => {
+      let capturedThis: unknown
+      const init = vi.fn(async function (this: unknown) {
+        capturedThis = this
+      })
+      const fake = makeFakeRenderer({ init })
+
+      const pending = getPendingInit(fake)
+      expect(typeof pending).toBe("function")
+      if (pending) await pending()
+      expect(init).toHaveBeenCalledTimes(1)
+      expect(capturedThis).toBe(fake)
+    })
+  })
+
+  /**
+   * Construction firewall — see `cameraInput`/`sceneInput`/`raycasterInput`/
+   * `glInput` memos in `create-three.tsx`. Each prop is read through a
+   * `createMemo({equals: shallowEqual})` so reactive config-objects with
+   * fresh references but identical *shape* don't re-allocate three.js
+   * objects (which would break held refs).
+   */
+  describe("construction firewall", () => {
+    it("camera memo doesn't recreate when prop reference changes but shape is equal", async () => {
+      const [tick, setTick] = createSignal(0)
+      const state = await test(() => <T.Group />, {
+        get camera() {
+          tick() // track signal
+          return { position: [0, 0, 5] as [number, number, number] }
+        },
+      })
+
+      const initial = state.camera
+      setTick(1)
+      setTick(2)
+      await settled()
+      expect(state.camera).toBe(initial)
+    })
+
+    it("camera memo does recreate when orthographic flag flips", async () => {
+      const [ortho, setOrtho] = createSignal(false)
+      const state = await test(() => <T.Group />, {
+        get orthographic() {
+          return ortho()
+        },
+      })
+
+      const initial = state.camera
+      expect(initial).toBeInstanceOf(THREE.PerspectiveCamera)
+      setOrtho(true)
+      await settled()
+      expect(state.camera).not.toBe(initial)
+      expect(state.camera).toBeInstanceOf(THREE.OrthographicCamera)
+    })
+
+    it("scene memo doesn't recreate when prop reference changes but shape is equal", async () => {
+      const [tick, setTick] = createSignal(0)
+      const state = await test(() => <T.Group />, {
+        get scene() {
+          tick()
+          return { name: "main" }
+        },
+      })
+
+      const initial = state.scene
+      setTick(1)
+      await settled()
+      expect(state.scene).toBe(initial)
+    })
+
+    it("raycaster memo doesn't recreate when prop reference changes but shape is equal", async () => {
+      const [tick, setTick] = createSignal(0)
+      const state = await test(() => <T.Group />, {
+        get raycaster() {
+          tick()
+          return { near: 0.1, far: 1000 }
+        },
+      })
+
+      const initial = state.raycaster
+      setTick(1)
+      await settled()
+      expect(state.raycaster).toBe(initial)
+    })
+
+    it("gl memo doesn't recreate when prop reference changes but shape is equal", async () => {
+      const [tick, setTick] = createSignal(0)
+      const state = await test(() => <T.Group />, {
+        get gl() {
+          tick()
+          return { toneMappingExposure: 1 }
+        },
+      })
+
+      const initial = state.gl
+      setTick(1)
+      await settled()
+      expect(state.gl).toBe(initial)
+    })
   })
 
   it("should respect color management preferences via gl", async () => {
