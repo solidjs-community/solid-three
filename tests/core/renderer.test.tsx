@@ -560,6 +560,58 @@ describe("renderer", () => {
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
+  it("should accept the tuple `[constructorArgs, properties]` form for gl", async () => {
+    // Smoke test — tuple is recognised and tuple[1] is applied as instance props.
+    const gl = test(() => <T.Group />, {
+      gl: [{ antialias: false }, { toneMapping: THREE.NoToneMapping }],
+    }).gl as unknown as THREE.WebGLRenderer
+    expect(gl).toBeInstanceOf(THREE.WebGLRenderer)
+    expect(gl.toneMapping).toBe(THREE.NoToneMapping)
+  })
+
+  it("should not recreate the renderer when tuple[1] changes but tuple[0] is shallow-equal", async () => {
+    const [tick, setTick] = createSignal(0)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [
+          { antialias: false },
+          { toneMapping: tick() === 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping },
+        ] as [{ antialias: boolean }, { toneMapping: THREE.ToneMapping }]
+      },
+    })
+
+    const initial = state.gl
+    setTick(1)
+    expect(state.gl).toBe(initial)
+  })
+
+  it("should recreate the renderer when tuple[0] changes shape", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl
+    setAa(false)
+    expect(state.gl).not.toBe(initial)
+  })
+
+  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
+      },
+    })
+
+    const initial = state.gl as unknown as THREE.WebGLRenderer
+    const disposeSpy = vi.spyOn(initial, "dispose")
+    setAa(false)
+    expect(disposeSpy).toHaveBeenCalled()
+  })
+
   it("should update scene via scene prop", async () => {
     const scene = test(() => <T.Group />, { scene: { name: "test" } }).scene
 

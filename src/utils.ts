@@ -219,6 +219,24 @@ export function isConstructor<T>(value: T | Constructor): value is Constructor {
 }
 
 /**
+ * Shallow object equality. Used as the `equals` argument to `createMemo` so
+ * a fresh-reference-same-content object (e.g. `{ antialias: true }` returned
+ * by a JSX getter each tick) doesn't propagate downstream. Same keys + each
+ * value `===` ⇒ equal.
+ */
+export function shallowEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    if ((a as Record<string, unknown>)[key] !== (b as Record<string, unknown>)[key]) return false
+  }
+  return true
+}
+
+/**
  * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
  * we both call and that three's WebGPU `XRManager` doesn't expose, so the
  * check is meaningful — not an arbitrary brand probe.

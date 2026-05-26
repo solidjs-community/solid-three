@@ -7,6 +7,7 @@ import {
   Raycaster,
   Scene,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
@@ -30,7 +31,10 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   frameloop?: "never" | "demand" | "always"
   /**
    * Renderer to render the scene with. Accepts:
-   * - a config object (applied to a default `WebGLRenderer`)
+   * - a properties object (instance-writable keys, applied to a default `WebGLRenderer`)
+   * - a `[constructorParameters, properties]` tuple (split form — useful when you
+   *   need WebGL-only constructor args like `antialias` that can't be set after
+   *   construction)
    * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
    * - a renderer instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
    *
@@ -38,11 +42,18 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
    * module-augmentation interface — see {@link Register} in `types.ts`.
    */
   gl?:
-    // Config-object shorthand creates a default WebGLRenderer at runtime.
-    // When `Register` narrows `ResolvedRenderer` away from WebGL, this branch
-    // collapses to `never` so the user is forced into the factory or
-    // instance form that actually matches their declared renderer.
-    | (WebGLRenderer extends ResolvedRenderer ? Partial<Props<WebGLRenderer>> : never)
+    // Properties-only / tuple shorthand creates a default WebGLRenderer at
+    // runtime. When `Register` narrows `ResolvedRenderer` away from WebGL,
+    // these branches collapse to `never` so the user is forced into the
+    // factory or instance form that actually matches their declared renderer.
+    | (WebGLRenderer extends ResolvedRenderer
+        ?
+            | Partial<Props<WebGLRenderer>>
+            | readonly [
+                constructorParameters: Partial<WebGLRendererParameters>,
+                properties: Partial<Props<WebGLRenderer>>,
+              ]
+        : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   /** Toggles linear interpolation for texture filtering. */
