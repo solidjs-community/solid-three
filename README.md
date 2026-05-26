@@ -102,7 +102,13 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
 - **camera**: Configures the camera used in the scene. Can be partial props for a camera or an existing Camera instance.
 - **fallback**: Element to render while the main content is loading asynchronously.
-- **gl**: Defines options for the default WebGLRenderer, a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
+- **gl**: How the renderer is constructed. Accepts one of four shapes:
+  - **properties object** (`gl={{ toneMapping: ACESFilmicToneMapping }}`) — applied to a default `WebGLRenderer` as instance-writable properties after construction.
+  - **`[constructorParameters, properties]` tuple** (`gl={[{ antialias: true }, { toneMapping: ACESFilmicToneMapping }]}`) — slot 0 is passed to the `WebGLRenderer` constructor (for WebGL-only flags like `antialias`/`alpha`/`stencil` that can't be set after); slot 1 is applied as instance properties.
+  - **factory** (`gl={canvas => new WebGPURenderer({ canvas })}`) — return any renderer you want (`WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom).
+  - **pre-built instance** — a renderer you already constructed.
+
+  See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
 - **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
@@ -126,6 +132,10 @@ interface CanvasProps {
   fallback?: JSX.Element
   gl?:
     | Partial<WebGLRenderer>
+    | readonly [
+        constructorParameters: Partial<WebGLRendererParameters>,
+        properties: Partial<WebGLRenderer>,
+      ]
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   scene?: Partial<Scene> | Scene
