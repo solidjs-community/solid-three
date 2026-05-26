@@ -3,6 +3,7 @@ title: useThree
 ---
 
 import useThreeOverlay from "../snippets/09-use-three-overlay.tsx?raw"
+import cameraStack from "../snippets/09-camera-stack.tsx?raw"
 
 # useThree
 
@@ -15,12 +16,13 @@ The context exposes:
 
 - `gl` — the `THREE.WebGLRenderer`
 - `scene` — the root `THREE.Scene`
-- `camera` — the active camera
+- `camera` — the active camera (top of the camera stack — see below)
+- `raycaster` — the active raycaster (top of the raycaster stack)
 - `clock` — the renderer's `THREE.Clock` (gives `elapsedTime` and `delta`)
 - `canvas` — the underlying `<canvas>` element
 - `bounds`, `viewport`, `dpr` — pixel-space and CSS-space dimensions
-- `raycaster` — the active raycaster
 - `requestRender` — manually trigger a frame in `frameloop="demand"`
+- `setCamera`, `setRaycaster` — push a new one onto the stack (return a cleanup)
 
 <Demo code={useThreeOverlay} />
 
@@ -40,3 +42,27 @@ other than per-frame. Common reasons:
 
 For per-frame work, the `context` argument to `useFrame` already covers
 you — there's no need to call `useThree` separately.
+
+## Cameras and raycasters are stacks
+
+`context.camera` and `context.raycaster` aren't single slots — they're the
+top of a stack. Calling `context.setCamera(myCamera)` *pushes* your camera
+onto the stack and returns a cleanup function that pops it off again. So
+the moment your component unmounts, the previous camera quietly takes
+over.
+
+The same is true for `context.setRaycaster`. The stack model means you
+can layer in alternative cameras or raycasters from anywhere in the tree
+without coordinating handoff with whoever was there before.
+
+<Demo code={cameraStack} />
+
+Click the button. `<TopDownCamera>` pushes a top-down `PerspectiveCamera`
+when it mounts, and the cleanup returned by `setCamera` pops it when
+`<Show>` flips back. You never have to remember to put the old camera
+back — Solid's ownership tree does it for you.
+
+The same pattern works for picture-in-picture rendering, render passes
+that need a different view, modal overlays — anywhere you want to swap
+the active camera (or raycaster) for a bounded scope and have the
+restoration be automatic.
