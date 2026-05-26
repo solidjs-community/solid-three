@@ -93,30 +93,6 @@ function Good(props: { shape: "box" | "sphere" }) {
 }
 ```
 
-## Advanced Prop Patterns
+## Prop pipeline
 
-`solid-three` supports advanced prop attachment patterns for precise control:
-
-```tsx
-<Entity
-  from={MeshStandardMaterial}
-  // Direct property setting
-  color="red"
-  // Nested property access with dot notation
-  material-color="blue"
-  // Sub-property access with hyphens
-  position-x={2}
-  rotation-y={Math.PI / 4}
-  scale-z={0.5}
-  // Deep nested properties
-  material-emissive-intensity={0.5}
-/>
-```
-
-**Supported patterns:**
-
-- **Direct props**: `color="red"` → `object.color = "red"`
-- **Hyphen notation**: `position-x={1}` → `object.position.x = 1`
-- **Deep nesting**: `material-emissive-intensity={0.5}` → `object.material.emissive.intensity = 0.5`
-
-These patterns automatically trigger `needsUpdate` flags on materials and geometries when necessary. See also the [chapter on smart props](/tutorial/02-props-and-children).
+All `Entity` props (other than `from` and `args`) flow through [`useProps`](/api/hooks/use-props), which handles array coercion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and automatic `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full coercion table and `attach`/`args`/`ref` semantics.
