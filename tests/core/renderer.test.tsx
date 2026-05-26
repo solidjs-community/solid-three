@@ -237,6 +237,42 @@ describe("renderer", () => {
     expect(scene.children[0].children.length).toBe(0)
   })
 
+  it("attaches a foreign Material (duck-typed isMaterial: true)", async () => {
+    // Reproduces the failure mode hit by `three/webgpu`'s
+    // `MeshBasicNodeMaterial` (and any other Material from a separate
+    // module instance of three): the class doesn't share the `Material`
+    // prototype that solid-three imports from "three", so the
+    // `child instanceof Material` check in `applySceneGraph` fails and the
+    // material is never wired up as `mesh.material`. Duck-typing on
+    // `isMaterial` should handle this case.
+    class ForeignMaterial {
+      isMaterial = true
+      type = "ForeignMaterial"
+      // three's Material API surface that solid-three may touch
+      dispose() {}
+      copy(_other: ForeignMaterial) {
+        return this
+      }
+    }
+    const TF = createT({ ...THREE, ForeignMaterial })
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const scene = test(() => (
+      <TF.Mesh>
+        <TF.BoxGeometry />
+        <TF.ForeignMaterial />
+      </TF.Mesh>
+    )).scene
+
+    const mesh = scene.children[0] as THREE.Mesh
+    expect(mesh.type).toBe("Mesh")
+    expect((mesh.material as ForeignMaterial).type).toBe("ForeignMaterial")
+    expect(errorSpy).not.toHaveBeenCalled()
+
+    errorSpy.mockRestore()
+  })
+
   describe("attaches Object3D children that use attachFns", () => {
     it("attachFns with cleanup", async () => {
       const [visible, setVisible] = createSignal(true)
