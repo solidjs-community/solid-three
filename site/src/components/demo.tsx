@@ -224,7 +224,7 @@ const hostHtml = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <style>
-      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1d26; }
+      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
     </style>
     <script type="importmap">

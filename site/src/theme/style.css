@@ -12,9 +12,14 @@
   text-align: left;
 }
 
+/* SolidBase sets data-theme="sdark" / "slight" on <html>. Mirror that into
+ * a CSS variable so the demo chrome adapts to the site's theme. */
+html { --demo-border: #222; }
+html[data-theme*="light"] { --demo-border: #e7e7e7; }
+
 .demo {
   margin: 1.5rem 0;
-  border: 1px solid #222;
+  border: 1px solid var(--demo-border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -32,7 +37,7 @@
 .demo-editor-wrapper {
   position: relative;
   height: 100%;
-  border-right: 1px solid #222;
+  border-right: 1px solid var(--demo-border);
   overflow: hidden;
 }
 
