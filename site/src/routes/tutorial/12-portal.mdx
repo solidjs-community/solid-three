@@ -2,6 +2,42 @@
 title: Portal
 ---
 
+import portalSnippet from "../../snippets/12-portal.tsx?raw"
+
 # Portal
 
-(chapter content goes here)
+So far the scene graph has been a faithful mirror of your JSX: nest `<A>`
+inside `<B>` and A becomes a child of B. `Portal` is the escape hatch —
+it lets a component render its children into *somewhere else* in the
+scene, while keeping the JSX parent-child relationship for reactivity,
+ownership, and lifecycle.
+
+The classic use case is a HUD layer that should ignore the transform of
+the group it visually belongs to. Or rendering into a separate scene for
+a picture-in-picture, an off-screen render target, or any other
+"detached" view.
+
+<Demo code={portalSnippet} />
+
+Click the button. The blue cube — a normal child of the group — slides
+along with it. The red cube doesn't: it's wrapped in `<Portal>`, which
+attaches its render output to the scene root, ignoring the group's
+position entirely. Both cubes are still children of the group in JSX —
+they share lifecycle, signals, refs, all of it — but only one of them
+*lives* there in the scene tree.
+
+## Picking a target
+
+By default, `Portal` renders into `context.scene` — the root of the
+canvas's scene. Pass an `element` prop to render into something else:
+
+```tsx
+<Portal element={someGroup}>
+  <T.Mesh>...</T.Mesh>
+</Portal>
+```
+
+Combined with a separate `THREE.Scene` (created outside the JSX tree),
+you can build picture-in-picture views, off-screen render targets, or
+any other detached scene that still gets to live inside your Solid
+component tree.
