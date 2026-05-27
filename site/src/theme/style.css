@@ -223,14 +223,15 @@ html[data-theme*="light"] {
 .hero-cta {
   padding: 0.6rem 1.1rem;
   border-radius: 0.5rem;
-  border: 1px solid #ffffff;
+  border: 1px solid var(--sb-active-link-color);
+  color: var(--sb-active-link-color);
   text-decoration: none;
   font-weight: 500;
   backdrop-filter: blur(3px);
 }
 
 .hero-cta-primary {
-  color: var(--sb-color-background, #ffffff);
+  color: #ffffff;
   border-color: #ffffff;
   backdrop-filter: blur(3px);
 }
