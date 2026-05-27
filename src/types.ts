@@ -20,7 +20,6 @@ import type {
   WebGLRenderer,
 } from "three"
 import type { WebGPURenderer } from "three/webgpu"
-import type { Intersect } from "../playground/controls/type-utils.ts"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
 import type { EventRaycaster } from "./raycasters.tsx"
@@ -50,6 +49,13 @@ export type Overwrite<T extends unknown[]> = T extends [infer First, ...infer Re
     ? Omit<First, keyof Result> & Result
     : never
   : never
+
+/** Intersect a tuple of types: `Intersect<[A, B, C]>` → `A & B & C`. */
+export type Intersect<T extends any[]> = T extends [infer U, ...infer Rest]
+  ? Rest["length"] extends 0
+    ? U
+    : U & Intersect<Rest>
+  : T
 
 export type Prettify<T> = {
   [K in keyof T]: T[K]
