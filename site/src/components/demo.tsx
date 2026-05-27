@@ -359,7 +359,10 @@ function DemoClient(props: DemoProps) {
   }
 
   return (
-    <div class="demo" classList={{ "demo-narrow": isNarrow() }}>
+    <div
+      class="demo"
+      classList={{ "demo-narrow": isNarrow(), "demo-editor-hidden": props.editorHidden }}
+    >
       <Show when={isNarrow() && !props.editorHidden}>
         <div class="demo-tabs">
           <button

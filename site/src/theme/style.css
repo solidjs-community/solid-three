@@ -40,7 +40,8 @@ html[data-theme*="light"] {
   min-height: 0;
 }
 
-.demo-narrow .demo-panes {
+.demo-narrow .demo-panes,
+.demo-editor-hidden .demo-panes {
   grid-template-columns: 1fr;
 }
 
