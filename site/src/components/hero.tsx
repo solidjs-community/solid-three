@@ -25,9 +25,11 @@ export function Hero() {
 
   return (
     <div class="hero">
-      <div class="hero-canvas">
-        <LazyChosenScene onPick={setChosen} />
-      </div>
+      <Show when={!editorOpen()}>
+        <div class="hero-canvas">
+          <LazyChosenScene onPick={setChosen} />
+        </div>
+      </Show>
       <div class="hero-overlay">
         <h1 class="hero-title">solid-three</h1>
         <p class="hero-tagline">A SolidJS renderer for three.js.</p>
@@ -52,7 +54,7 @@ export function Hero() {
       <Show when={editorOpen() && source()}>
         {sourceText => (
           <div class="hero-editor-overlay">
-            <LazyDemo code={sourceText()} />
+            <LazyDemo code={sourceText()} url={chosen()?.url ?? ""} />
           </div>
         )}
       </Show>

@@ -5,11 +5,17 @@ const sources = import.meta.glob("./*.tsx", {
   query: "?raw",
   import: "default",
 }) as Record<string, () => Promise<string>>
+const urls = import.meta.glob<string>("./*.tsx", {
+  query: "?importChunkUrl",
+  import: "default",
+  eager: true,
+})
 
 export interface Demo {
   id: string
   load: () => Promise<{ default: Component }>
   loadSource: () => Promise<string>
+  url: string
 }
 
 export const demos: Demo[] = Object.keys(modules)
@@ -18,8 +24,9 @@ export const demos: Demo[] = Object.keys(modules)
     const id = path.match(/\.\/(.+)\.tsx$/)?.[1]
     if (!id) throw new Error(`gallery: unexpected path ${path}`)
     const loadSource = sources[path]
+    const url = urls[path] ?? ""
     if (!loadSource) throw new Error(`gallery: missing raw source for ${path}`)
-    return { id, load: modules[path], loadSource }
+    return { id, load: modules[path], loadSource, url }
   })
 
 export function pickRandomDemo(): Demo {
