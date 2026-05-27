@@ -10,9 +10,9 @@ const TEXT = "SOLID THREE"
 const TUBE_RADIUS = 2.2
 const TUBULAR_SEGMENTS = 512
 const RADIAL_SEGMENTS = 32
-const TEXTURE_REPEAT_U = 6
-const TEXTURE_REPEAT_V = 12
-const LOOP_DURATION_SECONDS = 40
+const TEXTURE_REPEAT_U = 12
+const TEXTURE_REPEAT_V = 9
+const LOOP_DURATION_SECONDS = 120
 
 // Snippets run inside an iframe with its own document. We load the font via
 // FontFace against the iframe's document.fonts so the canvas texture renders
@@ -35,11 +35,8 @@ function ensureTunnelFontLoaded(): void {
 }
 
 function makeTextTexture(): THREE.CanvasTexture {
-  // Aspect ratio of the canvas determines spacing between successive
-  // "SOLID THREE" rows as the texture tiles along the tube length.
-  // Lower height = tighter vertical packing.
-  const width = 2048
-  const height = 128
+  const width = 1024 * 2
+  const height = 128 * 2
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
@@ -52,7 +49,7 @@ function makeTextTexture(): THREE.CanvasTexture {
   ctx.textBaseline = "middle"
   let fontSize = height * 0.85
   ctx.font = `${fontSize}px ${FONT_FAMILY}, sans-serif`
-  const maxTextWidth = width * 0.88
+  const maxTextWidth = width
   const measured = ctx.measureText(TEXT).width
   if (measured > maxTextWidth) {
     fontSize *= maxTextWidth / measured
@@ -153,7 +150,7 @@ function Tunnel() {
 
 export default function TunnelDemo() {
   return (
-    <Canvas camera={{ fov: 78, near: 0.01, far: 400 }}>
+    <Canvas camera={{ fov: 120, near: 0.01, far: 400 }}>
       <T.Color attach="background" args={["#0a0c12"]} />
       <Tunnel />
     </Canvas>

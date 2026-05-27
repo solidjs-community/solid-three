@@ -28,8 +28,10 @@ export function Hero() {
       </Show>
       <Show when={!editorOpen()}>
         <div class="hero-overlay">
-          <h1 class="hero-title">SOLID THREE</h1>
-          <p class="hero-tagline">a solid.js renderer for three.js</p>
+          <section class="hero-title-section">
+            <h1 class="hero-title">SOLID THREE</h1>
+            <p class="hero-tagline">a solid.js renderer for three.js</p>
+          </section>
           <div class="hero-ctas">
             <a class="hero-cta" href="/tutorial/01-your-first-scene">
               start the tutorial

@@ -206,6 +206,17 @@ html[data-theme*="light"] {
   gap: 1rem;
 }
 
+.hero-title-section {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 1.5rem;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  backdrop-filter: blur(5px) brightness(0.5);
+  padding-inline: 2rem;
+  padding-block: 0.5rem;
+}
+
 .hero-title {
   font-family: "IFKica", sans-serif;
   font-size: clamp(2.5rem, 6vw, 4rem);
@@ -228,7 +239,7 @@ html[data-theme*="light"] {
 
 .hero-cta {
   padding: 0.6rem 1.1rem;
-  border-radius: 0.5rem;
+  border-radius: 1.5rem;
   border: 1px solid #ffffff;
   color: #ffffff;
   text-decoration: none;
@@ -241,7 +252,7 @@ html[data-theme*="light"] {
   bottom: 1rem;
   right: 1rem;
   padding: 0.6rem 1.1rem;
-  border-radius: 0.5rem;
+  border-radius: 1.5rem;
   border: 1px solid #ffffff;
   background: transparent;
   color: inherit;
