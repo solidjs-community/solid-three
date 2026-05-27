@@ -4,11 +4,11 @@ import { Canvas, createT, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
-import { FontLoader, type Font } from "three/examples/jsm/loaders/FontLoader.js"
+import { Font, FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
+import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
+import fontTtfUrl from "../../IFKica-Regular.ttf?url"
 
 const T = createT(THREE)
-
-const FONT_URL = "https://esm.sh/three@0.181/examples/fonts/helvetiker_bold.typeface.json"
 
 const LETTERS = ["S", "O", "L", "I", "D", "T", "H", "R", "E", "E"] as const
 const SOLID_BLUE = "#2c4f7c"
@@ -161,9 +161,9 @@ export default function Hero() {
   const [font, setFont] = createSignal<Font | undefined>()
 
   onMount(() => {
-    new FontLoader().load(
-      FONT_URL,
-      loaded => setFont(loaded),
+    new TTFLoader().load(
+      fontTtfUrl,
+      json => setFont(new Font(json)),
       undefined,
       error => console.error("[hero] font load failed", error),
     )
