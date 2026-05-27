@@ -260,9 +260,17 @@ function DemoClient(props: DemoProps) {
     onCleanup(() => media.removeEventListener("change", handler))
   })
 
-  // Mode-A blob URL: built once per (url, theme) pair. Revoked on dispose.
-  const initialBootstrapUrl = createMemo(() => buildInitialBootstrap(props.url, editorTheme()))
-  onCleanup(() => URL.revokeObjectURL(initialBootstrapUrl()))
+  // Mode-A blob URL. Previous blob is revoked whenever the memo
+  // re-evaluates (e.g. on theme toggle) so we don't leak across re-runs.
+  let previousInitialBootstrapUrl: string | undefined
+  const initialBootstrapUrl = createMemo(() => {
+    if (previousInitialBootstrapUrl) URL.revokeObjectURL(previousInitialBootstrapUrl)
+    previousInitialBootstrapUrl = buildInitialBootstrap(props.url, editorTheme())
+    return previousInitialBootstrapUrl
+  })
+  onCleanup(() => {
+    if (previousInitialBootstrapUrl) URL.revokeObjectURL(previousInitialBootstrapUrl)
+  })
 
   // Mode-B compiler: only fires once `hasEdited` flips true.
   const [compiler] = createResource(
