@@ -1,8 +1,8 @@
 import { clientOnly } from "@solidjs/start"
 import { createSignal, Show } from "solid-js"
-import heroSource from "../snippets/hero.tsx?raw"
+import heroSource from "../snippets/gallery/letter-drop.tsx?raw"
 
-const LazyHeroScene = clientOnly(() => import("../snippets/hero"))
+const LazyHeroScene = clientOnly(() => import("../snippets/gallery/letter-drop"))
 const LazyDemo = clientOnly(() => import("./demo"))
 
 export function Hero() {
