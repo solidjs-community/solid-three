@@ -184,7 +184,12 @@ html[data-theme*="light"] {
  * its height to the viewport (so the page doesn't scroll past Hero, and any
  * residual SolidBase chrome like the empty .info wrapper is clipped). */
 article.article-fullbleed {
-  margin: 0;
+  /* SolidBase's sidebar has min-width:14rem but its grid column is
+   * minmax(12rem, auto), so the sidebar overflows its track by 2rem and
+   * paints into the main column. SolidBase masks this with the article's
+   * default 2rem margin — we keep that on the left side only and zero out
+   * the rest so Hero still fills the rest of the pane. */
+  margin: 0 0 0 2rem;
   display: block;
   /* Fill the viewport below the SolidBase header. --sb-header-height is set
    * by SolidBase; fallback covers the case where it isn't. */
