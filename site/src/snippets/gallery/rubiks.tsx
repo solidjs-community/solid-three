@@ -110,11 +110,15 @@ function OrbitCamera() {
   const start = performance.now()
   useFrame(() => {
     const t = (performance.now() - start) / 1000
-    const angle = t * 0.06
-    const radius = 6
-    three.camera.position.x = Math.sin(angle) * radius
-    three.camera.position.z = Math.cos(angle) * radius
-    three.camera.position.y = 2.5
+    const radius = 11
+    // Spherical orbit with incommensurate azimuth/elevation periods so
+    // every face passes through view eventually.
+    const azimuth = t * 0.18
+    const elevation = Math.sin(t * 0.11) * (Math.PI / 2 - 0.15)
+    const horizontal = Math.cos(elevation) * radius
+    three.camera.position.x = Math.sin(azimuth) * horizontal
+    three.camera.position.z = Math.cos(azimuth) * horizontal
+    three.camera.position.y = Math.sin(elevation) * radius
     three.camera.lookAt(0, 0, 0)
   })
   return null
@@ -135,9 +139,9 @@ function buildMeshMaterials(
   faceTextures: Record<string, THREE.CanvasTexture>,
 ): THREE.Material[] {
   const blank = new THREE.MeshStandardMaterial({
-    color: "#111111",
-    metalness: 0.2,
-    roughness: 0.6,
+    color: "#000000",
+    metalness: 0,
+    roughness: 1,
   })
   const materials: THREE.Material[] = [blank, blank, blank, blank, blank, blank]
   const [x, y, z] = state.position
@@ -152,8 +156,9 @@ function buildMeshMaterials(
     tex.offset.set(u, v)
     materials[slot] = new THREE.MeshStandardMaterial({
       map: tex,
-      metalness: 0.2,
-      roughness: 0.5,
+      metalness: 0.7,
+      roughness: 0.25,
+      envMapIntensity: 1.4,
     })
   }
   return materials
@@ -171,7 +176,7 @@ export default function Rubiks() {
   const [cubieListVersion, bumpCubies] = createSignal(0)
 
   return (
-    <Canvas camera={{ position: [6, 2.5, 6], fov: 35 }}>
+    <Canvas camera={{ position: [0, 0, 11], fov: 35 }}>
       <EnvironmentSetup />
       <OrbitCamera />
       <T.AmbientLight intensity={0.5} />
