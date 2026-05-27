@@ -29,14 +29,16 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
+      # Build the library first so `site/` (which imports `solid-three`
+      # via `link:..`) can resolve types in the Typecheck step.
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm lint:types
 
       - name: Test
         run: pnpm test --run
-
-      - name: Build
-        run: pnpm build
 
       - name: Publish preview
         run: pnpx pkg-pr-new publish --compact --template ./demo
