@@ -170,7 +170,7 @@ function makeGlyphTexture(glyph: string): THREE.CanvasTexture {
   ctx.fillStyle = SOLID_BLUE
   ctx.fillRect(0, 0, size, size)
   ctx.fillStyle = WARM_WHITE
-  ctx.font = `${size * 0.78}px ${GLYPH_FONT_FAMILY}, sans-serif`
+  ctx.font = `${size * 0.92}px ${GLYPH_FONT_FAMILY}, sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText(glyph, size / 2, size / 2 + size * 0.04)
