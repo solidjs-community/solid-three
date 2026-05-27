@@ -3,8 +3,11 @@ title: A peek at WebGPU
 ---
 
 import webgpuSimple from "../../snippets/09-webgpu-simple.tsx?raw"
+import webgpuSimpleUrl from "../../snippets/09-webgpu-simple.tsx?importChunkUrl"
 import webgpuTsl from "../../snippets/09-webgpu-tsl.tsx?raw"
+import webgpuTslUrl from "../../snippets/09-webgpu-tsl.tsx?importChunkUrl"
 import webgpuTslUniform from "../../snippets/09-webgpu-tsl-uniform.tsx?raw"
+import webgpuTslUniformUrl from "../../snippets/09-webgpu-tsl-uniform.tsx?importChunkUrl"
 
 # A peek at WebGPU
 
@@ -21,7 +24,7 @@ This chapter is a short peek at both.
 want. To use WebGPU, return a `WebGPURenderer` from `three/webgpu`.
 `solid-three` awaits its `init()` for you before the first frame.
 
-<Demo code={webgpuSimple} />
+<Demo code={webgpuSimple} url={webgpuSimpleUrl} />
 
 Same [`<Canvas>`](/api/components/canvas), same
 [`<T.Mesh>`](/api/components/t), same
@@ -38,7 +41,7 @@ Instead of writing GLSL strings and wiring uniforms by hand, you compose
 shader nodes — math, samplers, time — directly in TypeScript. The result
 runs on the GPU.
 
-<Demo code={webgpuTsl} />
+<Demo code={webgpuTsl} url={webgpuTslUrl} />
 
 That stripey, washy material is one function:
 
@@ -73,7 +76,7 @@ The static TSL above runs entirely on the GPU. To make it _react_ to the
 outside world, build a `uniform()` and push values into it from a Solid
 effect.
 
-<Demo code={webgpuTslUniform} />
+<Demo code={webgpuTslUniform} url={webgpuTslUniformUrl} />
 
 Drag the slider. The `frequency` signal updates → the `createEffect`
 writes to `frequencyUniform.value` → the next frame's shader sees the new

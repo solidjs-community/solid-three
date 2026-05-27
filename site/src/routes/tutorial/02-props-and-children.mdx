@@ -3,10 +3,15 @@ title: Props and children
 ---
 
 import buttonToggleSnippet from "../../snippets/02-button-toggle.tsx?raw"
+import buttonToggleUrl from "../../snippets/02-button-toggle.tsx?importChunkUrl"
 import transformsSnippet from "../../snippets/02-transforms.tsx?raw"
+import transformsUrl from "../../snippets/02-transforms.tsx?importChunkUrl"
 import groupSnippet from "../../snippets/02-group.tsx?raw"
+import groupUrl from "../../snippets/02-group.tsx?importChunkUrl"
 import shorthandsSnippet from "../../snippets/02-shorthands.tsx?raw"
+import shorthandsUrl from "../../snippets/02-shorthands.tsx?importChunkUrl"
 import argsSnippet from "../../snippets/02-args.tsx?raw"
+import argsUrl from "../../snippets/02-args.tsx?importChunkUrl"
 
 # Props and children
 
@@ -14,7 +19,7 @@ A scene in `solid-three` is a reactive view over a `three.js` graph.
 Anything that drives a Solid component also drives the scene — and the
 easiest way to see that is to hand a prop a signal.
 
-<Demo code={buttonToggleSnippet} />
+<Demo code={buttonToggleSnippet} url={buttonToggleUrl} />
 
 Click the button repeatedly. The counter at the top says "App body has
 run: 1 time" — and it stays at 1, no matter how often you click. The
@@ -39,7 +44,7 @@ Every object accepts three transform props:
 - `rotation={[x, y, z]}` (radians)
 - `scale={[x, y, z]}` (or a single number — `scale={2}` doubles every axis)
 
-<Demo code={transformsSnippet} />
+<Demo code={transformsSnippet} url={transformsUrl} />
 
 ## Composing transforms
 
@@ -50,7 +55,7 @@ child's on top.
 `T.Group` is the empty container you reach for when you want to move
 several things together without a visible mesh of their own.
 
-<Demo code={groupSnippet} />
+<Demo code={groupSnippet} url={groupUrl} />
 
 > Same two cubes, but now they sit inside a `<T.Group>` that's rotated.
 > The rotation applies to the group's frame, so both cubes tilt together
@@ -67,7 +72,7 @@ Not everything has a setter. `BoxGeometry`'s width, height, and depth
 are constructor parameters — you set them when the geometry is born.
 For cases like this, pass an `args` array:
 
-<Demo code={argsSnippet} />
+<Demo code={argsSnippet} url={argsUrl} />
 
 `args` is spread into the constructor: `new BoxGeometry(...args)`.
 Change `args` and the geometry is rebuilt — which is what you want,
@@ -82,7 +87,7 @@ of what you hand it: arrays unpack into `.set(...)`, single numbers
 broadcast via `.setScalar(...)`, strings and hex go through `.set(...)`
 on a `Color`, and so on.
 
-<Demo code={shorthandsSnippet} />
+<Demo code={shorthandsSnippet} url={shorthandsUrl} />
 
 The principle: pass whatever's most ergonomic for the shape of data
 you have. `solid-three` checks which setter the target supports —

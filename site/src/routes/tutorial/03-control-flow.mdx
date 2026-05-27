@@ -3,10 +3,15 @@ title: Control flow
 ---
 
 import showSnippet from "../../snippets/03-show.tsx?raw"
+import showUrl from "../../snippets/03-show.tsx?importChunkUrl"
 import switchSnippet from "../../snippets/03-switch.tsx?raw"
+import switchUrl from "../../snippets/03-switch.tsx?importChunkUrl"
 import forSnippet from "../../snippets/03-for.tsx?raw"
+import forUrl from "../../snippets/03-for.tsx?importChunkUrl"
 import indexSnippet from "../../snippets/03-index.tsx?raw"
+import indexUrl from "../../snippets/03-index.tsx?importChunkUrl"
 import suspenseSnippet from "../../snippets/03-suspense.tsx?raw"
+import suspenseUrl from "../../snippets/03-suspense.tsx?importChunkUrl"
 
 # Control flow
 
@@ -19,7 +24,7 @@ inside a `<div>`. You don't learn a new vocabulary; you keep using
 
 The conditional. Mount and unmount children based on a signal.
 
-<Demo code={showSnippet} />
+<Demo code={showSnippet} url={showUrl} />
 
 When the signal flips, `<Show>` *mounts* and *unmounts* its children —
 not just hides them. The cube's `BoxGeometry` and `MeshNormalMaterial`
@@ -31,7 +36,7 @@ on disposal later).
 The branching cousin. For more than two possible states, pick the first
 matching `<Match>`.
 
-<Demo code={switchSnippet} />
+<Demo code={switchSnippet} url={switchUrl} />
 
 Cycle through `idle`, `loading`, `ready`. Each state's scene is a
 different mesh entirely — when you click the button, the previous
@@ -42,7 +47,7 @@ mesh's geometry and material are disposed and the next one mounts.
 The keyed list. Each item is tracked by identity — reordering an array
 doesn't remount anything, push/pop is cheap.
 
-<Demo code={forSnippet} />
+<Demo code={forSnippet} url={forUrl} />
 
 Click "add" to push a new cube onto the signal array; the scene gains a
 cube. Click "remove" to pop one; it disappears. The other cubes don't
@@ -58,7 +63,7 @@ no remount.
 component, even if the value changes. Good for fixed-shape lists like
 a row of slots.
 
-<Demo code={indexSnippet} />
+<Demo code={indexSnippet} url={indexUrl} />
 
 Click "shuffle". The colours change, but each cube stays mounted —
 only its `color` prop updates. With `<For>` you'd see the cubes
@@ -70,7 +75,7 @@ Wait for a `createResource` to resolve, falling back to something else
 in the meantime. Both the fallback and the resolved content can be
 `<T.*>`.
 
-<Demo code={suspenseSnippet} />
+<Demo code={suspenseSnippet} url={suspenseUrl} />
 
 Click "new colour". The cube's colour comes from a `createResource`
 that takes ~800ms to resolve. While it's pending, `<Suspense>` shows

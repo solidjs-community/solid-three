@@ -3,7 +3,9 @@ title: Loaders & Resource
 ---
 
 import useLoaderSnippet from "../../snippets/06-use-loader.tsx?raw"
+import useLoaderUrl from "../../snippets/06-use-loader.tsx?importChunkUrl"
 import resourceSnippet from "../../snippets/06-resource.tsx?raw"
+import resourceUrl from "../../snippets/06-resource.tsx?importChunkUrl"
 
 # Loaders & Resource
 
@@ -19,7 +21,7 @@ fetching.
 loaded asset. Wrap the consumer in a `<Suspense>` so Solid knows what to
 do while it's pending.
 
-<Demo code={useLoaderSnippet} />
+<Demo code={useLoaderSnippet} url={useLoaderUrl} />
 
 A cube with a random photo from `picsum.photos` mapped onto every face.
 While the image is loading, `<Suspense>` shows nothing (you can give it a
@@ -37,7 +39,7 @@ fetching, but you write it as JSX inside the scene tree. When the
 attachment is obvious — a `TextureLoader` result going into `.map` of the
 parent material — `attach` does the wiring for you.
 
-<Demo code={resourceSnippet} />
+<Demo code={resourceSnippet} url={resourceUrl} />
 
 Same outcome, different shape. Use whichever reads better in context:
 
