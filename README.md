@@ -72,7 +72,6 @@ Here's a simple example to get you started:
 </Entity>
 ```
 
-([see](/playground/src/api/entity/constructor-usage.tsx))
 
 Alternatively, using the `createT()` pattern:
 
@@ -86,7 +85,6 @@ const T = createT(THREE)
 </T.Mesh>
 ```
 
-([see](/playground/src/api/t/complete-three.tsx))
 
 **Choosing between `Entity` and `T`:**
 
@@ -167,7 +165,6 @@ interface CanvasProps {
 </Canvas>
 ```
 
-([see](/playground/src/api/canvas/usage.tsx))
 
 #### Custom renderers
 
@@ -187,10 +184,6 @@ import { WebGPURenderer } from "three/webgpu"
 solid-three awaits `renderer.init()` automatically before the first
 frame, so async WebGPU setup just works. Examples:
 
-- [WebGPURenderer](/playground/src/examples/webgpu-simple.tsx)
-- [WebGPU + TSL nodes](/playground/src/examples/webgpu-tsl.tsx)
-- [CSS3DRenderer](/playground/src/examples/css3d.tsx)
-- [SVGRenderer](/playground/src/examples/svg.tsx)
 
 ##### Narrowing the renderer type project-wide
 
@@ -248,7 +241,6 @@ const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial('orange))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
-([see](/playground/src/api/entity/instance-usage.tsx))
 
 **Props:**
 
@@ -305,7 +297,6 @@ function Good(props: { shape: "box" | "sphere" }) {
 }
 ```
 
-([see](/playground/src/api/autodispose/basic-usage.tsx))
 
 #### Advanced Prop Patterns
 
@@ -327,7 +318,6 @@ function Good(props: { shape: "box" | "sphere" }) {
 />
 ```
 
-([see](/playground/src/api/entity/advanced-props.tsx))
 
 **Supported patterns:**
 
@@ -355,7 +345,6 @@ const T = createT(THREE)
 </T.Mesh>
 ```
 
-([see](/playground/src/api/t/complete-three.tsx))
 
 You can also create a namespace with specific objects for tree-shaking purposes:
 
@@ -367,7 +356,6 @@ import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
 const T = createT({ Mesh, BoxGeometry, MeshBasicMaterial })
 ```
 
-([see](/playground/src/api/t/tree-shaking.tsx))
 
 **Usage Patterns:**
 
@@ -423,7 +411,6 @@ Example:
 </Portal>
 ```
 
-([see](/playground/src/api/portal/usage.tsx))
 
 ### Resource
 
@@ -463,7 +450,6 @@ Wrapper-component around ['useLoader'](#useloader).
 <Resource loader={TextureLoader} url="/dynamic-texture.png" cache={false} />
 ```
 
-([see](/playground/src/api/resource/usage.tsx))
 
 ## Hooks
 
@@ -533,7 +519,6 @@ createEffect(() => {
 })
 ```
 
-([see](/playground/src/api/use-three/camera-switch.tsx))
 
 **Practical Example - Camera Switching:**
 
@@ -555,7 +540,6 @@ createEffect(() => {
 })
 ```
 
-([see](/playground/src/api/use-three/camera-switch.tsx))
 
 ### useFrame
 
@@ -608,7 +592,6 @@ useFrame(
 )
 ```
 
-([see](/playground/src/api/use-frame/usage.tsx))
 
 ### useLoader
 
@@ -661,7 +644,6 @@ const [url, setUrl] = createSignal("texture.jpg")
 const texture = useLoader(TextureLoader, url)
 ```
 
-([see](/playground/src/api/use-loader/single-texture.tsx))
 
 **Record Loading Example:**
 
@@ -681,7 +663,6 @@ const textures = useLoader(THREE.TextureLoader, {
 />
 ```
 
-([see](/playground/src/api/use-loader/texture-record.tsx))
 
 **Cube Texture Example:**
 
@@ -706,7 +687,6 @@ const cubeTexture = useLoader(
 <T.MeshStandardMaterial envMap={cubeTexture()} />
 ```
 
-([see](/playground/src/api/use-loader/render-function.tsx))
 
 #### Custom Cache
 
@@ -767,7 +747,6 @@ const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
 useProps(mesh, props)
 ```
 
-([see](/playground/src/api/use-props/usage.tsx))
 
 **What it handles:**
 
@@ -796,7 +775,6 @@ export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
 }
 ```
 
-[see](/playground/controls/orbit-controls.tsx)
 
 ## Utilities
 
@@ -984,7 +962,6 @@ return (
 )
 ```
 
-([see](/playground/src/api/autodispose/conditional-rendering.tsx))
 
 Creating reusable instances that should be disposed with the component
 
@@ -1002,7 +979,6 @@ const material = autodispose(new THREE.MeshStandardMaterial())
 </Index>
 ```
 
-([see](/playground/src/api/autodispose/shared-resources.tsx))
 
 ### Metadata Utilities
 
@@ -1070,7 +1046,6 @@ const MyTest = () => {
 - `onPointerUp` - Fired when pointer is released
 - `onWheel` - Fired on mouse wheel events
 
-([see](/playground/src/api/events/overview.tsx))
 
 ### Event Object
 
@@ -1138,7 +1113,6 @@ const EventPropagation = () => {
 }
 ```
 
-([see](/playground/src/api/events/event-propagation.tsx))
 
 In this example, clicking the overlapping area would normally trigger events in this order:
 
@@ -1187,7 +1161,6 @@ const ClickOutside = () => {
 }
 ```
 
-([see](/playground/src/api/events/click-outside.tsx))
 
 **Blocked by stopPropagation**
 
@@ -1239,7 +1212,6 @@ const RayPropagation = () => {
 }
 ```
 
-([see](/playground/src/api/events/raycast-blocking.tsx))
 
 This is useful for:
 
@@ -1294,7 +1266,6 @@ The `raycastable` prop controls whether an Object3D can be targeted by raycastin
 </T.Mesh>
 ```
 
-([see](/playground/src/api/events/raycastable-prop.tsx))
 
 ## Contributing
 

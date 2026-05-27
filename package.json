@@ -19,11 +19,9 @@
   ],
   "scripts": {
     "build": "tsup",
-    "build:dev": "vite build playground",
+    "build:site": "pnpm -C site build",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-    "dev": "vite playground",
-    "dev:tutorial": "pnpm -C site dev",
-    "build:tutorial": "pnpm -C site build",
+    "dev:site": "pnpm -C site dev",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "lint:circular": "dpdm -T src",
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
