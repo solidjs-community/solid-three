@@ -92,6 +92,29 @@ html[data-theme*="light"] {
   height: 100%;
 }
 
+.demo-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.demo-loading {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(120, 120, 120, 0.5);
+  pointer-events: none;
+  animation: demo-loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes demo-loading-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
 .demo-tabs {
   display: flex;
   background: #14171f;
