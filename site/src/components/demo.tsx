@@ -103,6 +103,8 @@ let babelTransformPromise: Promise<SnippetTransform> | undefined
 function getBabelTransformPromise(): Promise<SnippetTransform> {
   if (!babelTransformPromise) {
     babelTransformPromise = babelTransform({
+      // @ts-expect-error @bigmistqke/repl types `presets` as `string[]`, but
+      // Babel supports `[name, options]` tuples and we need to pass options.
       presets: [["babel-preset-solid", { generate: "dom", hydratable: false }]],
     })
   }
