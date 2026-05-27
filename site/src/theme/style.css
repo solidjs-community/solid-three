@@ -189,12 +189,13 @@ html[data-theme*="light"] {
   border: 1px solid currentColor;
   text-decoration: none;
   font-weight: 500;
+  backdrop-filter: blur(3px);
 }
 
 .hero-cta-primary {
-  background: var(--sb-color-text, #1a1a1a);
   color: var(--sb-color-background, #ffffff);
   border-color: transparent;
+  backdrop-filter: blur(3px);
 }
 
 .hero-edit-toggle {
