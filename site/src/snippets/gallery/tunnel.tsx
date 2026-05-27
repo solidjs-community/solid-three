@@ -56,7 +56,7 @@ function makeTextTexture(): THREE.CanvasTexture {
   const texture = new THREE.CanvasTexture(canvas)
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(1, TEXTURE_REPEAT_V)
+  texture.repeat.set(TEXTURE_REPEAT_V, 1)
   texture.anisotropy = 16
   texture.colorSpace = THREE.SRGBColorSpace
   return texture
@@ -105,7 +105,7 @@ function Tunnel() {
   useFrame((_, delta) => {
     const now = performance.now()
     const tex = texture()
-    tex.offset.y += delta * 0.55
+    tex.offset.x += delta * 0.55
     if (!mesh) return
     mesh.geometry.dispose()
     const curve = buildCurve(now - startTime)
