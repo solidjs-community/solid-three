@@ -1,5 +1,5 @@
 import { clientOnly } from "@solidjs/start"
-import { createResource, createSignal, onCleanup, onMount, Show, startTransition } from "solid-js"
+import { createResource, createSignal, Show, startTransition } from "solid-js"
 import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
@@ -16,11 +16,6 @@ export function Hero() {
   const [chosen, setChosen] = createSignal<Demo | undefined>()
   const [source] = createResource(chosen, demo => demo.loadSource())
 
-  onMount(() => {
-    document.body.classList.add("hero-mounted")
-    onCleanup(() => document.body.classList.remove("hero-mounted"))
-  })
-
   return (
     <div class="hero">
       <LazyPicker onPick={setChosen} />
@@ -30,22 +25,6 @@ export function Hero() {
             <LazyDemo code={sourceText()} url={chosen()?.url ?? ""} editorHidden={!editorOpen()} />
           </div>
         )}
-      </Show>
-      <Show when={!editorOpen()}>
-        <div class="hero-overlay">
-          <section class="hero-title-section">
-            <h1 class="hero-title">SOLID THREE</h1>
-            <p class="hero-tagline">a solid.js renderer for three.js</p>
-          </section>
-          <div class="hero-ctas">
-            <a class="hero-cta" href="/tutorial/01-your-first-scene">
-              start the tutorial
-            </a>
-            <a class="hero-cta" href="/api">
-              API reference
-            </a>
-          </div>
-        </div>
       </Show>
       <Show when={chosen()}>
         <button
