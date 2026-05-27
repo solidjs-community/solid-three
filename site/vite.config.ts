@@ -51,14 +51,6 @@ const theme = defineTheme({
 const solidBase = createSolidBase(theme)
 
 export default defineConfig({
-  resolve: {
-    // @ts-expect-error Vite 8's `AllResolveOptions` type omits
-    // `extensionAlias`, but it's supported at runtime (passed through to
-    // rollup's resolver).
-    extensionAlias: {
-      ".js": [".js", ".jsx", ".ts", ".tsx"],
-    },
-  },
   ssr: {
     noExternal: ["@kobalte/solidbase", "tm-textarea"],
   },
