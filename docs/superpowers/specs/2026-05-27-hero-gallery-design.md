@@ -168,3 +168,4 @@ Manual only (no automated tests):
 - "Next demo" UI for cycling without reload.
 - Drag-to-rotate Rubik's cube interaction.
 - Per-demo titles/captions in the hero overlay.
+- Contributor credit label in the bottom-right of the hero, linking to the author's site for whichever demo is showing. Each demo would declare its author (name + URL) as a named export, and the hero would render a small link chip. Goal: surface community contributions and make the gallery feel like a shared space.
