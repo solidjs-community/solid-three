@@ -6,7 +6,7 @@ import fontUrl from "../../IFKica-Regular.ttf?url"
 const T = createT(THREE)
 
 const FONT_FAMILY = "IFKica-Tunnel"
-const TEXT = "SOLID THREE  "
+const TEXT = "SOLID THREE"
 const TUBE_RADIUS = 2.2
 const TUBULAR_SEGMENTS = 512
 const RADIAL_SEGMENTS = 32
@@ -35,8 +35,11 @@ function ensureTunnelFontLoaded(): void {
 }
 
 function makeTextTexture(): THREE.CanvasTexture {
+  // Aspect ratio of the canvas determines spacing between successive
+  // "SOLID THREE" rows as the texture tiles along the tube length.
+  // Lower height = tighter vertical packing.
   const width = 2048
-  const height = 256
+  const height = 128
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
@@ -110,6 +113,7 @@ function Tunnel() {
       map: texture(),
       side: THREE.BackSide,
     })
+    m.map!.flipY = false
     onCleanup(() => m.dispose())
     return m
   })
