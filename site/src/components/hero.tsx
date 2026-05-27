@@ -1,17 +1,29 @@
 import { clientOnly } from "@solidjs/start"
-import { createSignal, Show } from "solid-js"
-import heroSource from "../snippets/gallery/letter-drop.tsx?raw"
+import { createMemo, createSignal, Show } from "solid-js"
+import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
-const LazyHeroScene = clientOnly(() => import("../snippets/gallery/letter-drop"))
 const LazyDemo = clientOnly(() => import("./demo"))
+
+function ChosenScene(props: { onPick: (demo: Demo) => void }) {
+  const demo = pickRandomDemo()
+  props.onPick(demo)
+  const LazyScene = clientOnly(demo.load)
+  return <LazyScene />
+}
+
+const LazyChosenScene = clientOnly(() =>
+  Promise.resolve({ default: ChosenScene as any }),
+)
 
 export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
+  const [chosen, setChosen] = createSignal<Demo | undefined>()
+  const source = createMemo(() => chosen()?.source ?? "")
 
   return (
     <div class="hero">
       <div class="hero-canvas">
-        <LazyHeroScene />
+        <LazyChosenScene onPick={setChosen} />
       </div>
       <div class="hero-overlay">
         <h1 class="hero-title">solid-three</h1>
@@ -25,12 +37,18 @@ export function Hero() {
           </a>
         </div>
       </div>
-      <button type="button" class="hero-edit-toggle" onClick={() => setEditorOpen(value => !value)}>
-        {editorOpen() ? "Close editor" : "Edit"}
-      </button>
-      <Show when={editorOpen()}>
+      <Show when={chosen()}>
+        <button
+          type="button"
+          class="hero-edit-toggle"
+          onClick={() => setEditorOpen(value => !value)}
+        >
+          {editorOpen() ? "Close editor" : "Edit"}
+        </button>
+      </Show>
+      <Show when={editorOpen() && source()}>
         <div class="hero-editor-overlay">
-          <LazyDemo code={heroSource} />
+          <LazyDemo code={source()} />
         </div>
       </Show>
     </div>
