@@ -26,22 +26,18 @@ export function Hero() {
     onCleanup(() => article?.classList.remove("article-fullbleed"))
   })
 
-  // Same-route navigation doesn't remount Hero, so clicking the title link in
-  // the header (which points to "/") while already on "/" wouldn't normally
-  // pick a new demo. Listen for clicks on any anchor to "/" and re-roll.
+  // Same-route navigation doesn't remount Hero, so clicking SolidBase's
+  // title link (href="/") while already on "/" wouldn't normally pick a new
+  // demo. Wire a click handler on that specific element.
   onMount(() => {
-    const handler = (event: MouseEvent) => {
-      const anchor = (event.target as HTMLElement | null)?.closest("a")
-      if (!anchor) return
-      const href = anchor.getAttribute("href")
-      if (!href) return
-      const url = new URL(href, window.location.href)
-      if (url.pathname !== "/") return
+    const homeLink = document.querySelector<HTMLAnchorElement>('header a[href="/"]')
+    if (!homeLink) return
+    const handler = () => {
       setChosen(pickRandomDemo())
       setEditorOpen(false)
     }
-    document.addEventListener("click", handler)
-    onCleanup(() => document.removeEventListener("click", handler))
+    homeLink.addEventListener("click", handler)
+    onCleanup(() => homeLink.removeEventListener("click", handler))
   })
 
   return (
