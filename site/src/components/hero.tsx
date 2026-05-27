@@ -32,7 +32,7 @@ export function Hero() {
           <p class="hero-tagline">a solid.js renderer for three.js</p>
           <div class="hero-ctas">
             <a class="hero-cta" href="/tutorial/01-your-first-scene">
-              Start the tutorial
+              start the tutorial
             </a>
             <a class="hero-cta" href="/api">
               API reference
@@ -46,7 +46,7 @@ export function Hero() {
           class="hero-edit-toggle"
           onClick={() => startTransition(() => setEditorOpen(value => !value))}
         >
-          {editorOpen() ? "Close editor" : "Edit"}
+          {editorOpen() ? "close editor" : "edit"}
         </button>
       </Show>
     </div>

@@ -221,7 +221,7 @@ html[data-theme*="light"] {
 
 .hero-ctas {
   display: flex;
-  gap: 0.75rem;
+  gap: 1rem;
   pointer-events: auto;
   margin-top: 2rem;
 }
@@ -233,7 +233,7 @@ html[data-theme*="light"] {
   color: #ffffff;
   text-decoration: none;
   font-weight: 500;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(5px) brightness(0.5);
 }
 
 .hero-edit-toggle {
