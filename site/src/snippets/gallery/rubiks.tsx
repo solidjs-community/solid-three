@@ -3,11 +3,30 @@ import { Canvas, createT, Entity, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
+import fontUrl from "../../IFKica-Regular.ttf?url"
 
 const T = createT(THREE)
 
 const SOLID_BLUE = "#2c4f7c"
 const WARM_WHITE = "#f4f4f4"
+const GLYPH_FONT_FAMILY = "IFKica"
+
+const [glyphFontReady, setGlyphFontReady] = createSignal(false)
+let glyphFontLoadStarted = false
+function ensureGlyphFontLoaded(): void {
+  if (glyphFontLoadStarted) return
+  glyphFontLoadStarted = true
+  const face = new FontFace(GLYPH_FONT_FAMILY, `url(${JSON.stringify(fontUrl)})`)
+  face
+    .load()
+    .then(loaded => {
+      document.fonts.add(loaded)
+      setGlyphFontReady(true)
+    })
+    .catch(error => {
+      console.error("[rubiks] font load failed", error)
+    })
+}
 
 type Axis = "x" | "y" | "z"
 type Layer = -1 | 1
@@ -151,7 +170,7 @@ function makeGlyphTexture(glyph: string): THREE.CanvasTexture {
   ctx.fillStyle = SOLID_BLUE
   ctx.fillRect(0, 0, size, size)
   ctx.fillStyle = WARM_WHITE
-  ctx.font = `bold ${size * 0.78}px sans-serif`
+  ctx.font = `${size * 0.78}px ${GLYPH_FONT_FAMILY}, sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   ctx.fillText(glyph, size / 2, size / 2 + size * 0.04)
@@ -263,7 +282,10 @@ function buildMeshMaterials(
 }
 
 export default function Rubiks() {
+  onMount(() => ensureGlyphFontLoaded())
+
   const faceTextures = createMemo(() => {
+    glyphFontReady() // track — rebuild textures once the custom font loads
     const map: Record<string, THREE.CanvasTexture> = {}
     for (const face of FACES) map[face.glyph] = makeGlyphTexture(face.glyph)
     onCleanup(() => Object.values(map).forEach(texture => texture.dispose()))
