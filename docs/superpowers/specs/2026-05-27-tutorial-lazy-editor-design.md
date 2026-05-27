@@ -37,19 +37,17 @@ The hero overlay reuses the same `Demo` component — gallery scenes pass throug
 `site/src/snippets/index.ts`:
 
 ```ts
-import type { Component } from "solid-js"
-
-const sources = import.meta.glob("./**/*.tsx", {
+const sources = import.meta.glob<string>("./**/*.tsx", {
   query: "?raw",
   import: "default",
   eager: true,
-}) as Record<string, string>
+})
 
-const urls = import.meta.glob("./**/*.tsx", {
+const urls = import.meta.glob<string>("./**/*.tsx", {
   query: "?url",
   import: "default",
   eager: true,
-}) as Record<string, string>
+})
 
 const sourcesByName: Record<string, string> = {}
 const urlsByName: Record<string, string> = {}
@@ -75,6 +73,8 @@ export function snippet(filename: string): SnippetEntry {
   return { code, url }
 }
 ```
+
+The generic `<string>` parameter to `import.meta.glob` types the default-imported value, so both `sources` and `urls` infer as `Record<string, string>` directly — no cast.
 
 Filename collisions throw at module load — fail fast.
 
