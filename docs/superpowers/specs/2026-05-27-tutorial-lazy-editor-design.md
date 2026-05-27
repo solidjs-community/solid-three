@@ -20,17 +20,19 @@ A forthcoming spec will address sharing three.js / cannon-es / solid-three acros
 
 ## Architecture overview
 
-Two coordinated changes:
+Three coordinated changes:
 
-1. **A single `Demo` component**, same file (`site/src/components/demo.tsx`), gains a `Component` prop alongside the existing `code` prop. Internally it has two render modes:
+1. **Tutorial `Demo` component** (`site/src/components/demo.tsx`) gains a `Component` prop alongside the existing `code` prop. Two internal render modes:
    - **Mode A** (initial): renders `<props.Component />` directly into a host div. No iframe, no repl, no TS, no Babel.
-   - **Mode B** (after first edit): mounts the repl-driven iframe. TS + Babel lazy-load via `createResource` keyed on the `hasEdited` latch.
+   - **Mode B** (after first edit): mounts the repl-driven iframe. TS + Babel lazy-load via `createResource`.
 
-   The mode-A div and mode-B iframe live in the same parent and crossfade via CSS opacity when the transition fires. Mode-A unmounts (releasing its WebGL context) only after the crossfade completes.
+   The mode-A div and mode-B iframe live in the same parent and crossfade via CSS opacity once the iframe finishes its first compile. Mode-A unmounts (releasing its WebGL context) only after the crossfade completes.
 
-2. **MDX usage updates** to import each snippet twice — once as `?raw` for the textarea, once as the default-exported component for direct mount. The 28 existing `<Demo>` call sites are updated; no other MDX change.
+2. **Hero overlay `HeroEditor` component** (`site/src/components/hero-editor.tsx`) — a sibling of `Demo`, no direct-mount path. The hero scene already runs behind the overlay (mounted by `<LazyChosenScene>`), so the overlay only needs textarea + iframe. Smaller, simpler.
 
-The hero overlay reuses the same `Demo` component — gallery scenes pass through the same two-prop shape.
+3. **Shared `ReplIframe` component** (`site/src/components/repl-iframe.tsx`) — the iframe + repl pipeline extracted from today's `demo.tsx`, with the `createResource`-based lazy compiler load. Used by both `Demo` and `HeroEditor`.
+
+**MDX usage updates** to import each snippet twice — once as `?raw` for the textarea, once as the default-exported component for direct mount. The 28 existing `<Demo>` call sites are updated; no other MDX change.
 
 ## Section 1 — Demo component
 
@@ -211,26 +213,79 @@ Files touched (9 chapter MDX files, ~28 `<Demo>` calls total):
 
 The MDX import lines are static — each chapter chunks its own snippets eagerly via SolidStart's route code splitting. Heavy shared deps (three, cannon-es) chunk-split automatically across snippets.
 
-## Section 7 — Hero overlay
+## Section 7 — Hero overlay (separate component)
 
-`site/src/components/hero.tsx` already passes `source` to `<LazyDemo code={source()} />`. After this refactor it passes a Component too:
+The hero already direct-mounts the chosen gallery scene as the page background via `<LazyChosenScene>`. If the hero overlay reused tutorial `Demo`, mode A would direct-mount the SAME scene a second time on top — wasted WebGL context, duplicated work. The hero overlay only needs the textarea + iframe; the running preview is already behind it.
+
+Split: `site/src/components/hero-editor.tsx` is a smaller sibling of `Demo`. Same lazy-load story (loaded behind `clientOnly` at the import site), but no direct-mount path.
 
 ```tsx
-<LazyDemo code={sourceText()} Component={chosen.Component} />
+// site/src/components/hero-editor.tsx
+export interface HeroEditorProps {
+  code: string
+}
+
+export default function HeroEditor(props: HeroEditorProps) {
+  const initialCode = trimBlankLines(props.code)
+  const [code, setCode] = createSignal(initialCode)
+  const [iframeBusy, setIframeBusy] = createSignal(true)
+  const editorTheme = useSiteTheme()
+
+  return (
+    <div class="demo demo-hero-overlay">
+      <div class="demo-panes">
+        <div class="demo-editor-wrapper">
+          <TmTextarea
+            class="demo-editor"
+            grammar="tsx"
+            theme={editorTheme() === "dark" ? "github-dark" : "github-light"}
+            value={code()}
+            editable
+            onInput={event => setCode(event.currentTarget.value)}
+          />
+          <Show when={code() !== initialCode}>
+            <button type="button" class="demo-reset" onClick={() => setCode(initialCode)}>Reset</button>
+          </Show>
+        </div>
+        <div class="demo-canvas-wrapper">
+          <ReplIframe code={code()} theme={editorTheme()} visible={true} onBusy={setIframeBusy} onFirstReady={() => {}} />
+          <Show when={iframeBusy()}>
+            <div class="demo-loading" aria-label="Loading preview" />
+          </Show>
+        </div>
+      </div>
+    </div>
+  )
+}
 ```
 
-`site/src/snippets/gallery/index.ts` already exposes a `load: () => Promise<{ default: Component }>` per entry. We can either:
+Because there's no direct-mount path, the iframe starts immediately on mount — but the heavy TS+Babel load only fires when the overlay opens (not on hero render). That's already a big win: hero with editor closed pays nothing for the repl machinery.
 
-- **Wait for the loader** in hero before opening the overlay: when Edit is clicked, await `chosen.load()`, then mount the overlay with the resolved Component.
-- **Switch the gallery glob to eager**: small bundle cost but the Component is synchronous. Today's gallery already eager-imports raw sources, so consistency favours this.
+`hero.tsx` swaps `LazyDemo` for `LazyHeroEditor`:
 
-Choose the second — eager import keeps the gallery surface uniform with tutorials. `gallery/index.ts` adds an eager glob for default exports:
+```tsx
+const LazyHeroEditor = clientOnly(() => import("./hero-editor"))
+…
+<LazyHeroEditor code={sourceText()} />
+```
+
+`site/src/snippets/gallery/index.ts` doesn't need any change — hero still uses `chosen.source` via `loadSource()`.
+
+### Shared `ReplIframe`
+
+Both `Demo` (tutorial) and `HeroEditor` use the iframe + repl pipeline. Extract it to `site/src/components/repl-iframe.tsx`:
 
 ```ts
-const modules = import.meta.glob<{ default: Component }>("./*.tsx", { eager: true })
+export interface ReplIframeProps {
+  code: string
+  theme: "dark" | "light"
+  visible: boolean
+  onBusy: (busy: boolean) => void
+  onFirstReady: () => void
+}
 ```
 
-`Demo` interface gains `Component: Component`. Hero passes it through.
+All the `tsxExtension`, `htmlExtension`, `buildHostHtml`, `bootstrapTsx`, file URL system, and per-instance `createResource` compiler load live here. The two consumers wrap it with their own surrounding UI.
 
 ## Section 8 — Risks and mitigations
 
