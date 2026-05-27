@@ -28,12 +28,15 @@ html[data-theme*="light"] {
   border: 1px solid var(--demo-border);
   border-radius: 6px;
   overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 320px;
 }
 
 .demo-panes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 320px;
+  min-height: 0;
 }
 
 .demo-narrow .demo-panes {
@@ -235,4 +238,7 @@ html[data-theme*="light"] {
 .hero-canvas .demo {
   width: 100%;
   height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
 }
