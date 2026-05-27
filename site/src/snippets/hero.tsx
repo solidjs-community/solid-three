@@ -27,9 +27,16 @@ function colorFor(index: number): string {
   return index < 5 ? SOLID_BLUE : WARM_WHITE
 }
 
+const ROW_SPACING = 0.7
+const ROW_Z = 0.9
+
 function startXFor(index: number): number {
-  const gap = index < 5 ? 0 : 0.6
-  return (index - 4.5) * 0.9 + gap
+  const localIndex = index < 5 ? index : index - 5
+  return (localIndex - 2) * ROW_SPACING
+}
+
+function startZFor(index: number): number {
+  return index < 5 ? -ROW_Z : ROW_Z
 }
 
 function buildLetterStates(font: Font): LetterState[] {
@@ -44,6 +51,7 @@ function buildLetterStates(font: Font): LetterState[] {
       bevelThickness: 0.005,
       bevelSegments: 2,
     })
+    geometry.rotateX(-Math.PI / 2)
     geometry.center()
     geometry.computeBoundingBox()
     const box = geometry.boundingBox ?? new THREE.Box3()
@@ -51,17 +59,13 @@ function buildLetterStates(font: Font): LetterState[] {
     box.getSize(size)
     const halfExtents = size.clone().multiplyScalar(0.5)
     const shape = new CANNON.Box(new CANNON.Vec3(halfExtents.x, halfExtents.y, halfExtents.z))
-    const body = new CANNON.Body({ mass: 1, shape })
-    body.position.set(startXFor(index), 4 + Math.random() * 2, (Math.random() - 0.5) * 0.5)
+    const body = new CANNON.Body({ mass: 1, shape, angularDamping: 0.6, linearDamping: 0.05 })
+    body.type = CANNON.Body.KINEMATIC
+    body.position.set(startXFor(index), 5, startZFor(index) + (Math.random() - 0.5) * 0.15)
     body.quaternion.setFromEuler(
-      Math.random() * Math.PI,
-      Math.random() * Math.PI,
-      Math.random() * Math.PI,
-    )
-    body.angularVelocity.set(
-      (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.2,
+      (Math.random() - 0.5) * 0.2,
     )
     return { index, letter, color: colorFor(index), geometry, halfExtents, body }
   })
@@ -97,55 +101,8 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
   const three = useThree()
   const startTime = performance.now()
   const meshes: (THREE.Mesh | undefined)[] = []
-  const cursor = new THREE.Vector3()
-  let cursorActive = false
-  let isCoarsePointer = false
-  const raycaster = new THREE.Raycaster()
-  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-
-  onMount(() => {
-    isCoarsePointer = window.matchMedia("(pointer: coarse)").matches
-    if (isCoarsePointer) return
-    const onMove = (event: PointerEvent) => {
-      const ndc = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -(event.clientY / window.innerHeight) * 2 + 1,
-      )
-      raycaster.setFromCamera(ndc, three.camera)
-      const hit = new THREE.Vector3()
-      if (raycaster.ray.intersectPlane(groundPlane, hit)) {
-        cursor.copy(hit)
-        cursorActive = true
-      }
-    }
-    const onLeave = () => {
-      cursorActive = false
-    }
-    window.addEventListener("pointermove", onMove)
-    window.addEventListener("pointerleave", onLeave)
-    onCleanup(() => {
-      window.removeEventListener("pointermove", onMove)
-      window.removeEventListener("pointerleave", onLeave)
-    })
-  })
 
   useFrame(() => {
-    if (cursorActive && !isCoarsePointer) {
-      const radius = 1.5
-      props.state.letters.forEach(letter => {
-        const dx = letter.body.position.x - cursor.x
-        const dz = letter.body.position.z - cursor.z
-        const distSq = dx * dx + dz * dz
-        if (distSq > radius * radius || distSq < 1e-4) return
-        const dist = Math.sqrt(distSq)
-        const falloff = (radius - dist) / radius
-        const strength = 30 * falloff
-        letter.body.applyForce(
-          new CANNON.Vec3((dx / dist) * strength, 0, (dz / dist) * strength),
-          letter.body.position,
-        )
-      })
-    }
     props.state.world.step(1 / 60)
     props.state.letters.forEach((letter, i) => {
       const mesh = meshes[i]
@@ -180,11 +137,15 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
             geometry={letter.geometry}
             castShadow
             onPointerDown={() => {
-              const upward = 5 + Math.random() * 2
-              const sideways = (Math.random() - 0.5) * 3
+              const upward = 2.5 + Math.random() * 1
+              const sideways = (Math.random() - 0.5) * 1.2
               letter.body.applyImpulse(
                 new CANNON.Vec3(sideways, upward, sideways),
-                new CANNON.Vec3(0, 0, 0),
+                new CANNON.Vec3(
+                  (Math.random() - 0.5) * letter.halfExtents.x,
+                  0,
+                  (Math.random() - 0.5) * letter.halfExtents.z,
+                ),
               )
             }}
           >
@@ -214,6 +175,15 @@ export default function Hero() {
     const w = createWorld()
     const letters = buildLetterStates(f)
     letters.forEach(letter => w.addBody(letter.body))
+    const timers = letters.map((letter, index) =>
+      window.setTimeout(() => {
+        letter.body.type = CANNON.Body.DYNAMIC
+        letter.body.updateMassProperties()
+        letter.body.wakeUp()
+        letter.body.angularVelocity.set(0, 0, 0)
+      }, index * 280),
+    )
+    onCleanup(() => timers.forEach(id => window.clearTimeout(id)))
     return { world: w, letters }
   })
 

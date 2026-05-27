@@ -205,7 +205,6 @@ html[data-theme*="light"] {
   padding: 0.5rem 0.9rem;
   border-radius: 0.4rem;
   border: 1px solid currentColor;
-  background: var(--sb-color-background, #ffffff);
   cursor: pointer;
   z-index: 2;
 }
