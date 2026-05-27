@@ -178,13 +178,14 @@ export interface RendererLike {
 export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
 
 /**
- * Module-augmentation point. Declare your concrete renderer choice in a
- * project-local `.d.ts` and `useThree().gl`, `Context.gl`, and the
- * `<Canvas gl>` prop all type-narrow project-wide.
+ * Module-augmentation point. Defaults to `WebGLRenderer` — the common case.
+ * Declare a different concrete renderer in a project-local `.d.ts` to swap or
+ * widen it; `useThree().gl`, `Context.gl`, and the `<Canvas gl>` prop all
+ * narrow/widen project-wide.
  *
  * @example
  * ```ts
- * // src/solid-three.d.ts
+ * // src/solid-three.d.ts — switching to WebGPU
  * import type { WebGPURenderer } from "three/webgpu"
  *
  * declare module "solid-three" {
@@ -198,14 +199,16 @@ export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
  * needed) and accidentally passing a `WebGLRenderer` to `<Canvas gl>`
  * becomes a type error.
  *
- * Without augmentation, `Context.gl` falls back to the open
- * {@link Renderer} union.
+ * To widen back to the open {@link Renderer} union (e.g. for a library that
+ * needs to support any renderer), declare `renderer: Renderer`.
+ *
+ * Without augmentation, the default is `WebGLRenderer`.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Register {}
 
-/** Effective renderer type — narrowed by user augmentation if provided. */
-export type ResolvedRenderer = Register extends { renderer: infer R } ? R : Renderer
+/** Effective renderer type — narrowed by user augmentation, defaults to `WebGLRenderer`. */
+export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebGLRenderer
 
 /**********************************************************************************/
 /*                                                                                */

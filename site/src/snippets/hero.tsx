@@ -79,7 +79,7 @@ function EnvironmentSetup() {
   const three = useThree()
   onMount(() => {
     const { scene, gl } = three
-    const pmrem = new THREE.PMREMGenerator(gl)
+    const pmrem = new THREE.PMREMGenerator(gl as THREE.WebGLRenderer)
     const envScene = new RoomEnvironment()
     const envTexture = pmrem.fromScene(envScene, 0.04).texture
     const previous = scene.environment

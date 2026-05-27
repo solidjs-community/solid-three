@@ -42,6 +42,7 @@ import type {
   FrameListenerCallback,
   Meta,
   Renderer,
+  ResolvedRenderer,
 } from "./types.ts"
 import {
   binarySearch,
@@ -423,7 +424,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return raycasterStack.push(raycaster)
     },
     get gl() {
-      return gl()
+      // Internally gl is typed as Meta<Renderer> (the open union) since the
+      // memo can produce any concrete renderer the user chose. Externally it
+      // surfaces as Meta<ResolvedRenderer> — the user's declared (or default
+      // WebGLRenderer) type. The cast bridges the two; if the user has not
+      // augmented Register, their concrete renderer will satisfy WebGLRenderer.
+      return gl() as Meta<ResolvedRenderer>
     },
   }
 

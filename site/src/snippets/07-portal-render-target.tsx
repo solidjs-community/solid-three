@@ -14,9 +14,10 @@ const renderTarget = new THREE.WebGLRenderTarget(512, 512)
 function CopyOffscreenToTexture() {
   const context = useThree()
   useFrame(() => {
-    context.gl.setRenderTarget(renderTarget)
-    context.gl.render(offscreenScene, offscreenCamera)
-    context.gl.setRenderTarget(null)
+    const gl = context.gl as THREE.WebGLRenderer
+    gl.setRenderTarget(renderTarget)
+    gl.render(offscreenScene, offscreenCamera)
+    gl.setRenderTarget(null)
   })
   return null
 }
