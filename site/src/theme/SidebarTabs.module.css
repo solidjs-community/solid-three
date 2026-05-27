@@ -1,0 +1,31 @@
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: calc(var(--sb-border-radius) * 1.25);
+}
+
+.tab {
+  flex: 1;
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--sb-border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: color-mix(in hsl, var(--sb-text-color) 70%, transparent);
+  text-decoration: none;
+  transition-property: background-color, color;
+  transition-timing-function: var(--sb-transition-timing);
+  transition-duration: 0.15s;
+}
+
+.tab:hover,
+.tab:focus-visible {
+  outline: none;
+  color: var(--sb-heading-color);
+}
+
+.tab[aria-current="page"] {
+  color: var(--sb-active-link-color);
+  background: var(--sb-background-color);
+}

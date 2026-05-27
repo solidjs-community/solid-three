@@ -1,0 +1,334 @@
+/*
+ * Demo-specific styles salvaged from the previous tutorial scaffolding.
+ * Loaded from src/theme/mdx-components.tsx so SolidBase bundles it alongside
+ * every page.
+ */
+
+@font-face {
+  font-family: "Zalando Sans Expanded";
+  src: url("/zalando-sans-expanded-latin-600-normal.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Left-align the sidebar's Part headings and chapter links. SolidBase's
+ * default theme inherits browser button centering on the section trigger. */
+[class*="sidenav"] [class*="section-trigger"],
+[class*="sidenav"] [class*="section-trigger"] h2,
+[class*="sidenav"] [class*="sidenav-link"] {
+  text-align: left;
+}
+
+/* Drop the blur on the off-canvas sidebar's backdrop; the default theme's
+ * .sidenav-overlay sets backdrop-filter: blur(2px). */
+[class*="sidenav-overlay"] {
+  backdrop-filter: none;
+}
+
+/* SolidBase doesn't brighten --sb-active-link-color for dark mode, so the
+ * accent reads dim against dark backgrounds. Bump it to a lighter blue
+ * site-wide. */
+html[data-theme*="dark"] {
+  --sb-active-link-color: hsl(200, 95%, 68%);
+}
+
+/* SolidBase draws a link's underline as an inset box-shadow on the <a>, which
+ * an inline <code> child's own background paints over — so a code-only link
+ * (e.g. `<Entity>`) reads as plain code. Tint it with the link accent and
+ * outline it so it's recognisable as a link without shifting layout. */
+article a code {
+  color: var(--sb-active-link-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sb-active-link-color) 50%, transparent);
+}
+
+/* SolidBase sets data-theme="sdark" / "slight" on <html>. Mirror that into
+ * a CSS variable so the demo chrome adapts to the site's theme. */
+html {
+  --demo-border: #222;
+  --demo-canvas-bg: #0a0c12;
+}
+html[data-theme*="light"] {
+  --demo-border: #e7e7e7;
+  --demo-canvas-bg: #e7e7e7;
+}
+
+.demo {
+  margin: 1.5rem 0;
+  border: 1px solid var(--demo-border);
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 320px;
+}
+
+.demo-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.demo-narrow .demo-panes,
+.demo-editor-hidden .demo-panes {
+  grid-template-columns: 1fr;
+}
+
+.demo-editor-wrapper {
+  position: relative;
+  height: 100%;
+  border-right: 1px solid var(--demo-border);
+  overflow: hidden;
+}
+
+.demo-narrow .demo-editor-wrapper {
+  border-right: 0;
+}
+
+.demo-editor {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  padding: 1rem;
+  border: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.hero-edit-toggle,
+.demo-reset {
+  position: absolute;
+  padding: 0.25rem 0.75rem;
+  background: var(--sb-background-color);
+  border: 1px solid #c8c8c87b;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.demo-reset {
+  top: 0.5rem;
+  right: 1rem;
+}
+
+.hero-edit-toggle {
+  bottom: 0.5rem;
+  right: 0.5rem;
+}
+
+.demo-reset:hover {
+  color: #fff;
+  border-color: #555;
+}
+
+.demo-narrow .demo-editor {
+  border-right: 0;
+}
+
+.demo-canvas {
+  border: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.demo-canvas-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Progress line shown while the preview loads or an edited demo recompiles +
+ * reloads (the first edit also loads TS/Babel + deps). Mirrors the hero's
+ * loading bar. */
+.demo-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--sb-active-link-color);
+  animation: hero-loading-fill 2.5s ease-out forwards;
+}
+
+.demo-tabs {
+  display: flex;
+  background: #14171f;
+}
+
+.demo-tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  background: transparent;
+  color: #8b8f9a;
+  border: 0;
+  cursor: pointer;
+}
+
+.demo-tabs button.active {
+  background: #0a0c12;
+  color: #e8e8e8;
+}
+
+.demo-controls {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.5rem;
+  background: #14171f;
+}
+
+.demo-controls button {
+  background: transparent;
+  color: #8b8f9a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.demo-controls button:hover {
+  color: #e8e8e8;
+}
+
+.hero {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* The home route's <article> contains the Hero. Match it via :has() so the
+ * fullbleed layout applies at first paint (no JS class toggle / no FOUC): drop
+ * SolidBase's default margins + max-width content column AND lock its height to
+ * the viewport (so the page doesn't scroll past Hero, and any residual
+ * SolidBase chrome like the empty .info wrapper is clipped). */
+article:has(.hero) {
+  /* SolidBase's sidebar has min-width:14rem but its grid column is
+   * minmax(12rem, auto), so the sidebar overflows its track by 2rem and
+   * paints into the main column. SolidBase masks this with the article's
+   * default 2rem margin — we keep that on the left side only and zero out
+   * the rest so Hero still fills the rest of the pane. */
+  margin: 0 0 0 2rem;
+  display: block;
+  /* Fill the viewport below the SolidBase header. --sb-header-height is set
+   * by SolidBase; fallback covers the case where it isn't. */
+  height: calc(100dvh - var(--sb-header-height, 3.5rem));
+  overflow: hidden;
+}
+article:has(.hero) > div {
+  max-width: none;
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* --- Narrow layout (sidebar collapsed off-canvas) ---------------------- */
+@media screen and (max-width: 1100px) {
+  /* The hero spans the full pane once the sidebar is off-canvas, so drop the
+   * left gutter that exists on desktop only to clear the sidebar's overflow. */
+  article:has(.hero) {
+    margin-left: 0;
+  }
+
+  /* Collapse SolidBase's two-row mobile header to a single row: the toggle is
+   * lifted into the header (below), so reclaim the height SolidBase reserves
+   * for its under-header bar. The selector is deliberately specific to beat
+   * SolidBase's own `html:has(.header .mobile-bar)` rule (which sets 6.25rem). */
+  html[data-theme]:has(header [class*="mobile-bar"]) {
+    --sb-header-height: 3.5rem !important;
+  }
+
+  /* Pull the sidebar toggle out of the (now removed) under-header bar and onto
+   * the header's left edge. */
+  header [class*="mobile-bar"] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 1rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Hide the "On this page" table-of-contents trigger. */
+  header [class*="mobile-bar"] [aria-haspopup] {
+    display: none;
+  }
+
+  /* The off-canvas sidebar repeats the "solid-three" title at its top; drop it. */
+  [class*="sidenav-header"] {
+    display: none;
+  }
+
+  /* Match the off-canvas sidebar to the desktop sidebar's 14rem width
+   * (SolidBase defaults the narrow drawer to min(20rem, 70dvw)). */
+  [role="dialog"][class*="sidenav"] {
+    width: 14rem;
+  }
+
+  /* Center the title between the toggle (left) and theme controls (right). */
+  header > div:first-of-type {
+    justify-content: flex-end;
+  }
+  header [class*="logo-cluster"] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* Progress line shown while the splash demo's iframe chunk (three + the
+ * snippet) loads and renders its first frame — otherwise the hero just sits
+ * black. The fill grows 0 -> full width; on `is-loaded` it snaps to 100% and
+ * lingers briefly (the hero unmounts it 500ms later). */
+.hero-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--sb-active-link-color);
+  animation: hero-loading-fill 2.5s ease-out forwards;
+}
+.hero-loading-bar.is-loaded {
+  width: 100%;
+  animation: none;
+  transition: width 200ms ease-out;
+}
+@keyframes hero-loading-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.hero-canvas canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.hero-canvas .demo {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
