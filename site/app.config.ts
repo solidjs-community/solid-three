@@ -1,63 +1,55 @@
-import { existsSync } from "node:fs"
-
-import { createSolidBase, defineTheme } from "@kobalte/solidbase/config"
+import { createWithSolidBase, defineTheme } from "@kobalte/solidbase/config"
 import defaultTheme from "@kobalte/solidbase/default-theme"
-import { solidStart } from "@solidjs/start/config"
-import { nitro } from "nitro/vite"
-import { defineConfig, type Plugin } from "vite"
-
-/**
- * SolidBase 0.6.3 publishes some compiled files (notably
- * `dist/client/index.jsx`) under a `.jsx` extension while sibling modules
- * import them as `.js`. Vite's exact-match resolver refuses to bridge the
- * mismatch, so we rewrite the `.js` request to `.jsx` whenever the latter
- * exists on disk and the former does not. Scoped to the solidbase install to
- * avoid masking real missing-file errors elsewhere.
- */
-function solidBaseJsxFallbackPlugin(): Plugin {
-  return {
-    name: "tutorial:solidbase-jsx-fallback",
-    enforce: "pre",
-    async resolveId(source, importer) {
-      if (!importer || !importer.includes("@kobalte/solidbase")) return null
-      if (!source.endsWith(".js")) return null
-      const resolved = await this.resolve(source, importer, { skipSelf: true })
-      if (resolved && existsSync(resolved.id)) return null
-      const jsxCandidate = source.replace(/\.js$/, ".jsx")
-      const resolvedJsx = await this.resolve(jsxCandidate, importer, {
-        skipSelf: true,
-      })
-      if (resolvedJsx && existsSync(resolvedJsx.id)) return resolvedJsx
-      return null
-    },
-  }
-}
+import { defineConfig } from "@solidjs/start/config"
 
 import { solidThreeBundlePlugin } from "./vite-plugins/solid-three-bundle"
-
-/**
- * solid-three tutorial site.
- *
- * NOTE: SolidBase 0.6.x targets SolidStart v2, which is vite-native (no more
- * `app.config.ts` / vinxi). The site is configured with a plain Vite config
- * + `solidStart()` plugin + `nitro/vite`, matching the SolidBase docs site.
- */
 
 const theme = defineTheme({
   componentsPath: new URL("./src/theme/", import.meta.url).href,
   extends: defaultTheme,
 })
 
-const solidBase = createSolidBase(theme)
-
-export default defineConfig({
-  ssr: {
-    noExternal: ["@kobalte/solidbase", "tm-textarea"],
-  },
-  plugins: [
-    solidBaseJsxFallbackPlugin(),
-    solidThreeBundlePlugin(),
-    solidBase.plugin({
+export default defineConfig(
+  createWithSolidBase(theme)(
+    {
+      ssr: true,
+      server: {
+        prerender: {
+          crawlLinks: true,
+        },
+        // SolidBase 0.2.20 unconditionally `import "typescript"` from
+        // `dist/config/mdx.js`. TypeScript's runtime uses CJS `__filename`,
+        // which is undefined when nitro bundles to ESM and breaks prerender.
+        // Inject the standard ESM shim so the TS bootstrap succeeds.
+        rollupConfig: {
+          output: {
+            banner: [
+              `import { fileURLToPath as __sb_fileURLToPath } from "node:url";`,
+              `import { dirname as __sb_dirname } from "node:path";`,
+              `globalThis.__filename ??= __sb_fileURLToPath(import.meta.url);`,
+              `globalThis.__dirname ??= __sb_dirname(__sb_fileURLToPath(import.meta.url));`,
+            ].join(""),
+          },
+        },
+      },
+      vite: {
+        plugins: [solidThreeBundlePlugin()],
+        ssr: {
+          noExternal: ["@kobalte/solidbase", "tm-textarea"],
+        },
+      },
+      // Solid Start's dev-overlay (`DevOverlayDialog.jsx`) uses the
+      // `import attributes` syntax (`with { type: "json" }`), which the
+      // bundled @babel/parser doesn't recognise unless this plugin is
+      // wired in. Without it, any page-level error gets masked by the
+      // overlay's own parse failure.
+      solid: {
+        babel: {
+          plugins: ["@babel/plugin-syntax-import-attributes"],
+        },
+      },
+    },
+    {
       title: "solid-three",
       description: "A SolidJS renderer for three.js — learn by reading.",
       lang: "en",
@@ -130,23 +122,6 @@ export default defineConfig({
           },
         ],
       },
-    }),
-    solidStart({
-      ...solidBase.startConfig(),
-      ssr: false,
-      // Solid Start's dev-overlay (`DevOverlayDialog.jsx`) uses the
-      // `import attributes` syntax (`with { type: "json" }`), which the
-      // bundled @babel/parser doesn't recognise unless this plugin is
-      // wired in. Without it, any page-level error gets masked by the
-      // overlay's own parse failure.
-      solid: {
-        babel: {
-          plugins: ["@babel/plugin-syntax-import-attributes"],
-        },
-      },
-    }),
-    nitro({
-      preset: "static",
-    }),
-  ],
-})
+    },
+  ),
+)

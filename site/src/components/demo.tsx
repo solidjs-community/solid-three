@@ -8,7 +8,7 @@ import {
 } from "@bigmistqke/repl"
 import { clientOnly } from "@solidjs/start"
 import { createMemo, createRenderEffect, createSignal, onCleanup, onMount, Show } from "solid-js"
-import { isServer } from "solid-js/web"
+import { isServer, NoHydration } from "solid-js/web"
 import ts from "typescript"
 
 // `tm-textarea` touches the DOM at import time, so it must only load
@@ -280,12 +280,14 @@ export interface DemoProps {
 
 export default function Demo(props: DemoProps) {
   // `@bigmistqke/repl` relies on DOMParser, which is unavailable in Node SSR.
-  // Render an empty placeholder during SSR; the client takes over after
-  // hydration.
-  if (isServer) {
-    return <div class="demo" data-demo-placeholder="" />
-  }
-  return <DemoClient {...props} />
+  // Wrap the subtree in <NoHydration> so the client renders the real demo
+  // fresh instead of trying to reconcile its DOM against the SSR placeholder
+  // (which would otherwise produce a hydration-mismatch error).
+  return (
+    <NoHydration>
+      {isServer ? <div class="demo" data-demo-placeholder="" /> : <DemoClient {...props} />}
+    </NoHydration>
+  )
 }
 
 function trimBlankLines(input: string): string {

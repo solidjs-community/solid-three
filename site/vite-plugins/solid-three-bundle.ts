@@ -1,12 +1,15 @@
+import { resolve } from "node:path"
+
 import { build } from "esbuild"
 import { solidPlugin as esbuildSolidPlugin } from "esbuild-plugin-solid"
 import type { Plugin } from "vite"
 
 /**
- * Entry of the local solid-three source, resolved relative to this file:
- * `tutorial/vite-plugins/solid-three-bundle.ts` -> `src/index.ts`.
+ * Entry of the local solid-three source. Resolved from `process.cwd()`
+ * (the `site/` directory) so the path stays correct after vinxi bundles
+ * the config — `import.meta.url`-based resolution does not survive that.
  */
-const SOLID_THREE_ENTRY = new URL("../../src/index.ts", import.meta.url).pathname
+const SOLID_THREE_ENTRY = resolve(process.cwd(), "../src/index.ts")
 const SOLID_THREE_VIRTUAL_PATH = "/@tutorial/solid-three.js"
 
 /**
