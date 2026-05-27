@@ -1,5 +1,5 @@
 import { clientOnly } from "@solidjs/start"
-import { createMemo, createSignal, Show } from "solid-js"
+import { createResource, createSignal, Show } from "solid-js"
 import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
@@ -18,7 +18,10 @@ const LazyChosenScene = clientOnly(() =>
 export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
   const [chosen, setChosen] = createSignal<Demo | undefined>()
-  const source = createMemo(() => chosen()?.source ?? "")
+  const [source] = createResource(
+    () => (editorOpen() ? chosen() : undefined),
+    demo => demo.loadSource(),
+  )
 
   return (
     <div class="hero">
@@ -47,9 +50,11 @@ export function Hero() {
         </button>
       </Show>
       <Show when={editorOpen() && source()}>
-        <div class="hero-editor-overlay">
-          <LazyDemo code={source()} />
-        </div>
+        {sourceText => (
+          <div class="hero-editor-overlay">
+            <LazyDemo code={sourceText()} />
+          </div>
+        )}
       </Show>
     </div>
   )

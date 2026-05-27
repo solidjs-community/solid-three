@@ -4,13 +4,12 @@ const modules = import.meta.glob<{ default: Component }>("./*.tsx")
 const sources = import.meta.glob("./*.tsx", {
   query: "?raw",
   import: "default",
-  eager: true,
-}) as Record<string, string>
+}) as Record<string, () => Promise<string>>
 
 export interface Demo {
   id: string
   load: () => Promise<{ default: Component }>
-  source: string
+  loadSource: () => Promise<string>
 }
 
 export const demos: Demo[] = Object.keys(modules)
@@ -18,9 +17,9 @@ export const demos: Demo[] = Object.keys(modules)
   .map(path => {
     const id = path.match(/\.\/(.+)\.tsx$/)?.[1]
     if (!id) throw new Error(`gallery: unexpected path ${path}`)
-    const source = sources[path]
-    if (!source) throw new Error(`gallery: missing raw source for ${path}`)
-    return { id, load: modules[path], source }
+    const loadSource = sources[path]
+    if (!loadSource) throw new Error(`gallery: missing raw source for ${path}`)
+    return { id, load: modules[path], loadSource }
   })
 
 export function pickRandomDemo(): Demo {
