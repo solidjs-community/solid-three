@@ -19,9 +19,12 @@ import type ts from "typescript"
 let tsPromise: Promise<typeof ts> | undefined
 function loadTypeScript(): Promise<typeof ts> {
   if (!tsPromise) {
-    tsPromise = import(/* @vite-ignore */ "https://esm.sh/typescript@5.9").then(
-      mod => (mod.default ?? mod) as typeof ts,
-    )
+    // String-built specifier so `tsc` doesn't try to resolve the URL as a
+    // module — we only need TS's type defs from the local `typescript`
+    // devDependency; at runtime the import is resolved by the browser
+    // against esm.sh.
+    const url = "https://esm.sh/typescript@5.9"
+    tsPromise = import(/* @vite-ignore */ url).then(mod => (mod.default ?? mod) as typeof ts)
   }
   return tsPromise
 }

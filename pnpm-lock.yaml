@@ -190,6 +190,9 @@ importers:
       esbuild-plugin-solid:
         specifier: ^0.6.0
         version: 0.6.0(esbuild@0.25.12)(solid-js@1.9.13)
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
 
 packages:
 
