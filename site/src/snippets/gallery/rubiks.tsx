@@ -1,5 +1,5 @@
 import { createMemo, createSignal, For, onCleanup, onMount } from "solid-js"
-import { Canvas, createT, useFrame, useThree } from "solid-three"
+import { Canvas, createT, Entity, useFrame, useThree } from "solid-three"
 import {
   applyMove,
   generateScramble,
@@ -10,6 +10,7 @@ import {
 } from "./rubiks-engine"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 
 const T = createT(THREE)
 
@@ -175,6 +176,10 @@ export default function Rubiks() {
   const runtime = initialCubies().map<CubieRuntime>(state => ({ state, mesh: undefined }))
   const [cubieListVersion, bumpCubies] = createSignal(0)
 
+  // Shared geometry — every cubie is identical, 4 corner segments for the bevel.
+  const cubieGeometry = new RoundedBoxGeometry(0.95, 0.95, 0.95, 4, 0.08)
+  onCleanup(() => cubieGeometry.dispose())
+
   return (
     <Canvas camera={{ position: [0, 0, 11], fov: 35 }}>
       <EnvironmentSetup />
@@ -196,7 +201,7 @@ export default function Rubiks() {
               position={cubie.state.position}
               material={materials}
             >
-              <T.BoxGeometry args={[0.95, 0.95, 0.95]} />
+              <Entity from={cubieGeometry} attach="geometry" />
             </T.Mesh>
           )
         }}
