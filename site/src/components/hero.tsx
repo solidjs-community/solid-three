@@ -1,5 +1,5 @@
 import { clientOnly } from "@solidjs/start"
-import { createResource, createSignal, Show, startTransition } from "solid-js"
+import { createResource, createSignal, onCleanup, onMount, Show, startTransition } from "solid-js"
 import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
@@ -15,6 +15,11 @@ export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
   const [chosen, setChosen] = createSignal<Demo | undefined>()
   const [source] = createResource(chosen, demo => demo.loadSource())
+
+  onMount(() => {
+    document.body.classList.add("hero-mounted")
+    onCleanup(() => document.body.classList.remove("hero-mounted"))
+  })
 
   return (
     <div class="hero">

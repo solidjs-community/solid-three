@@ -183,8 +183,8 @@ html[data-theme*="light"] {
   z-index: 100;
 }
 
-/* Hide SolidBase's header on the home page (only route that mounts .hero). */
-body:has(.hero) header {
+/* Hide SolidBase's header while Hero is mounted (only on the home route). */
+body.hero-mounted header {
   display: none;
 }
 
