@@ -50,14 +50,26 @@ function makeTextTexture(): THREE.CanvasTexture {
   ctx.fillStyle = "#0a0c12"
   ctx.fillRect(0, 0, width, height)
   ctx.fillStyle = "#f4f4f4"
+
+  const repeats = TEXTURE_REPEAT_U
+  const sectionWidth = width / repeats
+  const sectionPadding = 0.12 // fraction of section width reserved as gap
+  const maxTextWidth = sectionWidth * (1 - sectionPadding)
   const bandHeight = height * 0.28
-  ctx.font = `${bandHeight * 0.85}px ${FONT_FAMILY}, sans-serif`
+
+  // Pick the largest font size whose rendered text fits inside maxTextWidth.
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  const repeats = 1 /* TEXTURE_REPEAT_U */
-  const sectionWidth = width / repeats
+  let fontSize = bandHeight * 0.85
+  ctx.font = `${fontSize}px ${FONT_FAMILY}, sans-serif`
+  const measured = ctx.measureText(TEXT).width
+  if (measured > maxTextWidth) {
+    fontSize *= maxTextWidth / measured
+    ctx.font = `${fontSize}px ${FONT_FAMILY}, sans-serif`
+  }
+
   for (let i = 0; i < repeats; i++) {
-    ctx.fillText(TEXT, sectionWidth * (i + 0.5), height / 4)
+    ctx.fillText(TEXT, sectionWidth * (i + 0.5), height / 2)
   }
   const texture = new THREE.CanvasTexture(canvas)
   texture.mapping = THREE.EquirectangularReflectionMapping
