@@ -6,11 +6,12 @@ import fontUrl from "../../IFKica-Regular.ttf?url"
 const T = createT(THREE)
 
 const FONT_FAMILY = "IFKica-Tunnel"
-const TEXT = "SOLID THREE  "
+const TEXT = "SOLID THREE"
 const TUBE_LENGTH = 60
 const TUBE_RADIUS = 2.2
 const TUBULAR_SEGMENTS = 96
 const RADIAL_SEGMENTS = 32
+const TEXTURE_REPEAT_U = 4
 const TEXTURE_REPEAT_V = 18
 const CURVE_SEGMENTS = 14
 
@@ -18,6 +19,7 @@ const CURVE_SEGMENTS = 14
 // FontFace against the iframe's document.fonts so the canvas texture renders
 // the real face instead of the sans-serif fallback.
 const [tunnelFontReady, setTunnelFontReady] = createSignal(false)
+
 let tunnelFontLoadStarted = false
 function ensureTunnelFontLoaded(): void {
   if (tunnelFontLoadStarted) return
@@ -35,8 +37,11 @@ function ensureTunnelFontLoaded(): void {
 }
 
 function makeTextTexture(): THREE.CanvasTexture {
-  const width = 2048
-  const height = 256
+  // Equirectangular layout: width = 360° longitude, height = 180° latitude.
+  // Text sits in a horizontal band at the equator (latitude 0). Above/below
+  // is solid background — won't be visible inside the tube interior anyway.
+  const width = 4096
+  const height = 2048
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
@@ -45,20 +50,19 @@ function makeTextTexture(): THREE.CanvasTexture {
   ctx.fillStyle = "#0a0c12"
   ctx.fillRect(0, 0, width, height)
   ctx.fillStyle = "#f4f4f4"
-  ctx.font = `${height * 0.78}px ${FONT_FAMILY}, sans-serif`
+  const bandHeight = height * 0.28
+  ctx.font = `${bandHeight * 0.85}px ${FONT_FAMILY}, sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  const repeats = 4
+  const repeats = 1 /* TEXTURE_REPEAT_U */
   const sectionWidth = width / repeats
   for (let i = 0; i < repeats; i++) {
-    ctx.fillText(TEXT, sectionWidth * (i + 0.5), height / 2)
+    ctx.fillText(TEXT, sectionWidth * (i + 0.5), height / 4)
   }
   const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = THREE.RepeatWrapping
-  texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(TEXTURE_REPEAT_V, 1)
-  texture.anisotropy = 16
+  texture.mapping = THREE.EquirectangularReflectionMapping
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 16
   return texture
 }
 
@@ -92,9 +96,13 @@ function Tunnel() {
 
   const material = createMemo(() => {
     const m = new THREE.MeshBasicMaterial({
-      map: texture(),
+      color: 0xffffff,
+      envMap: texture(),
       side: THREE.BackSide,
+      combine: THREE.MultiplyOperation,
+      reflectivity: 1,
     })
+    m.envMapRotation = new THREE.Euler(0, 0, 0)
     onCleanup(() => m.dispose())
     return m
   })
@@ -104,8 +112,8 @@ function Tunnel() {
 
   useFrame((_, delta) => {
     const now = performance.now()
-    const tex = texture()
-    tex.offset.x += delta * 0.06
+    const m = material()
+    m.envMapRotation.y += delta * 0.25
     if (!mesh) return
     mesh.geometry.dispose()
     const curve = buildCurve(now - startTime)
