@@ -20,64 +20,55 @@ A forthcoming spec will address sharing three.js / cannon-es / solid-three acros
 
 Three coordinated changes:
 
-1. **Custom Vite plugin** at `site/vite-plugins/snippet-bundle.ts` resolves `?snippet-bundle` queries to URLs of per-snippet ESM chunks. In dev: returns the same-origin Vite-served URL. In build: uses `this.emitFile({ type: "chunk" })` so Rollup emits a real chunk and `import.meta.ROLLUP_FILE_URL_…` resolves to its final hashed URL.
+1. **`@lightningjs/vite-plugin-import-chunk-url`** (a published Vite plugin recommended by Vite maintainers for exactly this use case — see [#14541](https://github.com/vitejs/vite/issues/14541)). Adds the `?importChunkUrl` query: in dev it piggybacks Vite's `?worker&url` URL handler; in build it uses `emitFile({ type: "chunk" })` so Rollup emits a real chunk and `import.meta.ROLLUP_FILE_URL_…` resolves to its final hashed URL.
 
 2. **Single `Demo` component**, same file (`site/src/components/demo.tsx`). One iframe element throughout the component's lifetime. The iframe's `src` changes once: from a mode-A blob (importing the snippet's chunk URL) to a mode-B blob (today's repl-driven blob). The browser tears down mode A and loads mode B inside the same iframe element — no DOM swap.
 
-3. **MDX usage updated** to import each snippet twice — once as `?raw` for the textarea, once as `?snippet-bundle` for the iframe's initial chunk URL. The 28 existing `<Demo>` call sites are updated.
+3. **MDX usage updated** to import each snippet twice — once as `?raw` for the textarea, once as `?importChunkUrl` for the iframe's initial chunk URL. The 28 existing `<Demo>` call sites are updated.
 
 Hero overlay reuses the same `Demo` component. To prevent the hero scene from running twice (once as the page-background `<LazyChosenScene>`, once inside the overlay iframe), hero hides the background scene whenever the overlay is open.
 
-## Section 1 — Custom Vite plugin
+## Section 1 — `@lightningjs/vite-plugin-import-chunk-url`
 
-`site/vite-plugins/snippet-bundle.ts`:
+Vite's built-in `?url` query doesn't work for source files in production (it emits the raw source as a `data:application/octet-stream;base64,…` URL — verified with a real build of this project). The canonical workaround, suggested in [vitejs/vite#14541](https://github.com/vitejs/vite/issues/14541), is [`@lightningjs/vite-plugin-import-chunk-url`](https://github.com/lightning-js/vite-plugin-import-chunk-url): a small plugin that handles both dev (piggybacks on Vite's existing `?worker&url` URL-handling) and build (`emitFile({ type: "chunk" })` + `import.meta.ROLLUP_FILE_URL_*`).
+
+**Setup**:
+
+```sh
+pnpm --filter site add -D @lightningjs/vite-plugin-import-chunk-url
+```
+
+`site/vite.config.ts` — add the plugin alongside the existing custom plugins:
 
 ```ts
-import { relative, sep } from "node:path"
-import type { Plugin, ResolvedConfig } from "vite"
+import { importChunkUrl } from "@lightningjs/vite-plugin-import-chunk-url"
+// …
+plugins: [
+  importChunkUrl(),
+  // …existing plugins
+]
+```
 
-const QUERY = "?snippet-bundle"
+Add a triple-slash reference so the `?importChunkUrl` query string is recognised as a string-default-export by TypeScript. In `site/src/global.d.ts` (or a new `.d.ts` referenced from `tsconfig.json`):
 
-export function snippetBundlePlugin(): Plugin {
-  let config: ResolvedConfig | undefined
-  return {
-    name: "solid-three:snippet-bundle",
-    configResolved(c) {
-      config = c
-    },
-    async resolveId(id, importer) {
-      if (!id.endsWith(QUERY)) return null
-      const bare = id.slice(0, -QUERY.length)
-      const resolved = await this.resolve(bare, importer, { skipSelf: true })
-      if (!resolved) return null
-      return resolved.id + QUERY
-    },
-    load(id) {
-      if (!id.endsWith(QUERY)) return null
-      if (!config) throw new Error("snippet-bundle: config not resolved")
-      const realPath = id.slice(0, -QUERY.length)
-      if (config.command === "serve") {
-        const relPath = relative(config.root, realPath).split(sep).join("/")
-        return `export default ${JSON.stringify("/" + relPath)}`
-      }
-      const refId = this.emitFile({
-        type: "chunk",
-        id: realPath,
-        preserveSignature: "exports-only",
-      })
-      return `export default import.meta.ROLLUP_FILE_URL_${refId}`
-    },
-  }
+```ts
+/// <reference types="@lightningjs/vite-plugin-import-chunk-url/client" />
+```
+
+That declares:
+
+```ts
+declare module "*?importChunkUrl" {
+  const src: string
+  export default src
 }
 ```
 
-Wire it into `site/vite.config.ts` alongside the existing custom plugins.
+**Behavior**:
 
-**Dev behavior**: the `load` for `?snippet-bundle` returns the URL Vite would already serve the `.tsx` at (e.g. `/src/snippets/01-create-t.tsx`). Vite's normal transform pipeline (including `vite-plugin-solid`) handles compilation when the iframe fetches that URL.
-
-**Build behavior**: `emitFile({ type: "chunk", id })` tells Rollup to treat the snippet as a separate entry point. Rollup compiles it through the same plugin pipeline (so `vite-plugin-solid` applies), bundles its imports, and emits a hashed chunk. `import.meta.ROLLUP_FILE_URL_<refId>` is replaced at the end of the build with the chunk's final URL.
-
-**Singleton consistency**: in both dev and build, the snippet chunk's imports (solid-js, three, solid-three) resolve to the same chunks used by the rest of the site. The iframe loading the chunk same-origin imports those chunks directly — no duplicate runtimes.
+- **Dev**: `import url from "./foo.tsx?importChunkUrl"` rewrites to Vite's `?worker&url` handler — returns a same-origin URL that Vite serves the compiled source at.
+- **Build**: `emitFile({ type: "chunk", id })` tells Rollup to treat the file as a separate entry; the rest of the Vite/Rollup plugin chain (including `vite-plugin-solid`) compiles it; the URL is replaced at the end of the build with the chunk's final hashed path.
+- **Singleton consistency**: in both modes the snippet chunk's imports (solid-js, three, solid-three) resolve to the same chunks used by the rest of the site. The iframe loading the chunk same-origin imports those chunks directly — no duplicate runtimes.
 
 ## Section 2 — Demo component
 
@@ -114,12 +105,25 @@ const iframeSrc = createMemo(() => hasEdited() ? replBootstrap() : initialBootst
 The mode-A iframe document needs to:
 - Be same-origin with the parent (blob URLs inherit parent origin).
 - Import the snippet's chunk URL.
-- Call `render()` from `solid-js/web` using the SAME instance the snippet imports — i.e., via a same-origin Vite-served path, not esm.sh.
+- Call `render()` from `solid-js/web` using the SAME instance the snippet imports — i.e., the same Vite/Rollup chunk, not esm.sh.
 
-Approach: also expose a `solid-js/web` URL via the same plugin (handles bare specifiers). The plugin's `resolveId` already calls `this.resolve(bare, importer)`, which works for bare specifiers too, so `import solidWebUrl from "solid-js/web?snippet-bundle"` resolves correctly.
+Constraint: the lightning-js plugin only resolves relative paths (it uses `dirname(importer) + path`), not bare specifiers. So `"solid-js/web?importChunkUrl"` won't work directly. Solution: add a tiny first-party helper module that we own and can address by relative path.
+
+`site/src/components/snippet-runtime.tsx`:
 
 ```ts
-import solidWebUrl from "solid-js/web?snippet-bundle"
+import type { Component } from "solid-js"
+import { render } from "solid-js/web"
+
+export function mount(Snippet: Component, root: HTMLElement): () => void {
+  return render(() => <Snippet />, root)
+}
+```
+
+Now both the snippet and the runtime are importable via `?importChunkUrl`. Vite/Rollup resolves the runtime's `solid-js/web` import through the normal chunk graph — the snippet's imports go through the same graph — so they share a runtime by construction.
+
+```ts
+import snippetRuntimeUrl from "./snippet-runtime.tsx?importChunkUrl"
 
 function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): string {
   const html = `<!doctype html>
@@ -140,9 +144,9 @@ function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): str
   <body>
     <div id="root"></div>
     <script type="module">
-      import { render } from ${JSON.stringify(solidWebUrl)}
-      import Component from ${JSON.stringify(snippetUrl)}
-      render(() => Component(), document.getElementById("root"))
+      import { mount } from ${JSON.stringify(snippetRuntimeUrl)}
+      import Snippet from ${JSON.stringify(snippetUrl)}
+      mount(Snippet, document.getElementById("root"))
     </script>
   </body>
 </html>`
@@ -219,7 +223,7 @@ Every tutorial `<Demo>` call gets two static imports — one for raw source, one
 ```mdx
 - import createTSnippet from "../../snippets/01-create-t.tsx?raw"
 + import createTSnippet from "../../snippets/01-create-t.tsx?raw"
-+ import createTUrl from "../../snippets/01-create-t.tsx?snippet-bundle"
++ import createTUrl from "../../snippets/01-create-t.tsx?importChunkUrl"
 
 - <Demo code={createTSnippet} />
 + <Demo code={createTSnippet} url={createTUrl} />
@@ -229,7 +233,7 @@ Files touched (9 chapter MDX files, ~28 `<Demo>` calls total): `01-your-first-sc
 
 ## Section 8 — Hero overlay
 
-`hero.tsx` already passes `source` to `<LazyDemo code={source()} />`. Add the URL via the same `?snippet-bundle` query on the gallery scene:
+`hero.tsx` already passes `source` to `<LazyDemo code={source()} />`. Add the URL via the same `?importChunkUrl` query on the gallery scene:
 
 ```tsx
 const [chosen, setChosen] = createSignal<Demo | undefined>()
@@ -241,7 +245,7 @@ const [chosen, setChosen] = createSignal<Demo | undefined>()
 
 ```ts
 const urls = import.meta.glob<string>("./*.tsx", {
-  query: "?snippet-bundle",
+  query: "?importChunkUrl",
   import: "default",
   eager: true,
 })
@@ -261,15 +265,15 @@ Trade-off: the background unmounts on open and re-mounts on close — a brief We
 
 ## Section 9 — Risks and mitigations
 
-**Vite plugin emit-time behavior in dev**: `emitFile({ type: "chunk" })` is build-only. The `config.command === "serve"` branch handles dev by returning the source URL directly. Verified via test fetch in dev that the URL resolves to compiled JS.
-
 **Cross-origin / sandbox**: `allow-same-origin` on the iframe is required so blob-URL bootstrap can fetch parent-origin `/src/...` and `/_build/assets/...` paths. Today's iframe already uses `allow-same-origin allow-scripts`; no change.
 
 **Singleton consistency across modes**: mode A uses same-origin Vite chunks. Mode B uses esm.sh-pinned imports via importmap. They are TWO DIFFERENT documents inside the same iframe element — no cross-mode singleton sharing. The transition discards mode A entirely. Acceptable.
 
-**Bootstrap → snippet runtime alignment in mode A**: bootstrap and snippet both import `solid-js/web` via the same `?snippet-bundle` plugin path. Plugin resolves both to the same underlying file. Singletons match.
+**Bootstrap → snippet runtime alignment in mode A**: both the snippet and `snippet-runtime.tsx` go through the plugin's `?importChunkUrl` path and through the normal Vite/Rollup chunk graph. The runtime's `solid-js/web` import and the snippet's `solid-js` imports resolve to the same chunks — singletons match.
 
-**Build chunk emit for bare specifiers**: when `?snippet-bundle` is used on a bare specifier like `solid-js/web`, the plugin's `this.resolve` returns the resolved node_modules path, and `emitFile({ type: "chunk", id })` emits a chunk for it. This duplicates `solid-js/web` into a separate chunk just for the iframe bootstrap to import. Vite's default chunking will keep it small (the same export the rest of the site uses). To avoid duplication, alternative: at build time the plugin emits a separate "snippet runtime" shim — but the small overhead from a duplicate `solid-js/web` chunk is acceptable for v1.
+**Plugin scope (relative paths only)**: the lightning-js plugin only resolves relative paths from the importer; bare specifiers don't work. Worked around by introducing `snippet-runtime.tsx` as a first-party helper.
+
+**Site is on Vite 8, plugin tested against Vite 5**: the plugin's `peerDependencies` declares `vite: "*"`, but its README example uses Vite 5. The two underlying APIs the plugin relies on (`?worker&url` redirection in dev, `emitFile({ type: "chunk" })` + `ROLLUP_FILE_URL_*` in build) are stable Rollup/Vite primitives — should keep working on Vite 8. If it doesn't, options are: pin Vite version, fork the plugin into `site/vite-plugins/`, or open an issue upstream. Verify during implementation.
 
 ## Verification
 
