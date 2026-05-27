@@ -1,5 +1,5 @@
 import { clientOnly } from "@solidjs/start"
-import { createResource, createSignal, Show } from "solid-js"
+import { createResource, createSignal, Show, startTransition } from "solid-js"
 import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
@@ -48,7 +48,7 @@ export function Hero() {
         <button
           type="button"
           class="hero-edit-toggle"
-          onClick={() => setEditorOpen(value => !value)}
+          onClick={() => startTransition(() => setEditorOpen(value => !value))}
         >
           {editorOpen() ? "Close editor" : "Edit"}
         </button>
