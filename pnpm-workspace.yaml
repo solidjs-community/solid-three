@@ -1,6 +1,7 @@
 packages:
   - "site"
 allowBuilds:
+  '@parcel/watcher': true
   esbuild: true
 # Pin two transitive deps to versions published before the CI's
 # minimumReleaseAge cutoff. Drop these once the cutoff moves past 2026-05-26.

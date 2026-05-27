@@ -7,6 +7,10 @@
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
   "type": "module",
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "pnpm": ">=11.3.0"
+  },
   "module": "./dist/index.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
