@@ -15,6 +15,7 @@ import {
   onCleanup,
   onMount,
   Show,
+  startTransition,
 } from "solid-js"
 import type ts from "typescript"
 import snippetRuntimeUrl from "./snippet-runtime.tsx?importChunkUrl"
@@ -388,7 +389,7 @@ function DemoClient(props: DemoProps) {
               editable
               onInput={event => {
                 setCode(event.currentTarget.value)
-                setHasEdited(true)
+                startTransition(() => setHasEdited(true))
               }}
             />
             <Show when={code() !== initialCode}>
