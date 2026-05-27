@@ -83,6 +83,8 @@
     "@types/three": "^0.181.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
+    "@vitest/browser": "^4.1.7",
+    "@vitest/browser-playwright": "^4.1.7",
     "dpdm": "^3.14.0",
     "esbuild": "^0.21.4",
     "esbuild-plugin-solid": "^0.6.0",
@@ -93,7 +95,7 @@
     "eslint-plugin-no-only-tests": "^3.3.0",
     "jest": "^29.7.0",
     "jiti": "^2.5.1",
-    "jsdom": "^24.1.0",
+    "playwright": "^1.60.0",
     "remark-gfm": "^3.0.1",
     "rollup": "^4.18.0",
     "rollup-plugin-dts": "^6.1.1",
@@ -105,10 +107,10 @@
     "tsup": "^8.0.2",
     "tsup-preset-solid": "^2.2.0",
     "typescript": "^5.4.5",
-    "vite": "5.2.12",
+    "vite": "6.4.2",
     "vite-plugin-inspect": "0.8.4",
-    "vite-plugin-solid": "2.10.2",
-    "vitest": "^1.6.0"
+    "vite-plugin-solid": "2.11.12",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
     "@types/three": "*",

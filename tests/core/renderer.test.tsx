@@ -237,6 +237,42 @@ describe("renderer", () => {
     expect(scene.children[0].children.length).toBe(0)
   })
 
+  it("attaches a foreign Material (duck-typed isMaterial: true)", async () => {
+    // Reproduces the failure mode hit by `three/webgpu`'s
+    // `MeshBasicNodeMaterial` (and any other Material from a separate
+    // module instance of three): the class doesn't share the `Material`
+    // prototype that solid-three imports from "three", so the
+    // `child instanceof Material` check in `applySceneGraph` fails and the
+    // material is never wired up as `mesh.material`. Duck-typing on
+    // `isMaterial` should handle this case.
+    class ForeignMaterial {
+      isMaterial = true
+      type = "ForeignMaterial"
+      // three's Material API surface that solid-three may touch
+      dispose() {}
+      copy(_other: ForeignMaterial) {
+        return this
+      }
+    }
+    const TF = createT({ ...THREE, ForeignMaterial })
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+
+    const scene = test(() => (
+      <TF.Mesh>
+        <TF.BoxGeometry />
+        <TF.ForeignMaterial />
+      </TF.Mesh>
+    )).scene
+
+    const mesh = scene.children[0] as THREE.Mesh
+    expect(mesh.type).toBe("Mesh")
+    expect((mesh.material as ForeignMaterial).type).toBe("ForeignMaterial")
+    expect(errorSpy).not.toHaveBeenCalled()
+
+    errorSpy.mockRestore()
+  })
+
   describe("attaches Object3D children that use attachFns", () => {
     it("attachFns with cleanup", async () => {
       const [visible, setVisible] = createSignal(true)
@@ -560,56 +596,51 @@ describe("renderer", () => {
     expect(gl.physicallyCorrectLights).toBe(true)
   })
 
-  it("should accept the tuple `[constructorArgs, properties]` form for gl", async () => {
-    // Smoke test — tuple is recognised and tuple[1] is applied as instance props.
+  it("should accept a flat gl prop mixing ctor args and instance props", async () => {
+    // `antialias` is a ctor arg → baked into WebGLRenderer({...}).
+    // `toneMapping` is an instance prop → applied via useProps after construction.
+    // The split is internal; users pass one flat object.
     const gl = test(() => <T.Group />, {
-      gl: [{ antialias: false }, { toneMapping: THREE.NoToneMapping }],
+      gl: { antialias: false, toneMapping: THREE.NoToneMapping },
     }).gl as unknown as THREE.WebGLRenderer
     expect(gl).toBeInstanceOf(THREE.WebGLRenderer)
     expect(gl.toneMapping).toBe(THREE.NoToneMapping)
   })
 
-  it("should not recreate the renderer when tuple[1] changes but tuple[0] is shallow-equal", async () => {
-    const [tick, setTick] = createSignal(0)
+  it("should reactively update instance props in the flat gl prop", async () => {
+    const [tone, setTone] = createSignal<THREE.ToneMapping>(THREE.NoToneMapping)
     const state = test(() => <T.Group />, {
       get gl() {
-        return [
-          { antialias: false },
-          { toneMapping: tick() === 0 ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping },
-        ] as [{ antialias: boolean }, { toneMapping: THREE.ToneMapping }]
+        return { antialias: false, toneMapping: tone() }
       },
     })
+    const renderer = state.gl as unknown as THREE.WebGLRenderer
+    expect(renderer.toneMapping).toBe(THREE.NoToneMapping)
+    setTone(THREE.ACESFilmicToneMapping)
+    expect(renderer.toneMapping).toBe(THREE.ACESFilmicToneMapping)
+  })
 
+  it("should warn (and not recreate) when a ctor-arg key is changed reactively", async () => {
+    // WebGL bakes ctor args (antialias etc.) into the context at creation —
+    // they can't be changed without a new canvas. solid-three keeps the
+    // existing renderer and warns once instead of silently ignoring.
+    const [aa, setAa] = createSignal(true)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return { antialias: aa() }
+      },
+    })
     const initial = state.gl
-    setTick(1)
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+
+    setAa(false)
+
     expect(state.gl).toBe(initial)
-  })
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toMatch(/antialias/)
+    expect(warn.mock.calls[0][0]).toMatch(/unmount and remount/)
 
-  it("should recreate the renderer when tuple[0] changes shape", async () => {
-    const [aa, setAa] = createSignal(true)
-    const state = test(() => <T.Group />, {
-      get gl() {
-        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
-      },
-    })
-
-    const initial = state.gl
-    setAa(false)
-    expect(state.gl).not.toBe(initial)
-  })
-
-  it("should dispose the previous renderer when tuple[0] triggers recreation", async () => {
-    const [aa, setAa] = createSignal(true)
-    const state = test(() => <T.Group />, {
-      get gl() {
-        return [{ antialias: aa() }, {}] as [{ antialias: boolean }, object]
-      },
-    })
-
-    const initial = state.gl as unknown as THREE.WebGLRenderer
-    const disposeSpy = vi.spyOn(initial, "dispose")
-    setAa(false)
-    expect(disposeSpy).toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it("should update scene via scene prop", async () => {
@@ -741,6 +772,45 @@ describe("renderer", () => {
     expect(warn.mock.calls[0][0]).toMatch(/no-op/)
 
     warn.mockRestore()
+  })
+
+  it("should wire XR on a WebGPU-shaped renderer (setAnimationLoop on the renderer, not on xr)", async () => {
+    // WebGPURenderer's XRManager has no `setAnimationLoop` — that method lives on
+    // the renderer itself. On `sessionstart`, solid-three must:
+    //   1. set `gl.xr.enabled = true`
+    //   2. drive frames via `gl.setAnimationLoop(cb)` on the renderer (not xr).
+    // On `sessionend`, it must clear both.
+    const listeners: Record<string, ((e: unknown) => void)[]> = {}
+    const xrManager = {
+      enabled: false,
+      isPresenting: false,
+      addEventListener: (type: string, fn: (e: unknown) => void) => {
+        ;(listeners[type] ??= []).push(fn)
+      },
+      removeEventListener: (type: string, fn: (e: unknown) => void) => {
+        listeners[type] = (listeners[type] ?? []).filter(l => l !== fn)
+      },
+      dispatch(type: string) {
+        for (const fn of listeners[type] ?? []) fn({ type })
+      },
+    }
+    const setAnimationLoop = vi.fn()
+    const fake = Object.assign(makeFakeRenderer(), { xr: xrManager, setAnimationLoop })
+
+    test(() => <T.Group />, { gl: fake })
+
+    xrManager.isPresenting = true
+    xrManager.dispatch("sessionstart")
+
+    expect(xrManager.enabled).toBe(true)
+    expect(setAnimationLoop).toHaveBeenCalledTimes(1)
+    expect(typeof setAnimationLoop.mock.calls[0][0]).toBe("function")
+
+    xrManager.isPresenting = false
+    xrManager.dispatch("sessionend")
+
+    expect(xrManager.enabled).toBe(false)
+    expect(setAnimationLoop).toHaveBeenLastCalledWith(null)
   })
 
   it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {

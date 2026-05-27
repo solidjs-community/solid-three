@@ -10,11 +10,11 @@ import {
   untrack,
 } from "solid-js"
 import {
-  BufferGeometry,
+  type BufferGeometry,
   Color,
-  Fog,
-  Material,
-  Object3D,
+  type Fog,
+  type Material,
+  type Object3D,
   RGBAFormat,
   Texture,
   UnsignedByteType,
@@ -23,11 +23,17 @@ import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
 import { addToEventListeners } from "./internal-context.ts"
 import type { AccessorMaybe, Context, Meta } from "./types.ts"
-import { getMeta, hasColorSpace, hasMeta, resolve } from "./utils.ts"
-
-function isWritable(object: object, propertyName: string) {
-  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
-}
+import {
+  getMeta,
+  hasColorSpace,
+  hasMeta,
+  isBufferGeometry,
+  isFog,
+  isMaterial,
+  isObject3D,
+  isWritable,
+  resolve,
+} from "./utils.ts"
 
 function applySceneGraph(parent: object, child: object) {
   const parentMeta = getMeta(parent)
@@ -51,9 +57,14 @@ function applySceneGraph(parent: object, child: object) {
   }
 
   if (!attachProp) {
-    if (child instanceof Material) attachProp = "material"
-    else if (child instanceof BufferGeometry) attachProp = "geometry"
-    else if (child instanceof Fog) attachProp = "fog"
+    // Duck-type instead of `instanceof` so that classes from a separate
+    // module instance of three (e.g. `MeshBasicNodeMaterial` from
+    // `three/webgpu` when imported alongside `three`'s own `Material`)
+    // still get attached to the correct slot. Three.js itself uses these
+    // `is*` flags as the canonical cross-version test.
+    if (isMaterial(child)) attachProp = "material"
+    else if (isBufferGeometry(child)) attachProp = "geometry"
+    else if (isFog(child)) attachProp = "fog"
   }
 
   if (attachProp) {
@@ -79,7 +90,7 @@ function applySceneGraph(parent: object, child: object) {
   }
 
   // Object3D children are managed by the ordering loop in useSceneGraph
-  if (child instanceof Object3D && parent instanceof Object3D) return
+  if (isObject3D(child) && isObject3D(parent)) return
 
   console.error(
     "Error while connecting/attaching child: child does not have attach-props defined and is not an Object3D",
@@ -130,7 +141,7 @@ export const useSceneGraph = <T extends object>(
   // Object3D scene graph sync: add, remove, reorder
   createComputed((previousManagedChildren: Set<Object3D>) => {
     const parent = resolve(_parent)
-    if (!(parent instanceof Object3D)) {
+    if (!isObject3D(parent)) {
       return previousManagedChildren
     }
 
@@ -138,7 +149,7 @@ export const useSceneGraph = <T extends object>(
     const managedChildren = new Set<Object3D>()
 
     for (const child of childArray) {
-      if (!(child instanceof Object3D) || getMeta(child)?.props.attach) continue
+      if (!isObject3D(child) || getMeta(child)?.props.attach) continue
       managedChildren.add(child)
       if (child.parent !== parent) {
         parent.add(child)
@@ -159,7 +170,7 @@ export const useSceneGraph = <T extends object>(
       }
       while (childArrayIndex < childArray.length) {
         const child = childArray[childArrayIndex++]
-        if (child instanceof Object3D && !getMeta(child)?.props.attach) {
+        if (isObject3D(child) && !getMeta(child)?.props.attach) {
           parent.children[i] = child
           break
         }
@@ -242,7 +253,7 @@ function applyProp<T extends Record<string, any>>(
   }
 
   if (isEventType(type)) {
-    if (source instanceof Object3D && hasMeta(source)) {
+    if (isObject3D(source) && hasMeta(source)) {
       const cleanup = addToEventListeners(source, type)
       onCleanup(cleanup)
     } else {

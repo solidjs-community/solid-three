@@ -3,7 +3,9 @@ import {
   createEffect,
   createMemo,
   createRenderEffect,
+  createResource,
   createRoot,
+  untrack,
   mergeProps,
   onCleanup,
 } from "solid-js"
@@ -46,28 +48,15 @@ import {
   defaultProps,
   getCurrentViewport,
   getPendingInit,
+  isRenderer,
   isWebGLShadowMap,
-  isWebXRManager,
+  canDriveXR,
   meta,
   removeElementFromArray,
-  shallowEqual,
   useRef,
   withMultiContexts,
 } from "./utils.ts"
 import { useMeasure } from "./utils/use-measure.ts"
-
-/**
- * Returns true when `value` is an already-built renderer instance (anything
- * matching {@link Renderer}) rather than a config-props object or a factory.
- */
-function isRendererInstance(value: unknown): value is Renderer {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as Renderer).render === "function" &&
-    typeof (value as Renderer).setSize === "function"
-  )
-}
 
 /**
  * Creates and manages a `solid-three` scene. It initializes necessary objects like
@@ -145,34 +134,33 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     if (canvasProps.frameloop === "never") return
     render(timestamp, frame)
   }
-  // XR session wiring is built for `WebXRManager` (WebGL build of three's
-  // XR). WebGPURenderer ships a different `XRManager` class that handles
-  // animation loops via the renderer itself — duck-typing on
-  // `setAnimationLoop` cleanly excludes it without needing instanceof checks
-  // (which would force runtime imports of the manager classes).
+  // Both WebGL and WebGPU expose `setAnimationLoop` on the *renderer* — that's
+  // the XR-aware loop driver. WebGL's `WebXRManager` mirrors it on `xr` as
+  // well; WebGPU's `XRManager` does not. Driving the loop via the renderer
+  // unifies both paths.
   function warnNonXR(method: string) {
     console.warn(
-      `solid-three: ${method} is a no-op — the active renderer has no \`WebXRManager\`-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
+      `solid-three: ${method} is a no-op — the active renderer can't host an XR session (needs an event-target \`xr\` manager and \`setAnimationLoop\` on the renderer). Pass a WebGLRenderer or a WebGPURenderer.`,
     )
   }
   function handleSessionChange() {
-    const xrManager = context.gl.xr
-    if (!isWebXRManager(xrManager)) return
-    xrManager.enabled = xrManager.isPresenting
-    xrManager.setAnimationLoop(xrManager.isPresenting ? handleXRFrame : null)
+    const _gl = context.gl
+    if (!canDriveXR(_gl)) return
+    _gl.xr.enabled = _gl.xr.isPresenting
+    _gl.setAnimationLoop(_gl.xr.isPresenting ? handleXRFrame : null)
   }
   const xr = {
     connect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.connect()")
-      xrManager.addEventListener("sessionstart", handleSessionChange)
-      xrManager.addEventListener("sessionend", handleSessionChange)
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.connect()")
+      _gl.xr.addEventListener("sessionstart", handleSessionChange)
+      _gl.xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
-      const xrManager = context.gl.xr
-      if (!isWebXRManager(xrManager)) return warnNonXR("xr.disconnect()")
-      xrManager.removeEventListener("sessionstart", handleSessionChange)
-      xrManager.removeEventListener("sessionend", handleSessionChange)
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.disconnect()")
+      _gl.xr.removeEventListener("sessionstart", handleSessionChange)
+      _gl.xr.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -183,12 +171,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
-  // WebGPURenderer needs `await renderer.init()` before its first render. The
-  // render loop spins harmlessly until this flips true.
-  let glInitialized = false
 
   function render(timestamp: number, frame?: XRFrame) {
-    if (!context.gl || !glInitialized) {
+    // `WebGPURenderer.init()` must complete before the first render; the
+    // render loop spins harmlessly until the resource flips to "ready".
+    // WebGL renderers report ready synchronously on creation.
+    if (!context.gl || rendererReady.state !== "ready") {
       return
     }
     if (props.frameloop === "never") {
@@ -230,23 +218,30 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const glKind = createMemo<"factory" | "instance" | "default">(() => {
     const _propsGl = props.gl
     if (typeof _propsGl === "function") return "factory"
-    if (isRendererInstance(_propsGl)) return "instance"
+    if (isRenderer(_propsGl)) return "instance"
     return "default"
   })
+
   /**
-   * Constructor arguments for the default WebGLRenderer branch. Tuple form
-   * `gl={[ctorArgs, properties]}` puts them in slot 0; single-object form
-   * implies empty ctor args. Firewalled by `shallowEqual` so a fresh-reference
-   * same-content config (typical JSX getter behaviour) doesn't recreate.
+   * Keys of `WebGLRendererParameters` that configure context creation or are
+   * otherwise constructor-only. `splitProps(gl, WEBGL_CTOR_KEYS)` partitions
+   * a flat `gl={...}` prop into ctor args and instance props. WebGL's
+   * `getContext` is idempotent on a canvas so these can never be changed
+   * after construction — see the warn-on-update effect below.
    */
-  const glConstructorArgs = createMemo<Partial<WebGLRendererParameters>>(
-    () => {
-      const _propsGl = props.gl
-      return Array.isArray(_propsGl) ? _propsGl[0] : {}
-    },
-    {},
-    { equals: shallowEqual },
-  )
+  const WEBGL_CTOR_KEYS = [
+    "alpha",
+    "antialias",
+    "depth",
+    "failIfMajorPerformanceCaveat",
+    "logarithmicDepthBuffer",
+    "powerPreference",
+    "precision",
+    "premultipliedAlpha",
+    "preserveDrawingBuffer",
+    "reversedDepthBuffer",
+    "stencil",
+  ] as const satisfies readonly (keyof WebGLRendererParameters)[]
 
   const camera = createMemo(() => {
     if (cameraIsInstance()) {
@@ -306,6 +301,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   // the user via factory/instance). Only our own renderers get disposed when
   // the memo re-runs — disposing a user's renderer would be rude.
   let ownsCurrentRenderer = false
+  // Initial ctor-arg snapshot (untracked) — used to detect post-construction
+  // changes the user might be expecting to take effect, but can't (WebGL
+  // contexts are immutable once created).
+  let initialCtorArgs: Partial<WebGLRendererParameters> = {}
   const gl = createMemo<Meta<Renderer>>(previous => {
     if (previous && ownsCurrentRenderer) {
       const old = previous as unknown as WebGLRenderer
@@ -321,11 +320,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       _gl = props.gl as Renderer
       ownsCurrentRenderer = false
     } else {
-      // Default branch — construct a WebGLRenderer with the user's ctor args
-      // (if they passed a `[ctorArgs, props]` tuple). The default `alpha: true`
-      // can be overridden by the user; `canvas` is solid-three's own and
-      // intentionally placed last so it can't be.
-      _gl = new WebGLRenderer({ alpha: true, ...glConstructorArgs(), canvas })
+      // Default branch — construct a WebGLRenderer with the user's flat `gl`
+      // prop. Split via `splitProps`: keys in `WEBGL_CTOR_KEYS` go to the
+      // constructor (baked in for the renderer's lifetime, since WebGL won't
+      // give us a fresh context on the same canvas), the rest are applied as
+      // instance props via the `useProps` call below. `alpha: true` is our
+      // default; the user's value (if any) wins. `canvas` is last so the
+      // user can't override it.
+      const flat = untrack(() => (props.gl as Partial<WebGLRendererParameters>) ?? {})
+      const ctorArgs: Partial<WebGLRendererParameters> = {}
+      for (const key of WEBGL_CTOR_KEYS) {
+        if (key in flat) ctorArgs[key] = flat[key] as never
+      }
+      initialCtorArgs = ctorArgs
+      _gl = new WebGLRenderer({ alpha: true, ...ctorArgs, canvas })
       ownsCurrentRenderer = true
     }
 
@@ -335,6 +343,39 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     })
   })
+
+  /**
+   * Renderer-init resource. Source tracks `gl()`; on every swap the fetcher
+   * runs and returns either:
+   * - a synchronous `true` (no `init()` method or already initialized) →
+   *   resource is `"ready"` immediately, render loop can render.
+   * - a Promise that resolves once `renderer.init()` finishes (WebGPU) →
+   *   resource is `"pending"` until then.
+   *
+   * Solid's `createResource` cancels stale in-flight fetches when the
+   * source changes, so we don't need a manual `cancelled` flag.
+   */
+  const [rendererReady] = createResource(
+    () => gl(),
+    renderer => {
+      const init = getPendingInit(renderer)
+      if (!init) return true
+      // Pre-size the canvas backing buffer before awaiting `init()`.
+      // WebGPURenderer allocates its depth attachment during `init()` based on
+      // the canvas's current `width`/`height`. An unsized canvas defaults to
+      // 300×150, so without this the first `setSize(...)` from the resize
+      // observer ends up with a 300×150 depth buffer paired with a full-size
+      // color buffer — WebGPU rejects that mismatch on the first frame.
+      // Mirrors r3f v10's WebGPU init handling (see pmndrs/react-three-fiber#3651).
+      const rect = canvas.getBoundingClientRect()
+      const ratio = globalThis.devicePixelRatio || 1
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width * ratio
+        canvas.height = rect.height * ratio
+      }
+      return init().then(() => true)
+    },
+  )
 
   const measure = useMeasure()
   measure.setElement(canvas)
@@ -458,39 +499,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       })
 
       createEffect(() => {
-        // Wire XR only when the active renderer exposes a `WebXRManager`-
-        // shaped manager. Inner `xr.connect()`/`disconnect()` guards
-        // reinforce this if `context.gl` swaps later.
-        if (isWebXRManager(gl().xr)) context.xr.connect()
-      })
-
-      // Await async renderer init (WebGPURenderer requires this before the
-      // first render). For WebGLRenderer this branch is a no-op and
-      // `glInitialized` flips true synchronously.
-      createEffect(async () => {
-        const renderer = gl()
-        glInitialized = false
-        // Register synchronously so a renderer swap mid-init can abort.
-        let cancelled = false
-        onCleanup(() => {
-          cancelled = true
-        })
-
-        const init = getPendingInit(renderer)
-        if (init) {
-          // Size the canvas backing buffer before init so WebGPU allocates the
-          // depth attachment at the correct dimensions (otherwise the default
-          // 300×150 causes a size mismatch on the first resize).
-          const rect = canvas.getBoundingClientRect()
-          const ratio = globalThis.devicePixelRatio || 1
-          if (rect.width > 0 && rect.height > 0) {
-            canvas.width = rect.width * ratio
-            canvas.height = rect.height * ratio
-          }
-          await init()
-        }
-
-        if (!cancelled) glInitialized = true
+        // Wire XR only when the active renderer can host a session. Inner
+        // `xr.connect()`/`disconnect()` guards reinforce this if `context.gl`
+        // swaps later.
+        if (canDriveXR(gl())) context.xr.connect()
       })
 
       // Color management and tone-mapping. Both WebGLRenderer and
@@ -513,14 +525,36 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         })
       }
 
-      // Apply props.gl as renderer instance properties only when it's a
-      // config object or tuple — not a factory or a pre-built instance. For
-      // the tuple form, the instance-writable side is slot 1; for the
-      // single-object form, the whole object goes through.
+      // Apply props.gl as renderer instance properties — only when it's a
+      // config object, not a factory or a pre-built instance. Ctor-only keys
+      // in the flat object (e.g. `antialias`) get assigned to the instance
+      // too; that's a harmless junk property on the renderer (three doesn't
+      // re-read them). The warn effect below catches users who *expect*
+      // those changes to take effect.
       const _propsGl = props.gl
-      if (_propsGl && typeof _propsGl !== "function" && !isRendererInstance(_propsGl)) {
-        useProps(gl, Array.isArray(_propsGl) ? _propsGl[1] : _propsGl)
+      if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
+        useProps(gl, _propsGl as object)
       }
+
+      // Warn when the user reactively changes a constructor-only key. WebGL
+      // bakes these into the context at creation and never re-reads them, so
+      // a Solid-style reactive change here is a silent no-op without this.
+      let warnedCtorKeys = false
+      createEffect(() => {
+        if (warnedCtorKeys) return
+        const flat = (props.gl as Partial<WebGLRendererParameters>) ?? {}
+        for (const key of WEBGL_CTOR_KEYS) {
+          if (key in flat && flat[key] !== initialCtorArgs[key]) {
+            console.warn(
+              `solid-three: <Canvas gl={...}> received a new value for "${String(key)}", ` +
+                `but WebGLRenderer constructor args are immutable for the canvas's lifetime. ` +
+                `To swap renderer config at runtime, unmount and remount <Canvas>.`,
+            )
+            warnedCtorKeys = true
+            return
+          }
+        }
+      })
     })
   }, [[threeContext, context]])
 
@@ -565,14 +599,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     </eventContext.Provider>
   ))
 
-  useSceneGraph(
-    context.scene,
-    mergeProps(props, {
-      get children() {
-        return c()
-      },
-    }),
-  )
+  useSceneGraph(context.scene, {
+    get children() {
+      return c()
+    },
+  })
 
   withMultiContexts(
     () => useRef(props, context),

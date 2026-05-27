@@ -1,10 +1,12 @@
 import type { Accessor, Context, JSX } from "solid-js"
 import { createRenderEffect, mergeProps, onCleanup, type Ref } from "solid-js"
 import {
+  type BufferGeometry,
   Camera,
+  type Fog,
   Loader,
-  Material,
-  Object3D,
+  type Material,
+  type Object3D,
   OrthographicCamera,
   Texture,
   Vector3,
@@ -237,13 +239,64 @@ export function shallowEqual(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Duck-typed narrow to `WebXRManager`. `setAnimationLoop` is the discriminator
- * we both call and that three's WebGPU `XRManager` doesn't expose, so the
- * check is meaningful — not an arbitrary brand probe.
+ * Duck-typed three.js class checks. These match three's own internal pattern
+ * (`obj.isMaterial`, `obj.isObject3D`, etc.) and survive cases where the
+ * `Material` / `Object3D` class identities differ across module instances
+ * — e.g. `three/webgpu`'s `MeshBasicNodeMaterial` doesn't extend the same
+ * `Material` as `three`'s `MeshBasicMaterial`, but both set
+ * `isMaterial = true`.
  */
-export function isWebXRManager(value: unknown): value is WebXRManager {
+export function isMaterial(value: unknown): value is Material {
+  return !!value && (value as { isMaterial?: boolean }).isMaterial === true
+}
+export function isBufferGeometry(value: unknown): value is BufferGeometry {
+  return !!value && (value as { isBufferGeometry?: boolean }).isBufferGeometry === true
+}
+export function isFog(value: unknown): value is Fog {
+  return !!value && (value as { isFog?: boolean }).isFog === true
+}
+export function isObject3D(value: unknown): value is Object3D {
+  return !!value && (value as { isObject3D?: boolean }).isObject3D === true
+}
+
+export function isWritable(object: object, propertyName: string) {
+  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
+}
+
+/**
+ * Returns true when `value` is an already-built renderer instance (anything
+ * matching {@link Renderer}) rather than a config-props object or a factory.
+ */
+export function isRenderer(value: unknown): value is Renderer {
   return (
-    !!value && typeof (value as { setAnimationLoop?: unknown }).setAnimationLoop === "function"
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
+  )
+}
+
+/**
+ * Returns true if the renderer can host an XR session: its `xr` manager is an
+ * event target (so we can subscribe to `sessionstart`/`sessionend`) and the
+ * renderer itself exposes `setAnimationLoop` (the XR-aware loop driver, which
+ * lives on the renderer in both WebGL and WebGPU builds — only the WebGL
+ * `WebXRManager` *also* mirrors it).
+ *
+ * Unifies WebGL and WebGPU XR wiring: we always drive the loop via
+ * `gl.setAnimationLoop(...)` rather than `gl.xr.setAnimationLoop(...)`, which
+ * three's WebGPU `XRManager` doesn't expose.
+ */
+export function canDriveXR(
+  gl: unknown,
+): gl is { xr: WebXRManager; setAnimationLoop: (cb: XRFrameRequestCallback | null) => void } {
+  if (!gl || typeof gl !== "object") return false
+  const xr = (gl as { xr?: unknown }).xr
+  const setLoop = (gl as { setAnimationLoop?: unknown }).setAnimationLoop
+  return (
+    !!xr &&
+    typeof (xr as { addEventListener?: unknown }).addEventListener === "function" &&
+    typeof setLoop === "function"
   )
 }
 

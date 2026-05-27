@@ -8,6 +8,7 @@ exports[`web Canvas > should correctly mount 1`] = `
     <canvas
       data-engine="three.js r181"
       height="800"
+      style="width: 1280px; height: 800px;"
       width="1280"
     />
   </div>

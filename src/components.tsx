@@ -188,11 +188,20 @@ export function Resource<const TLoader extends Loader<object, any>>(props: Resou
     options,
   )
 
-  useProps(resource, rest)
+  // Tag the loaded resource with meta so the surrounding scene graph can read
+  // `attach` (and other meta-driven props) off it when this component is
+  // rendered as a JSX child.
+  const tagged = createMemo(() => {
+    const value = resource()
+    if (!value || typeof value !== "object") return value
+    return hasMeta(value) ? value : meta(value as object, { props })
+  })
+
+  useProps(tagged, rest)
 
   return (
-    <Show when={"children" in config && resource()} fallback={resource() as JSX.Element}>
-      {resource => props.children?.(resource)}
+    <Show when={"children" in config && tagged()} fallback={tagged() as JSX.Element}>
+      {value => props.children?.(value as Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>)}
     </Show>
   )
 }
