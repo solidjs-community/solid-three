@@ -3,6 +3,7 @@ title: Your first scene
 ---
 
 import createTSnippet from "../../snippets/01-create-t.tsx?raw"
+import createTUrl from "../../snippets/01-create-t.tsx?importChunkUrl"
 
 # Your first scene
 
@@ -25,7 +26,7 @@ that wraps it. `createT` is `solid-three`'s helper for doing that in
 bulk: hand it an object of classes and you get back a proxy where
 every key is its own JSX component.
 
-<Demo code={createTSnippet} />
+<Demo code={createTSnippet} url={createTUrl} />
 
 The colour comes from `MeshNormalMaterial`, which tints each face by its
 surface normal — a handy debugging material because it makes geometry
