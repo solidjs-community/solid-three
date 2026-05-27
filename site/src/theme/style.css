@@ -28,14 +28,15 @@ html[data-theme*="light"] {
   border: 1px solid var(--demo-border);
   border-radius: 6px;
   overflow: hidden;
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   height: 320px;
 }
 
 .demo-panes {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  flex: 1;
   min-height: 0;
 }
 
