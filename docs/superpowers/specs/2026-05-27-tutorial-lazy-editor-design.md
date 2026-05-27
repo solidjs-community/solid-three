@@ -2,317 +2,290 @@
 
 ## Goal
 
-Defer loading TypeScript and Babel (today fetched from esm.sh on every page that mounts a `<Demo>`) until the user actually edits a snippet. Initial preview renders by directly mounting the snippet module the MDX page already imported. Visual UX is unchanged — tm-textarea is still always loaded, layout stays the same.
+Defer loading TypeScript and Babel (today fetched from esm.sh on every page that mounts a `<Demo>`) until the user actually edits a snippet. Initial preview is rendered in an iframe that loads a per-snippet ESM chunk emitted at build time. Visual UX is unchanged — tm-textarea is still always loaded, layout stays the same.
 
 ## Motivation
 
 Each tutorial chapter mounts 3–5 `<Demo>` blocks. Today every Demo's iframe boots through `@bigmistqke/repl`, which immediately fetches the TypeScript compiler (~3 MB) and Babel + babel-preset-solid (~1.5 MB) from esm.sh — even when the visitor never edits. Most readers don't edit; they just look at the running snippet. Deferring those CDN imports until first edit removes the largest unconditional cost on tutorial pages.
 
-A forthcoming spec will address sharing three.js / cannon-es / solid-three across snippet preview bundles via chunked output. That is **not** in scope here.
+A forthcoming spec will address sharing three.js / cannon-es / solid-three across snippet preview bundles via chunked output.
 
 ## Non-goals
 
 - No tests for the Demo component (matches today).
 - No change to the editor's behaviour after the user has started editing — repl + iframe + recompile-on-input stay identical.
 - No change to the tm-textarea load — it stays mounted from the start.
-- No change to hero gallery rotation behaviour. Only the hero's *edit overlay* gets the new lazy-compiler path.
-- No `snippet()` registry helper, no codegen Vite plugin, no `?url` query (rejected during brainstorming — Vite types don't expose literal keys, and a runtime helper would still require explicit import per call).
 
 ## Architecture overview
 
 Three coordinated changes:
 
-1. **Tutorial `Demo` component** (`site/src/components/demo.tsx`) gains a `Component` prop alongside the existing `code` prop. Two internal render modes:
-   - **Mode A** (initial): renders `<props.Component />` directly into a host div. No iframe, no repl, no TS, no Babel.
-   - **Mode B** (after first edit): mounts the repl-driven iframe. TS + Babel lazy-load via `createResource`.
+1. **Custom Vite plugin** at `site/vite-plugins/snippet-bundle.ts` resolves `?snippet-bundle` queries to URLs of per-snippet ESM chunks. In dev: returns the same-origin Vite-served URL. In build: uses `this.emitFile({ type: "chunk" })` so Rollup emits a real chunk and `import.meta.ROLLUP_FILE_URL_…` resolves to its final hashed URL.
 
-   The mode-A div and mode-B iframe live in the same parent and crossfade via CSS opacity once the iframe finishes its first compile. Mode-A unmounts (releasing its WebGL context) only after the crossfade completes.
+2. **Single `Demo` component**, same file (`site/src/components/demo.tsx`). One iframe element throughout the component's lifetime. The iframe's `src` changes once: from a mode-A blob (importing the snippet's chunk URL) to a mode-B blob (today's repl-driven blob). The browser tears down mode A and loads mode B inside the same iframe element — no DOM swap.
 
-2. **Hero overlay `HeroEditor` component** (`site/src/components/hero-editor.tsx`) — a sibling of `Demo`, no direct-mount path. The hero scene already runs behind the overlay (mounted by `<LazyChosenScene>`), so the overlay only needs textarea + iframe. Smaller, simpler.
+3. **MDX usage updated** to import each snippet twice — once as `?raw` for the textarea, once as `?snippet-bundle` for the iframe's initial chunk URL. The 28 existing `<Demo>` call sites are updated.
 
-3. **Shared `ReplIframe` component** (`site/src/components/repl-iframe.tsx`) — the iframe + repl pipeline extracted from today's `demo.tsx`, with the `createResource`-based lazy compiler load. Used by both `Demo` and `HeroEditor`.
+Hero overlay reuses the same `Demo` component. To prevent the hero scene from running twice (once as the page-background `<LazyChosenScene>`, once inside the overlay iframe), hero hides the background scene whenever the overlay is open.
 
-**MDX usage updates** to import each snippet twice — once as `?raw` for the textarea, once as the default-exported component for direct mount. The 28 existing `<Demo>` call sites are updated; no other MDX change.
+## Section 1 — Custom Vite plugin
 
-## Section 1 — Demo component
-
-`site/src/components/demo.tsx` — kept as one file. Props change:
+`site/vite-plugins/snippet-bundle.ts`:
 
 ```ts
-import type { Component as SolidComponent } from "solid-js"
+import { relative, sep } from "node:path"
+import type { Plugin, ResolvedConfig } from "vite"
 
-export interface DemoProps {
-  code: string
-  Component: SolidComponent
+const QUERY = "?snippet-bundle"
+
+export function snippetBundlePlugin(): Plugin {
+  let config: ResolvedConfig | undefined
+  return {
+    name: "solid-three:snippet-bundle",
+    configResolved(c) {
+      config = c
+    },
+    async resolveId(id, importer) {
+      if (!id.endsWith(QUERY)) return null
+      const bare = id.slice(0, -QUERY.length)
+      const resolved = await this.resolve(bare, importer, { skipSelf: true })
+      if (!resolved) return null
+      return resolved.id + QUERY
+    },
+    load(id) {
+      if (!id.endsWith(QUERY)) return null
+      if (!config) throw new Error("snippet-bundle: config not resolved")
+      const realPath = id.slice(0, -QUERY.length)
+      if (config.command === "serve") {
+        const relPath = relative(config.root, realPath).split(sep).join("/")
+        return `export default ${JSON.stringify("/" + relPath)}`
+      }
+      const refId = this.emitFile({
+        type: "chunk",
+        id: realPath,
+        preserveSignature: "exports-only",
+      })
+      return `export default import.meta.ROLLUP_FILE_URL_${refId}`
+    },
+  }
 }
 ```
 
-State signals (inside `DemoClient`):
+Wire it into `site/vite.config.ts` alongside the existing custom plugins.
+
+**Dev behavior**: the `load` for `?snippet-bundle` returns the URL Vite would already serve the `.tsx` at (e.g. `/src/snippets/01-create-t.tsx`). Vite's normal transform pipeline (including `vite-plugin-solid`) handles compilation when the iframe fetches that URL.
+
+**Build behavior**: `emitFile({ type: "chunk", id })` tells Rollup to treat the snippet as a separate entry point. Rollup compiles it through the same plugin pipeline (so `vite-plugin-solid` applies), bundles its imports, and emits a hashed chunk. `import.meta.ROLLUP_FILE_URL_<refId>` is replaced at the end of the build with the chunk's final URL.
+
+**Singleton consistency**: in both dev and build, the snippet chunk's imports (solid-js, three, solid-three) resolve to the same chunks used by the rest of the site. The iframe loading the chunk same-origin imports those chunks directly — no duplicate runtimes.
+
+## Section 2 — Demo component
+
+`site/src/components/demo.tsx` keeps its file path. Props change:
+
+```ts
+export interface DemoProps {
+  code: string
+  url: string
+}
+```
+
+State signals:
 
 - `code: Accessor<string>` — initialised to `trimBlankLines(props.code)`. Tracks textarea content.
 - `hasEdited: Accessor<boolean>` — one-way latch. Flips true on first textarea `onInput`. Never reverts.
-- `iframeReady: Accessor<boolean>` — flips true the first time the iframe finishes its first compile + load. Drives the crossfade.
-- `directMountRetired: Accessor<boolean>` — flips true after DirectMount's opacity-0 transition ends. Mode-A only unmounts when this is true.
 - `iframeBusy: Accessor<boolean>` — drives the top-right loading indicator.
 
-Render structure:
+The iframe element is a single DOM node for the component's lifetime. Its `src` is derived from a memo:
 
-```tsx
-<div class="demo" classList={{ "demo-narrow": isNarrow() }}>
-  {/* tabs (unchanged) */}
-  <div class="demo-panes">
-    {/* editor pane: tm-textarea (unchanged) */}
-    <Show when={!isNarrow() || pane() === "canvas"}>
-      <div class="demo-canvas-wrapper">
-        <Show when={!directMountRetired()}>
-          <ErrorBoundary fallback={err => <div class="demo-error">{String(err)}</div>}>
-            <DirectMount
-              Component={props.Component}
-              faded={iframeReady()}
-              onRetire={() => setDirectMountRetired(true)}
-            />
-          </ErrorBoundary>
-        </Show>
-        <Show when={hasEdited()}>
-          <ReplIframe
-            code={code()}
-            theme={editorTheme()}
-            visible={iframeReady()}
-            onBusy={setIframeBusy}
-            onFirstReady={() => setIframeReady(true)}
-          />
-        </Show>
-        <Show when={iframeBusy()}>
-          <div class="demo-loading" aria-label="Loading preview" />
-        </Show>
-      </div>
-    </Show>
-  </div>
-</div>
+```ts
+const initialBootstrap = createMemo(() => buildInitialBootstrap(props.url, editorTheme()))
+const replBootstrap = createMemo(() => fileUrls.get("/index.html"))
+
+const iframeSrc = createMemo(() => hasEdited() ? replBootstrap() : initialBootstrap())
 ```
 
-Both `<DirectMount>` and `<ReplIframe>` are absolutely positioned within `.demo-canvas-wrapper` and occupy the same rect.
+`initialBootstrap` is a blob URL built via `@bigmistqke/repl`'s `createFileUrlSystem` (or `URL.createObjectURL` over a hand-built HTML string — whichever ergonomically fits). Its document imports the snippet chunk URL and renders it.
 
-## Section 2 — `DirectMount`
+`replBootstrap` is today's repl-driven blob — unchanged.
 
-Synchronously renders the imported snippet component into a div. CSS opacity drives the crossfade.
+## Section 3 — Mode A bootstrap HTML
 
-```tsx
-function DirectMount(props: { Component: SolidComponent; faded: boolean; onRetire: () => void }) {
-  let container: HTMLDivElement | undefined
-  onMount(() => {
-    if (!container) return
-    const dispose = render(() => <props.Component />, container)
-    onCleanup(dispose)
-  })
-  return (
-    <div
-      ref={container}
-      class="demo-canvas demo-canvas-direct"
-      classList={{ faded: props.faded }}
-      onTransitionEnd={event => {
-        if (event.propertyName === "opacity" && props.faded) props.onRetire()
-      }}
-    />
-  )
+The mode-A iframe document needs to:
+- Be same-origin with the parent (blob URLs inherit parent origin).
+- Import the snippet's chunk URL.
+- Call `render()` from `solid-js/web` using the SAME instance the snippet imports — i.e., via a same-origin Vite-served path, not esm.sh.
+
+Approach: also expose a `solid-js/web` URL via the same plugin (handles bare specifiers). The plugin's `resolveId` already calls `this.resolve(bare, importer)`, which works for bare specifiers too, so `import solidWebUrl from "solid-js/web?snippet-bundle"` resolves correctly.
+
+```ts
+import solidWebUrl from "solid-js/web?snippet-bundle"
+
+function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): string {
+  const html = `<!doctype html>
+<html style="color-scheme: ${theme}">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
+      canvas { display: block; }
+    </style>
+    <script>
+      window.addEventListener("message", function (event) {
+        if (!event.data || event.data.type !== "theme") return
+        document.documentElement.style.colorScheme = event.data.value
+      })
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import { render } from ${JSON.stringify(solidWebUrl)}
+      import Component from ${JSON.stringify(snippetUrl)}
+      render(() => Component(), document.getElementById("root"))
+    </script>
+  </body>
+</html>`
+  return URL.createObjectURL(new Blob([html], { type: "text/html" }))
 }
 ```
 
-CSS:
+`onCleanup` revokes the blob URL.
 
-```css
-.demo-canvas-direct {
-  position: absolute;
-  inset: 0;
-  opacity: 1;
-  transition: opacity 200ms ease;
-}
-.demo-canvas-direct.faded {
-  opacity: 0;
-  pointer-events: none;
+`sandbox="allow-scripts allow-same-origin"` on the iframe ensures the blob URL inherits the parent origin so `/src/snippets/...` and `/_build/assets/...` fetches succeed.
+
+## Section 4 — Lazy compiler load (mode B)
+
+Replace today's `compiler` signal + `ensureCompilerLoaded` with a Solid `createResource` keyed on `hasEdited`:
+
+```ts
+const [compiler] = createResource(
+  () => (hasEdited() ? true : undefined),
+  async () => {
+    const [tsModule, babelTransformFn] = await Promise.all([
+      loadTypeScript(),
+      loadBabelTransform(),
+    ])
+    return { tsModule, babelTransform: babelTransformFn }
+  },
+)
+```
+
+`createResource`'s source returns `undefined` until `hasEdited` flips. The fetcher fires exactly once. The existing `tsxExtension.transform` accessor reads `compiler()` reactively; when defined, it produces real compiled output. While undefined (mode A or just-after-edit), it returns the existing placeholder — never reached during mode A because the iframe is loading the precompiled chunk URL instead.
+
+`loadTypeScript` already exists; rename `getBabelTransformPromise` → `loadBabelTransform` for symmetry.
+
+## Section 5 — Iframe src transition
+
+When `hasEdited` flips:
+
+1. `iframeSrc()` memo recomputes → returns `replBootstrap()`.
+2. Iframe `src` attribute changes via Solid binding.
+3. Browser tears down the mode-A document, loads the mode-B bootstrap. Brief blank period (<1s typically).
+4. Mode-B bootstrap mounts repl machinery; `tsxExtension` waits for `compiler()` to resolve.
+5. `createResource` fires, TS + Babel download from esm.sh.
+6. Once `compiler()` defined, `tsxExtension` re-emits compiled snippet → file URL system re-emits HTML → iframe `src` updates again to the new repl blob URL.
+7. Iframe `onLoad` fires → `iframeBusy` clears → loading indicator hides.
+
+The same iframe DOM element is used throughout. The src attribute changes (twice during the transition: once mode A → mode B initial, once when compiler resolves) but the element isn't unmounted.
+
+`onCleanup` revokes both blob URLs.
+
+## Section 6 — Loading indicator
+
+Top-right of the canvas pane. `iframeBusy()` is true:
+
+- From `hasEdited` flip until the post-compiler iframe `onLoad` fires.
+- From any subsequent code change until the iframe reloads with new compiled content.
+
+```ts
+const [iframeBusy, setIframeBusy] = createSignal(false)
+createRenderEffect(() => {
+  iframeSrc() // track
+  setIframeBusy(true)
+})
+function handleIframeLoad() {
+  setIframeBusy(false)
+  postTheme()
 }
 ```
 
-`onTransitionEnd` fires once `opacity` hits 0; the parent then unmounts the DirectMount (cleanup runs, WebGL context released).
+The indicator is a CSS-only spinner overlaid top-right of `.demo-canvas-wrapper`.
 
-## Section 3 — `ReplIframe`
+## Section 7 — MDX migration
 
-The current iframe + repl pipeline, extracted into its own component so it only ever instantiates after `hasEdited` flips. Props: `{ code: string; theme: "dark" | "light"; onBusy: (busy: boolean) => void }`. Internals largely unchanged from today's `DemoClient` body — the same `tsxExtension`, `htmlExtension`, `buildHostHtml`, `bootstrapTsx`, `createFileUrlSystem` pipeline. The two changes:
-
-1. `ensureCompilerLoaded()` is replaced by a Solid `createResource` keyed on a constant truthy source (the component only exists in mode B, so the loader fires once on mount):
-
-   ```ts
-   const [compiler] = createResource(async () => {
-     const [tsModule, babelTransformFn] = await Promise.all([
-       loadTypeScript(),
-       loadBabelTransform(),
-     ])
-     return { tsModule, babelTransform: babelTransformFn }
-   })
-   ```
-
-   `loadTypeScript` already exists; rename `getBabelTransformPromise` → `loadBabelTransform` for symmetry. The existing `compiler()` signal at module scope is removed in favour of the per-instance resource.
-
-2. `onBusy` is called with `true` whenever the file URL signal re-emits (which happens on mount and on every code change), and `false` on iframe `onLoad`. The parent uses this to drive the loading indicator.
-
-The iframe is rendered absolutely positioned, also fading in from opacity 0 to 1 with `transition: opacity 200ms` so the swap is smooth:
-
-```css
-.demo-canvas {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  transition: opacity 200ms ease;
-}
-.demo-canvas.visible {
-  opacity: 1;
-}
-```
-
-The parent supplies `visible` via the `iframeReady` signal — the iframe stays at opacity 0 until its first compile + load completes, at which point `onFirstReady` fires and the parent flips `iframeReady` true.
-
-## Section 4 — Loading indicator
-
-Top-right of the canvas wrapper. Shown while `iframeBusy()` is true. `iframeBusy` covers two windows:
-
-- From `hasEdited` flip until `ReplIframe` finishes its first compile + iframe load (the TS/Babel CDN fetch window plus the initial blob bootstrap).
-- From any subsequent `code` change until the iframe reloads with new compiled content.
-
-Indicator implementation is a small absolutely-positioned spinner; CSS only. No new dependencies.
-
-## Section 5 — Edit cycle
-
-- User types first character → `hasEdited` latches → `ReplIframe` mounts at opacity 0 behind/over the still-visible DirectMount → TS+Babel load → first compile completes → iframe `onLoad` fires → `onFirstReady()` → `iframeReady` flips true → iframe gets opacity 1, DirectMount gets opacity 0 (same trigger drives both via `faded={iframeReady()}` / `visible={iframeReady()}`) → 200ms crossfade → DirectMount's `transitionend` fires → unmounts.
-- Subsequent edits: same iframe; recompile on each input. Indicator visible during recompile windows.
-- Reset (after first edit): code reverts to initial; iframe recompiles initial; DirectMount stays unmounted.
-
-## Section 6 — MDX migration
-
-Every tutorial `<Demo>` call gets two static imports (one for raw source, one for the component) and passes both props. For `01-your-first-scene.mdx` the diff is:
+Every tutorial `<Demo>` call gets two static imports — one for raw source, one for the snippet chunk URL — and passes both props:
 
 ```mdx
 - import createTSnippet from "../../snippets/01-create-t.tsx?raw"
 + import createTSnippet from "../../snippets/01-create-t.tsx?raw"
-+ import CreateTComponent from "../../snippets/01-create-t.tsx"
++ import createTUrl from "../../snippets/01-create-t.tsx?snippet-bundle"
 
 - <Demo code={createTSnippet} />
-+ <Demo code={createTSnippet} Component={CreateTComponent} />
++ <Demo code={createTSnippet} url={createTUrl} />
 ```
 
-Files touched (9 chapter MDX files, ~28 `<Demo>` calls total):
+Files touched (9 chapter MDX files, ~28 `<Demo>` calls total): `01-your-first-scene.mdx` through `09-webgpu-peek.mdx`.
 
-- `site/src/routes/tutorial/01-your-first-scene.mdx`
-- `site/src/routes/tutorial/02-props-and-children.mdx`
-- `site/src/routes/tutorial/03-control-flow.mdx`
-- `site/src/routes/tutorial/04-pointer-events.mdx`
-- `site/src/routes/tutorial/05-use-frame.mdx`
-- `site/src/routes/tutorial/06-loaders-and-resource.mdx`
-- `site/src/routes/tutorial/07-portal.mdx`
-- `site/src/routes/tutorial/08-tetris.mdx`
-- `site/src/routes/tutorial/09-webgpu-peek.mdx`
+## Section 8 — Hero overlay
 
-The MDX import lines are static — each chapter chunks its own snippets eagerly via SolidStart's route code splitting. Heavy shared deps (three, cannon-es) chunk-split automatically across snippets.
-
-## Section 7 — Hero overlay (separate component)
-
-The hero already direct-mounts the chosen gallery scene as the page background via `<LazyChosenScene>`. If the hero overlay reused tutorial `Demo`, mode A would direct-mount the SAME scene a second time on top — wasted WebGL context, duplicated work. The hero overlay only needs the textarea + iframe; the running preview is already behind it.
-
-Split: `site/src/components/hero-editor.tsx` is a smaller sibling of `Demo`. Same lazy-load story (loaded behind `clientOnly` at the import site), but no direct-mount path.
+`hero.tsx` already passes `source` to `<LazyDemo code={source()} />`. Add the URL via the same `?snippet-bundle` query on the gallery scene:
 
 ```tsx
-// site/src/components/hero-editor.tsx
-export interface HeroEditorProps {
-  code: string
-}
-
-export default function HeroEditor(props: HeroEditorProps) {
-  const initialCode = trimBlankLines(props.code)
-  const [code, setCode] = createSignal(initialCode)
-  const [iframeBusy, setIframeBusy] = createSignal(true)
-  const editorTheme = useSiteTheme()
-
-  return (
-    <div class="demo demo-hero-overlay">
-      <div class="demo-panes">
-        <div class="demo-editor-wrapper">
-          <TmTextarea
-            class="demo-editor"
-            grammar="tsx"
-            theme={editorTheme() === "dark" ? "github-dark" : "github-light"}
-            value={code()}
-            editable
-            onInput={event => setCode(event.currentTarget.value)}
-          />
-          <Show when={code() !== initialCode}>
-            <button type="button" class="demo-reset" onClick={() => setCode(initialCode)}>Reset</button>
-          </Show>
-        </div>
-        <div class="demo-canvas-wrapper">
-          <ReplIframe code={code()} theme={editorTheme()} visible={true} onBusy={setIframeBusy} onFirstReady={() => {}} />
-          <Show when={iframeBusy()}>
-            <div class="demo-loading" aria-label="Loading preview" />
-          </Show>
-        </div>
-      </div>
-    </div>
-  )
-}
-```
-
-Because there's no direct-mount path, the iframe starts immediately on mount — but the heavy TS+Babel load only fires when the overlay opens (not on hero render). That's already a big win: hero with editor closed pays nothing for the repl machinery.
-
-`hero.tsx` swaps `LazyDemo` for `LazyHeroEditor`:
-
-```tsx
-const LazyHeroEditor = clientOnly(() => import("./hero-editor"))
+const [chosen, setChosen] = createSignal<Demo | undefined>()
 …
-<LazyHeroEditor code={sourceText()} />
+<LazyDemo code={sourceText()} url={chosen()?.url ?? ""} />
 ```
 
-`site/src/snippets/gallery/index.ts` doesn't need any change — hero still uses `chosen.source` via `loadSource()`.
-
-### Shared `ReplIframe`
-
-Both `Demo` (tutorial) and `HeroEditor` use the iframe + repl pipeline. Extract it to `site/src/components/repl-iframe.tsx`:
+`site/src/snippets/gallery/index.ts`'s `Demo` interface gains `url: string`, resolved at module init via:
 
 ```ts
-export interface ReplIframeProps {
-  code: string
-  theme: "dark" | "light"
-  visible: boolean
-  onBusy: (busy: boolean) => void
-  onFirstReady: () => void
-}
+const urls = import.meta.glob<string>("./*.tsx", {
+  query: "?snippet-bundle",
+  import: "default",
+  eager: true,
+})
 ```
 
-All the `tsxExtension`, `htmlExtension`, `buildHostHtml`, `bootstrapTsx`, file URL system, and per-instance `createResource` compiler load live here. The two consumers wrap it with their own surrounding UI.
+**Avoiding scene duplication**: hero already direct-mounts the chosen scene as the page background. When the editor overlay opens, the overlay's iframe runs the same scene. Hide the background scene while the overlay is open:
 
-## Section 8 — Risks and mitigations
+```tsx
+<Show when={!editorOpen()}>
+  <div class="hero-canvas">
+    <LazyChosenScene onPick={setChosen} />
+  </div>
+</Show>
+```
 
-**Runtime mismatch between modes**: Mode A's DirectMount runs the snippet against the page's bundled solid-js/three. Mode B's iframe runs against esm.sh-pinned versions (today's behavior). Both are scoped within their own component tree; no cross-pollution. Snippet behaviour stays identical for the tutorial set since they don't depend on version-specific quirks.
+Trade-off: the background unmounts on open and re-mounts on close — a brief WebGL context teardown. Acceptable since the overlay covers the area anyway.
 
-**DOM swap visible to the user**: crossfade covers it. Worst case is a brief overlap where both renderers run for ~200ms. Two WebGL contexts active briefly — well below browser limits. Acceptable.
+## Section 9 — Risks and mitigations
 
-**Snippet errors in mode A**: a snippet that throws on mount would propagate up to the page. Wrap `<DirectMount>` in an `<ErrorBoundary>` that shows a small error block. Same boundary covers any later runtime errors.
+**Vite plugin emit-time behavior in dev**: `emitFile({ type: "chunk" })` is build-only. The `config.command === "serve"` branch handles dev by returning the source URL directly. Verified via test fetch in dev that the URL resolves to compiled JS.
 
-**Style leakage**: the snippet's rendered DOM (a Canvas, in every existing snippet) shares the page's stylesheet. Canvas elements have no inherent style sensitivity, but stray descendant rules could affect overlay UIs in future snippets. Mitigate with a scoping class on `.demo-canvas-direct > *` selectors if a leak materialises; no preemptive work here.
+**Cross-origin / sandbox**: `allow-same-origin` on the iframe is required so blob-URL bootstrap can fetch parent-origin `/src/...` and `/_build/assets/...` paths. Today's iframe already uses `allow-same-origin allow-scripts`; no change.
+
+**Singleton consistency across modes**: mode A uses same-origin Vite chunks. Mode B uses esm.sh-pinned imports via importmap. They are TWO DIFFERENT documents inside the same iframe element — no cross-mode singleton sharing. The transition discards mode A entirely. Acceptable.
+
+**Bootstrap → snippet runtime alignment in mode A**: bootstrap and snippet both import `solid-js/web` via the same `?snippet-bundle` plugin path. Plugin resolves both to the same underlying file. Singletons match.
+
+**Build chunk emit for bare specifiers**: when `?snippet-bundle` is used on a bare specifier like `solid-js/web`, the plugin's `this.resolve` returns the resolved node_modules path, and `emitFile({ type: "chunk", id })` emits a chunk for it. This duplicates `solid-js/web` into a separate chunk just for the iframe bootstrap to import. Vite's default chunking will keep it small (the same export the rest of the site uses). To avoid duplication, alternative: at build time the plugin emits a separate "snippet runtime" shim — but the small overhead from a duplicate `solid-js/web` chunk is acceptable for v1.
 
 ## Verification
 
 Manual (no automated tests):
 
-- `pnpm --filter site dev`, open a tutorial chapter (e.g. `/tutorial/02-props-and-children`). Confirm:
-  - Snippets render visually identically to today.
-  - DevTools Network tab shows NO requests to `esm.sh/typescript@…` or `esm.sh/@babel*` on initial page load.
-  - tm-grammars / tm-themes requests still fire (tm-textarea is unchanged).
-- Click into the textarea and type a character. Confirm:
-  - Loading indicator appears top-right of canvas pane.
-  - DirectMount visibly crossfades to the iframe over ~200ms.
-  - DevTools shows the TypeScript + Babel CDN requests firing exactly once.
-  - Subsequent edits compile in-place; no more CDN requests after first edit.
-- Hero overlay: open `/`, get the cube or letter-drop, click Edit. Same lazy-load pattern applies.
-- `pnpm --filter site build` succeeds, prerender completes, preview renders correctly.
+- `pnpm --filter site dev`, open a tutorial chapter. Confirm:
+  - Snippets render visually identical to today.
+  - DevTools Network: NO requests to `esm.sh/typescript@…` or `esm.sh/@babel*` on initial page load. tm-grammars / tm-themes still fire.
+- Click into a textarea and type a character. Confirm:
+  - Loading indicator appears.
+  - Iframe content updates after the TS+Babel CDN imports complete.
+  - Subsequent edits compile in-place; no more CDN requests.
+- Hero overlay: open `/`, get a gallery scene, click Edit. Same lazy-load pattern; background scene unmounts while overlay open.
+- `pnpm --filter site build` succeeds, prerender completes.
+- `pnpm --filter site preview`, repeat all of the above against the production build. Verify the snippet chunks are emitted under `_build/assets/` and the iframe loads them successfully.
 
 ## Out of scope (forthcoming spec)
 
-- **Shared dependency chunks**: explicit `manualChunks` config (or equivalent) so three.js, cannon-es, solid-three load once and are reused across all snippet preview bundles. Vite likely handles much of this automatically via code-splitting on shared imports; the next spec audits and locks this in. Natural next step after this spec ships.
+- **Shared dependency chunks**: explicit `manualChunks` config (or equivalent) so three.js, cannon-es, solid-three load once and are reused across all snippet preview bundles. Vite likely handles much of this automatically via code-splitting on shared imports; the next spec audits and locks this in.
