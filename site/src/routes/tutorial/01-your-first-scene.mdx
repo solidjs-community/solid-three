@@ -6,9 +6,10 @@ import createTSnippet from "../../snippets/01-create-t.tsx?raw"
 
 # Your first scene
 
-Mounting a `<Canvas>` is the whole boilerplate. It wires up a renderer,
-a camera, and a scene — all the three.js machinery you'd normally
-construct by hand — and gives you back a JSX tree to fill.
+Setting up a `three.js` scene normally means assembling a renderer,
+a camera, and a `Scene` yourself, then driving an animation loop. The
+`<Canvas>` component does all of that for you and gives you back a
+JSX tree to fill.
 
 ```tsx
 import { Canvas } from "solid-three"
@@ -19,8 +20,10 @@ export default () => <Canvas />
 Empty for now. Everything else — cubes, lights, cameras — lives as
 children of it.
 
-To put a `three.js` class into that tree, hand a namespace of classes to
-`createT`. It returns a proxy where every key is its own JSX component.
+To put a `three.js` class into that tree, you need a JSX component
+that wraps it. `createT` is `solid-three`'s helper for doing that in
+bulk: hand it an object of classes and you get back a proxy where
+every key is its own JSX component.
 
 <Demo code={createTSnippet} />
 
@@ -35,7 +38,8 @@ imports aren't the point. (In real apps you'd hand `createT` a curated
 object to keep your bundle small; see
 [the API reference](/api/components/t) for the details.)
 
-Three new ideas snuck into that snippet — `createT`, the `T.*` namespace,
-and the way `<T.Mesh>` consumes its children as a geometry and a material.
+Three new ideas appeared in that snippet — `createT`, the `T.*`
+namespace, and the way `<T.Mesh>` consumes its children as a geometry
+and a material.
 We unpack the last one in the next chapter, where nesting becomes the
 scene graph.

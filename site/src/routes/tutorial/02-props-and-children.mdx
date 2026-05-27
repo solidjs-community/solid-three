@@ -70,8 +70,9 @@ For cases like this, pass an `args` array:
 <Demo code={argsSnippet} />
 
 `args` is spread into the constructor: `new BoxGeometry(...args)`.
-Change `args` and the entity is rebuilt — which is what you want, since
-geometries and materials don't have setters for these fundamentals.
+Change `args` and the geometry is rebuilt — which is what you want,
+since geometries and materials don't have setters for these
+fundamentals.
 
 ## Why arrays work on a `Vector3`
 
@@ -83,10 +84,11 @@ on a `Color`, and so on.
 
 <Demo code={shorthandsSnippet} />
 
-The principle: pass whatever's most ergonomic for the shape of data you
-have, and `solid-three` figures out the right call on the underlying
-object. The full coercion table — plus how `attach`, dashed paths like
-`shadow-mapSize-width={1024}`, and refs work — lives on
+The principle: pass whatever's most ergonomic for the shape of data
+you have. `solid-three` checks which setter the target supports —
+`.set(...)`, `.setScalar(...)`, or `.copy(...)` — and uses the first
+one that fits. The full coercion table — plus how `attach`, dashed
+paths like `shadow-mapSize-width={1024}`, and refs work — lives on
 [`useProps`](/api/hooks/use-props).
 
 Next: every Solid control-flow primitive you already know — `<Show>`,

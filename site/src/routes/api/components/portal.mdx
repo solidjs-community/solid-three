@@ -55,9 +55,10 @@ any transform on the JSX parent. Useful for HUD-style overlays.
 
 ## Render-to-texture
 
-The most powerful use of `element` is a free-standing `THREE.Scene` you
-populate with `Portal` and render to a `WebGLRenderTarget` each frame.
-The target's `.texture` is a regular `THREE.Texture` and can be used
+A common use of `element` is a free-standing `THREE.Scene` you populate
+with `Portal` and render to a `WebGLRenderTarget` each frame — i.e. you
+draw a scene into a texture instead of straight to the screen. The
+target's `.texture` is a regular `THREE.Texture` and can be used
 wherever a texture is accepted (`map`, `envMap`, etc.).
 
 ```tsx
@@ -120,9 +121,9 @@ props.
 - `Portal` doesn't break ownership. Children remain in the JSX tree for
   reactivity, refs, and lifecycle — only the *render destination*
   changes.
-- The `element` you pass keeps its identity across re-renders; Portal
-  doesn't dispose it. If you constructed the scene/group yourself, you
-  manage its lifetime.
+- The `element` you pass keeps its identity for as long as the Portal
+  is mounted; Portal doesn't dispose it. If you constructed the
+  scene/group yourself, you manage its lifetime.
 - Combined with multiple cameras
   ([`useThree`'s `setCamera`](/api/hooks/use-three)), Portal underpins
   picture-in-picture, mirrors, and gizmo overlays.

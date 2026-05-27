@@ -47,10 +47,10 @@ const T = createT(THREE)
 </T.Mesh>
 ```
 
-**Choosing between `Entity` and `T`:**
+**Choosing between [`Entity`](/api/components/entity) and [`T`](/api/components/t):**
 
-- **Use `Entity`**: When building libraries, working with dynamic object types, or when you want to avoid creating a namespace
-- **Use `T`**: When building applications where you want the convenience of pre-typed components and better autocomplete
+- **Use [`Entity`](/api/components/entity)**: When building libraries, working with dynamic object types, or when you want to avoid creating a namespace
+- **Use [`T`](/api/components/t)**: When building applications where you want the convenience of pre-typed components and better autocomplete
 
 ## What's in this section
 
@@ -111,11 +111,11 @@ The same names are also reachable as named imports, e.g. `import type { Context,
 ```
 Canvas, CanvasProps
 Entity, Portal, Resource
-$S3C
+$S3C                    — metadata symbol key (see Metadata utility)
 createEntity, createT
 useFrame, useLoader, useThree
 useProps
 EventRaycaster, CursorRaycaster, CenterRaycaster
-S3 (namespace re-export of types.ts)
+S3                      — namespace re-export of types.ts
 autodispose, getMeta, hasMeta, load, meta
 ```

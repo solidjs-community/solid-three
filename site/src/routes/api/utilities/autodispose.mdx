@@ -4,7 +4,17 @@ title: autodispose
 
 # autodispose
 
-The `autodispose` utility ensures that three.js objects are properly disposed on cleanup.
+`autodispose(obj)` registers a `.dispose()` call against the current
+Solid owner: when that owner cleans up, `obj.dispose()` runs. It returns
+the same object you passed in, so it's safe to thread through any
+expression.
+
+Use it for the things in `three.js` that hold GPU memory and need to
+be released by hand — `Geometry`, `Material`, `Texture`, `RenderTarget`
+and friends. [`<T.*>`](/api/components/t) already does this for
+objects it creates from JSX; `autodispose` is the manual version for
+objects you instantiate
+yourself (e.g. to pass through [`<Entity from={...}/>`](/api/components/entity)).
 
 **Use cases:**
 

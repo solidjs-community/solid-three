@@ -4,8 +4,8 @@ import { solidStart } from "@solidjs/start/config"
 import { nitroV2Plugin } from "@solidjs/vite-plugin-nitro-2"
 import { defineConfig } from "vite"
 
-import { solidbaseJsxFallback } from "./vite-plugins/solidbase-jsx-fallback"
 import { solidThreeBundlePlugin } from "./vite-plugins/solid-three-bundle"
+import { solidbaseJsxFallback } from "./vite-plugins/solidbase-jsx-fallback"
 
 const theme = defineTheme({
   componentsPath: new URL("./src/theme/", import.meta.url).href,
@@ -41,7 +41,7 @@ export default defineConfig({
               { title: "useFrame", link: "/tutorial/05-use-frame" },
               { title: "Loaders & Resource", link: "/tutorial/06-loaders-and-resource" },
               { title: "Portal", link: "/tutorial/07-portal" },
-              { title: "Let's make Tetris", link: "/tutorial/08-tetris" },
+              { title: "Let's build Tetris!", link: "/tutorial/08-tetris" },
               { title: "A peek at WebGPU", link: "/tutorial/09-webgpu-peek" },
             ],
           },

@@ -6,7 +6,7 @@ title: Events overview
 
 `solid-three` provides a custom event system inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched via raycasting against the scene and propagate both along the ray (3D space) and up the scene graph (tree).
 
-Handlers are passed as props on any `<T.*>` or `<Entity/>` component. The same handler names are also accepted on `<Canvas/>`, where they fire after tree propagation finishes — useful for catching events that hit empty space (see [`onClickMissed`](#onclickmissed-and-friends-on-canvas)).
+Handlers are passed as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names are also accepted on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — useful for catching events that hit empty space (see [`onClickMissed`](#onclickmissed-and-friends-on-canvas)).
 
 ## Supported Events
 
@@ -35,14 +35,14 @@ Scheduled in three phases (enter → move → leave) per frame. See [Hover Event
 
 Every handler receives a single event argument that combines the original DOM event with the raycast result.
 
-| Property              | Type                  | When present                          | Description                                                                          |
-| --------------------- | --------------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
-| `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                | The original DOM event the handler was triggered by.                                 |
-| `intersections`       | `Intersection[]`      | events that raycast                   | All hit intersections, sorted nearest-first.                                         |
-| `intersection`        | `Intersection`        | events that raycast                   | Shorthand for `intersections[0]` — the closest hit overall.                          |
-| `currentIntersection` | `Intersection`        | inside an object handler              | The intersection corresponding to the current handler's object. Omitted on canvas-level dispatch. |
-| `stopped`             | `boolean`             | stoppable events only                 | Whether `stopPropagation()` has been called.                                         |
-| `stopPropagation`     | `() => void`          | stoppable events only                 | Stops both raycast and tree propagation. See [Stoppable vs Non-Stoppable](#stoppable-vs-non-stoppable-events). |
+| Property              | Type                                       | When present             | Description                                                                                                    |
+| --------------------- | ------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                   | The original DOM event the handler was triggered by.                                                           |
+| `intersections`       | `Intersection[]`                           | events that raycast      | All hit intersections, sorted nearest-first.                                                                   |
+| `intersection`        | `Intersection`                             | events that raycast      | Shorthand for `intersections[0]` — the closest hit overall.                                                    |
+| `currentIntersection` | `Intersection`                             | inside an object handler | The intersection corresponding to the current handler's object. Omitted on canvas-level dispatch.              |
+| `stopped`             | `boolean`                                  | stoppable events only    | Whether `stopPropagation()` has been called.                                                                   |
+| `stopPropagation`     | `() => void`                               | stoppable events only    | Stops both raycast and tree propagation. See [Stoppable vs Non-Stoppable](#stoppable-vs-non-stoppable-events). |
 
 `*Missed` events do not raycast: their event object is just `{ nativeEvent }`.
 
@@ -64,9 +64,7 @@ The full intersection data unlocks the cases where "did they click it?" alone is
 ```tsx
 type ThreeEvent<TNativeEvent, TConfig = { stoppable: true; intersections: true }> = {
   nativeEvent: TNativeEvent
-} & (TConfig["stoppable"] extends false
-  ? {}
-  : { stopped: boolean; stopPropagation: () => void }) &
+} & (TConfig["stoppable"] extends false ? {} : { stopped: boolean; stopPropagation: () => void }) &
   (TConfig["intersections"] extends false
     ? {}
     : {
@@ -222,7 +220,7 @@ solid-three's hover event handling differs from react-three-fiber in several key
 
 - **solid-three**: When moving from child to parent, only the child receives a leave event (DOM-like behavior)
 - **react-three-fiber**: When moving from child to parent, the parent receives both leave and immediate re-enter events
-</details>
+  </details>
 
 ## Filtering with `raycastable`
 

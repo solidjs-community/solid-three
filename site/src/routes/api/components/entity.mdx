@@ -4,21 +4,21 @@ title: Entity
 
 # Entity
 
-The `Entity` component provides an alternative way to create three.js objects without needing to pre-create a T namespace. This is particularly useful in libraries or when working with dynamic object types:
+`Entity` is a JSX wrapper around any `three.js` class. Where [`<T.Mesh/>`](/api/components/t) is shorthand for "make me a `Mesh`", `<Entity from={Mesh}/>` says the same thing without pre-building a [`T`](/api/components/t) namespace — useful in libraries or when the class you want is only known at runtime.
 
 You can pass a constructor
 
 ```tsx
 <Entity from={Mesh}>
   <Entity from={BoxGeometry} args={[1, 1, 1]} />
-  <Entity from={MeshBasicMaterial} args={["orange"]} />
+  <Entity from={MeshBasicMaterial} args={[{ color: "orange" }]} />
 </Entity>
 ```
 
 or pass an instance
 
 ```tsx
-const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial("orange"))
+const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: "orange" }))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
@@ -59,7 +59,7 @@ const MeshComponent = createEntity(Mesh)
 
 ## Manual disposal of instance-entities
 
-When passing an instance to `<Entity from={...}/>` disposal need to be handled manually. This can be done via the [`autodispose`](/api/utilities/autodispose) utility.
+When passing an instance to `<Entity from={...}/>`, disposal needs to be handled manually. This can be done via the [`autodispose`](/api/utilities/autodispose) utility.
 
 **Wrong**
 
@@ -93,6 +93,6 @@ function Good(props: { shape: "box" | "sphere" }) {
 }
 ```
 
-## Prop pipeline
+## Props
 
-All `Entity` props (other than `from` and `args`) flow through [`useProps`](/api/hooks/use-props), which handles array coercion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and automatic `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full coercion table and `attach`/`args`/`ref` semantics.
+All `Entity` props (other than `from` and `args`) are applied via [`useProps`](/api/hooks/use-props), which handles array coercion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and automatic `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full coercion table and `attach`/`args`/`ref` semantics.

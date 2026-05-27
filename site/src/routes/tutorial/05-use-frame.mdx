@@ -8,7 +8,7 @@ import useFrameOptions from "../../snippets/05-use-frame-options.tsx?raw"
 
 # useFrame
 
-`<Canvas>` is already running an animation loop to render each frame.
+[`<Canvas>`](/api/components/canvas) is already running an animation loop to render each frame.
 `useFrame` is the hook that lets you plug a callback into that loop — no
 extra `requestAnimationFrame`, and the callback gets a proper delta time
 in seconds.
@@ -29,10 +29,11 @@ inside `useFrame`.
 
 <Demo code={useFrameImperative} />
 
-No signal, no smart-prop call, no allocation per frame — just a property
-assignment. This is the pattern to reach for in hot paths (per-particle
-animations, big instanced meshes), where even a handful of property
-assignments per frame might add up.
+No signal, no reactive prop update, no allocation per frame — just a
+property assignment. This is the pattern to reach for in hot paths
+(per-particle animations, big `InstancedMesh` swarms — three's
+single-draw-call primitive for many copies of one mesh), where even a
+handful of property assignments per frame might add up.
 
 The reactive version is usually fine. Reach for the imperative one when the
 profiler tells you to.

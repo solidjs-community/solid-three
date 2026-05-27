@@ -4,7 +4,7 @@ title: useProps
 
 # useProps
 
-`useProps` is the smart-prop pipeline that powers every `<T.*>` and `<Entity/>` component. It applies a record of props to a `three.js` object reactively — coercing values into the shapes three expects, walking dashed paths into nested setters, wiring up event listeners, attaching children, and disposing on cleanup.
+`useProps` is what powers every [`<T.*>`](/api/components/t) and [`<Entity/>`](/api/components/entity) component. It applies a record of props to a `three.js` object reactively — coercing values into the shapes three expects, walking dashed paths into nested setters, wiring up event listeners, attaching children, and disposing on cleanup.
 
 Call it directly when you wrap your own `three.js` object (custom controls, third-party libraries, ad-hoc instances).
 
@@ -12,7 +12,7 @@ Call it directly when you wrap your own `three.js` object (custom controls, thir
 
 - **accessor**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
 - **props**: Object containing props to apply (including `ref`, `args`, `attach`, `children`, and any `three.js` properties).
-- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) the pipeline reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
+- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) `useProps` reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
 
 <details>
 <summary>Typescript Signature</summary>
@@ -60,7 +60,7 @@ export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
 Each prop is wrapped in its own `createRenderEffect`. When a signal a prop reads updates:
 
 - only that prop's effect re-runs — sibling props are untouched;
-- the effect calls the coercion pipeline below, which mutates the existing `three.js` object in place;
+- the effect runs the coercion rules below, mutating the existing `three.js` object in place;
 - `needsUpdate` is flagged on materials/geometries as needed;
 - if the renderer is on `frameloop="demand"`, a render is requested.
 
@@ -120,7 +120,7 @@ This is on top of the unconditional `needsUpdate = true` that runs in the `final
 
 ### Encoding aliasing (since three r152)
 
-`encoding` and `outputEncoding` are legacy aliases. When the target has a `colorSpace` / `outputColorSpace` field, the pipeline rewrites them in place:
+`encoding` and `outputEncoding` are legacy aliases. When the target has a `colorSpace` / `outputColorSpace` field, `useProps` rewrites them in place:
 
 - `encoding` → `colorSpace`
 - `outputEncoding` → `outputColorSpace`

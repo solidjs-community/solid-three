@@ -9,9 +9,9 @@ import webgpuTslUniform from "../../snippets/09-webgpu-tsl-uniform.tsx?raw"
 # A peek at WebGPU
 
 `three.js` is in the middle of moving from WebGL to WebGPU. The new
-renderer is a drop-in replacement — same scene graph, same materials,
-same APIs you've been using — but it also unlocks **TSL**, a node-based
-shader language you can write in TypeScript instead of GLSL.
+renderer uses the same scene graph, materials, and APIs you've been
+using — but it also opens up **Three Shading Language (TSL)**, a
+node-based shader language you write in TypeScript instead of GLSL.
 
 This chapter is a short peek at both.
 
@@ -23,8 +23,9 @@ want. To use WebGPU, return a `WebGPURenderer` from `three/webgpu`.
 
 <Demo code={webgpuSimple} />
 
-Same `<Canvas>`, same `<T.Mesh>`, same `useFrame` — only the `gl` line
-changed. Everything you've learned still applies.
+Same [`<Canvas>`](/api/components/canvas), same
+[`<T.Mesh>`](/api/components/t), same
+[`useFrame`](/api/hooks/use-frame) — only the `gl` line changed. Everything you've learned still applies.
 
 > Heads up: WebGPU is desktop-Chrome/Edge first. Other browsers are still
 > shipping support. If the canvas above is blank, your browser doesn't
@@ -45,17 +46,14 @@ That stripey, washy material is one function:
 function buildColorNode() {
   const stripes = sin(uv().x.mul(20).add(time.mul(2)))
   const wash = sin(uv().y.mul(8).sub(time))
-  return mix(
-    vec3(0.95, 0.3, 0.6),
-    vec3(0.2, 0.7, 1.0),
-    stripes.mul(0.5).add(wash.mul(0.5)),
-  )
+  return mix(vec3(0.95, 0.3, 0.6), vec3(0.2, 0.7, 1.0), stripes.mul(0.5).add(wash.mul(0.5)))
 }
 ```
 
 `uv()`, `time`, `sin`, `mix`, `vec3` — they look like math, but they're
 nodes describing a tiny program that the GPU compiles and runs once per
-fragment. No GLSL, no shader cache, no uniform plumbing.
+fragment (where `uv` is the texture coordinate). No GLSL
+strings to write, no uniforms to wire up by hand.
 
 Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
 
@@ -63,14 +61,15 @@ Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
 <T.MeshBasicNodeMaterial colorNode={buildColorNode()} />
 ```
 
-The same smart-prop machinery you saw in [chapter 2](/tutorial/02-props-and-children)
-still applies — `colorNode` is just a prop. `MeshBasicNodeMaterial`
-isn't in the global `THREE` namespace, so we extended `createT` with it:
+Props on `<T.*>` work the same way as in [chapter 2](/tutorial/02-props-and-children)
+— `colorNode` is just a prop. `MeshBasicNodeMaterial`
+isn't in the global `THREE` namespace, so we extended
+[`createT`](/api/components/t) with it:
 `createT({ ...THREE, MeshBasicNodeMaterial })`.
 
 ## Driving a uniform from a signal
 
-The static TSL above runs entirely on the GPU. To make it *react* to the
+The static TSL above runs entirely on the GPU. To make it _react_ to the
 outside world, build a `uniform()` and push values into it from a Solid
 effect.
 
@@ -78,19 +77,18 @@ effect.
 
 Drag the slider. The `frequency` signal updates → the `createEffect`
 writes to `frequencyUniform.value` → the next frame's shader sees the new
-value and the stripe density changes. No re-render of the scene tree, no
-material rebuild. The same one-property-per-frame discipline you saw with
+value and the stripe density changes. No scene-tree rebuild, no
+material remount. The same one-property-per-frame discipline you saw with
 [`useFrame`](/tutorial/05-use-frame), but the property happens to live on
 the GPU.
 
 ## Where this is going
 
-`three.js`'s WebGPU + TSL story is still landing, but the through-line is
-worth holding onto: the move from string-based shaders and hand-wired
-uniforms to a typed, composable, GPU-resident graph. `solid-three` doesn't
-do anything special to support it — it just stays out of the way, and the
-Solid plumbing you already know (signals → effects → uniforms) carries
-across cleanly.
+`three.js`'s WebGPU + TSL story is still landing, but the through-line
+is worth holding onto: a move from string-based shaders and hand-wired
+uniforms to a typed graph that lives on the GPU. `solid-three` treats
+WebGPU like any other renderer — the same signal-to-prop wiring that
+drives meshes also drives node materials and uniforms.
 
 That's the whole tutorial. Build something — and if you make something
 interesting, send it.

@@ -4,7 +4,7 @@ title: Canvas
 
 # Canvas
 
-The `Canvas` component initializes the `three.js` rendering context and acts as the root for your 3D scene. All `<T/>` and `<Entity/>` components must be children of this Canvas.
+The `Canvas` component initializes the `three.js` rendering context and acts as the root for your 3D scene. All [`<T/>`](/api/components/t) and [`<Entity/>`](/api/components/entity) components must be children of this Canvas.
 
 **Props:**
 
@@ -19,7 +19,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 
   **Constructor args are applied once.** Keys like `antialias`, `alpha`, `powerPreference`, `depth`, `stencil`, `preserveDrawingBuffer` are passed to `new WebGLRenderer({ ... })` at the first construction and never re-read. Updating them later does **not** rebuild the renderer or recreate the WebGL context — and it can't, because `canvas.getContext("webgl2")` is idempotent: the browser returns the same context object on every subsequent call, with the original creation flags. solid-three logs a warning when it detects a reactive change to one of these keys. If you genuinely need to change them at runtime, unmount and remount the `<Canvas>` (e.g. by gating it behind a `<Show>` keyed on the value you want to swap) — that gives you a fresh `<canvas>` element and therefore a fresh context.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
-- **raycaster**: Configures the Raycaster for mouse and pointer events.
+- **raycaster**: Configures the [Raycaster](/api/utilities/raycasters) for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
 - **orthographic**: Toggles between Orthographic and Perspective camera for the default camera.
 - **linear**: Toggles linear interpolation for texture filtering.
@@ -98,7 +98,7 @@ When a prop is omitted, `Canvas` falls back to the following:
 | `frameloop`   | `"always"`                                                                           |
 | `gl`          | `new WebGLRenderer({ alpha: true, canvas })` (`alpha: true` is the implicit default — override it inline, e.g. `gl={{ alpha: false }}`) |
 | `camera`      | `new PerspectiveCamera()` — or `new OrthographicCamera()` if `orthographic` is set   |
-| `raycaster`   | `new CursorRaycaster()`                                                              |
+| `raycaster`   | `new CursorRaycaster()` ([raycasters](/api/utilities/raycasters))                    |
 | `scene`       | `new Scene()`                                                                        |
 | `shadows`     | shadow map disabled. When `shadows={true}`, the type is `PCFSoftShadowMap`. String values map: `"basic" → BasicShadowMap`, `"percentage" → PCFShadowMap`, `"soft" → PCFSoftShadowMap`, `"variance" → VSMShadowMap` |
 | Tone mapping  | `ACESFilmicToneMapping` — `NoToneMapping` when `flat` is set                         |
@@ -122,11 +122,11 @@ import { WebGPURenderer } from "three/webgpu"
 ```
 
 solid-three awaits `renderer.init()` automatically before the first
-frame, so async WebGPU setup just works.
+frame, so you don't need to await WebGPU setup yourself.
 
 ### Narrowing the renderer type project-wide
 
-By default `useThree().gl` is typed as the open `Renderer` union. Declare
+By default [`useThree().gl`](/api/hooks/use-three) is typed as the open `Renderer` union. Declare
 your concrete renderer once and the type narrows everywhere — both
 `useThree().gl` reads and `<Canvas gl>` assignments:
 
