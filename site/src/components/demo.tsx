@@ -203,10 +203,17 @@ if (root) {
 `
 
 function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): string {
+  // The iframe loads from a blob: URL, whose scheme isn't hierarchical and
+  // can't resolve absolute-path module specifiers. Inlining a <base> tag
+  // pinned to the parent origin lets `/src/...` paths resolve correctly.
+  const origin = window.location.origin
+  const absoluteRuntimeUrl = new URL(snippetRuntimeUrl, origin).toString()
+  const absoluteSnippetUrl = new URL(snippetUrl, origin).toString()
   const html = `<!doctype html>
 <html style="color-scheme: ${theme}">
   <head>
     <meta charset="utf-8" />
+    <base href="${origin}/" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
@@ -221,8 +228,8 @@ function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): str
   <body>
     <div id="root"></div>
     <script type="module">
-      import { mount } from ${JSON.stringify(snippetRuntimeUrl)}
-      import Snippet from ${JSON.stringify(snippetUrl)}
+      import { mount } from ${JSON.stringify(absoluteRuntimeUrl)}
+      import Snippet from ${JSON.stringify(absoluteSnippetUrl)}
       mount(Snippet, document.getElementById("root"))
     </script>
   </body>
