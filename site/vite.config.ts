@@ -1,7 +1,10 @@
-import { createWithSolidBase, defineTheme } from "@kobalte/solidbase/config"
+import { createSolidBase, defineTheme } from "@kobalte/solidbase/config"
 import defaultTheme from "@kobalte/solidbase/default-theme"
-import { defineConfig } from "@solidjs/start/config"
+import { solidStart } from "@solidjs/start/config"
+import { nitroV2Plugin } from "@solidjs/vite-plugin-nitro-2"
+import { defineConfig } from "vite"
 
+import { solidbaseJsxFallback } from "./vite-plugins/solidbase-jsx-fallback"
 import { solidThreeBundlePlugin } from "./vite-plugins/solid-three-bundle"
 
 const theme = defineTheme({
@@ -9,47 +12,16 @@ const theme = defineTheme({
   extends: defaultTheme,
 })
 
-export default defineConfig(
-  createWithSolidBase(theme)(
-    {
-      ssr: true,
-      server: {
-        prerender: {
-          crawlLinks: true,
-        },
-        // SolidBase 0.2.20 unconditionally `import "typescript"` from
-        // `dist/config/mdx.js`. TypeScript's runtime uses CJS `__filename`,
-        // which is undefined when nitro bundles to ESM and breaks prerender.
-        // Inject the standard ESM shim so the TS bootstrap succeeds.
-        rollupConfig: {
-          output: {
-            banner: [
-              `import { fileURLToPath as __sb_fileURLToPath } from "node:url";`,
-              `import { dirname as __sb_dirname } from "node:path";`,
-              `globalThis.__filename ??= __sb_fileURLToPath(import.meta.url);`,
-              `globalThis.__dirname ??= __sb_dirname(__sb_fileURLToPath(import.meta.url));`,
-            ].join(""),
-          },
-        },
-      },
-      vite: {
-        plugins: [solidThreeBundlePlugin()],
-        ssr: {
-          noExternal: ["@kobalte/solidbase", "tm-textarea"],
-        },
-      },
-      // Solid Start's dev-overlay (`DevOverlayDialog.jsx`) uses the
-      // `import attributes` syntax (`with { type: "json" }`), which the
-      // bundled @babel/parser doesn't recognise unless this plugin is
-      // wired in. Without it, any page-level error gets masked by the
-      // overlay's own parse failure.
-      solid: {
-        babel: {
-          plugins: ["@babel/plugin-syntax-import-attributes"],
-        },
-      },
-    },
-    {
+const solidBase = createSolidBase(theme)
+
+export default defineConfig({
+  resolve: {
+    dedupe: ["@solidjs/start", "@kobalte/solidbase"],
+  },
+  plugins: [
+    solidbaseJsxFallback(),
+    solidThreeBundlePlugin(),
+    solidBase.plugin({
       title: "solid-three",
       description: "A SolidJS renderer for three.js — learn by reading.",
       lang: "en",
@@ -69,7 +41,7 @@ export default defineConfig(
               { title: "useFrame", link: "/tutorial/05-use-frame" },
               { title: "Loaders & Resource", link: "/tutorial/06-loaders-and-resource" },
               { title: "Portal", link: "/tutorial/07-portal" },
-              { title: "Tetris", link: "/tutorial/08-tetris" },
+              { title: "Let's make Tetris", link: "/tutorial/08-tetris" },
               { title: "A peek at WebGPU", link: "/tutorial/09-webgpu-peek" },
             ],
           },
@@ -122,6 +94,15 @@ export default defineConfig(
           },
         ],
       },
-    },
-  ),
-)
+    }),
+    solidStart(solidBase.startConfig()),
+    nitroV2Plugin({
+      preset: "static",
+      prerender: {
+        crawlLinks: true,
+        routes: ["/"],
+        failOnError: true,
+      },
+    }),
+  ],
+})

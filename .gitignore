@@ -8,4 +8,6 @@ packed/
 tests/**/__screenshots__/
 .claude/worktrees/
 site/.output
+site/.nitro
+site/.solid-start
 site/.vinxi

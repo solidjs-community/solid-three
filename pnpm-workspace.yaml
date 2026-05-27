@@ -1,5 +1,7 @@
 packages:
   - "site"
+catalog:
+  "@kobalte/solidbase": ^0.6.3
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
@@ -8,3 +10,5 @@ allowBuilds:
 overrides:
   "@swc/helpers": "0.5.21"
   "electron-to-chromium": "1.5.361"
+  "@solidjs/start": "https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080"
+  "@solidjs/router": "^0.16.1"

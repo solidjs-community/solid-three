@@ -8,8 +8,23 @@ import {
 } from "@bigmistqke/repl"
 import { clientOnly } from "@solidjs/start"
 import { createMemo, createRenderEffect, createSignal, onCleanup, onMount, Show } from "solid-js"
-import { isServer, NoHydration } from "solid-js/web"
-import ts from "typescript"
+import type ts from "typescript"
+
+// Load TypeScript from an ESM CDN on first use rather than statically
+// importing it. The static `import ts from "typescript"` form pulls
+// TypeScript's runtime into the SSR bundle, where it eagerly initialises
+// `getNodeSystem()` and crashes on the missing CJS `__filename`. Demo is
+// also wrapped in `clientOnly` at the import site, so this loader only ever
+// runs in the browser.
+let tsPromise: Promise<typeof ts> | undefined
+function loadTypeScript(): Promise<typeof ts> {
+  if (!tsPromise) {
+    tsPromise = import(/* @vite-ignore */ "https://esm.sh/typescript@5.9").then(
+      mod => (mod.default ?? mod) as typeof ts,
+    )
+  }
+  return tsPromise
+}
 
 // `tm-textarea` touches the DOM at import time, so it must only load
 // client-side. `clientOnly` returns a Solid component that renders nothing
@@ -111,25 +126,27 @@ function getBabelTransformPromise(): Promise<SnippetTransform> {
   return babelTransformPromise
 }
 
-function stripTypeScript(source: string): string {
-  return ts.transpile(source, {
-    jsx: ts.JsxEmit.Preserve,
-    target: ts.ScriptTarget.ESNext,
-    module: ts.ModuleKind.ESNext,
+function stripTypeScript(tsModule: typeof ts, source: string): string {
+  return tsModule.transpile(source, {
+    jsx: tsModule.JsxEmit.Preserve,
+    target: tsModule.ScriptTarget.ESNext,
+    module: tsModule.ModuleKind.ESNext,
   })
 }
 
 function rewriteModulePaths({
+  tsModule,
   source,
   path,
   fileUrls,
 }: {
+  tsModule: typeof ts
   source: string
   path: string
   fileUrls: { get(path: string): string | undefined }
 }): string {
   const apply = transformModulePaths({
-    ts,
+    ts: tsModule,
     source,
     transform: modulePath => {
       if (modulePath.startsWith(".") || modulePath.startsWith("/")) {
@@ -144,22 +161,24 @@ function rewriteModulePaths({
   return apply()
 }
 
-// Module-level signal that publishes the resolved Babel transform once the
-// dynamic CDN imports settle. Created client-side on first call to
-// `ensureBabelLoaded` so SSR never kicks off the network fetch.
-const [babelSnippetTransform, setBabelSnippetTransform] = createSignal<
-  SnippetTransform | undefined
->(undefined)
-let babelLoadStarted = false
-function ensureBabelLoaded(): void {
-  if (babelLoadStarted) return
-  babelLoadStarted = true
-  getBabelTransformPromise()
-    .then(transform => setBabelSnippetTransform(() => transform))
+// Module-level signal that publishes the resolved compiler bundle (Babel +
+// TypeScript) once the dynamic CDN imports settle. Created client-side on
+// first call to `ensureCompilerLoaded` so SSR never kicks off the fetches.
+interface Compiler {
+  babelTransform: SnippetTransform
+  tsModule: typeof ts
+}
+const [compiler, setCompiler] = createSignal<Compiler | undefined>(undefined)
+let compilerLoadStarted = false
+function ensureCompilerLoaded(): void {
+  if (compilerLoadStarted) return
+  compilerLoadStarted = true
+  Promise.all([getBabelTransformPromise(), loadTypeScript()])
+    .then(([babelSnippetTransform, tsModule]) =>
+      setCompiler({ babelTransform: babelSnippetTransform, tsModule }),
+    )
     .catch(error => {
-      // Surface load failures in the host console; the iframe will remain
-      // showing the placeholder empty module.
-      console.error("[demo] Failed to load babel-preset-solid:", error)
+      console.error("[demo] Failed to load snippet compiler:", error)
     })
 }
 
@@ -181,21 +200,21 @@ function errorModule(message: string): string {
 const tsxExtension: Extension = {
   type: "javascript",
   transform: ({ source, path, fileUrls }) => {
-    ensureBabelLoaded()
-    // Return an Accessor so the transformed source updates once Babel +
-    // presets finish loading from the CDN.
+    ensureCompilerLoaded()
+    // Return an Accessor so the transformed source updates once the
+    // compiler bundle finishes loading from the CDN.
     return () => {
-      const transform = babelSnippetTransform()
-      if (!transform) {
-        // Babel not ready yet — emit a no-op default export so importers
+      const c = compiler()
+      if (!c) {
+        // Compiler not ready yet — emit a no-op default export so importers
         // (main.tsx) can still resolve; the file URL will be re-created when
-        // Babel resolves and this accessor re-runs.
+        // the compiler resolves and this accessor re-runs.
         return "export default function Placeholder() { return null }\n"
       }
       try {
-        const stripped = stripTypeScript(source)
-        const compiled = transform(stripped, path)
-        return rewriteModulePaths({ source: compiled, path, fileUrls })
+        const stripped = stripTypeScript(c.tsModule, source)
+        const compiled = c.babelTransform(stripped, path)
+        return rewriteModulePaths({ tsModule: c.tsModule, source: compiled, path, fileUrls })
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         return errorModule("Compile error:\n\n" + message)
@@ -205,20 +224,14 @@ const tsxExtension: Extension = {
 }
 
 const htmlExtension = createHTMLExtension({
-  transformModule: ({ source, path, fileUrls }) =>
-    transformModulePaths({
-      ts,
-      source,
-      transform: modulePath => {
-        if (modulePath.startsWith(".") || modulePath.startsWith("/")) {
-          return fileUrls.get(PathUtils.resolvePath(path, modulePath)) ?? modulePath
-        }
-        if (PathUtils.isUrl(modulePath)) {
-          return modulePath
-        }
-        return resolveBareSpecifier(modulePath)
-      },
-    }),
+  transformModule: ({ source, path, fileUrls }) => {
+    ensureCompilerLoaded()
+    return () => {
+      const c = compiler()
+      if (!c) return source
+      return rewriteModulePaths({ tsModule: c.tsModule, source, path, fileUrls })
+    }
+  },
 })
 
 function buildHostHtml(theme: "dark" | "light"): string {

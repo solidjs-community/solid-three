@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vinxi dev",
-    "build": "vinxi build",
-    "start": "vinxi start"
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "@bigmistqke/repl": "^0.2.8",
-    "@kobalte/solidbase": "^0.2.20",
-    "@solidjs/router": "^0.15.3",
-    "@solidjs/start": "^1.1.7",
+    "@kobalte/solidbase": "catalog:",
+    "@solidjs/router": "^0.16.1",
+    "@solidjs/start": "https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080",
+    "@solidjs/vite-plugin-nitro-2": "https://pkg.pr.new/solidjs/solid-start/@solidjs/vite-plugin-nitro-2@2080",
     "cannon-es": "^0.20.0",
     "resolve": "^1.22.12",
     "solid-js": "^1.9.11",
@@ -20,12 +21,9 @@
     "three": "^0.181.2",
     "tm": "^0.0.1",
     "tm-textarea": "^0.1.1",
-    "typescript": "^5.4.5",
-    "vinxi": "^0.5.7",
-    "vite": "^6.1.1"
+    "vite": "8.0.10"
   },
   "devDependencies": {
-    "@babel/plugin-syntax-import-attributes": "^7.29.7",
     "@iconify-json/ri": "^1.2.6",
     "@types/three": "^0.181.0",
     "esbuild": "^0.25.12",
