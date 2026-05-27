@@ -3,7 +3,6 @@ import { Canvas, createT, Entity, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
-import fontUrl from "../../IFKica-Regular.ttf?url"
 
 const T = createT(THREE)
 
@@ -11,18 +10,17 @@ const SOLID_BLUE = "#2c4f7c"
 const WARM_WHITE = "#f4f4f4"
 const GLYPH_FONT_FAMILY = "IFKica"
 
+// The font is registered via @font-face in src/theme/style.css. Wait for
+// the browser to actually fetch it so the canvas texture renders with the
+// real face instead of the sans-serif fallback.
 const [glyphFontReady, setGlyphFontReady] = createSignal(false)
 let glyphFontLoadStarted = false
 function ensureGlyphFontLoaded(): void {
   if (glyphFontLoadStarted) return
   glyphFontLoadStarted = true
-  const face = new FontFace(GLYPH_FONT_FAMILY, `url(${JSON.stringify(fontUrl)})`)
-  face
-    .load()
-    .then(loaded => {
-      document.fonts.add(loaded)
-      setGlyphFontReady(true)
-    })
+  document.fonts
+    .load(`100px ${GLYPH_FONT_FAMILY}`)
+    .then(() => setGlyphFontReady(true))
     .catch(error => {
       console.error("[rubiks] font load failed", error)
     })

@@ -4,6 +4,14 @@
  * every page.
  */
 
+@font-face {
+  font-family: "IFKica";
+  src: url("../IFKica-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Left-align the sidebar's Part headings and chapter links. SolidBase's
  * default theme inherits browser button centering on the section trigger. */
 [class*="sidenav"] [class*="section-trigger"],
@@ -194,6 +202,7 @@ html[data-theme*="light"] {
 }
 
 .hero-title {
+  font-family: "IFKica", sans-serif;
   font-size: clamp(2.5rem, 6vw, 4rem);
   margin: 0;
 }
@@ -214,7 +223,7 @@ html[data-theme*="light"] {
 .hero-cta {
   padding: 0.6rem 1.1rem;
   border-radius: 0.5rem;
-  border: 1px solid currentColor;
+  border: 1px solid #ffffff;
   text-decoration: none;
   font-weight: 500;
   backdrop-filter: blur(3px);
@@ -222,7 +231,7 @@ html[data-theme*="light"] {
 
 .hero-cta-primary {
   color: var(--sb-color-background, #ffffff);
-  border-color: transparent;
+  border-color: #ffffff;
   backdrop-filter: blur(3px);
 }
 
@@ -230,10 +239,14 @@ html[data-theme*="light"] {
   position: absolute;
   bottom: 1rem;
   right: 1rem;
-  padding: 0.5rem 0.9rem;
-  border-radius: 0.4rem;
-  border: 1px solid currentColor;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #ffffff;
+  background: transparent;
+  color: inherit;
+  font-weight: 500;
   cursor: pointer;
+  backdrop-filter: blur(3px);
   z-index: 2;
 }
 
