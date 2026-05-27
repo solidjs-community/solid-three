@@ -237,6 +237,7 @@ function trimBlankLines(input: string): string {
 export interface DemoProps {
   code: string
   url: string
+  editorHidden?: boolean
 }
 
 export default function Demo(props: DemoProps) {
@@ -351,7 +352,7 @@ function DemoClient(props: DemoProps) {
 
   return (
     <div class="demo" classList={{ "demo-narrow": isNarrow() }}>
-      <Show when={isNarrow()}>
+      <Show when={isNarrow() && !props.editorHidden}>
         <div class="demo-tabs">
           <button
             type="button"
@@ -370,7 +371,7 @@ function DemoClient(props: DemoProps) {
         </div>
       </Show>
       <div class="demo-panes">
-        <Show when={!isNarrow() || pane() === "editor"}>
+        <Show when={!props.editorHidden && (!isNarrow() || pane() === "editor")}>
           <div class="demo-editor-wrapper">
             <TmTextarea
               class="demo-editor"
@@ -390,7 +391,7 @@ function DemoClient(props: DemoProps) {
             </Show>
           </div>
         </Show>
-        <Show when={!isNarrow() || pane() === "canvas"}>
+        <Show when={props.editorHidden || !isNarrow() || pane() === "canvas"}>
           <div class="demo-canvas-wrapper">
             <iframe
               ref={iframeRef}

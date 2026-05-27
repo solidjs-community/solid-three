@@ -4,31 +4,33 @@ import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
 
-function ChosenScene(props: { onPick: (demo: Demo) => void }) {
-  const demo = pickRandomDemo()
-  props.onPick(demo)
-  const LazyScene = clientOnly(demo.load)
-  return <LazyScene />
+function PickDemo(props: { onPick: (demo: Demo) => void }) {
+  props.onPick(pickRandomDemo())
+  return null
 }
 
-const LazyChosenScene = clientOnly(() =>
-  Promise.resolve({ default: ChosenScene as any }),
+const LazyPicker = clientOnly(() =>
+  Promise.resolve({ default: PickDemo as any }),
 )
 
 export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
   const [chosen, setChosen] = createSignal<Demo | undefined>()
-  const [source] = createResource(
-    () => (editorOpen() ? chosen() : undefined),
-    demo => demo.loadSource(),
-  )
+  const [source] = createResource(chosen, demo => demo.loadSource())
 
   return (
     <div class="hero">
-      <Show when={!editorOpen()}>
-        <div class="hero-canvas">
-          <LazyChosenScene onPick={setChosen} />
-        </div>
+      <LazyPicker onPick={setChosen} />
+      <Show when={chosen() && source()}>
+        {sourceText => (
+          <div class="hero-canvas">
+            <LazyDemo
+              code={sourceText()}
+              url={chosen()?.url ?? ""}
+              editorHidden={!editorOpen()}
+            />
+          </div>
+        )}
       </Show>
       <div class="hero-overlay">
         <h1 class="hero-title">solid-three</h1>
@@ -50,13 +52,6 @@ export function Hero() {
         >
           {editorOpen() ? "Close editor" : "Edit"}
         </button>
-      </Show>
-      <Show when={editorOpen() && source()}>
-        {sourceText => (
-          <div class="hero-editor-overlay">
-            <LazyDemo code={sourceText()} url={chosen()?.url ?? ""} />
-          </div>
-        )}
       </Show>
     </div>
   )

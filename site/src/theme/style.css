@@ -232,14 +232,7 @@ html[data-theme*="light"] {
   z-index: 2;
 }
 
-.hero-editor-overlay {
-  position: absolute;
-  inset: 0;
-  background: var(--sb-color-background, #ffffff);
-  z-index: 1;
-}
-
-.hero-editor-overlay .demo {
+.hero-canvas .demo {
   width: 100%;
   height: 100%;
 }
