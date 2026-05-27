@@ -137,8 +137,8 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
             geometry={letter.geometry}
             castShadow
             onPointerDown={() => {
-              const upward = 2.5 + Math.random() * 1
-              const sideways = (Math.random() - 0.5) * 1.2
+              const upward = 6 + Math.random() * 2
+              const sideways = (Math.random() - 0.5) * 3
               letter.body.applyImpulse(
                 new CANNON.Vec3(sideways, upward, sideways),
                 new CANNON.Vec3(
