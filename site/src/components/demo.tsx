@@ -291,16 +291,11 @@ export interface DemoProps {
   code: string
 }
 
+// The whole module is loaded behind `clientOnly` at the import site (see
+// `site/src/theme/mdx-components.tsx`), so we always render the real demo
+// here — no SSR placeholder or NoHydration guard needed.
 export default function Demo(props: DemoProps) {
-  // `@bigmistqke/repl` relies on DOMParser, which is unavailable in Node SSR.
-  // Wrap the subtree in <NoHydration> so the client renders the real demo
-  // fresh instead of trying to reconcile its DOM against the SSR placeholder
-  // (which would otherwise produce a hydration-mismatch error).
-  return (
-    <NoHydration>
-      {isServer ? <div class="demo" data-demo-placeholder="" /> : <DemoClient {...props} />}
-    </NoHydration>
-  )
+  return <DemoClient {...props} />
 }
 
 function trimBlankLines(input: string): string {
