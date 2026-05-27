@@ -105,7 +105,7 @@ function Tunnel() {
   useFrame((_, delta) => {
     const now = performance.now()
     const tex = texture()
-    tex.offset.y -= delta * 0.55
+    tex.offset.y += delta * 0.55
     if (!mesh) return
     mesh.geometry.dispose()
     const curve = buildCurve(now - startTime)
