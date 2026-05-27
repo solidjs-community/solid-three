@@ -35,8 +35,8 @@ function ensureTunnelFontLoaded(): void {
 }
 
 function makeTextTexture(): THREE.CanvasTexture {
-  const width = 1024 * 2
-  const height = 128 * 2
+  const width = 2048
+  const height = 256
   const canvas = document.createElement("canvas")
   canvas.width = width
   canvas.height = height
