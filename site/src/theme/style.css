@@ -175,23 +175,27 @@ html[data-theme*="light"] {
 .hero {
   position: relative;
   width: 100%;
-  /* Fill the viewport below the SolidBase header. SolidBase exposes
-   * --sb-header-height; the fallback covers the case where it isn't set. */
-  height: calc(100dvh - var(--sb-header-height, 3.5rem));
+  height: 100%;
   overflow: hidden;
 }
 
-/* When Hero is mounted it tags its containing <article> so we can drop
- * SolidBase's default page margins + max-width content column for this route
- * only. Specificity of `article.article-fullbleed` (0,1,1) beats SolidBase's
- * own `.article` rule (0,1,0). */
+/* When Hero is mounted it tags its containing <article> so the home route
+ * can drop SolidBase's default margins + max-width content column AND lock
+ * its height to the viewport (so the page doesn't scroll past Hero, and any
+ * residual SolidBase chrome like the empty .info wrapper is clipped). */
 article.article-fullbleed {
   margin: 0;
   display: block;
+  /* Fill the viewport below the SolidBase header. --sb-header-height is set
+   * by SolidBase; fallback covers the case where it isn't. */
+  height: calc(100dvh - var(--sb-header-height, 3.5rem));
+  overflow: hidden;
 }
 article.article-fullbleed > div {
   max-width: none;
   margin: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .hero-canvas {
