@@ -2,3 +2,8 @@ packages:
   - "site"
 allowBuilds:
   esbuild: true
+# Pin two transitive deps to versions published before the CI's
+# minimumReleaseAge cutoff. Drop these once the cutoff moves past 2026-05-26.
+overrides:
+  "@swc/helpers": "0.5.21"
+  "electron-to-chromium": "1.5.361"
