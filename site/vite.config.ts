@@ -1,3 +1,4 @@
+import { importChunkUrl } from "@lightningjs/vite-plugin-import-chunk-url"
 import { createSolidBase, defineTheme } from "@kobalte/solidbase/config"
 import defaultTheme from "@kobalte/solidbase/default-theme"
 import { solidStart } from "@solidjs/start/config"
@@ -19,6 +20,17 @@ export default defineConfig({
     dedupe: ["@solidjs/start", "@kobalte/solidbase"],
   },
   plugins: [
+    { ...importChunkUrl(), applyToEnvironment: (env) => env.name === "client" },
+    {
+      name: "importChunkUrl-ssr-stub",
+      applyToEnvironment: (env) => env.name !== "client",
+      resolveId(id) {
+        if (id.endsWith("?importChunkUrl")) return id
+      },
+      load(id) {
+        if (id.endsWith("?importChunkUrl")) return `export default ""`
+      },
+    },
     solidbaseJsxFallback(),
     solidThreeBundlePlugin(),
     solidBase.plugin({

@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@iconify-json/ri": "^1.2.6",
+    "@lightningjs/vite-plugin-import-chunk-url": "^0.3.1",
     "@types/three": "^0.181.0",
     "esbuild": "^0.25.12",
     "esbuild-plugin-solid": "^0.6.0",

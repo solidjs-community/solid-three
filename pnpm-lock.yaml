@@ -181,6 +181,9 @@ importers:
       '@iconify-json/ri':
         specifier: ^1.2.6
         version: 1.2.10
+      '@lightningjs/vite-plugin-import-chunk-url':
+        specifier: ^0.3.1
+        version: 0.3.1(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))
       '@types/three':
         specifier: ^0.181.0
         version: 0.181.0
@@ -1330,6 +1333,11 @@ packages:
     resolution: {integrity: sha512-eeU60A3kprIiBDAfv9gUJX1tXGLuZiKMajUfSQURAF2pk4ZoMYiqIzmrMBvzcxP39xnYttgTyQEVLwiTZnrV4w==}
     peerDependencies:
       solid-js: ^1.8.8
+
+  '@lightningjs/vite-plugin-import-chunk-url@0.3.1':
+    resolution: {integrity: sha512-jD/3Lelj2axT1eCPpV92APkMb4oXyBxRvj3oN8tEkph/in7b4KOp92SbBqhdPi5SmRWERNej78i9jE+6psDm6w==}
+    peerDependencies:
+      vite: '*'
 
   '@lume/element@0.13.1':
     resolution: {integrity: sha512-IiSgUeTXX1SjnzvxB+pnoERW5YaeGEtwbR7vyFAmBvI5PvccbTv4TR6mPweHKK/XiO/ZDT1whOS8HmSkRrxMCg==}
@@ -7446,6 +7454,10 @@ snapshots:
       '@solid-primitives/refs': 1.1.3(solid-js@1.9.13)
       '@solid-primitives/utils': 6.4.0(solid-js@1.9.13)
       solid-js: 1.9.13
+
+  '@lightningjs/vite-plugin-import-chunk-url@0.3.1(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))':
+    dependencies:
+      vite: 8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)
 
   '@lume/element@0.13.1(@babel/core@7.29.7)(@types/react@19.2.15)':
     dependencies:
