@@ -1,5 +1,5 @@
 import { clientOnly } from "@solidjs/start"
-import { createResource, createSignal, Show, startTransition } from "solid-js"
+import { createResource, createSignal, onCleanup, onMount, Show, startTransition } from "solid-js"
 import { pickRandomDemo, type Demo } from "../snippets/gallery"
 
 const LazyDemo = clientOnly(() => import("./demo"))
@@ -15,9 +15,19 @@ export function Hero() {
   const [editorOpen, setEditorOpen] = createSignal(false)
   const [chosen, setChosen] = createSignal<Demo | undefined>()
   const [source] = createResource(chosen, demo => demo.loadSource())
+  let root: HTMLDivElement | undefined
+
+  // SolidBase wraps page content in <article> with side margins + a centered
+  // max-width content column. Flag our containing article so CSS can drop
+  // those constraints — Hero needs the full main-pane area.
+  onMount(() => {
+    const article = root?.closest("article")
+    article?.classList.add("article-fullbleed")
+    onCleanup(() => article?.classList.remove("article-fullbleed"))
+  })
 
   return (
-    <div class="hero">
+    <div class="hero" ref={root}>
       <LazyPicker onPick={setChosen} />
       <Show when={chosen() && source()}>
         {sourceText => (

@@ -181,6 +181,19 @@ html[data-theme*="light"] {
   overflow: hidden;
 }
 
+/* When Hero is mounted it tags its containing <article> so we can drop
+ * SolidBase's default page margins + max-width content column for this route
+ * only. Specificity of `article.article-fullbleed` (0,1,1) beats SolidBase's
+ * own `.article` rule (0,1,0). */
+article.article-fullbleed {
+  margin: 0;
+  display: block;
+}
+article.article-fullbleed > div {
+  max-width: none;
+  margin: 0;
+}
+
 .hero-canvas {
   position: absolute;
   inset: 0;
