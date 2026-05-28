@@ -1,0 +1,79 @@
+---
+title: Raycasters
+---
+
+# Raycasters
+
+`solid-three` ships custom raycasters that track the pointer for you. They all extend `THREE.Raycaster` and implement the `EventRaycaster` interface, which adds a single method:
+
+| Method | Description |
+| --- | --- |
+| `update(event, context)` | Called automatically before intersection testing, to position the raycaster from the current event. |
+
+<details>
+<summary>Exact type</summary>
+
+```tsx
+interface EventRaycaster extends THREE.Raycaster {
+  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context): void
+}
+```
+
+</details>
+
+`solid-three`'s [event system](/reference/events/overview) calls `update()` before every intersection test — on mouse events (`click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`), pointer events (`pointerdown`, `pointerup`, `pointermove`), and `wheel` — so the raycaster is positioned correctly for accurate hit detection.
+
+## CursorRaycaster
+
+The default raycaster; tracks the cursor position.
+
+```tsx
+import { Canvas, CursorRaycaster } from "solid-three"
+
+const App = () => {
+  const raycaster = new CursorRaycaster()
+  // CursorRaycaster is the default; set it explicitly if you like:
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+}
+```
+
+## CenterRaycaster
+
+Always casts from the center of the screen.
+
+```tsx
+import { Canvas, CenterRaycaster } from "solid-three"
+
+const App = () => {
+  const raycaster = new CenterRaycaster()
+  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+}
+```
+
+## Creating your own raycaster
+
+Extend `THREE.Raycaster` and implement `EventRaycaster`:
+
+```tsx
+import { Raycaster, Vector2 } from "three"
+import type { EventRaycaster, Context } from "solid-three"
+
+class CustomRaycaster extends Raycaster implements EventRaycaster {
+  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context) {
+    const pointer = new Vector2()
+
+    // Scale movement down, as an example transform
+    pointer.x = ((event.offsetX / context.bounds.width) * 2 - 1) * 0.5
+    pointer.y = (-(event.offsetY / context.bounds.height) * 2 + 1) * 0.5
+
+    this.setFromCamera(pointer, context.camera)
+  }
+}
+
+const App = () => <Canvas raycaster={new CustomRaycaster()}>{/* Your scene */}</Canvas>
+```
+
+## See also
+
+- [Events overview](/reference/events/overview) — when and why `update()` is called.
+- [`useThree`](/reference/hooks/use-three) — `raycaster` / `setRaycaster` for swapping the active raycaster at runtime.

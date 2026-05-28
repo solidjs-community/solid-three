@@ -1,0 +1,67 @@
+---
+title: Types
+---
+
+# Types & top-level exports
+
+## The `S3` type namespace
+
+All public type aliases live in a single re-exported namespace:
+
+```ts
+import { S3 } from "solid-three"
+
+type Position = S3.Vector3
+type Controls = S3.Props<typeof OrbitControls>
+```
+
+The namespace is the re-export of [`src/types.ts`](https://github.com/bigmistqke/solid-three/blob/main/src/types.ts) and includes:
+
+- **Renderer surface** — `Renderer`, `RendererLike`, `ResolvedRenderer`, `Register`
+- **Context** — `Context`, `Viewport`, `CameraKind`
+- **Frame loop** — `FrameListener`, `FrameListenerCallback`, `FrameListenerOptions`
+- **Events** — `ThreeEvent`, `EventHandlers`, `CanvasEventHandlers`, `EventName`
+- **Three representations** — `Representation`, `Vector2`, `Vector3`, `Vector4`, `Color`, `Layers`, `Quaternion`, `Euler`, `Matrix3`, `Matrix4`
+- **Solid-three metadata** — `Meta`, `Data`, `MapToRepresentation`, `Props`
+- **Loaders** — `LoaderData`, `LoaderUrl`
+- **Utility helpers** — `AccessorMaybe`, `PromiseMaybe`, `Constructor`, `InstanceOf`, `Overwrite`, `Prettify`, `ConstructorOverloadParameters`
+
+The same names are also reachable as named imports, e.g. `import type { Context, Props } from "solid-three"` — but the namespace form is what the examples in these docs use. A few of the most commonly needed ones — `Register` (augmentable via `declare module "solid-three"`), `Renderer`, and `ResolvedRenderer` — are re-exported at the top level too.
+
+## All top-level exports
+
+Everything importable from `solid-three`, and where each is documented.
+
+**Components**
+
+| Export | What it is |
+| --- | --- |
+| [`Canvas`, `CanvasProps`](/reference/components/canvas) | Root component that mounts the renderer |
+| [`Entity`, `createEntity`](/reference/components/entity) | Wrap any `three.js` class as a component |
+| [`createT`](/reference/components/t) | Build a pre-typed `T.*` component namespace |
+| [`Portal`](/reference/components/portal) | Render a subtree under a different object |
+| [`Resource`](/reference/components/resource) | Suspense-aware async object loading |
+
+**Hooks**
+
+| Export | What it is |
+| --- | --- |
+| [`useThree`](/reference/hooks/use-three) | Read the renderer context |
+| [`useFrame`](/reference/hooks/use-frame) | Run a callback on every frame |
+| [`useLoader`, `load`](/reference/hooks/use-loader) | Load assets through cached loaders |
+| [`useProps`](/reference/hooks/use-props) | Apply `solid-three` props to an object |
+
+**Utilities**
+
+| Export | What it is |
+| --- | --- |
+| [`EventRaycaster`, `CursorRaycaster`, `CenterRaycaster`](/reference/utilities/raycasters) | Pointer-event raycasting strategies |
+| [`autodispose`](/reference/utilities/autodispose) | Tie an object's lifetime to its component |
+| [`meta`, `getMeta`, `hasMeta`, `$S3C`](/reference/utilities/metadata) | Read and write per-object metadata |
+
+**Types**
+
+| Export | What it is |
+| --- | --- |
+| `S3` | Namespace of every public type (above) |
+| `Register`, `Renderer`, `ResolvedRenderer` | Renderer typings, re-exported for convenience |

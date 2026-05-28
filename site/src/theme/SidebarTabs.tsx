@@ -4,23 +4,23 @@ import styles from "./SidebarTabs.module.css"
 
 export default function SidebarTabs() {
   const location = useLocation()
-  // The home page falls back to the tutorial sidebar, so anything that isn't
-  // under /api counts as the Tutorial tab.
-  const isApi = () => location.pathname.startsWith("/api")
+  // The home page falls back to the tour sidebar, so anything that isn't
+  // under /reference counts as the Tour tab.
+  const isReference = () => location.pathname.startsWith("/reference")
 
   return (
     <div class={styles.tabs}>
       <A
         class={styles.tab}
-        href="/tutorial/00-getting-started"
-        aria-current={isApi() ? undefined : "page"}
+        href="/tour/00-getting-started"
+        aria-current={isReference() ? undefined : "page"}
       >
         Tour
       </A>
       <A
         class={styles.tab}
-        href="/api/components/canvas"
-        aria-current={isApi() ? "page" : undefined}
+        href="/reference/components/canvas"
+        aria-current={isReference() ? "page" : undefined}
       >
         Reference
       </A>

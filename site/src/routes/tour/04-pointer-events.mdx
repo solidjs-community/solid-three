@@ -1,0 +1,101 @@
+---
+title: Pointer events
+---
+
+import clickSnippet from "../../snippets/04-click.tsx?raw"
+import clickUrl from "../../snippets/04-click.tsx?importChunkUrl"
+import hoverSnippet from "../../snippets/04-hover.tsx?raw"
+import hoverUrl from "../../snippets/04-hover.tsx?importChunkUrl"
+import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
+import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
+import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
+import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
+
+# Pointer events
+
+The button you wrote in the last chapter handled an `onClick` from the DOM.
+`solid-three` lets you put the same handler on a `<T.Mesh>` — and gives it
+the right semantics for a 3D world: it only fires when the click actually
+hits that mesh.
+
+<Demo code={clickSnippet} url={clickUrl} />
+
+Click the cube. Same toggle as before — just the target moved into the
+scene.
+
+Under the hood, `solid-three` runs a `Raycaster` against the pointer's
+position each event, finds which meshes the ray hits, and fires the
+corresponding handler on the nearest one. You don't have to wire any of
+that — adding `onClick` is enough.
+
+## Hover
+
+`onPointerEnter` and `onPointerLeave` work the same way: they fire when
+the ray first enters or finally leaves a mesh. Combine them with a signal
+to react to hover.
+
+<Demo code={hoverSnippet} url={hoverUrl} />
+
+Move the pointer over the cube — it grows. Leave — it shrinks. The signal
+flips; `scale` reads it; one property assignment runs.
+
+## Clicking nothing
+
+Sometimes the interesting event is when the user clicks but *doesn't* hit any
+mesh — to deselect the current selection, dismiss a tooltip, that sort of
+thing. [`<Canvas>`](/reference/components/canvas) exposes `onClickMissed` for exactly that case:
+
+<Demo code={clickMissedSnippet} url={clickMissedUrl} />
+
+Click the cube to select it; click anywhere else in the canvas to deselect.
+The two handlers cover the full "did you hit something?" question between
+them.
+
+That covers the everyday cases. There's a
+[longer list of pointer events](/reference/events/overview)
+(`onPointerMove`, `onPointerDown`, `onPointerUp`, `onWheel`, ...) — all
+following the same convention.
+
+## Stopping events
+
+When you click in a scene, the ray usually hits more than one mesh — the
+front cube, the back cube, and whatever else happens to be in line. By
+default, `solid-three` fires the same event on every hit, from the closest
+to the furthest. Each handler can choose to "consume" the event by calling
+`event.stopPropagation()`, just like a DOM event.
+
+<Demo code={stopPropagationSnippet} url={stopPropagationUrl} />
+
+Click the small front cube — only it changes colour, because its handler
+called `event.stopPropagation()`. Click the larger background cube on either
+side of the front one — it changes colour, and there's nothing in the way to
+absorb the event.
+
+Take the `event.stopPropagation()` line out and click the front cube again:
+both cubes toggle. The event walked through everything the ray hit.
+
+## When you actually want the full list
+
+Stopping is the common case, but sometimes you want to know about every hit
+— measuring through walls, x-ray selection, "click through" tools. The event
+exposes the full `intersections` array (sorted nearest-first), so a single
+handler can deal with the whole stack itself:
+
+```tsx
+<T.Mesh onClick={event => {
+  for (const hit of event.intersections) {
+    console.log(hit.distance, hit.object.name)
+  }
+}}>
+```
+
+Most scenes never need this — but it's there when you do.
+
+The handler receives an enriched event object — the original DOM event
+plus the `three.js` intersection data — useful any time "click" alone
+isn't enough (drag-to-rotate, paint-on-surface, world-space gizmos).
+The [events API reference](/reference/events/overview) has the full
+event-object shape and the complete handler list.
+
+So far every trigger has been a one-off — a click, a hover-in, a
+hover-out. The next chapter introduces the third kind: time.

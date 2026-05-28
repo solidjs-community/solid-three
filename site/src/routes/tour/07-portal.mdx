@@ -1,0 +1,63 @@
+---
+title: Portal
+---
+
+import portalEscape from "../../snippets/07-portal-escape.tsx?raw"
+import portalEscapeUrl from "../../snippets/07-portal-escape.tsx?importChunkUrl"
+import portalRenderTarget from "../../snippets/07-portal-render-target.tsx?raw"
+import portalRenderTargetUrl from "../../snippets/07-portal-render-target.tsx?importChunkUrl"
+
+# Portal
+
+So far the scene graph has been a faithful mirror of your JSX: nest
+`<A>` inside `<B>` and A becomes a child of B. `Portal` is the escape
+hatch — it sends a component's children into *somewhere else* in the
+scene graph, while keeping the JSX parent-child relationship for
+reactivity, ownership, and lifecycle.
+
+## Escaping a parent's transform
+
+The simplest use: no `element` prop. `Portal` defaults to the canvas's
+scene root, so the children render *as if* they were top-level — they
+don't inherit any transform their JSX parent imposes.
+
+<Demo code={portalEscape} url={portalEscapeUrl} />
+
+Click the button. The blue cube — a normal child of the group — slides
+with it. The red cube doesn't: it's portaled to the scene root, so the
+group's translation never touches it. Both cubes are still children of
+the group in JSX, sharing lifecycle, signals, refs, all of it — only
+one of them *lives* there in the scene tree.
+
+## Rendering into a separate scene
+
+`Portal` accepts an `element` prop — any `Object3D` you want the
+children attached to. Pass it a fresh `THREE.Scene` and you've made a
+detached world: physics-free, lighting-isolated, whatever you want.
+
+The really interesting thing is what you can do with that detached
+world: render it into a `WebGLRenderTarget` each frame, then use the
+target's texture as a `map` on a material back in the main scene.
+
+<Demo code={portalRenderTarget} url={portalRenderTargetUrl} />
+
+A cube whose faces are *each frame's render* of a spinning torus knot
+in a separate scene. The two pieces that make it work:
+
+- `<Portal element={offscreenScene}>` sends the knot into a
+  free-standing `Scene` instead of the canvas's main one.
+- A small helper grabs the renderer via
+  [`useThree()`](/reference/hooks/use-three) and copies the off-screen scene
+  into a `WebGLRenderTarget` each frame; that target's texture is what
+  the outer cube wears as its `map`.
+
+The knot still spins reactively from inside the portal — same
+[`useFrame`](/reference/hooks/use-frame), same ref, same lifecycle. The portaled subtree is still
+owned by its JSX parent, so cleanup, refs, and signals behave the same
+way as if you'd never reached for a portal.
+
+[`<Portal>` in the API reference](/reference/components/portal) has the rest
+— the `onUpdate` hook, the lifetime rules for `element`, and how it
+composes with multiple cameras.
+
+The next chapter pulls all of this together into a small game.

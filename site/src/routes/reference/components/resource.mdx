@@ -1,0 +1,55 @@
+---
+title: Resource
+---
+
+# Resource
+
+`Resource` is the component form of [`useLoader`](/reference/hooks/use-loader) — it loads a resource and drops it straight into the scene graph, or hands it to a render function.
+
+## Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `loader` | `Constructor<Loader>` | The three.js loader class — `TextureLoader`, `GLTFLoader`, … |
+| `url` | `string \| string[] \| Record<string, string>` | What to load, matching what the loader expects. |
+| `children` | `(resource) => JSX.Element` | Optional render function, receiving the loaded resource. |
+| `base` | `string` | Base URL for resolving relative paths (forwarded to [`useLoader`](/reference/hooks/use-loader)). |
+| `cache` | `boolean \| LoaderRegistry` | `true` (default global cache), `false` (disable), or a custom registry. See [Caching](/reference/hooks/use-loader#caching). |
+| `onBeforeLoad` | `(loader) => void` | Runs with the loader before loading — e.g. to configure decoders. |
+| `onLoad` | `(resource) => void` | Runs with the resolved resource after loading. |
+| other props | — | Forwarded to the loaded resource — including `attach`. |
+
+## Examples
+
+```tsx
+// CubeTextureLoader expects an array of strings
+<Resource
+  loader={CubeTextureLoader}
+  url={["px.png", "nx.png", "py.png", "ny.png", "pz.png", "nz.png"]}
+/>
+```
+
+```tsx
+// Attach loaded textures into a material's slots
+<T.MeshStandardMaterial>
+  <Resource loader={TextureLoader} url="diffuse.jpg" attach="map" />
+  <Resource loader={TextureLoader} url="normal.jpg" attach="normalMap" />
+</T.MeshStandardMaterial>
+```
+
+```tsx
+// A render function for full control over the result
+<Resource loader={GLTFLoader} url="model.gltf">
+  {gltf => <Entity from={gltf.scene} scale={2} />}
+</Resource>
+```
+
+```tsx
+// Disable caching for a specific resource
+<Resource loader={TextureLoader} url="/dynamic-texture.png" cache={false} />
+```
+
+## See also
+
+- [`useLoader`](/reference/hooks/use-loader) — the hook `Resource` wraps, with the full caching model.
+- [Loaders & Resource](/tour/06-loaders-and-resource) — the tutorial chapter.

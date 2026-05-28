@@ -1,0 +1,225 @@
+---
+title: Events overview
+---
+
+# Event handling
+
+`solid-three` has its own pointer-event system, inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
+
+You attach handlers as props on any [`<T.*>`](/reference/components/t) or [`<Entity/>`](/reference/components/entity) component. The same handler names also work on [`<Canvas/>`](/reference/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
+
+## Supported events
+
+### Click events (missable)
+
+These fire on the object that was hit, or — when nothing handles them — as a paired `*Missed` event:
+
+- `onClick` / `onClickMissed`
+- `onContextMenu` / `onContextMenuMissed` — right-click
+- `onDoubleClick` / `onDoubleClickMissed`
+
+### Hover events
+
+Run in three phases per pointer move — enter, then move, then leave. See [Hover events](#hover-events).
+
+- `onMouseEnter`, `onMouseMove`, `onMouseLeave`
+- `onPointerEnter`, `onPointerMove`, `onPointerLeave`
+
+### Press and wheel events
+
+- `onMouseDown`, `onMouseUp`
+- `onPointerDown`, `onPointerUp`
+- `onWheel` — registered as a passive listener
+
+## The event object
+
+Every handler receives one event argument that combines the original DOM event with the raycast result.
+
+| Property | Type | When present | Description |
+| --- | --- | --- | --- |
+| `nativeEvent` | `MouseEvent \| PointerEvent \| WheelEvent` | always | The original DOM event that triggered the handler. |
+| `intersections` | `Intersection[]` | events that raycast | All hit intersections, sorted nearest-first. |
+| `intersection` | `Intersection` | events that raycast | Shorthand for `intersections[0]` — the closest hit overall. |
+| `currentIntersection` | `Intersection` | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch. |
+| `stopped` | `boolean` | stoppable events only | Whether `stopPropagation()` has been called. |
+| `stopPropagation` | `() => void` | stoppable events only | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events). |
+
+Not every handler receives every field — what you get depends on the event:
+
+| Handler | Receives |
+| --- | --- |
+| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation` |
+| `onMouseEnter`, `onMouseLeave`, `onPointerEnter`, `onPointerLeave` | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
+| `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` | only `nativeEvent` — missed events don't raycast |
+
+<details>
+<summary>Exact type</summary>
+
+```tsx
+type ThreeEvent<TNativeEvent, TConfig = { stoppable: true; intersections: true }> = {
+  nativeEvent: TNativeEvent
+} & (TConfig["stoppable"] extends false ? {} : { stopped: boolean; stopPropagation: () => void }) &
+  (TConfig["intersections"] extends false
+    ? {}
+    : {
+        intersection: Intersection
+        intersections: Intersection[]
+        currentIntersection: Intersection
+      })
+```
+
+</details>
+
+### The intersection
+
+Each entry in `intersections` is a standard [three.js `Intersection`](https://threejs.org/docs/#api/en/core/Raycaster.intersectObject):
+
+- `object` — the hit `Object3D`
+- `point` — world-space hit position (`Vector3`)
+- `distance` — distance from the ray origin
+- `face`, `faceIndex` — the hit face on the geometry (when available)
+- `uv`, `uv1` — texture coordinates at the hit (when available)
+- `normal` — the face normal at the hit (when available)
+- `instanceId` — for `InstancedMesh` hits
+
+This extra detail is what lets you go beyond "did they click it?". A few of the things each field unlocks:
+
+- `point` — drag-to-rotate around the exact spot the user grabbed;
+- `uv` — paint onto a surface where it was touched;
+- `normal` — align a world-space gizmo to the surface;
+- `distance` — react to how far away the hit is.
+
+## Reading the full hit stack
+
+Most handlers care only about the nearest hit, which is what `intersection` resolves to. For x-ray tools, measure-through-walls, or click-through selection, `intersections` is sorted nearest-first:
+
+```tsx
+<T.Mesh
+  onClick={event => {
+    for (const hit of event.intersections) {
+      console.log(hit.distance, hit.object.name)
+    }
+  }}
+/>
+```
+
+## Propagation
+
+Each dispatch runs two propagation passes:
+
+1. **Along the ray (3D space)** — the handler fires on each hit object in nearest-first order. `stopPropagation()` skips the remaining objects along the ray.
+2. **Up the scene graph (tree)** — after an object's handler runs, the event bubbles up its ancestors. `stopPropagation()` stops this too. If nothing stops the event, it finally fires on the [`<Canvas/>`](/reference/components/canvas) itself.
+
+```tsx
+const EventPropagation = () => (
+  <Canvas onClick={() => console.log("4. Canvas clicked (canvas propagation)")}>
+    <T.Group onClick={() => console.log("3. Group clicked (tree propagation)")}>
+      <T.Mesh
+        position={[0, 0, 0]}
+        onClick={() => console.log("2. Back mesh clicked (raycast propagation)")}
+      >
+        <T.BoxGeometry args={[1, 1, 1]} />
+        <T.MeshBasicMaterial color="blue" />
+      </T.Mesh>
+
+      <T.Mesh
+        position={[0, 0, 2]} // In front
+        onClick={event => {
+          console.log("1. Front mesh clicked (raycast propagation)")
+          event.stopPropagation() // Stops all propagation
+        }}
+      >
+        <T.BoxGeometry args={[1, 1, 1]} />
+        <T.MeshBasicMaterial color="red" />
+      </T.Mesh>
+    </T.Group>
+  </Canvas>
+)
+```
+
+Without the `stopPropagation()` call the order would be front mesh → back mesh → group → canvas. Calling it on the front mesh halts all four steps.
+
+## Stoppable vs non-stoppable events
+
+Not every event accepts `stopPropagation()`. The split mirrors the DOM:
+
+**Stoppable** — `onClick`, `onContextMenu`, `onDoubleClick`, `onMouseDown`, `onMouseUp`, `onMouseMove`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onWheel`.
+
+**Non-stoppable** — these always fire for every registered handler, regardless of order:
+
+- `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` — a [missed event](#missed-events) is by definition the "nothing else handled it" signal.
+- `onMouseEnter`, `onPointerEnter` — enter has to reach the newly-hovered subtree.
+- `onMouseLeave`, `onPointerLeave` — leave has to reach the previously-hovered subtree.
+
+## Missed events
+
+A `*Missed` variant fires on a handler-bearing object when the click, double-click, or context-menu did **not** reach it. Two cases:
+
+1. **Clicked outside** — the ray missed the object and all its descendants.
+2. **Blocked by `stopPropagation()`** — another object handled the event first and stopped it.
+
+```tsx
+<T.Mesh onClickMissed={() => console.log("Missed — clicked outside this mesh")}>
+  <T.BoxGeometry args={[1, 1, 1]} />
+  <T.MeshBasicMaterial color="blue" />
+</T.Mesh>
+```
+
+```tsx
+<T.Group onClickMissed={() => console.log("Group missed — child stopped propagation")}>
+  <T.Mesh
+    onClick={event => {
+      event.stopPropagation()
+      console.log("Child clicked")
+    }}
+  >
+    <T.BoxGeometry args={[1, 1, 1]} />
+    <T.MeshBasicMaterial color="red" />
+  </T.Mesh>
+</T.Group>
+```
+
+Common uses: deselecting on a background click, blocking interaction with objects behind a UI layer, or telling a parent container that a child intercepted the event.
+
+### Missed events on `<Canvas>`
+
+The same handlers work on [`<Canvas/>`](/reference/components/canvas), where they fire when **no object handler at all** consumed the ray:
+
+```tsx
+<Canvas onClickMissed={() => deselect()}>
+  <T.Mesh onClick={() => select()}>
+    <T.BoxGeometry />
+    <T.MeshBasicMaterial />
+  </T.Mesh>
+</Canvas>
+```
+
+Use this for canvas-wide "click on empty space" logic without attaching a sentinel mesh.
+
+## Hover events
+
+Hover runs in three phases per pointer move, in this order:
+
+1. **Enter** — fires for objects newly under the pointer (not in the previous hover set).
+2. **Move** — fires for everything currently under the pointer.
+3. **Leave** — fires for objects that were under the pointer but no longer are.
+
+This matches the DOM's `mouseenter` / `mousemove` / `mouseleave` ordering. Enter and leave can't be stopped; move can.
+
+### Differences from react-three-fiber
+
+solid-three's hover handling differs from react-three-fiber in three ways:
+
+- **Phase order.** solid-three processes all enter events, then all move events, then all leave events (DOM-like). react-three-fiber interleaves them as it traverses.
+- **What can be stopped.** In solid-three, move can be stopped but enter and leave always fire (DOM-like). In react-three-fiber, every hover event can be stopped.
+- **Child to parent.** In solid-three, moving from a child to its parent fires only a leave on the child (DOM-like). In react-three-fiber, the parent receives both a leave and an immediate re-enter.
+
+## Filtering with `raycastable`
+
+To keep an object from being hit while it still receives events that bubble up from its children, set `raycastable={false}`. See [`raycastable`](/reference/events/raycastable) for the full prop.
+
+## See also
+
+- [Pointer events](/tour/04-pointer-events) — the tutorial chapter, with a worked walk-through.
+- [`raycastable`](/reference/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
+- [`<Canvas/>`](/reference/components/canvas) — where canvas-level handlers and `onClickMissed` fire.

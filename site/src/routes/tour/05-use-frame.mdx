@@ -1,0 +1,68 @@
+---
+title: useFrame
+---
+
+import useFrameSignal from "../../snippets/05-use-frame-signal.tsx?raw"
+import useFrameSignalUrl from "../../snippets/05-use-frame-signal.tsx?importChunkUrl"
+import useFrameImperative from "../../snippets/05-use-frame-imperative.tsx?raw"
+import useFrameImperativeUrl from "../../snippets/05-use-frame-imperative.tsx?importChunkUrl"
+import useFrameOptions from "../../snippets/05-use-frame-options.tsx?raw"
+import useFrameOptionsUrl from "../../snippets/05-use-frame-options.tsx?importChunkUrl"
+
+# useFrame
+
+[`<Canvas>`](/reference/components/canvas) is already running an animation loop to render each frame.
+`useFrame` is the hook that lets you plug a callback into that loop — no
+extra `requestAnimationFrame`, and the callback gets a proper delta time
+in seconds.
+
+<Demo code={useFrameSignal} url={useFrameSignalUrl} />
+
+`useFrame((context, delta) => ...)` runs once per rendered frame. Here we
+drive a signal forward by `delta` each frame and read it back into
+`rotation`. The cube spins at one radian per second on each axis,
+regardless of monitor refresh rate.
+
+## Imperative: skip the signal
+
+Driving a signal each frame is cheap in Solid — only the expressions that
+read it re-run — but you can shave even that off by mutating the `three.js`
+object directly. Get a ref to the mesh and write to its properties from
+inside `useFrame`.
+
+<Demo code={useFrameImperative} url={useFrameImperativeUrl} />
+
+No signal, no reactive prop update, no allocation per frame — just a
+property assignment. This is the pattern to reach for in hot paths
+(per-particle animations, big `InstancedMesh` swarms — three's
+single-draw-call primitive for many copies of one mesh), where even a
+handful of property assignments per frame might add up.
+
+The reactive version is usually fine. Reach for the imperative one when the
+profiler tells you to.
+
+## What else is in `context`?
+
+The first argument to your callback is the same scene context exposed by
+[`useThree`](/reference/hooks/use-three) — `gl`, `scene`, `camera`, `clock`,
+`size`. Useful when your animation depends on more than just elapsed time.
+
+## Options: ordering with `priority`
+
+When two `useFrame` callbacks depend on each other, the order they run in
+matters. Pass `priority` to make the order explicit — lower numbers run
+first within the same stage.
+
+<Demo code={useFrameOptions} url={useFrameOptionsUrl} />
+
+The cube updates its position first (priority 0); the camera then reads
+that *new* position and follows it (priority 1). Swap the priorities and
+the camera will lag the cube by one frame.
+
+`useFrame` also accepts a `stage` option for running callbacks before
+or after the render pass, plus a couple of other knobs you'll rarely
+touch — see [`useFrame` in the API reference](/reference/hooks/use-frame).
+
+The scenes so far have been hand-built — cubes, lights, geometry from
+constructors. The next chapter brings in *outside* data: textures,
+models, anything you load from a URL.

@@ -1,0 +1,21 @@
+---
+title: raycastable
+---
+
+# raycastable
+
+The `raycastable` prop controls whether an `Object3D` can be hit by raycasting.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `raycastable` | `boolean` | `true` | When `false`, the object isn't hit by rays directly, but still receives events that bubble up from its descendants. |
+
+```tsx
+<T.Mesh name="parent" raycastable={false} onClick={() => console.log("Child clicked!")}>
+  <T.Mesh name="child" />
+</T.Mesh>
+```
+
+## See also
+
+- [Events overview](/reference/events/overview) — the rest of the event system and the full event-object shape.

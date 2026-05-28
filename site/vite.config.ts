@@ -14,7 +14,7 @@ const theme = defineTheme({
 })
 
 // SolidBase rewrites each sidebar item's link by prepending its prefix key, so
-// the same chapter list is emitted relative to `/tutorial` (for tutorial pages)
+// the same chapter list is emitted relative to `/tour` (for tour pages)
 // and as full paths under `/` (the home-page fallback).
 const tutorialChapters: Array<[title: string, slug: string]> = [
   ["Getting started", "00-getting-started"],
@@ -75,9 +75,9 @@ export default defineConfig({
           github: "https://github.com/solidjs-community/solid-three",
         },
         sidebar: {
-          "/": tutorialSidebar("/tutorial/"),
-          "/tutorial": tutorialSidebar("/"),
-          "/api": [
+          "/": tutorialSidebar("/tour/"),
+          "/tour": tutorialSidebar("/"),
+          "/reference": [
             {
               title: "Components",
               collapsed: true,
