@@ -275,6 +275,35 @@ article.article-fullbleed > div {
   }
 }
 
+/* Progress line shown while the splash demo's iframe chunk (three + the
+ * snippet) loads and renders its first frame — otherwise the hero just sits
+ * black. The fill grows 0 -> full width; on `is-loaded` it snaps to 100% and
+ * lingers briefly (the hero unmounts it 500ms later). */
+.hero-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--sb-active-link-color);
+  animation: hero-loading-fill 2.5s ease-out forwards;
+}
+.hero-loading-bar.is-loaded {
+  width: 100%;
+  animation: none;
+  transition: width 200ms ease-out;
+}
+@keyframes hero-loading-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
 .hero-canvas {
   position: absolute;
   inset: 0;

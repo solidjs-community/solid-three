@@ -246,6 +246,7 @@ export interface DemoProps {
   code: string
   url: string
   editorHidden?: boolean
+  onReady?: () => void
 }
 
 export default function Demo(props: DemoProps) {
@@ -412,6 +413,7 @@ function DemoClient(props: DemoProps) {
               onLoad={() => {
                 setIframeBusy(false)
                 postTheme()
+                props.onReady?.()
               }}
             />
             <Show when={iframeBusy()}>
