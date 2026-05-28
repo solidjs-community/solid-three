@@ -139,7 +139,6 @@ function Scene(props: { state: { world: CANNON.World; letters: LetterState[] } }
           <T.Mesh
             ref={mesh => (meshes[i()] = mesh)}
             geometry={letter.geometry}
-            castShadow
             onPointerDown={() => {
               const upward = 6 + Math.random() * 2
               const sideways = (Math.random() - 0.5) * 3
@@ -192,27 +191,10 @@ export default function Hero() {
   })
 
   return (
-    <Canvas camera={{ position: [0, 6, 3], fov: 40 }} shadows>
+    <Canvas camera={{ position: [0, 6, 3], fov: 40 }}>
       <EnvironmentSetup />
       <T.AmbientLight intensity={0.6} />
-      <T.DirectionalLight
-        position={[3, 6, 4]}
-        intensity={1.1}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-8}
-        shadow-camera-right={8}
-        shadow-camera-top={8}
-        shadow-camera-bottom={-2}
-        shadow-camera-near={0.5}
-        shadow-camera-far={16}
-        shadow-bias={-0.001}
-      />
-      <T.Mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <T.PlaneGeometry args={[20, 20]} />
-        <T.ShadowMaterial color="#000000" opacity={0.4} />
-      </T.Mesh>
+      <T.DirectionalLight position={[3, 6, 4]} intensity={1.1} />
       <Show when={world()}>{worldRef => <Scene state={worldRef()} />}</Show>
     </Canvas>
   )
