@@ -3,7 +3,6 @@
   gap: 0.25rem;
   padding: 0.25rem;
   border-radius: calc(var(--sb-border-radius) * 1.25);
-  background: color-mix(in hsl, var(--sb-text-color) 6%, transparent);
 }
 
 .tab {
