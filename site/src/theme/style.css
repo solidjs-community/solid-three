@@ -323,7 +323,6 @@ article.article-fullbleed > div {
   border-radius: 1.5rem;
   border: 1px solid #ffffff;
   color: inherit;
-  font-weight: 500;
   cursor: pointer;
   backdrop-filter: blur(3px);
   z-index: 2;
