@@ -16,6 +16,7 @@ import {
   onMount,
   Show,
   startTransition,
+  untrack,
 } from "solid-js"
 import type ts from "typescript"
 import snippetRuntimeUrl from "./snippet-runtime.tsx?importChunkUrl"
@@ -51,13 +52,19 @@ const TmTextarea = clientOnly(async () => {
   return { default: solid.TmTextarea }
 })
 
+function readDarkTheme(): boolean {
+  if (typeof document === "undefined") return false
+  return (document.documentElement.dataset.theme ?? "").includes("dark")
+}
+
 function useSiteTheme(): () => "dark" | "light" {
-  const [isDark, setIsDark] = createSignal(false)
+  // Seed from the real theme synchronously so the initial iframe bootstrap
+  // bakes the correct color-scheme — defaulting to light would flash before
+  // postTheme() corrects it.
+  const [isDark, setIsDark] = createSignal(readDarkTheme())
   onMount(() => {
     const root = document.documentElement
-    const read = () => setIsDark((root.dataset.theme ?? "").includes("dark"))
-    read()
-    const observer = new MutationObserver(read)
+    const observer = new MutationObserver(() => setIsDark(readDarkTheme()))
     observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] })
     onCleanup(() => observer.disconnect())
   })
@@ -276,12 +283,15 @@ function DemoClient(props: DemoProps) {
     onCleanup(() => media.removeEventListener("change", handler))
   })
 
-  // Mode-A blob URL. Previous blob is revoked whenever the memo
-  // re-evaluates (e.g. on theme toggle) so we don't leak across re-runs.
+  // Mode-A blob URL. Previous blob is revoked whenever the memo re-evaluates
+  // (e.g. when props.url changes) so we don't leak across re-runs. The theme is
+  // read untracked: it's baked in once to avoid a first-paint flash, but live
+  // toggles flow through postTheme() instead — otherwise regenerating the blob
+  // would reload the iframe on every theme switch.
   let previousInitialBootstrapUrl: string | undefined
   const initialBootstrapUrl = createMemo(() => {
     if (previousInitialBootstrapUrl) URL.revokeObjectURL(previousInitialBootstrapUrl)
-    previousInitialBootstrapUrl = buildInitialBootstrap(props.url, editorTheme())
+    previousInitialBootstrapUrl = buildInitialBootstrap(props.url, untrack(editorTheme))
     return previousInitialBootstrapUrl
   })
   onCleanup(() => {
@@ -331,7 +341,9 @@ function DemoClient(props: DemoProps) {
   const fileUrls = createFileUrlSystem({
     readFile: path => {
       if (path === "/snippet.tsx") return code()
-      if (path === "/index.html") return buildReplHostHtml(editorTheme())
+      // Untracked: theme toggles update the live iframe via postTheme(), not by
+      // regenerating this blob (which would reload it). See initialBootstrapUrl.
+      if (path === "/index.html") return buildReplHostHtml(untrack(editorTheme))
       if (path === "/main.tsx") return replBootstrapTsx
       return undefined
     },
