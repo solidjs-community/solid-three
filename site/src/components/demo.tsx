@@ -163,7 +163,7 @@ function errorModule(message: string): string {
 
 function buildReplHostHtml(theme: "dark" | "light"): string {
   // The iframe loads from a blob: URL, which can't resolve root-absolute paths
-  // at runtime (e.g. a loader fetching "/IFKica-Regular.ttf"). Pin a <base> to
+  // at runtime (e.g. a loader fetching "/zalando-sans-expanded-latin-600-normal.ttf"). Pin a <base> to
   // the parent origin — module specifiers are already rewritten to absolute
   // blob/esm URLs, so this only affects runtime fetches.
   const origin = window.location.origin

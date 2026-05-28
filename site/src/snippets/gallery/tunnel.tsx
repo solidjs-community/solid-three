@@ -7,8 +7,8 @@ const T = createT(THREE)
 // Served from public/ so the absolute URL resolves the same whether this
 // snippet runs as a built module or is recompiled in the editor's blob iframe.
 // A relative ?url import would break in edit mode.
-const fontUrl = "/IFKica-Regular.ttf"
-const FONT_FAMILY = "IFKica-Tunnel"
+const fontUrl = "/zalando-sans-expanded-latin-600-normal.ttf"
+const FONT_FAMILY = "Zalando Sans Expanded Tunnel"
 const TEXT = "SOLID THREE"
 const TUBE_RADIUS = 2.2
 const TUBULAR_SEGMENTS = 512

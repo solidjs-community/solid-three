@@ -8,7 +8,7 @@ const T = createT(THREE)
 
 const SOLID_BLUE = "#2c4f7c"
 const WARM_WHITE = "#f4f4f4"
-const GLYPH_FONT_FAMILY = "IFKica"
+const GLYPH_FONT_FAMILY = "Zalando Sans Expanded"
 
 // The font is registered via @font-face in src/theme/style.css. Wait for
 // the browser to actually fetch it so the canvas texture renders with the

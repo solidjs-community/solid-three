@@ -10,7 +10,7 @@ import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 // Served from public/ so the absolute URL resolves the same whether this
 // snippet runs as a built module or is recompiled in the editor's blob iframe.
 // A relative ?url import would break in edit mode.
-const fontTtfUrl = "/IFKica-Regular.ttf"
+const fontTtfUrl = "/zalando-sans-expanded-latin-600-normal.ttf"
 
 const T = createT(THREE)
 
