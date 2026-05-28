@@ -131,20 +131,9 @@ html[data-theme*="light"] {
   height: 100%;
 }
 
-.demo-loading {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: rgba(120, 120, 120, 0.5);
-  pointer-events: none;
-  animation: demo-loading-pulse 1s ease-in-out infinite;
-}
-
-/* Progress line shown while an edited demo recompiles + reloads (the first
- * edit also loads TS/Babel + deps). Mirrors the hero's loading bar. */
+/* Progress line shown while the preview loads or an edited demo recompiles +
+ * reloads (the first edit also loads TS/Babel + deps). Mirrors the hero's
+ * loading bar. */
 .demo-loading-bar {
   position: absolute;
   top: 0;
@@ -155,16 +144,6 @@ html[data-theme*="light"] {
   pointer-events: none;
   background: var(--sb-active-link-color);
   animation: hero-loading-fill 2.5s ease-out forwards;
-}
-
-@keyframes demo-loading-pulse {
-  0%,
-  100% {
-    opacity: 0.3;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .demo-tabs {

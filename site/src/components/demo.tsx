@@ -441,11 +441,8 @@ function DemoClient(props: DemoProps) {
                 props.onReady?.()
               }}
             />
-            <Show when={compiling()}>
+            <Show when={compiling() || iframeBusy()}>
               <div class="demo-loading-bar" role="progressbar" aria-label="Loading preview" />
-            </Show>
-            <Show when={iframeBusy() && !hasEdited()}>
-              <div class="demo-loading" aria-label="Loading preview" />
             </Show>
           </div>
         </Show>
