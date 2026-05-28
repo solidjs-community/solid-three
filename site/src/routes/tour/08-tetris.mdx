@@ -62,14 +62,14 @@ Two more additions:
   of the board store inside a `produce`, prepending empties to keep the
   matrix the same shape. The number of rows cleared maps to the classic
   scoring table: 100 / 300 / 500 / 800.
-- A `score` signal. A [`<Portal>`](/reference/components/portal) puts the score panel in the DOM next
+- A `score` signal. A [`<Portal>`](/api/components/portal) puts the score panel in the DOM next
   to the canvas. When a fresh piece can't fit at the top, a `<Show>`
   reveals a "play again" button that resets everything.
 
 ## The takeaway
 
 Game development is state management. Solid is a state manager that
-happens to render [`<T.Mesh>`](/reference/components/t).
+happens to render [`<T.Mesh>`](/api/components/t).
 
 Look back at what we built. Every visible cube is a function of two
 stores. Every input — a key press, an interval tick, a click — is a
@@ -80,7 +80,7 @@ describe the JSX and decide when to mutate.
 The shape of every other `solid-three` app you'll write is the same as
 this one: signals and stores describing state, JSX describing the scene,
 `<T.*>` keeping the scene in sync with state. The
-[API reference](/reference/types) is there when you need a specific export.
+[API reference](/api/types) is there when you need a specific export.
 
 If you'd like a peek at where the library is heading next, the encore is
 WebGPU.

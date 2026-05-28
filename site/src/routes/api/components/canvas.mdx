@@ -4,7 +4,7 @@ title: Canvas
 
 # Canvas
 
-`Canvas` initializes the `three.js` rendering context and is the root of your 3D scene. Every [`<T.*>`](/reference/components/t) and [`<Entity/>`](/reference/components/entity) component must be a child of it.
+`Canvas` initializes the `three.js` rendering context and is the root of your 3D scene. Every [`<T.*>`](/api/components/t) and [`<Entity/>`](/api/components/entity) component must be a child of it.
 
 ## Props
 
@@ -13,7 +13,7 @@ title: Canvas
 | `camera` | `Partial<Props<Camera>> \| Camera` | `new PerspectiveCamera()` | The scene camera — partial props for the default camera, or an instance you built. |
 | `gl` | `object \| ((canvas: HTMLCanvasElement) => Renderer) \| Renderer` | `new WebGLRenderer({ alpha: true })` | How the renderer is built. See [The `gl` prop](#the-gl-prop). |
 | `scene` | `Partial<Props<Scene>> \| Scene` | `new Scene()` | Settings for the scene, or an existing `Scene`. |
-| `raycaster` | `Partial<Props<EventRaycaster>> \| EventRaycaster \| Raycaster` | `new CursorRaycaster()` | The [raycaster](/reference/utilities/raycasters) used for pointer events. |
+| `raycaster` | `Partial<Props<EventRaycaster>> \| EventRaycaster \| Raycaster` | `new CursorRaycaster()` | The [raycaster](/api/utilities/raycasters) used for pointer events. |
 | `shadows` | `boolean \| "basic" \| "percentage" \| "soft" \| "variance" \| WebGLRenderer["shadowMap"]` | off | Enables shadows. See [Rendering defaults](#rendering-defaults) for the string mapping. |
 | `orthographic` | `boolean` | `false` | Use an `OrthographicCamera` for the default camera. |
 | `linear` | `boolean` | `false` | Use a linear output color space instead of sRGB. |
@@ -22,7 +22,7 @@ title: Canvas
 | `fallback` | `JSX.Element` | — | Shown while content loads asynchronously. |
 | `style` | `JSX.CSSProperties` | — | CSS for the canvas container. |
 | `class` | `string` | — | CSS class for the canvas container. |
-| event handlers | `Partial<CanvasEventHandlers>` | — | Any [event handler](/reference/events/overview), firing after the event bubbles through the whole scene (e.g. `onClick`, `onClickMissed`). |
+| event handlers | `Partial<CanvasEventHandlers>` | — | Any [event handler](/api/events/overview), firing after the event bubbles through the whole scene (e.g. `onClick`, `onClickMissed`). |
 
 <details>
 <summary>Exact type</summary>
@@ -122,7 +122,7 @@ import { WebGPURenderer } from "three/webgpu"
 
 ### Narrowing the renderer type project-wide
 
-By default [`useThree().gl`](/reference/hooks/use-three) is typed as the open `Renderer` union. Declare your concrete renderer once and the type narrows everywhere — both `useThree().gl` reads and `<Canvas gl>` assignments:
+By default [`useThree().gl`](/api/hooks/use-three) is typed as the open `Renderer` union. Declare your concrete renderer once and the type narrows everywhere — both `useThree().gl` reads and `<Canvas gl>` assignments:
 
 ```ts
 // src/solid-three.d.ts
@@ -197,6 +197,6 @@ interface RendererLike {
 
 ## See also
 
-- [`useThree`](/reference/hooks/use-three) — read the renderer, scene, camera, and more from inside the canvas.
-- [Raycasters](/reference/utilities/raycasters) — the raycaster types accepted by the `raycaster` prop.
-- [Events overview](/reference/events/overview) — the handlers you can pass to `<Canvas>`.
+- [`useThree`](/api/hooks/use-three) — read the renderer, scene, camera, and more from inside the canvas.
+- [Raycasters](/api/utilities/raycasters) — the raycaster types accepted by the `raycaster` prop.
+- [Events overview](/api/events/overview) — the handlers you can pass to `<Canvas>`.

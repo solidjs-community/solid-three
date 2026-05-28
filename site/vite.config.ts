@@ -79,7 +79,7 @@ export default defineConfig({
         sidebar: {
           "/": tutorialSidebar("/tour/"),
           "/tour": tutorialSidebar("/"),
-          "/reference": [
+          "/api": [
             {
               title: "Components",
               collapsed: true,

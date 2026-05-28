@@ -43,7 +43,7 @@ flips; `scale` reads it; one property assignment runs.
 
 Sometimes the interesting event is when the user clicks but *doesn't* hit any
 mesh — to deselect the current selection, dismiss a tooltip, that sort of
-thing. [`<Canvas>`](/reference/components/canvas) exposes `onClickMissed` for exactly that case:
+thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
 
 <Demo code={clickMissedSnippet} url={clickMissedUrl} />
 
@@ -52,7 +52,7 @@ The two handlers cover the full "did you hit something?" question between
 them.
 
 That covers the everyday cases. There's a
-[longer list of pointer events](/reference/events/overview)
+[longer list of pointer events](/api/events/overview)
 (`onPointerMove`, `onPointerDown`, `onPointerUp`, `onWheel`, ...) — all
 following the same convention.
 
@@ -94,7 +94,7 @@ Most scenes never need this — but it's there when you do.
 The handler receives an enriched event object — the original DOM event
 plus the `three.js` intersection data — useful any time "click" alone
 isn't enough (drag-to-rotate, paint-on-surface, world-space gizmos).
-The [events API reference](/reference/events/overview) has the full
+The [events API reference](/api/events/overview) has the full
 event-object shape and the complete handler list.
 
 So far every trigger has been a one-off — a click, a hover-in, a

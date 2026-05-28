@@ -11,10 +11,10 @@ expression.
 
 Use it for the things in `three.js` that hold GPU memory and need to
 be released by hand — `Geometry`, `Material`, `Texture`, `RenderTarget`
-and friends. [`<T.*>`](/reference/components/t) already does this for
+and friends. [`<T.*>`](/api/components/t) already does this for
 objects it creates from JSX; `autodispose` is the manual version for
 objects you instantiate
-yourself (e.g. to pass through [`<Entity from={...}/>`](/reference/components/entity)).
+yourself (e.g. to pass through [`<Entity from={...}/>`](/api/components/entity)).
 
 ## Examples
 
@@ -56,5 +56,5 @@ const material = autodispose(new THREE.MeshStandardMaterial())
 
 ## See also
 
-- [`<Entity/>`](/reference/components/entity) — the common reason to instantiate objects by hand and dispose them yourself.
-- [`<T.*>`](/reference/components/t) — already auto-disposes the objects it creates from JSX.
+- [`<Entity/>`](/api/components/entity) — the common reason to instantiate objects by hand and dispose them yourself.
+- [`<T.*>`](/api/components/t) — already auto-disposes the objects it creates from JSX.

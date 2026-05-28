@@ -26,9 +26,9 @@ want. To use WebGPU, return a `WebGPURenderer` from `three/webgpu`.
 
 <Demo code={webgpuSimple} url={webgpuSimpleUrl} />
 
-Same [`<Canvas>`](/reference/components/canvas), same
-[`<T.Mesh>`](/reference/components/t), same
-[`useFrame`](/reference/hooks/use-frame) — only the `gl` line changed. Everything you've learned still applies.
+Same [`<Canvas>`](/api/components/canvas), same
+[`<T.Mesh>`](/api/components/t), same
+[`useFrame`](/api/hooks/use-frame) — only the `gl` line changed. Everything you've learned still applies.
 
 > Heads up: WebGPU is desktop-Chrome/Edge first. Other browsers are still
 > shipping support. If the canvas above is blank, your browser doesn't
@@ -67,7 +67,7 @@ Then it's wired in as the `colorNode` of a `MeshBasicNodeMaterial`:
 Props on `<T.*>` work the same way as in [chapter 2](/tour/02-props-and-children)
 — `colorNode` is just a prop. `MeshBasicNodeMaterial`
 isn't in the global `THREE` namespace, so we extended
-[`createT`](/reference/components/t) with it:
+[`createT`](/api/components/t) with it:
 `createT({ ...THREE, MeshBasicNodeMaterial })`.
 
 ## Driving a uniform from a signal

@@ -21,7 +21,7 @@ interface EventRaycaster extends THREE.Raycaster {
 
 </details>
 
-`solid-three`'s [event system](/reference/events/overview) calls `update()` before every intersection test — on mouse events (`click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`), pointer events (`pointerdown`, `pointerup`, `pointermove`), and `wheel` — so the raycaster is positioned correctly for accurate hit detection.
+`solid-three`'s [event system](/api/events/overview) calls `update()` before every intersection test — on mouse events (`click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`), pointer events (`pointerdown`, `pointerup`, `pointermove`), and `wheel` — so the raycaster is positioned correctly for accurate hit detection.
 
 ## CursorRaycaster
 
@@ -75,5 +75,5 @@ const App = () => <Canvas raycaster={new CustomRaycaster()}>{/* Your scene */}</
 
 ## See also
 
-- [Events overview](/reference/events/overview) — when and why `update()` is called.
-- [`useThree`](/reference/hooks/use-three) — `raycaster` / `setRaycaster` for swapping the active raycaster at runtime.
+- [Events overview](/api/events/overview) — when and why `update()` is called.
+- [`useThree`](/api/hooks/use-three) — `raycaster` / `setRaycaster` for swapping the active raycaster at runtime.

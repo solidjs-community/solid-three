@@ -16,7 +16,7 @@ fetching.
 
 ## `useLoader`: the hook
 
-[`useLoader(loaderClass, url)`](/reference/hooks/use-loader) returns an
+[`useLoader(loaderClass, url)`](/api/hooks/use-loader) returns an
 `Accessor` that resolves to the
 loaded asset. Wrap the consumer in a `<Suspense>` so Solid knows what to
 do while it's pending.
@@ -29,12 +29,12 @@ While the image is loading, `<Suspense>` shows nothing (you can give it a
 
 `useLoader` caches by URL across the whole app, so two components
 asking for the same texture share one load and one GPU upload. The
-[`LoaderCache`](/reference/utilities/loader-cache) is configurable per call
+[`LoaderCache`](/api/utilities/loader-cache) is configurable per call
 when you need different scoping.
 
 ## `Resource`: the component
 
-The declarative version. [`<Resource loader={...} url="...">`](/reference/components/resource) does the same
+The declarative version. [`<Resource loader={...} url="...">`](/api/components/resource) does the same
 fetching, but you write it as JSX inside the scene tree. When the
 attachment is obvious — a `TextureLoader` result going into `.map` of the
 parent material — `attach` does the wiring for you.
@@ -53,7 +53,7 @@ Both forms return Solid resources, so the usual reactivity rules apply:
 read them inside `createMemo`/`createEffect` to track loading state,
 or inside `<Suspense>` to render a fallback. Cache behaviour, base URLs,
 array/record URL shapes, error handling — see
-[`useLoader`](/reference/hooks/use-loader) for the full surface.
+[`useLoader`](/api/hooks/use-loader) for the full surface.
 
 That's the everyday tree: components, props, signals, events, frames,
 loaders. The next chapter is a deliberate break from the mapping — a

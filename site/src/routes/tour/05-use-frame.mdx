@@ -11,7 +11,7 @@ import useFrameOptionsUrl from "../../snippets/05-use-frame-options.tsx?importCh
 
 # useFrame
 
-[`<Canvas>`](/reference/components/canvas) is already running an animation loop to render each frame.
+[`<Canvas>`](/api/components/canvas) is already running an animation loop to render each frame.
 `useFrame` is the hook that lets you plug a callback into that loop — no
 extra `requestAnimationFrame`, and the callback gets a proper delta time
 in seconds.
@@ -44,7 +44,7 @@ profiler tells you to.
 ## What else is in `context`?
 
 The first argument to your callback is the same scene context exposed by
-[`useThree`](/reference/hooks/use-three) — `gl`, `scene`, `camera`, `clock`,
+[`useThree`](/api/hooks/use-three) — `gl`, `scene`, `camera`, `clock`,
 `size`. Useful when your animation depends on more than just elapsed time.
 
 ## Options: ordering with `priority`
@@ -61,7 +61,7 @@ the camera will lag the cube by one frame.
 
 `useFrame` also accepts a `stage` option for running callbacks before
 or after the render pass, plus a couple of other knobs you'll rarely
-touch — see [`useFrame` in the API reference](/reference/hooks/use-frame).
+touch — see [`useFrame` in the API reference](/api/hooks/use-frame).
 
 The scenes so far have been hand-built — cubes, lights, geometry from
 constructors. The next chapter brings in *outside* data: textures,

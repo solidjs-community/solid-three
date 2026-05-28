@@ -47,16 +47,16 @@ in a separate scene. The two pieces that make it work:
 - `<Portal element={offscreenScene}>` sends the knot into a
   free-standing `Scene` instead of the canvas's main one.
 - A small helper grabs the renderer via
-  [`useThree()`](/reference/hooks/use-three) and copies the off-screen scene
+  [`useThree()`](/api/hooks/use-three) and copies the off-screen scene
   into a `WebGLRenderTarget` each frame; that target's texture is what
   the outer cube wears as its `map`.
 
 The knot still spins reactively from inside the portal — same
-[`useFrame`](/reference/hooks/use-frame), same ref, same lifecycle. The portaled subtree is still
+[`useFrame`](/api/hooks/use-frame), same ref, same lifecycle. The portaled subtree is still
 owned by its JSX parent, so cleanup, refs, and signals behave the same
 way as if you'd never reached for a portal.
 
-[`<Portal>` in the API reference](/reference/components/portal) has the rest
+[`<Portal>` in the API reference](/api/components/portal) has the rest
 — the `onUpdate` hook, the lifetime rules for `element`, and how it
 composes with multiple cameras.
 

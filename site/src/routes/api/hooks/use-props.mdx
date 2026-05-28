@@ -4,7 +4,7 @@ title: useProps
 
 # useProps
 
-`useProps` reactively applies a record of props to a `three.js` object, keeping it in sync as those props change. Applying a prop covers everything `solid-three` does with it: converting the value into the shape three expects, resolving dashed paths into nested setters, registering event listeners, attaching children, and disposing on cleanup. It is what powers every [`<T.*>`](/reference/components/t) and [`<Entity/>`](/reference/components/entity) component.
+`useProps` reactively applies a record of props to a `three.js` object, keeping it in sync as those props change. Applying a prop covers everything `solid-three` does with it: converting the value into the shape three expects, resolving dashed paths into nested setters, registering event listeners, attaching children, and disposing on cleanup. It is what powers every [`<T.*>`](/api/components/t) and [`<Entity/>`](/api/components/entity) component.
 
 Call it directly when you wrap your own `three.js` object — custom controls, a third-party library, an ad-hoc instance.
 
@@ -26,7 +26,7 @@ Hand it a target object (or an accessor that returns one) and the props to apply
 | --- | --- | --- |
 | `accessor` | `T \| undefined \| Accessor<T \| undefined>` | The target `three.js` object, an accessor that returns it, or `undefined`. Application waits until the value is non-`undefined`. |
 | `props` | `object` | The props to apply — including `ref`, `args`, `attach`, `children`, and any `three.js` properties. |
-| `context` *(optional)* | `Pick<Context, "requestRender" \| "gl" \| "props">` | The context slice `useProps` reads from. Defaults to [`useThree()`](/reference/hooks/use-three). Pass it explicitly when calling outside a [`<Canvas>`](/reference/components/canvas) — in tests, or a custom renderer host. |
+| `context` *(optional)* | `Pick<Context, "requestRender" \| "gl" \| "props">` | The context slice `useProps` reads from. Defaults to [`useThree()`](/api/hooks/use-three). Pass it explicitly when calling outside a [`<Canvas>`](/api/components/canvas) — in tests, or a custom renderer host. |
 
 ## Usage
 
@@ -78,7 +78,7 @@ Each prop is matched against the cases below, in order; the first that fits wins
 | An array | `position={[1, 0, 0]}` | `target.position.fromArray(value)` (or `.set(...value)` when the field has no `fromArray`). |
 | A single number, on a field with `setScalar` | `scale={2}` | `target.scale.setScalar(2)` — the same value on every axis. |
 | An instance matching the field's type | `quaternion={new Quaternion()}` | Copied in place with `.copy(value)`. |
-| An event handler | `onClick={…}` | Registered on the [event system](/reference/events/overview) (`Object3D` instances only). |
+| An event handler | `onClick={…}` | Registered on the [event system](/api/events/overview) (`Object3D` instances only). |
 | Anything else | `visible={false}`, `castShadow` | Assigned directly: `target[key] = value`. |
 
 In practice, one element mixes several of these:
@@ -200,4 +200,4 @@ When you assign a `Texture` whose format three uses for color data (`RGBAFormat`
 ## See also
 
 - [Props and children](/tour/02-props-and-children) — the tutorial walk-through of the same value conversion.
-- [`<T.*>` / `createT`](/reference/components/t) and [`<Entity/>`](/reference/components/entity) — the components built on `useProps`.
+- [`<T.*>` / `createT`](/api/components/t) and [`<Entity/>`](/api/components/entity) — the components built on `useProps`.

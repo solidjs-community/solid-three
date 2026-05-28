@@ -28,7 +28,7 @@ every key is its own JSX component.
 
 For a single class — or one only known at runtime — you can skip the
 namespace and wrap it inline with
-[`<Entity from={Class}>`](/reference/components/entity) instead.
+[`<Entity from={Class}>`](/api/components/entity) instead.
 
 <Demo code={createTSnippet} url={createTUrl} />
 
@@ -41,7 +41,7 @@ visible without any lights.
 namespace throughout this tutorial because it's easier to follow when
 imports aren't the point. (In real apps you'd hand `createT` a curated
 object to keep your bundle small; see
-[the API reference](/reference/components/t) for the details.)
+[the API reference](/api/components/t) for the details.)
 
 Three new ideas appeared in that snippet — `createT`, the `T.*`
 namespace, and the way `<T.Mesh>` consumes its children as a geometry

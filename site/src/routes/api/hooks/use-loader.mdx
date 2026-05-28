@@ -4,7 +4,7 @@ title: useLoader
 
 # useLoader
 
-`useLoader` loads asynchronous resources — textures, models, and the like — and exposes them through `solid-js`' reactivity. Use it inside `<Suspense>` to handle loading states. By default it caches every resource in a shared [`LoaderCache`](/reference/utilities/loader-cache).
+`useLoader` loads asynchronous resources — textures, models, and the like — and exposes them through `solid-js`' reactivity. Use it inside `<Suspense>` to handle loading states. By default it caches every resource in a shared [`LoaderCache`](/api/utilities/loader-cache).
 
 ## Signature
 
@@ -184,5 +184,5 @@ function load<TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader
 ## See also
 
 - [Loaders & Resource](/tour/06-loaders-and-resource) — the tutorial walk-through.
-- [`LoaderCache`](/reference/utilities/loader-cache) — the default global cache and its disposal helpers.
-- [`<Resource/>`](/reference/components/resource) — the component form, for loading straight into the scene graph.
+- [`LoaderCache`](/api/utilities/loader-cache) — the default global cache and its disposal helpers.
+- [`<Resource/>`](/api/components/resource) — the component form, for loading straight into the scene graph.

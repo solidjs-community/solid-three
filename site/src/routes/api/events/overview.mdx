@@ -6,7 +6,7 @@ title: Events overview
 
 `solid-three` has its own pointer-event system, inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
 
-You attach handlers as props on any [`<T.*>`](/reference/components/t) or [`<Entity/>`](/reference/components/entity) component. The same handler names also work on [`<Canvas/>`](/reference/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
+You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
 
 ## Supported events
 
@@ -108,7 +108,7 @@ Most handlers care only about the nearest hit, which is what `intersection` reso
 Each dispatch runs two propagation passes:
 
 1. **Along the ray (3D space)** — the handler fires on each hit object in nearest-first order. `stopPropagation()` skips the remaining objects along the ray.
-2. **Up the scene graph (tree)** — after an object's handler runs, the event bubbles up its ancestors. `stopPropagation()` stops this too. If nothing stops the event, it finally fires on the [`<Canvas/>`](/reference/components/canvas) itself.
+2. **Up the scene graph (tree)** — after an object's handler runs, the event bubbles up its ancestors. `stopPropagation()` stops this too. If nothing stops the event, it finally fires on the [`<Canvas/>`](/api/components/canvas) itself.
 
 ```tsx
 const EventPropagation = () => (
@@ -183,7 +183,7 @@ Common uses: deselecting on a background click, blocking interaction with object
 
 ### Missed events on `<Canvas>`
 
-The same handlers work on [`<Canvas/>`](/reference/components/canvas), where they fire when **no object handler at all** consumed the ray:
+The same handlers work on [`<Canvas/>`](/api/components/canvas), where they fire when **no object handler at all** consumed the ray:
 
 ```tsx
 <Canvas onClickMissed={() => deselect()}>
@@ -216,10 +216,10 @@ solid-three's hover handling differs from react-three-fiber in three ways:
 
 ## Filtering with `raycastable`
 
-To keep an object from being hit while it still receives events that bubble up from its children, set `raycastable={false}`. See [`raycastable`](/reference/events/raycastable) for the full prop.
+To keep an object from being hit while it still receives events that bubble up from its children, set `raycastable={false}`. See [`raycastable`](/api/events/raycastable) for the full prop.
 
 ## See also
 
 - [Pointer events](/tour/04-pointer-events) — the tutorial chapter, with a worked walk-through.
-- [`raycastable`](/reference/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
-- [`<Canvas/>`](/reference/components/canvas) — where canvas-level handlers and `onClickMissed` fire.
+- [`raycastable`](/api/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
+- [`<Canvas/>`](/api/components/canvas) — where canvas-level handlers and `onClickMissed` fire.

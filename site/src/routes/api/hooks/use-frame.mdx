@@ -21,7 +21,7 @@ Register a callback and get back a cleanup that unregisters it.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
-| `callback` | `(context: Context, delta: number, frame?: XRFrame) => void` | Runs each frame. `context` is the [three.js context](/reference/hooks/use-three), `delta` is seconds since the last frame, and `frame` is the `XRFrame` during WebXR sessions. |
+| `callback` | `(context: Context, delta: number, frame?: XRFrame) => void` | Runs each frame. `context` is the [three.js context](/api/hooks/use-three), `delta` is seconds since the last frame, and `frame` is the `XRFrame` during WebXR sessions. |
 | `options` *(optional)* | `{ priority?: number; stage?: "before" \| "after" }` | `priority` orders callbacks — lower runs first (default `0`). `stage` runs the callback `"before"` (default) or `"after"` the render. |
 
 ## Returns
@@ -49,4 +49,4 @@ useFrame(() => console.info("Frame rendered"), { stage: "after", priority: 10 })
 ## See also
 
 - [useFrame](/tour/05-use-frame) — the tutorial chapter.
-- [`useThree`](/reference/hooks/use-three) — the `context` passed to every callback.
+- [`useThree`](/api/hooks/use-three) — the `context` passed to every callback.

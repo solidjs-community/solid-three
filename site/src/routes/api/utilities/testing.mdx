@@ -13,8 +13,8 @@ runners (e.g. vitest browser mode); jsdom is not supported.
 test(children: () => JSX.Element, props?: CanvasProps): TestApi
 ```
 
-Mounts `children` inside a fresh [`<Canvas>`](/reference/components/canvas) and
-returns the same `Context` shape [`useThree()`](/reference/hooks/use-three)
+Mounts `children` inside a fresh [`<Canvas>`](/api/components/canvas) and
+returns the same `Context` shape [`useThree()`](/api/hooks/use-three)
 exposes, plus two extras:
 
 - `unmount()` — disposes the Solid root, frees the WebGL context, and
@@ -42,9 +42,9 @@ the limit and the page crashes.
 
 ## `TestCanvas`
 
-A thin [`<Canvas>`](/reference/components/canvas) wrapper that fills its
+A thin [`<Canvas>`](/api/components/canvas) wrapper that fills its
 container and accepts the usual
-[`CanvasProps`](/reference/components/canvas). Useful for component-level
+[`CanvasProps`](/api/components/canvas). Useful for component-level
 tests that go through the JSX render path:
 
 ```tsx
@@ -62,5 +62,5 @@ render(() => (
 
 ## See also
 
-- [`<Canvas/>`](/reference/components/canvas) — the props `test` and `TestCanvas` accept.
-- [`useThree`](/reference/hooks/use-three) — the `Context` shape `test()` returns.
+- [`<Canvas/>`](/api/components/canvas) — the props `test` and `TestCanvas` accept.
+- [`useThree`](/api/hooks/use-three) — the `Context` shape `test()` returns.
