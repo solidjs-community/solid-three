@@ -4,9 +4,9 @@ title: Entity
 
 # Entity
 
-`Entity` is a JSX wrapper around any `three.js` class. Where [`<T.Mesh/>`](/api/components/t) is shorthand for "make me a `Mesh`", `<Entity from={Mesh}/>` says the same thing without pre-building a [`T`](/api/components/t) namespace — useful in libraries or when the class you want is only known at runtime.
+`Entity` is a JSX wrapper around any `three.js` class. Where [`<T.Mesh/>`](/api/components/t) is shorthand for "make me a `Mesh`", `<Entity from={Mesh}/>` says the same thing without pre-building a [`T`](/api/components/t) namespace — useful in libraries, or when the class is only known at runtime.
 
-You can pass a constructor
+Pass a constructor:
 
 ```tsx
 <Entity from={Mesh}>
@@ -15,27 +15,31 @@ You can pass a constructor
 </Entity>
 ```
 
-or pass an instance
+or an instance:
 
 ```tsx
 const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: "orange" }))
 <Entity from={mesh} position={[0, 0, 0]} />
 ```
 
-**Props:**
+## Props
 
-- **from**: Either a three.js constructor (class) or an existing instance
-- **args**: Arguments to pass to the constructor when using a class
-- All other props supported by the three.js object
+| Prop | Type | Description |
+| --- | --- | --- |
+| `from` | `Constructor \| Instance` | A three.js constructor (class), or an existing instance. |
+| `args` | `ConstructorParameters` | Arguments for the constructor, when `from` is a class. |
+| other props | — | Any prop the three.js object supports. |
+
+Every prop other than `from` and `args` is applied via [`useProps`](/api/hooks/use-props) — array conversion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full conversion table and `attach` / `args` / `ref` semantics.
 
 <details>
-<summary>Typescript Interface</summary>
+<summary>Exact type</summary>
 
 ```tsx
 interface EntityProps {
   from: Constructor | Instance
   args?: ConstructorParameters
-  // Plus all THREE.js object props
+  // Plus all three.js object props
 }
 ```
 
@@ -43,7 +47,7 @@ interface EntityProps {
 
 ## createEntity
 
-`createEntity` creates a single typed component from one `three.js` constructor — the same primitive [`createT`](/api/components/t) uses internally to build a whole namespace. Use it directly when you need a one-off component without building a full namespace:
+`createEntity` builds a single typed component from one `three.js` constructor — the same primitive [`createT`](/api/components/t) uses to build a whole namespace. Reach for it when you want a one-off component without a full namespace:
 
 ```tsx
 import { createEntity } from "solid-three"
@@ -59,11 +63,9 @@ const MeshComponent = createEntity(Mesh)
 
 ## Manual disposal of instance-entities
 
-When passing an instance to `<Entity from={...}/>`, disposal needs to be handled manually. This can be done via the [`autodispose`](/api/utilities/autodispose) utility.
+When you pass an *instance* to `<Entity from={...}/>`, you own its disposal — three.js keeps the resource in memory until you release it. Wrap the instance in [`autodispose`](/api/utilities/autodispose) to free it when the component unmounts.
 
-**Wrong**
-
-If you do not dispose of box/sphere after the component unmounts, threejs will retain the resource in memory.
+**Wrong** — `box` and `sphere` are never disposed, so they leak:
 
 ```tsx
 function Wrong(props: { shape: "box" | "sphere" }) {
@@ -77,9 +79,7 @@ function Wrong(props: { shape: "box" | "sphere" }) {
 }
 ```
 
-**Good**
-
-By wrapping `BoxGeometry` and `SphereGeometry` in `autodispose`, the resources are automatically disposed once the component cleans up.
+**Good** — `autodispose` releases each geometry on cleanup:
 
 ```tsx
 function Good(props: { shape: "box" | "sphere" }) {
@@ -93,6 +93,8 @@ function Good(props: { shape: "box" | "sphere" }) {
 }
 ```
 
-## Props
+## See also
 
-All `Entity` props (other than `from` and `args`) are applied via [`useProps`](/api/hooks/use-props), which handles array coercion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and automatic `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full coercion table and `attach`/`args`/`ref` semantics.
+- [`T` / `createT`](/api/components/t) — the pre-typed namespace form.
+- [`useProps`](/api/hooks/use-props) — how every non-`from`/`args` prop is applied.
+- [`autodispose`](/api/utilities/autodispose) — disposing instances you pass to `from`.

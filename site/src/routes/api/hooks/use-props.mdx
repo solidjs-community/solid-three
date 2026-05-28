@@ -4,18 +4,11 @@ title: useProps
 
 # useProps
 
-`useProps` is what powers every [`<T.*>`](/api/components/t) and [`<Entity/>`](/api/components/entity) component. It applies a record of props to a `three.js` object reactively — coercing values into the shapes three expects, walking dashed paths into nested setters, wiring up event listeners, attaching children, and disposing on cleanup.
+`useProps` reactively applies a record of props to a `three.js` object, keeping it in sync as those props change. Applying a prop covers everything `solid-three` does with it: converting the value into the shape three expects, resolving dashed paths into nested setters, registering event listeners, attaching children, and disposing on cleanup. It is what powers every [`<T.*>`](/api/components/t) and [`<Entity/>`](/api/components/entity) component.
 
-Call it directly when you wrap your own `three.js` object (custom controls, third-party libraries, ad-hoc instances).
+Call it directly when you wrap your own `three.js` object — custom controls, a third-party library, an ad-hoc instance.
 
-**Parameters:**
-
-- **accessor**: Either the target `three.js` object, an accessor that returns it, or `undefined`. The hook waits for a non-`undefined` value before applying anything.
-- **props**: Object containing props to apply (including `ref`, `args`, `attach`, `children`, and any `three.js` properties).
-- **context** *(optional)*: The `Context` slice (`requestRender`, `gl`, `props`) `useProps` reads from. Defaults to `useThree()`. Useful when calling `useProps` outside a `<Canvas>` provider — e.g. tests, or a custom renderer host.
-
-<details>
-<summary>Typescript Signature</summary>
+## Signature
 
 ```tsx
 function useProps<T extends Record<string, any>>(
@@ -25,18 +18,26 @@ function useProps<T extends Record<string, any>>(
 ): void
 ```
 
-</details>
+Hand it a target object (or an accessor that returns one) and the props to apply; it wires everything up and returns nothing.
 
-**Usage:**
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `accessor` | `T \| undefined \| Accessor<T \| undefined>` | The target `three.js` object, an accessor that returns it, or `undefined`. Application waits until the value is non-`undefined`. |
+| `props` | `object` | The props to apply — including `ref`, `args`, `attach`, `children`, and any `three.js` properties. |
+| `context` *(optional)* | `Pick<Context, "requestRender" \| "gl" \| "props">` | The context slice `useProps` reads from. Defaults to [`useThree()`](/api/hooks/use-three). Pass it explicitly when calling outside a [`<Canvas>`](/api/components/canvas) — in tests, or a custom renderer host. |
+
+## Usage
 
 ```tsx
 const mesh = new Mesh(new BoxGeometry(), new MeshBasicMaterial())
 
-// Apply solid-three props reactively to the mesh
+// Apply solid-three props to the mesh, reactively
 useProps(mesh, props)
 ```
 
-A typical wrapper looks like this — instantiate (often via `createMemo` so the object rebuilds when `args` change), hand the accessor to `useProps`, and return `null`:
+A typical wrapper instantiates the object (often in a `createMemo`, so it rebuilds when `args` change), hands the accessor to `useProps`, and returns `null`:
 
 ```tsx
 export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
@@ -55,84 +56,50 @@ export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
 }
 ```
 
-## What runs when a prop changes
+## Behavior
 
-Each prop is wrapped in its own `createRenderEffect`. When a signal a prop reads updates:
+The wrapper function runs **once**, at mount. Each prop is then tracked independently: when a signal a prop reads changes, only that prop updates — its siblings are untouched, and the object is mutated in place rather than rebuilt.
 
-- only that prop's effect re-runs — sibling props are untouched;
-- the effect runs the coercion rules below, mutating the existing `three.js` object in place;
-- `needsUpdate` is flagged on materials/geometries as needed;
-- if the renderer is on `frameloop="demand"`, a render is requested.
+After applying a prop, `solid-three`:
 
-The wrapper function itself (the component body) runs **once** at mount. Reactive prop content does not re-mount the component — Solid's per-effect tracking means the rebuild surface is one property at a time. The exception is `args`: changing `args` rebuilds the entity (see below).
+- flags `needsUpdate` on any material or geometry that has it, so shaders recompile when they need to;
+- requests a render on the next frame when the renderer is on `frameloop="demand"`.
 
-## Coercion rules
+The one exception is [`args`](#args), which rebuilds the object instead of mutating it.
 
-Applied top-to-bottom by `applyProp`. The first rule that matches wins; later rules only run if earlier rules fell through. `source` is the target object, `key` is the prop name, `value` is the new value.
+## How values are converted
 
-| #  | Condition                                                                                       | Action                                                                                                       |
-| -- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1  | `value === undefined`                                                                            | skip (never overwrites with `undefined`)                                                                     |
-| 2  | `key` contains `-`                                                                               | split on `-`, recurse into the nested object (see [Dashed paths](#dashed-paths))                              |
-| 3  | `key` is in the `NEEDS_UPDATE` list (see below) and its truthiness flips                          | set `source.needsUpdate = true` **before** the assignment continues                                          |
-| 4  | `source` has `colorSpace`/`outputColorSpace` and `key` is `encoding` / `outputEncoding`           | alias to `colorSpace` / `outputColorSpace`, mapping `sRGBEncoding → "srgb"`, anything else → `"srgb-linear"` |
-| 5  | `key` is an event name (`onClick`, `onPointerMove`, …)                                            | register on the event system (`Object3D` instances only — warns otherwise) and **return**                    |
-| 6  | `source[key].copy` exists, `value.constructor === source[key].constructor`, and `source[key]` is not a writable own property | `source[key].copy(value)`                                                          |
-| 7  | `source[key].set` exists and `value` is an array                                                 | `source[key].fromArray(value)` if available, else `source[key].set(...value)`                                |
-| 8  | `source[key].set` exists, `value` is not an object, `source[key]` is **not** a `Color`, and `source[key].setScalar` exists, and `value` is a number | `source[key].setScalar(value)`                          |
-| 9  | `source[key].set` exists and `value` is not an object                                            | `source[key].set(value)` — this is where `color="red"`, `color={0xff8800}`, etc. land via `Color.set`        |
-| 10 | otherwise                                                                                        | `source[key] = value` (overwrite); if the assigned value is a `Texture` with `RGBAFormat`/`UnsignedByteType`, auto-reconcile its `colorSpace` against the renderer's `outputColorSpace` (subscribing to canvas-level `linear`/`flat`) |
+Each prop is matched against the cases below, in order; the first that fits wins. The point is that you pass the most natural value and `solid-three` translates it into the call three expects.
 
-Then, in a `finally` after every prop (rules 5–10):
+| You pass | Example | What happens |
+| --- | --- | --- |
+| `undefined` | `color={undefined}` | Skipped — `undefined` never overwrites the current value. |
+| A CSS color string or hex number | `color="red"`, `color={0xff8800}` | `target.color.set(value)`. |
+| An array | `position={[1, 0, 0]}` | `target.position.fromArray(value)` (or `.set(...value)` when the field has no `fromArray`). |
+| A single number, on a field with `setScalar` | `scale={2}` | `target.scale.setScalar(2)` — the same value on every axis. |
+| An instance matching the field's type | `quaternion={new Quaternion()}` | Copied in place with `.copy(value)`. |
+| An event handler | `onClick={…}` | Registered on the [event system](/api/events/overview) (`Object3D` instances only). |
+| Anything else | `visible={false}`, `castShadow` | Assigned directly: `target[key] = value`. |
 
-- if `"needsUpdate" in source`, set `source.needsUpdate = true` — every assigned prop bumps `needsUpdate` on materials/geometries that have it, not only the `NEEDS_UPDATE` list;
-- if `frameloop === "demand"`, `context.requestRender()` is called.
-
-### What this means in practice
+In practice, one element mixes several of these:
 
 ```tsx
 <T.Mesh
-  // Array → Vector3.set(1, 0, 0)
-  position={[1, 0, 0]}
-  // Number with setScalar → scale.setScalar(2) (uniform scale on all axes)
-  scale={2}
-  // Tuple via Euler.set(...) — Euler has .set, accepts (x, y, z, order?)
-  rotation={[Math.PI / 4, 0, 0]}
+  position={[1, 0, 0]}            // array  → Vector3.set(1, 0, 0)
+  scale={2}                       // number → scale.setScalar(2)
+  rotation={[Math.PI / 4, 0, 0]}  // array  → Euler.set(x, y, z)
 >
   <T.MeshStandardMaterial
-    // CSS string → Color.set("cornflowerblue")
-    color="cornflowerblue"
-    // Tuple → Color.set is exhausted, falls to fromArray-equivalent
-    emissive={[1, 0.4, 0.2]}
-    // Hex → Color.set(0xff8800)
-    specular={0xff8800}
+    color="cornflowerblue"        // string → Color.set("cornflowerblue")
+    emissive={[1, 0.4, 0.2]}      // array  → Color.set(1, 0.4, 0.2)
+    specular={0xff8800}           // hex    → Color.set(0xff8800)
   />
 </T.Mesh>
 ```
 
-### `NEEDS_UPDATE` truthiness list
-
-These material props additionally flip `needsUpdate = true` *before* the new value is assigned, when their truthiness changes — so swapping a `map` on or off doesn't silently keep the compiled shader:
-
-`map`, `envMap`, `bumpMap`, `normalMap`, `transparent`, `morphTargets`, `skinning`, `alphaTest`, `useVertexColors`, `flatShading`.
-
-This is on top of the unconditional `needsUpdate = true` that runs in the `finally` after every prop application.
-
-### Encoding aliasing (since three r152)
-
-`encoding` and `outputEncoding` are legacy aliases. When the target has a `colorSpace` / `outputColorSpace` field, `useProps` rewrites them in place:
-
-- `encoding` → `colorSpace`
-- `outputEncoding` → `outputColorSpace`
-- the legacy `sRGBEncoding` numeric value maps to `"srgb"`; anything else maps to `"srgb-linear"`.
-
-### Texture sRGB auto-reconciliation
-
-When a `Texture` value lands via the overwrite branch (rule 10) **and** the texture is `RGBAFormat` / `UnsignedByteType` (the formats three requires for sRGB textures since r137), its `colorSpace` is auto-set to the renderer's `outputColorSpace`. This effect subscribes to the canvas-level `linear` and `flat` props, so flipping either updates assigned textures automatically.
-
 ## Dashed paths
 
-Hyphenated keys reach into nested objects and apply the same coercion rules at the leaf:
+A hyphenated key reaches into a nested object and applies the same conversion at the leaf:
 
 ```tsx
 <T.DirectionalLight
@@ -143,36 +110,38 @@ Hyphenated keys reach into nested objects and apply the same coercion rules at t
 />
 ```
 
-Reads as: `light.shadow.mapSize.width = 1024`, `light.shadow.mapSize.height = 1024`, `light.shadow.bias = -0.0001`. Each leaf goes through the coercion table above — so `position-x={1}` lands on a number, while `material-color="blue"` goes through `Color.set`.
+reads as `light.shadow.mapSize.width = 1024`, `light.shadow.mapSize.height = 1024`, `light.shadow.bias = -0.0001`. Each leaf is converted like any other value — `position-x={1}` lands on a number, `material-color="blue"` goes through `Color.set`.
 
-If both a parent prop and a child sub-prop are present (e.g. `position={[0, 0, 0]}` and `position-x={2}`), the sub-prop is applied immediately after the parent — child wins.
+When both a parent and a child of the same path are present — `position={[0, 0, 0]}` and `position-x={2}` — the child is applied last and wins.
 
-## `args` — constructor parameters
+## `args`
 
-`args` is spread into the entity's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it determines how the object is *built*. Changing `args` therefore **rebuilds the entity** (the old one is disposed, the new one is mounted in its place). This is what you want for things that don't have setters for their constructor parameters (geometry sizes, light shadow map dimensions before instantiation, etc.).
+`args` is spread into the object's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it decides how the object is *built*. Changing it therefore **rebuilds the object**: the old one is disposed and a new one mounts in its place. This is what you want for constructor-only parameters like geometry dimensions.
 
 ```tsx
 const [size, setSize] = createSignal(1)
 
 <T.Mesh>
-  {/* Resizing rebuilds the BoxGeometry */}
+  {/* Changing size rebuilds the geometry */}
   <T.BoxGeometry args={[size(), size(), size()]} />
   <T.MeshStandardMaterial color="cornflowerblue" />
 </T.Mesh>
 ```
 
-For everything that *does* have a runtime setter, use a regular prop — it mutates in place instead of rebuilding.
+For anything with a runtime setter, use a normal prop — it mutates in place instead of rebuilding.
 
-## `attach` — slot assignment
+## `attach`
 
-By default `solid-three` figures out where a child belongs:
+By default `solid-three` decides where a child belongs:
 
-- `Material` instances → `parent.material`
-- `BufferGeometry` instances → `parent.geometry`
-- `Fog` instances → `parent.scene.fog`
-- `Object3D` instances → added to `parent.children`
+| Child type | Attaches to |
+| --- | --- |
+| `Material` | `parent.material` |
+| `BufferGeometry` | `parent.geometry` |
+| `Fog` | `parent.scene.fog` |
+| `Object3D` | `parent.children` |
 
-Override with an explicit `attach` prop when the default isn't what you want — for example, attaching a texture into `material.map`, or assigning a second material to a `material-1` slot:
+Set `attach` explicitly when the default isn't what you want — for example, routing textures into a material's map slots:
 
 ```tsx
 <T.MeshStandardMaterial>
@@ -183,25 +152,52 @@ Override with an explicit `attach` prop when the default isn't what you want —
 
 `attach` accepts:
 
-- a **string** — dashed paths work the same way they do for props (`attach="material-emissiveMap"` lands at `parent.material.emissiveMap`);
-- a **function** — `(parent, child) => cleanup`. Useful for non-property attachments (e.g. `addEventListener` style hooks). The returned cleanup runs on unmount.
+- **a string** — dashed paths work as they do for props (`attach="material-emissiveMap"` lands at `parent.material.emissiveMap`);
+- **a function** — `(parent, child) => cleanup`, for attachments that aren't a simple property assignment. The returned cleanup runs on unmount.
 
 ## `ref`
 
-Both function refs and object refs are supported:
+Both function and object refs work:
 
 ```tsx
 let mesh: Mesh | undefined
-<T.Mesh ref={mesh}>
-  …
-</T.Mesh>
+<T.Mesh ref={mesh} />
 
 // or
 <T.Mesh ref={instance => doSomethingWith(instance)} />
 ```
 
-Function refs fire inside a `createRenderEffect`, so they re-run if the underlying object identity changes (e.g. after an `args` rebuild).
+A function ref runs inside a render effect, so it re-runs if the underlying object's identity changes — for instance after an `args` rebuild.
 
 ## `onUpdate`
 
-A special prop, not a `three.js` field. Fires after every prop application pass for the entity, with the entity itself as the argument. Useful as a "props are settled" hook for derived setup that can't be expressed as a single prop.
+A special prop, not a `three.js` field. It fires after each pass of prop application for the object, receiving the object itself. Use it as a "props are settled" hook for setup that can't be expressed as a single prop.
+
+## Materials and textures
+
+Three smaller behaviors apply when you work with materials and textures.
+
+### Recompiling shaders
+
+Toggling certain material props on or off changes which shader three needs to compile, so `solid-three` flags `needsUpdate` the moment their truthiness flips:
+
+`map`, `envMap`, `bumpMap`, `normalMap`, `transparent`, `morphTargets`, `skinning`, `alphaTest`, `useVertexColors`, `flatShading`.
+
+(This is on top of the `needsUpdate` flag set after every prop, described in [Behavior](#behavior).)
+
+### Legacy `encoding` props
+
+`encoding` and `outputEncoding` are legacy aliases, replaced in three r152. When the target has the newer `colorSpace` / `outputColorSpace` field, `solid-three` rewrites them for you:
+
+- `encoding` → `colorSpace`
+- `outputEncoding` → `outputColorSpace`
+- the value `sRGBEncoding` maps to `"srgb"`; anything else maps to `"srgb-linear"`.
+
+### Texture color space
+
+When you assign a `Texture` whose format three uses for color data (`RGBAFormat` / `UnsignedByteType`), `solid-three` sets its `colorSpace` to match the renderer's `outputColorSpace`. This tracks the canvas-level `linear` and `flat` props, so flipping either updates assigned textures automatically.
+
+## See also
+
+- [Props and children](/tutorial/02-props-and-children) — the tutorial walk-through of the same value conversion.
+- [`<T.*>` / `createT`](/api/components/t) and [`<Entity/>`](/api/components/entity) — the components built on `useProps`.

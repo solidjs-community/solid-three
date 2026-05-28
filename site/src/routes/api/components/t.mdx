@@ -30,10 +30,13 @@ import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
 const T = createT({ Mesh, BoxGeometry, MeshBasicMaterial })
 ```
 
-**Usage Patterns:**
+## Usage patterns
 
-- **In Applications**: Create a single `T` and export it for use throughout your app
-- **In Libraries**: create multiple `T` to allow for treeshaking or use [`<Entity/>`](/api/components/entity) instead
-- **Multiple Ts**: Create multiple T instances for lazy loading different parts of three.js
+- **In applications** — create a single `T` and export it for use throughout your app.
+- **In libraries** — create scoped `T` namespaces for tree-shaking, or use [`<Entity/>`](/api/components/entity) instead.
+- **Multiple namespaces** — create several `T` instances to lazy-load different parts of three.js.
 
-For a single typed component without building a full namespace, see [`createEntity`](/api/components/entity#createentity).
+## See also
+
+- [`<Entity/>`](/api/components/entity) — the namespace-free form, plus [`createEntity`](/api/components/entity#createentity) for a single typed component.
+- [`useProps`](/api/hooks/use-props) — how props on every `<T.*>` component are applied.

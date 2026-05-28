@@ -4,15 +4,18 @@ title: Portal
 
 # Portal
 
-The `Portal` component allows you to place children outside the regular scene graph while maintaining reactive updates. This is useful for rendering objects into different scenes or bypassing the normal parent-child relationships.
+`Portal` renders its children into a different part of the scene graph — or into a separate scene entirely — while keeping them in the JSX tree for reactivity, refs, and lifecycle. Use it for HUD overlays, render-to-texture, picture-in-picture, mirrors, and gizmos.
 
-**Props:**
+## Props
 
-- **element**: Optional `three.js` object to render into. If not provided, renders into the root scene.
-- **children**: Elements to render in the portal.
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `element` | `Object3D \| Meta<Object3D>` | the root scene | The object to render the children into. |
+| `children` | `JSX.Element` | — | What to render in the portal. |
+| `onUpdate` | `(element) => void` | — | Runs when the portal mounts or re-attaches, with the resolved `element`. |
 
 <details>
-<summary>Typescript Interface</summary>
+<summary>Exact type</summary>
 
 ```tsx
 type PortalProps<T extends Object3D> = ParentProps<{
@@ -23,8 +26,6 @@ type PortalProps<T extends Object3D> = ParentProps<{
 
 </details>
 
-Example:
-
 ```tsx
 <Portal element={uiScene}>
   <T.Mesh position={[2, 0, 0]}>
@@ -34,12 +35,9 @@ Example:
 </Portal>
 ```
 
-## Defaults to the scene root
+## Default destination: the scene root
 
-If `element` is omitted, `Portal` attaches its children to
-`context.scene` — the root of the canvas's main scene. This is the
-escape hatch for "render *as if* this child were top-level," ignoring
-any transform on the JSX parent. Useful for HUD-style overlays.
+With no `element`, `Portal` attaches its children to `context.scene` — the root of the canvas's main scene. This is the escape hatch for "render *as if* this child were top-level", ignoring any transform on the JSX parent.
 
 ```tsx
 <T.Group position={[10, 0, 0]}>
@@ -55,11 +53,7 @@ any transform on the JSX parent. Useful for HUD-style overlays.
 
 ## Render-to-texture
 
-A common use of `element` is a free-standing `THREE.Scene` you populate
-with `Portal` and render to a `WebGLRenderTarget` each frame — i.e. you
-draw a scene into a texture instead of straight to the screen. The
-target's `.texture` is a regular `THREE.Texture` and can be used
-wherever a texture is accepted (`map`, `envMap`, etc.).
+Pass a free-standing `Scene` as `element`, populate it through `Portal`, and render it to a `WebGLRenderTarget` each frame — drawing a scene into a texture instead of to the screen. The target's `.texture` is a regular `Texture`, usable anywhere a texture is accepted (`map`, `envMap`, …).
 
 ```tsx
 import { Canvas, createT, Portal, useFrame, useThree } from "solid-three"
@@ -103,27 +97,14 @@ function App() {
 }
 ```
 
-The off-screen scene can have its own lights, its own animations, even
-its own pointer events — they only affect children rendered through the
-portal, not the main scene. The
-[Portal tutorial chapter](/tutorial/07-portal) walks through a working
-demo end-to-end.
+The off-screen scene can have its own lights, animations, even pointer events — they only affect children rendered through the portal, not the main scene.
 
-## `onUpdate`
+## Ownership and lifecycle
 
-Called with the resolved `element` whenever Portal mounts or re-attaches.
-Useful when you need to do extra wiring on the target — e.g., set
-properties on the foreign scene that aren't expressible as solid-three
-props.
+- `Portal` doesn't break ownership. Children stay in the JSX tree for reactivity, refs, and lifecycle — only the *render destination* changes.
+- The `element` you pass keeps its identity for as long as the portal is mounted, and `Portal` never disposes it. If you constructed the scene or group yourself, you manage its lifetime.
 
-## Notes
+## See also
 
-- `Portal` doesn't break ownership. Children remain in the JSX tree for
-  reactivity, refs, and lifecycle — only the *render destination*
-  changes.
-- The `element` you pass keeps its identity for as long as the Portal
-  is mounted; Portal doesn't dispose it. If you constructed the
-  scene/group yourself, you manage its lifetime.
-- Combined with multiple cameras
-  ([`useThree`'s `setCamera`](/api/hooks/use-three)), Portal underpins
-  picture-in-picture, mirrors, and gizmo overlays.
+- [Portal](/tutorial/07-portal) — the tutorial chapter, with a working render-to-texture demo.
+- [`useThree`](/api/hooks/use-three) — `setCamera`, which Portal pairs with for picture-in-picture and mirrors.

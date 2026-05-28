@@ -2,7 +2,7 @@
 title: Metadata
 ---
 
-# Metadata Utilities
+# Metadata utilities
 
 These utilities manage `solid-three`'s per-instance metadata. Metadata lives **on the three.js instance itself** under a non-enumerable symbol key (`$S3C`) — there is no external `WeakMap`. Each entry stores the entity's solid-three props, its scene-graph parent, and its set of children.
 
@@ -27,4 +27,6 @@ const tagged = meta(new Mesh(), { props: {} })
 tagged[$S3C] // same shape as getMeta(tagged)
 ```
 
-**See also:** [`useThree`](/api/hooks/use-three) — the `gl`, `scene`, and `camera` it returns are all `Meta`-tagged and can be inspected with `getMeta`.
+## See also
+
+- [`useThree`](/api/hooks/use-three) — its `gl`, `scene`, and `camera` are all `Meta`-tagged and can be inspected with `getMeta`.

@@ -4,55 +4,49 @@ title: useFrame
 
 # useFrame
 
-Registers a callback that will be called before every frame is rendered, useful for animations and updates.
+`useFrame` registers a callback that runs before (or after) every rendered frame — the place for animations and per-frame updates.
 
-**Parameters:**
-
-- **callback** - Function called each frame with:
-  - **context** - The three.js context object (same as [`useThree()`](/api/hooks/use-three))
-  - **delta** - Time elapsed since last frame in seconds
-  - **frame** - Optional XRFrame for WebXR sessions
-- **options** - Optional configuration object:
-  - **priority** - Execution priority (lower numbers run first, default: 0)
-  - **stage** - Whether to run before or after rendering (default: "before")
-
-**Returns:** A cleanup function (`() => void`) that unregisters the callback. Solid calls it automatically when the owning component unmounts, but you can also call it manually to detach the listener earlier.
-
-<details>
-<summary>Typescript Interface</summary>
+## Signature
 
 ```tsx
-useFrame(
+function useFrame(
   callback: (context: Context, delta: number, frame?: XRFrame) => void,
-  options?: {
-    priority?: number
-    stage?: "before" | "after"
-  }
+  options?: { priority?: number; stage?: "before" | "after" },
 ): () => void
 ```
 
-</details>
+Register a callback and get back a cleanup that unregisters it.
 
-**Usage:**
+## Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `callback` | `(context: Context, delta: number, frame?: XRFrame) => void` | Runs each frame. `context` is the [three.js context](/api/hooks/use-three), `delta` is seconds since the last frame, and `frame` is the `XRFrame` during WebXR sessions. |
+| `options` *(optional)* | `{ priority?: number; stage?: "before" \| "after" }` | `priority` orders callbacks — lower runs first (default `0`). `stage` runs the callback `"before"` (default) or `"after"` the render. |
+
+## Returns
+
+A cleanup function (`() => void`) that unregisters the callback. Solid calls it automatically when the owning component unmounts; call it yourself to detach the listener earlier.
+
+## Usage
 
 ```tsx
-let mesh: THREE.Mesh = null!
+let mesh: Mesh | undefined
 
-// Run with high priority before render
+// Run before render, with high priority
 useFrame(
   (context, delta) => {
+    if (!mesh) return
     mesh.position.x = Math.sin(delta) * 2
   },
   { priority: -1 },
 )
 
-// Run after render with lower priority
-useFrame(
-  (context, delta) => {
-    console.info("Frame rendered")
-  },
-  { stage: "after", priority: 10 },
-)
+// Run after render, with lower priority
+useFrame(() => console.info("Frame rendered"), { stage: "after", priority: 10 })
 ```
 
-See also the [useFrame tutorial chapter](/tutorial/05-use-frame).
+## See also
+
+- [useFrame](/tutorial/05-use-frame) — the tutorial chapter.
+- [`useThree`](/api/hooks/use-three) — the `context` passed to every callback.

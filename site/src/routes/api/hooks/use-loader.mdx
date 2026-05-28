@@ -4,25 +4,39 @@ title: useLoader
 
 # useLoader
 
-Manages asynchronous resource loading, such as textures or models, and integrates with `solid-js`' reactivity system. This hook can be used with Solid's `<Suspense>` to handle loading states.
+`useLoader` loads asynchronous resources — textures, models, and the like — and exposes them through `solid-js`' reactivity. Use it inside `<Suspense>` to handle loading states. By default it caches every resource in a shared [`LoaderCache`](/api/utilities/loader-cache).
 
-By default, `useLoader` automatically caches resources via [`LoaderCache`](/api/utilities/loader-cache).
+## Signature
 
-You can customize caching behavior:
+```tsx
+function useLoader<TLoader extends Loader, TInput extends LoadInput<TLoader>>(
+  constructor: AccessorMaybe<Constructor<TLoader>>,
+  url: AccessorMaybe<TInput>,
+  options?: UseLoaderOptions<TLoader, TInput>,
+): Resource<LoadOutput<TLoader, TInput>>
+```
 
-1. **Disable caching**: Pass `cache: false` in options for specific resources
-2. **Custom cache**: Pass your own `LoaderRegistry` implementation in options
-3. **Replace global cache**: Set `useLoader.cache` to your own implementation or `undefined` to disable
+Pass a loader class and what to load; you get back a Solid `Resource`. Call it to read the loaded data (`texture()`), and it suspends while loading.
 
-**Options:**
+## Parameters
 
-- **base**: Base URL for resolving relative paths
-- **cache**: `true` to use global cache, `LoaderRegistry` instance for custom cache, or `false` to disable
-- **onBeforeLoad**: Callback before loading starts (e.g., to set loader properties)
-- **onLoad**: Callback after resource loads successfully
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `constructor` | `Constructor<TLoader>` (or an accessor) | The loader class — `TextureLoader`, `GLTFLoader`, … |
+| `url` | `string \| string[] \| Record<string, string>` (or an accessor) | What to load. A record or array loads several at once and preserves its keys. An accessor reloads when its value changes. |
+| `options` *(optional)* | `UseLoaderOptions<TLoader, TInput>` | See [Options](#options). |
+
+## Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `base` | `string` | Base URL for resolving relative paths. |
+| `cache` | `boolean \| LoaderRegistry` | How this call caches. See [Caching](#caching). |
+| `onBeforeLoad` | `(loader: TLoader) => void` | Runs before loading starts — e.g. to set loader properties. |
+| `onLoad` | `(resource) => void` | Runs after the resource loads successfully. |
 
 <details>
-<summary>Typescript Interface</summary>
+<summary>Exact type</summary>
 
 ```tsx
 interface UseLoaderOptions<
@@ -38,35 +52,44 @@ interface UseLoaderOptions<
 
 </details>
 
-## Example
+## Caching
+
+By default every resource is stored in a shared global cache, so loading the same URL twice returns the same resource. Control it per call with the `cache` option, or swap the global cache out entirely:
+
+| You want | Do this |
+| --- | --- |
+| The default global cache | omit `cache`, or pass `cache: true` |
+| A custom cache for this call | `cache: myRegistry` — a [`LoaderRegistry`](#custom-cache) |
+| No caching for this call | `cache: false` |
+| To replace the global cache everywhere | set `useLoader.cache = myRegistry`, or `undefined` to disable caching globally |
+
+## Examples
 
 ```tsx
-// Load a single resource
-const texture = useLoader(TextureLoader, url)
+// A single resource — resolves to the loader's data type
+const texture = useLoader(TextureLoader, "wood.jpg")
 const gltf = useLoader(GLTFLoader, "model.gltf")
 
-// Load multiple resources (with object keys)
+// A record — loads several at once, keys preserved
 const textures = useLoader(TextureLoader, {
   diffuse: "wood-diffuse.jpg",
   normal: "wood-normal.jpg",
 })
 
-// Reactive URLs (can be signals or getters)
+// A reactive URL — reloads when the signal changes
 const [url, setUrl] = createSignal("texture.jpg")
-const texture = useLoader(TextureLoader, url)
+const reloading = useLoader(TextureLoader, url)
 ```
 
-**Record Loading Example:**
+A record reads back as a record, which slots straight into a material:
 
 ```tsx
-// Load multiple textures with descriptive names
-const textures = useLoader(THREE.TextureLoader, {
+const textures = useLoader(TextureLoader, {
   diffuse: "crate.gif",
-  normal: "brick_bump.jpg",
-  roughness: "roughnessMap.jpg"
+  normal: "brick-bump.jpg",
+  roughness: "roughness-map.jpg",
 })
 
-// Use in material
 <T.MeshStandardMaterial
   map={textures().diffuse}
   normalMap={textures().normal}
@@ -74,40 +97,34 @@ const textures = useLoader(THREE.TextureLoader, {
 />
 ```
 
-**Cube Texture Example:**
+An array of URLs works the same way — useful for a `CubeTextureLoader`, with loader properties passed as options:
 
 ```tsx
-// Load cube texture with array of paths and properties
 const cubeTexture = useLoader(
-  THREE.CubeTextureLoader,
-  [
-    "px.jpg", "nx.jpg", // positive/negative x
-    "py.jpg", "ny.jpg", // positive/negative y
-    "pz.jpg", "nz.jpg"  // positive/negative z
-  ],
+  CubeTextureLoader,
+  ["px.jpg", "nx.jpg", "py.jpg", "ny.jpg", "pz.jpg", "nz.jpg"],
   {
-    mapping: THREE.CubeReflectionMapping,
-    wrapS: THREE.ClampToEdgeWrapping,
-    wrapT: THREE.ClampToEdgeWrapping
-  }
+    onBeforeLoad: loader => {
+      loader.mapping = CubeReflectionMapping
+    },
+  },
 )
 
-// Use for environment mapping
 <T.Scene background={cubeTexture()} />
 <T.MeshStandardMaterial envMap={cubeTexture()} />
 ```
 
-## Custom Cache
+## Custom cache
 
-`solid-three` by default caches useLoader via `LoaderCache`, but you can also implement your own cache by conforming to the `LoaderRegistry` interface.
+A custom cache is any object conforming to the `LoaderRegistry` interface — two methods:
 
-A cache registry needs two methods:
+- `set` — store a resource (or its promise) for a given loader and URL;
+- `get` — retrieve one for a given loader and URL, returning either the promise or the resolved value.
 
-- **set**: Store a resource promise for a given loader and URL
-- **get**: Retrieve a resource for a given loader and URL (returns either the promise or resolved value)
+Pass it per call with `cache`, or assign it to `useLoader.cache` to replace the global cache.
 
 <details>
-<summary>Typescript Interface</summary>
+<summary>Exact type</summary>
 
 ```tsx
 interface LoaderRegistry {
@@ -129,7 +146,7 @@ interface LoaderRegistry {
 
 ## `load` — the lower-level primitive
 
-`useLoader` is built on top of `load`, a plain async function that wraps `loader.load` in a `Promise` (with no caching, no Suspense integration, no reactivity). Use it directly when you need to await a resource imperatively — e.g. inside an event handler, a one-shot setup effect, or non-component code.
+`useLoader` is built on `load`, a plain async function that wraps `loader.load` in a promise — no caching, no Suspense, no reactivity. Reach for it when you need to await a resource imperatively: inside an event handler, a one-shot setup effect, or non-component code.
 
 ```tsx
 import { load } from "solid-three"
@@ -138,15 +155,17 @@ import { TextureLoader } from "three"
 // Single URL → resolves to the loader's data type
 const texture = await load(new TextureLoader(), "/wood.jpg")
 
-// Record of URLs → resolves to a record of resources, preserving keys
+// Record of URLs → resolves to a record of resources, keys preserved
 const textures = await load(new TextureLoader(), {
   diffuse: "/wood-diffuse.jpg",
   normal: "/wood-normal.jpg",
 })
 ```
 
+It gives you the same URL-normalization and record-spread behavior as `useLoader`, without Solid's reactive resource machinery.
+
 <details>
-<summary>Typescript Signature</summary>
+<summary>Exact type</summary>
 
 ```tsx
 function load<TLoader extends Loader<any, any>>(
@@ -162,6 +181,8 @@ function load<TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader
 
 </details>
 
-`useLoader` calls `load` internally when there's a cache miss; reach for `load` when you want the same URL-normalisation and record-spread behaviour without going through Solid's reactive resource machinery.
+## See also
 
-See also the [Loaders & Resource tutorial chapter](/tutorial/06-loaders-and-resource).
+- [Loaders & Resource](/tutorial/06-loaders-and-resource) — the tutorial walk-through.
+- [`LoaderCache`](/api/utilities/loader-cache) — the default global cache and its disposal helpers.
+- [`<Resource/>`](/api/components/resource) — the component form, for loading straight into the scene graph.

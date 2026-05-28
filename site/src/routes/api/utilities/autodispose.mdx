@@ -16,9 +16,9 @@ objects it creates from JSX; `autodispose` is the manual version for
 objects you instantiate
 yourself (e.g. to pass through [`<Entity from={...}/>`](/api/components/entity)).
 
-**Use cases:**
+## Examples
 
-Working with conditional rendering where objects need cleanup
+Conditional rendering, where objects need cleanup when they unmount:
 
 ```tsx
 import { Show, createSignal } from "solid-js"
@@ -38,7 +38,7 @@ return (
 )
 ```
 
-Creating reusable instances that should be disposed with the component
+Reusable instances that should be disposed with the component:
 
 ```tsx
 const geometry = autodispose(new THREE.SphereGeometry(0.3, 16, 16))
@@ -53,3 +53,8 @@ const material = autodispose(new THREE.MeshStandardMaterial())
   )}
 </Index>
 ```
+
+## See also
+
+- [`<Entity/>`](/api/components/entity) — the common reason to instantiate objects by hand and dispose them yourself.
+- [`<T.*>`](/api/components/t) — already auto-disposes the objects it creates from JSX.
