@@ -88,18 +88,26 @@ html[data-theme*="light"] {
   box-sizing: border-box;
 }
 
+.hero-edit-toggle,
 .demo-reset {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  right: 1rem;
   padding: 0.25rem 0.75rem;
   background: rgba(20, 23, 31, 0.85);
   color: #c8c8c8;
-  border: 1px solid #333;
+  border: 1px solid #c8c8c87b;
   border-radius: 6px;
   font-size: 0.75rem;
   cursor: pointer;
-  backdrop-filter: blur(4px);
+  z-index: 1;
+}
+
+.demo-reset {
+  top: 0.5rem;
+}
+
+.hero-edit-toggle {
+  bottom: 0.5rem;
 }
 
 .demo-reset:hover {
@@ -313,19 +321,6 @@ article.article-fullbleed > div {
   width: 100% !important;
   height: 100% !important;
   display: block;
-}
-
-.hero-edit-toggle {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  padding: 0.3rem 0.9rem;
-  border-radius: 1.5rem;
-  border: 1px solid #ffffff;
-  color: inherit;
-  cursor: pointer;
-  backdrop-filter: blur(3px);
-  z-index: 2;
 }
 
 .hero-canvas .demo {
