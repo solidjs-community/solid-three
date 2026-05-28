@@ -37,7 +37,29 @@ function ensureTunnelFontLoaded(): void {
     })
 }
 
-function makeTextTexture(): THREE.CanvasTexture {
+const DARK_INK = "#0a0c12"
+const LIGHT_INK = "#f4f4f4"
+const COLORS = {
+  dark: { tube: DARK_INK, type: LIGHT_INK },
+  light: { tube: LIGHT_INK, type: DARK_INK },
+}
+
+// The demo iframe receives `{ type: "theme" }` postMessages from the parent
+// (the same mechanism that sets the iframe's color-scheme). Mirror that into a
+// signal so the tunnel can flip its tube/type colors with the site theme.
+const [tunnelTheme, setTunnelTheme] = createSignal<"dark" | "light">("dark")
+let tunnelThemeListenerStarted = false
+function ensureTunnelThemeListener(): void {
+  if (tunnelThemeListenerStarted) return
+  tunnelThemeListenerStarted = true
+  const apply = (value: unknown) => setTunnelTheme(value === "light" ? "light" : "dark")
+  apply(document.documentElement.style.colorScheme)
+  window.addEventListener("message", event => {
+    if (event.data && event.data.type === "theme") apply(event.data.value)
+  })
+}
+
+function makeTextTexture(tubeColor: string, typeColor: string): THREE.CanvasTexture {
   const width = 2048
   const height = 256
   const canvas = document.createElement("canvas")
@@ -45,9 +67,9 @@ function makeTextTexture(): THREE.CanvasTexture {
   canvas.height = height
   const ctx = canvas.getContext("2d")
   if (!ctx) throw new Error("tunnel: 2d context unavailable")
-  ctx.fillStyle = "#0a0c12"
+  ctx.fillStyle = tubeColor
   ctx.fillRect(0, 0, width, height)
-  ctx.fillStyle = "#f4f4f4"
+  ctx.fillStyle = typeColor
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
   let fontSize = height * 0.85
@@ -88,12 +110,16 @@ function buildLoopCurve(): THREE.CatmullRomCurve3 {
 }
 
 function Tunnel() {
-  onMount(() => ensureTunnelFontLoaded())
+  onMount(() => {
+    ensureTunnelFontLoaded()
+    ensureTunnelThemeListener()
+  })
   const three = useThree()
 
   const texture = createMemo(() => {
     tunnelFontReady() // track — rebuild texture once font lands
-    const t = makeTextTexture()
+    const { tube, type } = COLORS[tunnelTheme()]
+    const t = makeTextTexture(tube, type)
     onCleanup(() => t.dispose())
     return t
   })
@@ -154,7 +180,7 @@ function Tunnel() {
 export default function TunnelDemo() {
   return (
     <Canvas camera={{ fov: 120, near: 0.01, far: 400 }}>
-      <T.Color attach="background" args={["#0a0c12"]} />
+      <T.Color attach="background" args={[COLORS[tunnelTheme()].tube]} />
       <Tunnel />
     </Canvas>
   )
