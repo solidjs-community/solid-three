@@ -19,7 +19,6 @@ export function Hero() {
   const [loaded, setLoaded] = createSignal(false)
   const [barMounted, setBarMounted] = createSignal(true)
   const [source] = createResource(chosen, demo => demo.loadSource())
-  let root: HTMLDivElement | undefined
   let hideTimer: ReturnType<typeof setTimeout> | undefined
 
   function onDemoReady() {
@@ -33,15 +32,6 @@ export function Hero() {
   }
   onCleanup(() => {
     if (hideTimer) clearTimeout(hideTimer)
-  })
-
-  // SolidBase wraps page content in <article> with side margins + a centered
-  // max-width content column. Flag our containing article so CSS can drop
-  // those constraints — Hero needs the full main-pane area.
-  onMount(() => {
-    const article = root?.closest("article")
-    article?.classList.add("article-fullbleed")
-    onCleanup(() => article?.classList.remove("article-fullbleed"))
   })
 
   // Same-route navigation doesn't remount Hero, so clicking SolidBase's
@@ -60,7 +50,7 @@ export function Hero() {
   })
 
   return (
-    <div class="hero" ref={root}>
+    <div class="hero">
       <LazyPicker onPick={setChosen} />
       <Show when={barMounted()}>
         <div

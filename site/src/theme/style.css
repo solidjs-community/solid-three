@@ -92,7 +92,7 @@ html[data-theme*="light"] {
 .demo-reset {
   position: absolute;
   padding: 0.25rem 0.75rem;
-  background: var(--demo-canvas-bg);
+  background: var(--sb-background-color);
   border: 1px solid #c8c8c87b;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -121,7 +121,6 @@ html[data-theme*="light"] {
 
 .demo-canvas {
   border: 0;
-  background: var(--demo-canvas-bg);
   width: 100%;
   height: 100%;
 }
@@ -214,11 +213,12 @@ html[data-theme*="light"] {
   overflow: hidden;
 }
 
-/* When Hero is mounted it tags its containing <article> so the home route
- * can drop SolidBase's default margins + max-width content column AND lock
- * its height to the viewport (so the page doesn't scroll past Hero, and any
- * residual SolidBase chrome like the empty .info wrapper is clipped). */
-article.article-fullbleed {
+/* The home route's <article> contains the Hero. Match it via :has() so the
+ * fullbleed layout applies at first paint (no JS class toggle / no FOUC): drop
+ * SolidBase's default margins + max-width content column AND lock its height to
+ * the viewport (so the page doesn't scroll past Hero, and any residual
+ * SolidBase chrome like the empty .info wrapper is clipped). */
+article:has(.hero) {
   /* SolidBase's sidebar has min-width:14rem but its grid column is
    * minmax(12rem, auto), so the sidebar overflows its track by 2rem and
    * paints into the main column. SolidBase masks this with the article's
@@ -231,7 +231,7 @@ article.article-fullbleed {
   height: calc(100dvh - var(--sb-header-height, 3.5rem));
   overflow: hidden;
 }
-article.article-fullbleed > div {
+article:has(.hero) > div {
   max-width: none;
   margin: 0;
   height: 100%;
@@ -242,7 +242,7 @@ article.article-fullbleed > div {
 @media screen and (max-width: 1100px) {
   /* The hero spans the full pane once the sidebar is off-canvas, so drop the
    * left gutter that exists on desktop only to clear the sidebar's overflow. */
-  article.article-fullbleed {
+  article:has(.hero) {
     margin-left: 0;
   }
 
