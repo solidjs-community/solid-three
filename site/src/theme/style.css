@@ -322,11 +322,10 @@ article.article-fullbleed > div {
   padding: 0.3rem 0.9rem;
   border-radius: 1.5rem;
   border: 1px solid #ffffff;
-  background: transparent;
   color: inherit;
   font-weight: 500;
   cursor: pointer;
-  backdrop-filter: blur(3px) brightness(0.5);
+  backdrop-filter: blur(3px);
   z-index: 2;
 }
 
