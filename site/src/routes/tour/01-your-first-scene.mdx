@@ -1,0 +1,62 @@
+---
+title: Your first scene
+---
+
+import createTSnippet from "../../snippets/01-create-t.tsx?raw"
+import createTUrl from "../../snippets/01-create-t.tsx?importChunkUrl"
+
+# Your first scene
+
+Setting up a `three.js` scene normally means assembling a renderer,
+a camera, and a `Scene` yourself, then driving an animation loop. The
+`<Canvas>` component does all of that for you and gives you back a
+JSX tree to fill.
+
+```tsx
+import { Canvas } from "solid-three"
+
+export default () => <Canvas />
+```
+
+Empty for now. Everything else — cubes, lights, cameras — lives as
+children of it.
+
+To put a `three.js` class into that tree, you wrap it in a JSX
+component. The fundamental wrapper is
+[`<Entity from={Class}>`](/api/components/entity): hand it a
+constructor (or an existing instance) and it puts that object into the
+scene.
+
+```tsx
+<Entity from={Mesh}>
+  <Entity from={BoxGeometry} />
+  <Entity from={MeshNormalMaterial} />
+</Entity>
+```
+
+Writing `<Entity from={...}>` for every node gets noisy, so
+[`createT`](/api/components/t) builds them in bulk: hand it an object of classes and you get back a
+proxy where every key is a ready-made component. `T.Mesh` is exactly
+`<Entity from={THREE.Mesh}>`.
+
+<Demo code={createTSnippet} url={createTUrl} />
+
+The colour comes from `MeshNormalMaterial`, which tints each face by its
+surface normal — a handy debugging material because it makes geometry
+visible without any lights.
+
+`T.Mesh`, `T.BoxGeometry`, `T.MeshNormalMaterial` — every class in the
+`THREE` namespace becomes available the same way.
+
+> [!NOTE]
+> For brevity we hand `createT` the whole namespace throughout this
+> tutorial. In real apps you'd pass only the classes you use: the
+> namespace is typed to exactly that object — `T.Foo` is a compile error
+> if `Foo` isn't in it — so whatever you leave out tree-shakes away and
+> your bundle stays small. See [the API reference](/api/components/t)
+> for the details.
+
+One detail we glossed over: how `<T.Mesh>` knew to take its children —
+the `BoxGeometry` and the `MeshNormalMaterial` — as its geometry and
+material. That is the scene graph at work, and it's what the next
+chapter is about.
