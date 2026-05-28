@@ -144,6 +144,20 @@ html[data-theme*="light"] {
   animation: demo-loading-pulse 1s ease-in-out infinite;
 }
 
+/* Progress line shown while an edited demo recompiles + reloads (the first
+ * edit also loads TS/Babel + deps). Mirrors the hero's loading bar. */
+.demo-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--sb-active-link-color);
+  animation: hero-loading-fill 2.5s ease-out forwards;
+}
+
 @keyframes demo-loading-pulse {
   0%,
   100% {

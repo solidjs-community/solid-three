@@ -273,6 +273,10 @@ function DemoClient(props: DemoProps) {
   const [pane, setPane] = createSignal<"canvas" | "editor">("canvas")
   const [isNarrow, setIsNarrow] = createSignal(false)
   const [iframeBusy, setIframeBusy] = createSignal(true)
+  // Set synchronously on edit (outside the startTransition that defers
+  // `hasEdited`), so the loading bar appears immediately — covering the
+  // first-edit TS/Babel + dep load — and clears once the iframe finishes.
+  const [compiling, setCompiling] = createSignal(false)
   const editorTheme = useSiteTheme()
 
   onMount(() => {
@@ -360,6 +364,7 @@ function DemoClient(props: DemoProps) {
     return hasEdited() ? (replBootstrapUrl() ?? "about:blank") : initialBootstrapUrl()
   })
 
+
   let iframeRef: HTMLIFrameElement | undefined
   function postTheme(): void {
     iframeRef?.contentWindow?.postMessage({ type: "theme", value: editorTheme() }, "*")
@@ -411,6 +416,7 @@ function DemoClient(props: DemoProps) {
               editable
               onInput={event => {
                 setCode(event.currentTarget.value)
+                setCompiling(true)
                 startTransition(() => setHasEdited(true))
               }}
             />
@@ -430,11 +436,15 @@ function DemoClient(props: DemoProps) {
               sandbox="allow-scripts allow-same-origin"
               onLoad={() => {
                 setIframeBusy(false)
+                setCompiling(false)
                 postTheme()
                 props.onReady?.()
               }}
             />
-            <Show when={iframeBusy()}>
+            <Show when={compiling()}>
+              <div class="demo-loading-bar" role="progressbar" aria-label="Loading preview" />
+            </Show>
+            <Show when={iframeBusy() && !hasEdited()}>
               <div class="demo-loading" aria-label="Loading preview" />
             </Show>
           </div>
