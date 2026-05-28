@@ -37,6 +37,21 @@ export default defineConfig({
   resolve: {
     dedupe: ["@solidjs/start", "@kobalte/solidbase"],
   },
+  // The hero lazy-loads gallery snippets (letter-drop, rubiks) that pull in
+  // cannon-es and several three/examples/jsm modules. Behind a dynamic import,
+  // Vite only discovers them mid-session and re-optimizes — a slow full reload.
+  // Skip pre-bundling them; they're already ESM, and `three` stays optimized so
+  // there's still a single three instance.
+  optimizeDeps: {
+    exclude: [
+      "cannon-es",
+      "three/examples/jsm/environments/RoomEnvironment.js",
+      "three/examples/jsm/geometries/TextGeometry.js",
+      "three/examples/jsm/geometries/RoundedBoxGeometry.js",
+      "three/examples/jsm/loaders/FontLoader.js",
+      "three/examples/jsm/loaders/TTFLoader.js",
+    ],
+  },
   plugins: [
     { ...importChunkUrl(), applyToEnvironment: env => env.name === "client" },
     {
