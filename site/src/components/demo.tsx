@@ -155,10 +155,16 @@ function errorModule(message: string): string {
 }
 
 function buildReplHostHtml(theme: "dark" | "light"): string {
+  // The iframe loads from a blob: URL, which can't resolve root-absolute paths
+  // at runtime (e.g. a loader fetching "/IFKica-Regular.ttf"). Pin a <base> to
+  // the parent origin — module specifiers are already rewritten to absolute
+  // blob/esm URLs, so this only affects runtime fetches.
+  const origin = window.location.origin
   return `<!doctype html>
 <html style="color-scheme: ${theme}">
   <head>
     <meta charset="utf-8" />
+    <base href="${origin}/" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
@@ -398,7 +404,7 @@ function DemoClient(props: DemoProps) {
             />
             <Show when={code() !== initialCode}>
               <button type="button" class="demo-reset" onClick={resetCode}>
-                Reset
+                reset
               </button>
             </Show>
           </div>
