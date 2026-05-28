@@ -13,11 +13,12 @@ import {
   Raycaster,
   Scene,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import { SHOULD_DEBUG } from "./constants.ts"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props } from "./types.ts"
+import type { CanvasEventHandlers, Context, Props, ResolvedRenderer } from "./types.ts"
 import { createDebug, createResizeObserver, describeOwnerChain } from "./utils.ts"
 
 const debug = createDebug("canvas:Canvas", SHOULD_DEBUG)
@@ -38,11 +39,33 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   flat?: boolean
   /** Controls the rendering loop's operation mode. */
   frameloop?: "never" | "demand" | "always"
-  /** Options for the WebGLRenderer or a function returning a customized renderer. */
+  /**
+   * Renderer to render the scene with. Accepts:
+   * - a flat properties object mixing `WebGLRendererParameters` (e.g. `antialias`,
+   *   `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`).
+   *   Ctor args are baked at first construction; instance props stay reactive.
+   *   Reactively changing a ctor-only key logs a warning — WebGL contexts are
+   *   immutable once created, so to swap config at runtime, unmount and remount
+   *   `<Canvas>`.
+   * - a factory returning a renderer (e.g. `canvas => new WebGPURenderer({ canvas })`)
+   * - a renderer instance (`WebGLRenderer`, `WebGPURenderer`, or any custom)
+   *
+   * Narrow the type project-wide by augmenting the `Register` interface — see
+   * {@link Register} in `types.ts`.
+   */
   gl?:
-    | Partial<Props<WebGLRenderer>>
-    | ((canvas: HTMLCanvasElement) => WebGLRenderer)
-    | WebGLRenderer
+    // Flat object accepts both `WebGLRendererParameters` (constructor-only,
+    // e.g. `antialias`, `alpha`) and writable instance props (e.g.
+    // `toneMapping`). solid-three splits them at construction: ctor args are
+    // baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
+    // When `Register` narrows `ResolvedRenderer` away from WebGL this branch
+    // collapses to `never` so the user is forced into the factory or instance
+    // form that matches their declared renderer.
+    | (WebGLRenderer extends ResolvedRenderer
+        ? Partial<Props<WebGLRenderer> & WebGLRendererParameters>
+        : never)
+    | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
+    | ResolvedRenderer
   /** Toggles linear interpolation for texture filtering. */
   linear?: boolean
   /** Toggles between Orthographic and Perspective camera. */
@@ -85,7 +108,8 @@ export function Canvas(props: ParentProps<CanvasProps>) {
           debug("resize", () => ({ width, height, camera: cameraKind }))
 
           context.gl.setSize(width, height)
-          context.gl.setPixelRatio(globalThis.devicePixelRatio)
+          // DOM-based renderers (CSS2D/3D, SVG) don't have a pixel-ratio knob.
+          context.gl.setPixelRatio?.(globalThis.devicePixelRatio)
 
           if (context.camera instanceof OrthographicCamera) {
             debug("resize", () => ({ camera: "orthographic", width, height }))

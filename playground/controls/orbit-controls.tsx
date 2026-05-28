@@ -46,7 +46,9 @@ export function OrbitControls(props: OrbitControlsProps) {
 
   useFrame(() => controls().update())
 
-  whenEffect(controls, controls => controls.connect(props.domElement ?? three.gl.domElement))
+  whenEffect(controls, controls =>
+    controls.connect(props.domElement ?? (three.gl.domElement as HTMLElement)),
+  )
 
   createEffect(
     () => ({ callback: config.onStart, _controls: controls() }),

@@ -18,13 +18,7 @@ describe("events", () => {
       </T.Mesh>
     ))
 
-    await settled()
-
-    const evt = new Event("mousedown")
-    Object.defineProperty(evt, "offsetX", { get: () => 640 })
-    Object.defineProperty(evt, "offsetY", { get: () => 400 })
-
-    fireEvent(canvas, evt)
+    fireEvent(canvas, new MouseEvent("mousedown", { clientX: 640, clientY: 400, bubbles: true }))
 
     expect(handlePointerDown).toHaveBeenCalled()
   })
@@ -158,29 +152,27 @@ describe("events", () => {
       </T.Mesh>
     ))
 
-    await settled()
-
-    const evt1 = new Event("pointermove")
-    Object.defineProperty(evt1, "offsetX", { get: () => 577 })
-    Object.defineProperty(evt1, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, evt1)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
 
     expect(handlePointerMove).toHaveBeenCalled()
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    const evt2 = new Event("pointermove")
-    Object.defineProperty(evt2, "offsetX", { get: () => 0 })
-    Object.defineProperty(evt2, "offsetY", { get: () => 0 })
-
-    fireEvent(canvas, evt2)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
 
     expect(handlePointerOut).toHaveBeenCalled()
   })
 
-  it("non-stoppable events (enter/leave) should not have stopPropagation", async () => {
+  it("should handle stopPropogation", async () => {
+    // onPointerEnter/Leave are non-stoppable (DOM-like behavior). Confirm
+    // explicitly that the event object exposes no `stopPropagation` method
+    // for these handlers — added on `next-solid-2` to lock down the contract.
     const handlePointerEnter = vi.fn().mockImplementation(e => {
-      // Enter events are non-stoppable (like DOM pointerenter) — stopPropagation is not present
       expect(e.stopPropagation).toBeUndefined()
     })
     const handlePointerLeave = vi.fn()
@@ -198,21 +190,17 @@ describe("events", () => {
       </>
     ))
 
-    await settled()
-
-    const evt1 = new Event("pointermove")
-    Object.defineProperty(evt1, "offsetX", { get: () => 577 })
-    Object.defineProperty(evt1, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, evt1)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 577, clientY: 480, bubbles: true }),
+    )
 
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    const evt2 = new Event("pointermove")
-    Object.defineProperty(evt2, "offsetX", { get: () => 0 })
-    Object.defineProperty(evt2, "offsetY", { get: () => 0 })
-
-    fireEvent(canvas, evt2)
+    fireEvent(
+      canvas,
+      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
+    )
 
     expect(handlePointerLeave).toHaveBeenCalled()
   })
@@ -234,25 +222,10 @@ describe("events", () => {
       </>
     ))
 
-    await settled()
-
-    const down = new Event("pointerdown")
-    Object.defineProperty(down, "offsetX", { get: () => 577 })
-    Object.defineProperty(down, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, down)
-
-    const up = new Event("pointerup")
-    Object.defineProperty(up, "offsetX", { get: () => 577 })
-    Object.defineProperty(up, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, up)
-
-    const event = new Event("click")
-    Object.defineProperty(event, "offsetX", { get: () => 577 })
-    Object.defineProperty(event, "offsetY", { get: () => 480 })
-
-    fireEvent(canvas, event)
+    const at = { clientX: 577, clientY: 480, bubbles: true }
+    fireEvent(canvas, new PointerEvent("pointerdown", at))
+    fireEvent(canvas, new PointerEvent("pointerup", at))
+    fireEvent(canvas, new MouseEvent("click", at))
 
     expect(handleClickFront).toHaveBeenCalled()
     expect(handleClickRear).not.toHaveBeenCalled()
@@ -260,16 +233,28 @@ describe("events", () => {
 
   // TODO:  implement pointer capture
 
-  describe.skip("web pointer capture", () => {
-    const handlePointerMove = vi.fn()
-    const handlePointerDown = vi.fn(ev => {
+  describe("web pointer capture", () => {
+    let handlePointerMove = vi.fn()
+    let handlePointerDown = vi.fn(ev => {
       ;(ev.nativeEvent.target as any).setPointerCapture(ev.pointerId)
     })
-    const handlePointerUp = vi.fn(ev =>
+    let handlePointerUp = vi.fn(ev =>
       (ev.nativeEvent.target as any).releasePointerCapture(ev.pointerId),
     )
-    const handlePointerEnter = vi.fn()
-    const handlePointerLeave = vi.fn()
+    let handlePointerEnter = vi.fn()
+    let handlePointerLeave = vi.fn()
+
+    beforeEach(() => {
+      handlePointerMove = vi.fn()
+      handlePointerDown = vi.fn(ev => {
+        ;(ev.nativeEvent.target as any).setPointerCapture(ev.pointerId)
+      })
+      handlePointerUp = vi.fn(ev =>
+        (ev.nativeEvent.target as any).releasePointerCapture(ev.pointerId),
+      )
+      handlePointerEnter = vi.fn()
+      handlePointerLeave = vi.fn()
+    })
 
     /* This component lets us unmount the event-handling object */
     function PointerCaptureTest(props: { hasMesh: boolean; manualRelease?: boolean }) {
@@ -291,13 +276,11 @@ describe("events", () => {
 
     const pointerId = 1234
 
-    it("should release when the capture target is unmounted", async () => {
+    it.todo("should release when the capture target is unmounted", async () => {
       const [hasMesh, setHasMesh] = createSignal(true)
 
       // S3:   we do not have a replacement for rerender
       const { canvas } = await test(() => <PointerCaptureTest hasMesh={hasMesh()} />)
-
-      await settled()
 
       canvas.setPointerCapture = vi.fn()
       canvas.releasePointerCapture = vi.fn()
@@ -317,7 +300,6 @@ describe("events", () => {
 
       /* Now remove the T.Mesh */
       setHasMesh(false)
-      await settled()
 
       expect(canvas.releasePointerCapture).toHaveBeenCalledWith(pointerId)
 
@@ -332,10 +314,8 @@ describe("events", () => {
       expect(handlePointerMove).not.toHaveBeenCalled()
     })
 
-    it("should not leave when captured", async () => {
+    it.todo("should not leave when captured", async () => {
       const { canvas } = await test(() => <PointerCaptureTest hasMesh manualRelease />)
-
-      await settled()
 
       canvas.setPointerCapture = vi.fn()
       canvas.releasePointerCapture = vi.fn()
@@ -403,11 +383,9 @@ const HIT_Y = 400
 const MISS_X = 0
 const MISS_Y = 0
 
-function makeClickAt(offsetX: number, offsetY: number) {
-  const event = new Event("click")
-  Object.defineProperty(event, "offsetX", { get: () => offsetX })
-  Object.defineProperty(event, "offsetY", { get: () => offsetY })
-  return event
+function makeClickAt(clientX: number, clientY: number) {
+  // Canvas is at (0, 0) in document.body, so offsetX/Y === clientX/Y.
+  return new MouseEvent("click", { clientX, clientY, bubbles: true })
 }
 
 describe("mesh onClickMissed", () => {
@@ -422,7 +400,7 @@ describe("mesh onClickMissed", () => {
     ))
 
     fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
-    await settled()
+
 
     expect(handleClickMissed).toHaveBeenCalledTimes(1)
   })
@@ -438,7 +416,30 @@ describe("mesh onClickMissed", () => {
     ))
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
+
+    expect(handleClickMissed).not.toHaveBeenCalled()
+  })
+
+  it("does not fire when a different mesh in the scene is clicked", async () => {
+    const handleClickMissed = vi.fn()
+
+    // Mesh A: off-center (far right), has onClickMissed
+    // Mesh B: at origin (center of screen), gets clicked
+    const { canvas } = await test(() => (
+      <>
+        <T.Mesh onClickMissed={handleClickMissed} position-x={100}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 
     expect(handleClickMissed).not.toHaveBeenCalled()
   })
@@ -457,7 +458,7 @@ describe("mesh onClickMissed", () => {
     ))
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
 
     expect(handleChildClick).toHaveBeenCalledTimes(1)
     expect(handleParentClickMissed).not.toHaveBeenCalled()
@@ -484,7 +485,7 @@ describe("event handler reactivity", () => {
 
     // No handler yet — click should not fire
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
     expect(handleClick).not.toHaveBeenCalled()
 
     // Add the handler reactively
@@ -492,13 +493,13 @@ describe("event handler reactivity", () => {
     await settled()
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
     expect(handleClick).toHaveBeenCalledTimes(1)
   })
 
   it("removes object from interaction list when event prop is removed", async () => {
     const handleClick = vi.fn()
-    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(() => handleClick)
+    const [onClick, setOnClick] = createSignal<((e: any) => void) | undefined>(handleClick)
 
     const { canvas } = await test(() => (
       <T.Mesh onClick={onClick()}>
@@ -509,15 +510,15 @@ describe("event handler reactivity", () => {
 
     // Handler active — click fires
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
     expect(handleClick).toHaveBeenCalledTimes(1)
 
     // Remove handler reactively
     setOnClick(undefined)
-    await settled()
+
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-    await settled()
+
     expect(handleClick).toHaveBeenCalledTimes(1) // no new call
   })
 })

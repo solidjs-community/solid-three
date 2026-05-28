@@ -1,4 +1,4 @@
-import type { Accessor, Element } from "solid-js"
+import type { Accessor, Element as JSXElement } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -19,6 +19,7 @@ import type {
   Vector4 as ThreeVector4,
   WebGLRenderer,
 } from "three"
+import type { WebGPURenderer } from "three/webgpu"
 import type { Intersect } from "../playground/controls/type-utils.ts"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
@@ -126,7 +127,85 @@ export type LoaderData<T extends Loader<any, any>> =
 export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl> ? TUrl : never
 
 /**********************************************************************************/
-/*                                                s                                */
+/*                                                                                */
+/*                                  RendererLike                                  */
+/*                                                                                */
+/**********************************************************************************/
+
+/**
+ * Minimal structural interface for renderers (`SVGRenderer`, `CSS2DRenderer`,
+ * user-built). Concrete three renderers (`WebGLRenderer`, `WebGPURenderer`)
+ * structurally satisfy this too, but the {@link Renderer} union prefers their
+ * exact types so the WebGL-specific `WebXRManager` / `WebGLShadowMap` surface
+ * is reachable in user code.
+ */
+export interface RendererLike {
+  render(scene: any, camera: any): void
+  setSize(width: number, height: number, updateStyle?: boolean): void
+  /**
+   * Element the renderer outputs to — a `<canvas>` for WebGL/WebGPU, a
+   * `<div>` for CSS2D/3D, an `<svg>` for SVGRenderer. This is the natural
+   * target for pointer-event capture (orbit controls, picking).
+   */
+  domElement: Element
+  /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */
+  setPixelRatio?(value: number): void
+  /** Optional — DOM-based renderers (CSS2D/3D, SVG) have no pixel-ratio knob. */
+  getPixelRatio?(): number
+  /**
+   * Optional vendor XR manager. Typed as the union of three's two concrete
+   * managers (WebXR + WebGPU XR). solid-three's built-in xr wiring duck-types
+   * to `WebXRManager` at runtime; custom renderers may leave this `undefined`.
+   */
+  xr?: WebGLRenderer["xr"] | WebGPURenderer["xr"]
+  /** Optional shadow map (WebGL/WebGPU vary). */
+  shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
+  /** Async initializer — awaited once before the first render (WebGPURenderer). */
+  init?(): Promise<void>
+  /** Returns true if `init()` has already completed. WebGPURenderer exposes this. */
+  hasInitialized?(): boolean
+}
+
+/**
+ * Anything `<Canvas>` accepts as a renderer: a concrete three renderer (gets
+ * full three typing for `xr` / `shadowMap` etc.) or a custom `RendererLike`.
+ * Inspired by r3f's `Renderer` interface in store.ts, extended with the two
+ * concrete classes so the common cases keep exact types.
+ */
+export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
+
+/**
+ * Module-augmentation point. Declare your concrete renderer choice in a
+ * project-local `.d.ts` and `useThree().gl`, `Context.gl`, and the
+ * `<Canvas gl>` prop all type-narrow project-wide.
+ *
+ * @example
+ * ```ts
+ * // src/solid-three.d.ts
+ * import type { WebGPURenderer } from "three/webgpu"
+ *
+ * declare module "solid-three" {
+ *   interface Register {
+ *     renderer: WebGPURenderer
+ *   }
+ * }
+ * ```
+ *
+ * With this declaration, `useThree().gl.init()` is typed (no narrowing
+ * needed) and accidentally passing a `WebGLRenderer` to `<Canvas gl>`
+ * becomes a type error.
+ *
+ * Without augmentation, `Context.gl` falls back to the open
+ * {@link Renderer} union.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface Register {}
+
+/** Effective renderer type — narrowed by user augmentation if provided. */
+export type ResolvedRenderer = Register extends { renderer: infer R } ? R : Renderer
+
+/**********************************************************************************/
+/*                                                                                */
 /*                                     Context                                    */
 /*                                                                                */
 /**********************************************************************************/
@@ -138,7 +217,7 @@ export interface Context {
   camera: CameraKind
   raycaster: Raycaster | EventRaycaster
   dpr: number
-  gl: Meta<WebGLRenderer>
+  gl: Meta<ResolvedRenderer>
   props: CanvasProps
   render: (delta: number) => void
   requestRender: () => void
@@ -303,7 +382,7 @@ export type Props<T> = Partial<
       {
         args: T extends Constructor ? ConstructorOverloadParameters<T> : undefined
         attach: string | ((parent: object, self: Meta<InstanceOf<T>>) => () => void)
-        children: Element
+        children: JSXElement
         key?: string
         onUpdate: (self: Meta<InstanceOf<T>>) => void
         ref: InstanceOf<T> | ((value: Meta<InstanceOf<T>>) => void)

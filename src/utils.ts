@@ -16,8 +16,8 @@ import {
   OrthographicCamera,
   Texture,
   Vector3,
-  type Renderer,
 } from "three"
+import type { BufferGeometry, Fog, WebGLShadowMap, WebXRManager } from "three"
 import { $S3C } from "./constants.ts"
 import type {
   CameraKind,
@@ -28,6 +28,8 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  Renderer,
+  RendererLike,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -56,15 +58,94 @@ export const isOrthographicCamera = (def: Camera): def is OrthographicCamera =>
 
 export const isVector3 = (def: object): def is Vector3 => "isVector3" in def && !!def.isVector3
 
+/**
+ * Returns true when `value` is an already-built renderer instance.
+ */
+export function isRenderer(value: unknown): value is Renderer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Renderer).render === "function" &&
+    typeof (value as Renderer).setSize === "function"
+  )
+}
+
+/**
+ * Returns true when `gl` can drive a WebXR-shaped session: `gl.xr` is an event
+ * target (has `addEventListener`) and `gl.setAnimationLoop` exists on the
+ * renderer. Unifies WebGL and WebGPU: WebGLRenderer.xr has setAnimationLoop,
+ * but WebGPURenderer's `XRManager` doesn't — both, however, expose
+ * `setAnimationLoop` on the renderer itself. Always call `_gl.setAnimationLoop`
+ * (not `_gl.xr.setAnimationLoop`) to stay portable.
+ */
+export function canDriveXR(
+  gl: unknown,
+): gl is { xr: WebXRManager; setAnimationLoop: (cb: XRFrameRequestCallback | null) => void } {
+  if (!gl || typeof gl !== "object") return false
+  const xr = (gl as { xr?: unknown }).xr
+  const setLoop = (gl as { setAnimationLoop?: unknown }).setAnimationLoop
+  return (
+    !!xr &&
+    typeof (xr as { addEventListener?: unknown }).addEventListener === "function" &&
+    typeof setLoop === "function"
+  )
+}
+
+/**
+ * Duck-typed narrow to `WebGLShadowMap`. `needsUpdate` is the discriminator
+ * — WebGPURenderer's `shadowMap` is `{ enabled, type }` without it.
+ */
+export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
+  return !!value && "needsUpdate" in (value as object)
+}
+
+/**
+ * Duck-typed three.js class checks. These match three's own internal
+ * pattern (`obj.isMaterial`, `obj.isObject3D`, etc.) and survive cases
+ * where the `Material` / `Object3D` class identities differ across
+ * module instances — e.g. `three/webgpu`'s `MeshBasicNodeMaterial`
+ * doesn't share class identity with `three`'s `Material`, but both set
+ * `isMaterial = true`.
+ */
+export function isMaterial(value: unknown): value is Material {
+  return !!value && (value as { isMaterial?: boolean }).isMaterial === true
+}
+export function isBufferGeometry(value: unknown): value is BufferGeometry {
+  return !!value && (value as { isBufferGeometry?: boolean }).isBufferGeometry === true
+}
+export function isFog(value: unknown): value is Fog {
+  return !!value && (value as { isFog?: boolean }).isFog === true
+}
+export function isObject3D(value: unknown): value is Object3D {
+  return !!value && (value as { isObject3D?: boolean }).isObject3D === true
+}
+export function isWritable(object: object, propertyName: string) {
+  return Object.getOwnPropertyDescriptor(object, propertyName)?.writable
+}
+
+/**
+ * Returns the renderer's `init()` if it both exists and hasn't been called yet,
+ * else `undefined`. Used to await async setup (e.g. WebGPURenderer.init) before
+ * the first render.
+ */
+export function getPendingInit(renderer: Renderer): (() => Promise<void>) | undefined {
+  const r = renderer as RendererLike
+  const initFn = r.init
+  if (!initFn) return undefined
+  if (typeof r.hasInitialized === "function" && r.hasInitialized()) return undefined
+  return () => initFn.call(r)
+}
+
 /**********************************************************************************/
 /*                                                                                */
 /*                                  Auto Dispose                                  */
 /*                                                                                */
 /**********************************************************************************/
 
-export function autodispose<T extends { dispose?: () => void }>(object: T): T {
-  if (object.dispose) {
-    onCleanup(() => object.dispose?.())
+export function autodispose<T>(object: T): T {
+  const candidate = object as { dispose?: () => void } | null | undefined
+  if (candidate && typeof candidate.dispose === "function") {
+    onCleanup(() => candidate.dispose?.())
   }
   return object
 }
@@ -88,7 +169,16 @@ export function meta<T>(instance: T, augmentation = { props: {} }) {
     return instance
   }
   const _instance = instance as Meta<T>
-  _instance[$S3C] = { children: new Set(), parent: undefined, ...augmentation }
+  // `merge` preserves getters on `augmentation` (e.g.
+  // `get props() { ... }`) without invoking them at merge time. The
+  // earlier `{ ..., ...augmentation }` form ran every getter once and
+  // froze the value — which both lost reactivity downstream AND tracked
+  // every signal the getter touched into whatever scope `meta()` was
+  // called from.
+  _instance[$S3C] = merge(
+    { children: new Set(), parent: undefined },
+    augmentation,
+  ) as Data<T>
   return _instance
 }
 
@@ -211,6 +301,13 @@ export const hasColorSpace = <
 export function isConstructor<T>(value: T | Constructor): value is Constructor {
   return typeof value === "function" && value.prototype !== undefined
 }
+
+/**********************************************************************************/
+/*                                                                                */
+/*                                Shallow Equal                                   */
+/*                                                                                */
+/**********************************************************************************/
+
 
 /**********************************************************************************/
 /*                                                                                */

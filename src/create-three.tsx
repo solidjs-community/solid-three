@@ -1,10 +1,22 @@
 import { setContext } from "@solidjs/signals"
-import { children, createMemo, createRenderEffect, createRoot, merge, onCleanup } from "solid-js"
+import {
+  children,
+  createEffect,
+  createMemo,
+  createRenderEffect,
+  createRoot,
+  createSignal,
+  latest,
+  merge,
+  onCleanup,
+  untrack,
+} from "solid-js"
 import {
   ACESFilmicToneMapping,
   BasicShadowMap,
   Camera,
   Clock,
+  LinearSRGBColorSpace,
   NoToneMapping,
   OrthographicCamera,
   PCFShadowMap,
@@ -12,9 +24,11 @@ import {
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SRGBColorSpace,
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
+  type WebGLRendererParameters,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
 import { SHOULD_DEBUG } from "./constants.ts"
@@ -24,12 +38,23 @@ import { frameContext, threeContext } from "./hooks.ts"
 import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
-import type { CameraKind, Context, FrameListener, FrameListenerCallback } from "./types.ts"
+import type {
+  CameraKind,
+  Context,
+  FrameListener,
+  FrameListenerCallback,
+  Renderer,
+} from "./types.ts"
 import {
+  autodispose,
   binarySearch,
+  canDriveXR,
   createDebug,
   defaultProps,
   getCurrentViewport,
+  getPendingInit,
+  isRenderer,
+  isWebGLShadowMap,
   meta,
   removeElementFromArray,
   useRef,
@@ -140,26 +165,38 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     debugXR("frame", () => ({ timestamp }))
     render(timestamp, frame)
   }
-  // Toggle render switching on session
+  function warnNonXR(method: string) {
+    console.warn(
+      `solid-three: ${method} is a no-op — the active renderer has no WebXRManager-shaped \`xr\` manager. Pass a WebGLRenderer (or a WebGPURenderer with three's XR layer) to enable XR.`,
+    )
+  }
+  // Toggle render switching on session. `canDriveXR` unifies WebGL and WebGPU:
+  // both expose `xr` (event target) + `setAnimationLoop` (on the renderer).
   function handleSessionChange() {
+    const _gl = context.gl
+    if (!canDriveXR(_gl)) return
     debugXR("session", () => ({
-      presenting: context.gl.xr.isPresenting,
-      enabled: context.gl.xr.enabled,
+      presenting: _gl.xr.isPresenting,
+      enabled: _gl.xr.enabled,
     }))
-    context.gl.xr.enabled = context.gl.xr.isPresenting
-    context.gl.xr.setAnimationLoop(context.gl.xr.isPresenting ? handleXRFrame : null)
+    _gl.xr.enabled = _gl.xr.isPresenting
+    _gl.setAnimationLoop(_gl.xr.isPresenting ? handleXRFrame : null)
   }
   // WebXR session-manager
   const xr = {
     connect() {
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.connect()")
       debugXR("connect")
-      context.gl.xr.addEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.addEventListener("sessionend", handleSessionChange)
+      _gl.xr.addEventListener("sessionstart", handleSessionChange)
+      _gl.xr.addEventListener("sessionend", handleSessionChange)
     },
     disconnect() {
+      const _gl = context.gl
+      if (!canDriveXR(_gl)) return warnNonXR("xr.disconnect()")
       debugXR("disconnect")
-      context.gl.xr.removeEventListener("sessionstart", handleSessionChange)
-      context.gl.xr.removeEventListener("sessionend", handleSessionChange)
+      _gl.xr.removeEventListener("sessionstart", handleSessionChange)
+      _gl.xr.removeEventListener("sessionend", handleSessionChange)
     },
   }
 
@@ -174,6 +211,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   function render(timestamp: number, frame?: XRFrame) {
     if (!context.gl) {
       debugRender("skipped", () => ({ reason: "no gl" }))
+      return
+    }
+    // `latest()` reads the most-recently-committed signal value, bypassing
+    // any pending async overlay. The init signal commits `true` once
+    // `renderer.init()` resolves — before that, latest returns undefined.
+    if (latest(rendererReady) !== true) {
+      debugRender("skipped", () => ({ reason: "gl not initialized" }))
       return
     }
     if (props.frameloop === "never") {
@@ -209,25 +253,77 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /*                                                                                */
   /**********************************************************************************/
 
+  // Construction firewall — only track inputs that actually decide WHICH
+  // object to construct (instanceof checks, orthographic flag, gl kind).
+  // The full prop config is read INSIDE the branch that needs it via
+  // `untrack`, so reactive config-objects (e.g. `<Canvas camera={{ position: pos() }}>`)
+  // whose contents change but whose "shape category" stays the same don't
+  // re-run the construction memo. Post-construction updates flow through
+  // the existing `useProps(…)` effects unchanged.
+  //
+  // The booleans/strings here are === comparable, so a fresh JSX getter
+  // call producing the same kind doesn't propagate.
+  const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
+  const orthographicFlag = createMemo(() => !!props.orthographic)
+  const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
+  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
+  const glKind = createMemo<"factory" | "instance" | "default">(() => {
+    const _propsGl = props.gl
+    if (typeof _propsGl === "function") return "factory"
+    if (isRenderer(_propsGl)) return "instance"
+    return "default"
+  })
+  /**
+   * Keys of `WebGLRendererParameters` that configure context creation or are
+   * otherwise constructor-only. The default-branch of the `gl` memo
+   * partitions a flat `gl={...}` prop into ctor args (baked once at
+   * construction, since WebGL's `getContext` is idempotent per canvas) and
+   * instance props (reactive via `useProps`). See the warn-on-update effect
+   * below for what happens when the user changes a ctor key reactively.
+   */
+  const WEBGL_CTOR_KEYS = [
+    "alpha",
+    "antialias",
+    "depth",
+    "failIfMajorPerformanceCaveat",
+    "logarithmicDepthBuffer",
+    "powerPreference",
+    "precision",
+    "premultipliedAlpha",
+    "preserveDrawingBuffer",
+    "reversedDepthBuffer",
+    "stencil",
+  ] as const satisfies readonly (keyof WebGLRendererParameters)[]
+  // Initial ctor-arg snapshot (untracked) — used to detect post-construction
+  // changes the user might be expecting to take effect, but can't (WebGL
+  // contexts are immutable once created).
+  let initialCtorArgs: Partial<WebGLRendererParameters> = {}
+
   const camera = createMemo(() => {
-    if (props.camera instanceof Camera) {
+    let cameraInstance: OrthographicCamera | PerspectiveCamera
+    if (cameraIsInstance()) {
       debugContext("camera", () => ({ source: "custom" }))
-      return props.camera as OrthographicCamera | PerspectiveCamera
-    }
-    if (props.orthographic) {
+      cameraInstance = untrack(() => props.camera) as OrthographicCamera | PerspectiveCamera
+    } else if (orthographicFlag()) {
       debugContext("camera", () => ({ source: "new OrthographicCamera" }))
-      return new OrthographicCamera()
+      cameraInstance = new OrthographicCamera()
+    } else {
+      debugContext("camera", () => ({ source: "new PerspectiveCamera" }))
+      cameraInstance = new PerspectiveCamera()
     }
-    debugContext("camera", () => ({ source: "new PerspectiveCamera" }))
-    return new PerspectiveCamera()
+    return meta(cameraInstance, {
+      get props() {
+        return props.camera || {}
+      },
+    })
   })
   const cameraStack = new Stack<CameraKind>("camera")
 
   const scene = createMemo(() => {
     let sceneInstance: Scene
-    if (props.scene instanceof Scene) {
+    if (sceneIsInstance()) {
       debugContext("scene", () => ({ source: "custom" }))
-      sceneInstance = props.scene
+      sceneInstance = untrack(() => props.scene) as Scene
     } else {
       debugContext("scene", () => ({ source: "new Scene" }))
       sceneInstance = new Scene()
@@ -241,9 +337,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const raycaster = createMemo(() => {
     let instance: Raycaster | EventRaycaster
-    if (props.raycaster instanceof Raycaster) {
+    if (raycasterIsInstance()) {
       debugContext("raycaster", () => ({ source: "custom" }))
-      instance = props.raycaster
+      instance = untrack(() => props.raycaster) as Raycaster
     } else {
       debugContext("raycaster", () => ({ source: "new CursorRaycaster" }))
       instance = new CursorRaycaster()
@@ -258,16 +354,31 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const raycasterStack = new Stack<Raycaster>("raycaster")
 
   const gl = createMemo(() => {
-    let rendererInstance: WebGLRenderer
-    if (props.gl instanceof WebGLRenderer) {
+    const kind = glKind()
+    let rendererInstance: Renderer
+    if (kind === "instance") {
       debugContext("gl", () => ({ source: "custom" }))
-      rendererInstance = props.gl
-    } else if (typeof props.gl === "function") {
+      rendererInstance = untrack(() => props.gl) as Renderer
+    } else if (kind === "factory") {
       debugContext("gl", () => ({ source: "factory" }))
-      rendererInstance = props.gl(canvas)
+      const factory = untrack(() => props.gl) as (canvas: HTMLCanvasElement) => Renderer
+      rendererInstance = autodispose(factory(canvas))
     } else {
       debugContext("gl", () => ({ source: "default" }))
-      rendererInstance = new WebGLRenderer({ canvas, alpha: true })
+      // Default branch — construct a WebGLRenderer with the user's flat `gl`
+      // prop. Split via `WEBGL_CTOR_KEYS`: those keys go to the constructor
+      // (baked in for the renderer's lifetime, since WebGL won't give us a
+      // fresh context on the same canvas), the rest are applied as instance
+      // props via the `useProps` call below. `alpha: true` is our default;
+      // the user's value (if any) wins. `canvas` is last so the user can't
+      // override it.
+      const flat = untrack(() => (props.gl as Partial<WebGLRendererParameters>) ?? {})
+      const ctorArgs: Partial<WebGLRendererParameters> = {}
+      for (const key of WEBGL_CTOR_KEYS) {
+        if (key in flat) ctorArgs[key] = flat[key] as never
+      }
+      initialCtorArgs = ctorArgs
+      rendererInstance = autodispose(new WebGLRenderer({ alpha: true, ...ctorArgs, canvas }))
     }
 
     return meta(rendererInstance, {
@@ -275,6 +386,32 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         return props.gl || {}
       },
     })
+  })
+
+  // Await `renderer.init()` before the first frame (WebGPU). WebGL renderers
+  // have no `init()` and resolve synchronously. `createSignal(async fn)` is the
+  // Solid 2.x idiom — the signal stays pending until the Promise resolves and
+  // `isPending(rendererReady)` gates the render loop.
+  const [rendererReady] = createSignal<boolean>(async () => {
+    const renderer = gl()
+    const init = getPendingInit(renderer)
+    if (!init) {
+      debugEffects("gl init", () => ({ action: "skip", reason: "no-init-or-already" }))
+      return true
+    }
+    // Pre-size the canvas backing buffer before init so WebGPU's depth
+    // attachment matches the container; otherwise the default 300×150
+    // buffer mismatches on the first resize.
+    const rect = canvas.getBoundingClientRect()
+    const ratio = globalThis.devicePixelRatio || 1
+    if (rect.width > 0 && rect.height > 0) {
+      canvas.width = rect.width * ratio
+      canvas.height = rect.height * ratio
+    }
+    debugEffects("gl init", () => ({ action: "await" }))
+    await init()
+    debugEffects("gl init", () => ({ action: "ready" }))
+    return true
   })
 
   const measure = useMeasure({ element: canvas })
@@ -292,7 +429,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     canvas,
     clock,
     get dpr() {
-      return this.gl.getPixelRatio()
+      // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
+      // anything — reporting `1` is honest.
+      return this.gl.getPixelRatio?.() ?? 1
     },
     props,
     render,
@@ -448,7 +587,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             _gl.shadowMap.type = type
           }
           if (changed) {
-            _gl.shadowMap.needsUpdate = true
+            // WebGL-only: signals the renderer to re-bake. WebGPURenderer's
+            // shadowMap is `{ enabled, type }` without `needsUpdate`.
+            if (isWebGLShadowMap(_gl.shadowMap)) {
+              _gl.shadowMap.needsUpdate = true
+            }
             debugEffects("shadow", () => ({
               action: "changed",
               enabled,
@@ -461,11 +604,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // XR connect
+      // XR connect — `canDriveXR` unifies WebGL and WebGPU: both expose `xr`
+      // (event target) + `setAnimationLoop` on the renderer.
       createRenderEffect(
         () => gl(),
         renderer => {
-          if (renderer.xr) {
+          if (canDriveXR(renderer)) {
             debugEffects("xr connect", () => ({ hasXR: true }))
             renderer.xr.addEventListener("sessionstart", handleSessionChange)
             renderer.xr.addEventListener("sessionend", handleSessionChange)
@@ -479,28 +623,76 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         },
       )
 
-      // Color space and tone mapping
-      const LinearEncoding = 3000
-      const sRGBEncoding = 3001
-      useProps(gl, {
-        get outputEncoding() {
-          return props.linear ? LinearEncoding : sRGBEncoding
+      // Color management — structural gate so exotic renderers (SVGRenderer,
+      // custom) without `outputColorSpace` are skipped instead of crashing.
+      createRenderEffect(
+        () => ({ renderer: gl(), linear: !!props.linear }),
+        ({ renderer, linear }) => {
+          if (!("outputColorSpace" in renderer)) {
+            debugEffects("outputColorSpace", () => ({ action: "skip", reason: "not supported" }))
+            return
+          }
+          debugEffects("outputColorSpace", () => ({ linear }))
+          ;(renderer as { outputColorSpace: string }).outputColorSpace = linear
+            ? LinearSRGBColorSpace
+            : SRGBColorSpace
         },
-        get toneMapping() {
-          return props.flat ? NoToneMapping : ACESFilmicToneMapping
-        },
-      })
+      )
 
-      // User-supplied gl options object (must not drop this — handles props.gl={antialias:true} etc.)
-      if (props.gl && !(props.gl instanceof WebGLRenderer)) {
+      // Tone mapping — structural gate (same reason as color management).
+      createRenderEffect(
+        () => ({ renderer: gl(), flat: !!props.flat }),
+        ({ renderer, flat }) => {
+          if (!("toneMapping" in renderer)) {
+            debugEffects("toneMapping", () => ({ action: "skip", reason: "not supported" }))
+            return
+          }
+          debugEffects("toneMapping", () => ({ flat }))
+          ;(renderer as { toneMapping: number }).toneMapping = flat
+            ? NoToneMapping
+            : ACESFilmicToneMapping
+        },
+      )
+
+      // Apply props.gl as renderer instance properties — only when it's a
+      // config object, not a factory or a pre-built instance. Ctor-only keys
+      // in the flat object (e.g. `antialias`) get assigned to the instance
+      // too; that's a harmless junk property on the renderer (three doesn't
+      // re-read them). The warn effect below catches users who *expect*
+      // those changes to take effect.
+      const _propsGl = props.gl
+      if (_propsGl && typeof _propsGl !== "function" && !isRenderer(_propsGl)) {
         debugEffects("gl", () => ({ action: "apply", type: "user-options" }))
-        useProps(gl, props.gl)
+        useProps(gl, _propsGl as object)
       } else {
         debugEffects("gl", () => ({
           action: "skip",
-          reason: !props.gl ? "no gl prop" : "gl is WebGLRenderer instance",
+          reason: !_propsGl ? "no gl prop" : "gl is renderer instance or factory",
         }))
       }
+
+      // Warn when the user reactively changes a constructor-only key. WebGL
+      // bakes these into the context at creation and never re-reads them, so
+      // a Solid-style reactive change here is a silent no-op without this.
+      let warnedCtorKeys = false
+      createEffect(
+        () => props.gl,
+        flatProp => {
+          if (warnedCtorKeys) return
+          const flat = (flatProp as Partial<WebGLRendererParameters>) ?? {}
+          for (const key of WEBGL_CTOR_KEYS) {
+            if (key in flat && flat[key] !== initialCtorArgs[key]) {
+              console.warn(
+                `solid-three: <Canvas gl={...}> received a new value for "${String(key)}", ` +
+                  `but WebGLRenderer constructor args are immutable for the canvas's lifetime. ` +
+                  `To swap renderer config at runtime, unmount and remount <Canvas>.`,
+              )
+              warnedCtorKeys = true
+              return
+            }
+          }
+        },
+      )
     },
     () => {},
   )
@@ -555,14 +747,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     </EventContext>
   ))
 
-  useSceneGraph(
-    () => context.scene,
-    merge(props, {
-      get children() {
-        return c()
-      },
-    }),
-  )
+  useSceneGraph(() => context.scene, {
+    get children() {
+      return c()
+    },
+  })
 
   useRef(props, context)
 

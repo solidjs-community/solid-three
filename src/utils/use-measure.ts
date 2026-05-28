@@ -60,16 +60,25 @@ export function useMeasure(options?: UseMeasureOptions) {
   }
 
   const [element, setElement] = createSignal<HTMLOrSVGElement | null>(() => config.element ?? null)
-  const [bounds, setBounds] = createSignal<Measure>({
-    left: 0,
-    top: 0,
-    width: 0,
-    height: 0,
-    bottom: 0,
-    right: 0,
-    x: 0,
-    y: 0,
-  })
+  const [bounds, setBounds] = createSignal<Measure>(
+    {
+      left: 0,
+      top: 0,
+      width: 0,
+      height: 0,
+      bottom: 0,
+      right: 0,
+      x: 0,
+      y: 0,
+    },
+    {
+      // Allow forceRefresh() to write from inside the observer-attach effect
+      // (an owned compute scope) without a SIGNAL_WRITE_IN_OWNED_SCOPE warning.
+      // Matches fixes-branch behavior where bounds populate synchronously on
+      // element attach so the first render frame sees the correct dimensions.
+      ownedWrite: true,
+    },
+  )
   const scrollContainers = createMemo(() => findScrollContainers(element()))
   let lastBounds: Measure | undefined
 
@@ -183,6 +192,13 @@ export function useMeasure(options?: UseMeasureOptions) {
         return
       }
       debug("observer", () => ({ action: "attached" }))
+      // Eagerly populate bounds on attach — ResizeObserver fires async, but
+      // raycasting and other downstream readers need a non-zero rect from the
+      // first frame. The bounds signal is created with `ownedWrite: true` so
+      // the write from inside this effect callback is permitted; the
+      // surrounding `untrack` suppresses the read warning on `element()`
+      // inside forceRefresh (we already have `el` from the closure).
+      untrack(forceRefresh)
       const observer = new ResizeObserver(onResize)
       observer.observe(el)
       return () => observer.disconnect()

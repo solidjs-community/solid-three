@@ -2,7 +2,7 @@ import { fireEvent } from "../../libs/testing-library.ts"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/index.ts"
-import { settled, test } from "../../src/testing/index.tsx"
+import { test } from "../../src/testing/index.tsx"
 
 const T = createT(THREE)
 
@@ -14,11 +14,11 @@ const HIT_Y = 400
 const MISS_X = 0
 const MISS_Y = 0
 
-function makeEvent(type: string, offsetX: number, offsetY: number) {
-  const event = new Event(type)
-  Object.defineProperty(event, "offsetX", { get: () => offsetX })
-  Object.defineProperty(event, "offsetY", { get: () => offsetY })
-  return event
+function makeEvent(type: string, clientX: number, clientY: number) {
+  // The test canvas is mounted at (0, 0) in document.body, so offsetX/Y === clientX/Y.
+  // We dispatch a real MouseEvent; the browser computes offsetX/Y from the target's
+  // bounding rect — no `Object.defineProperty` hacks needed.
+  return new MouseEvent(type, { clientX, clientY, bubbles: true })
 }
 
 function hitEvent(type: string) {
@@ -37,7 +37,7 @@ const BasicMesh = () => (
   </T.Mesh>
 )
 
-/** A 2×2 mesh at origin whose handler stops propagation. */
+/** A 2×2 mesh at origin whose onClick stops propagation. */
 const StoppingMesh = (props: { eventType: string; handler?: (e: any) => void }) => {
   const handlerProp = { [props.eventType]: (e: any) => { e.stopPropagation(); props.handler?.(e) } }
   return (
@@ -75,7 +75,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onClick: handleClick })
 
       fireEvent(canvas, hitEvent("click"))
-      await settled()
 
       expect(handleClick).toHaveBeenCalledTimes(1)
     })
@@ -88,7 +87,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("click"))
-      await settled()
 
       expect(handleClick).toHaveBeenCalledTimes(1)
     })
@@ -101,7 +99,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("click"))
-      await settled()
 
       expect(handleClick).toHaveBeenCalledTimes(1)
     })
@@ -114,7 +111,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("click"))
-      await settled()
 
       expect(handleClick).not.toHaveBeenCalled()
     })
@@ -132,7 +128,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("click"))
-      await settled()
 
       expect(handleClickMissed).toHaveBeenCalledTimes(1)
     })
@@ -142,7 +137,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onClickMissed: handleClickMissed })
 
       fireEvent(canvas, hitEvent("click"))
-      await settled()
 
       expect(handleClickMissed).toHaveBeenCalledTimes(1)
     })
@@ -155,8 +149,21 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("click"))
-      await settled()
 
+      expect(handleClickMissed).not.toHaveBeenCalled()
+    })
+
+    it("does not fire when onClick is also registered and click hits a mesh", async () => {
+      const handleClick = vi.fn()
+      const handleClickMissed = vi.fn()
+      const { canvas } = await test(
+        () => <ListeningMesh eventType="onClick" />,
+        { onClick: handleClick, onClickMissed: handleClickMissed },
+      )
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(handleClick).toHaveBeenCalledTimes(1)
       expect(handleClickMissed).not.toHaveBeenCalled()
     })
   })
@@ -170,7 +177,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onDoubleClick: handleDoubleClick })
 
       fireEvent(canvas, hitEvent("dblclick"))
-      await settled()
 
       expect(handleDoubleClick).toHaveBeenCalledTimes(1)
     })
@@ -183,7 +189,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("dblclick"))
-      await settled()
 
       expect(handleDoubleClick).toHaveBeenCalledTimes(1)
     })
@@ -196,7 +201,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("dblclick"))
-      await settled()
 
       expect(handleDoubleClick).toHaveBeenCalledTimes(1)
     })
@@ -209,7 +213,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("dblclick"))
-      await settled()
 
       expect(handleDoubleClick).not.toHaveBeenCalled()
     })
@@ -227,7 +230,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("dblclick"))
-      await settled()
 
       expect(handleMissed).toHaveBeenCalledTimes(1)
     })
@@ -237,7 +239,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onDoubleClickMissed: handleMissed })
 
       fireEvent(canvas, hitEvent("dblclick"))
-      await settled()
 
       expect(handleMissed).toHaveBeenCalledTimes(1)
     })
@@ -250,7 +251,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("dblclick"))
-      await settled()
 
       expect(handleMissed).not.toHaveBeenCalled()
     })
@@ -265,7 +265,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onContextMenu: handleContextMenu })
 
       fireEvent(canvas, hitEvent("contextmenu"))
-      await settled()
 
       expect(handleContextMenu).toHaveBeenCalledTimes(1)
     })
@@ -278,7 +277,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("contextmenu"))
-      await settled()
 
       expect(handleContextMenu).toHaveBeenCalledTimes(1)
     })
@@ -291,7 +289,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("contextmenu"))
-      await settled()
 
       expect(handleContextMenu).toHaveBeenCalledTimes(1)
     })
@@ -304,7 +301,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("contextmenu"))
-      await settled()
 
       expect(handleContextMenu).not.toHaveBeenCalled()
     })
@@ -322,7 +318,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, missEvent("contextmenu"))
-      await settled()
 
       expect(handleMissed).toHaveBeenCalledTimes(1)
     })
@@ -332,7 +327,6 @@ describe("canvas missable events", () => {
       const { canvas } = await test(() => null, { onContextMenuMissed: handleMissed })
 
       fireEvent(canvas, hitEvent("contextmenu"))
-      await settled()
 
       expect(handleMissed).toHaveBeenCalledTimes(1)
     })
@@ -345,7 +339,6 @@ describe("canvas missable events", () => {
       )
 
       fireEvent(canvas, hitEvent("contextmenu"))
-      await settled()
 
       expect(handleMissed).not.toHaveBeenCalled()
     })
@@ -368,7 +361,6 @@ describe("canvas default events", () => {
       const { canvas } = await test(() => null, { onMouseDown: handleMouseDown })
 
       fireEvent(canvas, hitEvent("mousedown"))
-      await settled()
 
       expect(handleMouseDown).toHaveBeenCalledTimes(1)
     })
@@ -381,7 +373,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("mousedown"))
-      await settled()
 
       expect(handleMouseDown).toHaveBeenCalledTimes(1)
     })
@@ -394,7 +385,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("mousedown"))
-      await settled()
 
       expect(handleMouseDown).not.toHaveBeenCalled()
     })
@@ -409,7 +399,6 @@ describe("canvas default events", () => {
       const { canvas } = await test(() => null, { onMouseUp: handleMouseUp })
 
       fireEvent(canvas, hitEvent("mouseup"))
-      await settled()
 
       expect(handleMouseUp).toHaveBeenCalledTimes(1)
     })
@@ -422,7 +411,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("mouseup"))
-      await settled()
 
       expect(handleMouseUp).toHaveBeenCalledTimes(1)
     })
@@ -435,7 +423,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("mouseup"))
-      await settled()
 
       expect(handleMouseUp).not.toHaveBeenCalled()
     })
@@ -450,7 +437,6 @@ describe("canvas default events", () => {
       const { canvas } = await test(() => null, { onPointerDown: handlePointerDown })
 
       fireEvent(canvas, hitEvent("pointerdown"))
-      await settled()
 
       expect(handlePointerDown).toHaveBeenCalledTimes(1)
     })
@@ -463,7 +449,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointerdown"))
-      await settled()
 
       expect(handlePointerDown).toHaveBeenCalledTimes(1)
     })
@@ -476,7 +461,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointerdown"))
-      await settled()
 
       expect(handlePointerDown).not.toHaveBeenCalled()
     })
@@ -491,7 +475,6 @@ describe("canvas default events", () => {
       const { canvas } = await test(() => null, { onPointerUp: handlePointerUp })
 
       fireEvent(canvas, hitEvent("pointerup"))
-      await settled()
 
       expect(handlePointerUp).toHaveBeenCalledTimes(1)
     })
@@ -504,7 +487,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointerup"))
-      await settled()
 
       expect(handlePointerUp).toHaveBeenCalledTimes(1)
     })
@@ -517,7 +499,6 @@ describe("canvas default events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointerup"))
-      await settled()
 
       expect(handlePointerUp).not.toHaveBeenCalled()
     })
@@ -531,11 +512,10 @@ describe("canvas default events", () => {
       const handleWheel = vi.fn()
       const { canvas } = await test(() => null, { onWheel: handleWheel })
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
-      await settled()
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).toHaveBeenCalledTimes(1)
     })
@@ -547,11 +527,10 @@ describe("canvas default events", () => {
         { onWheel: handleWheel },
       )
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
-      await settled()
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).toHaveBeenCalledTimes(1)
     })
@@ -563,11 +542,10 @@ describe("canvas default events", () => {
         { onWheel: handleWheel },
       )
 
-      const event = new WheelEvent("wheel", { deltaY: 100 })
-      Object.defineProperty(event, "offsetX", { get: () => HIT_X })
-      Object.defineProperty(event, "offsetY", { get: () => HIT_Y })
-      fireEvent(canvas, event)
-      await settled()
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
 
       expect(handleWheel).not.toHaveBeenCalled()
     })
@@ -590,7 +568,6 @@ describe("canvas hover events", () => {
       const { canvas } = await test(() => null, { onPointerEnter: handlePointerEnter })
 
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerEnter).toHaveBeenCalledTimes(1)
     })
@@ -602,7 +579,6 @@ describe("canvas hover events", () => {
       fireEvent(canvas, hitEvent("pointermove"))
       fireEvent(canvas, hitEvent("pointermove"))
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerEnter).toHaveBeenCalledTimes(1)
     })
@@ -614,7 +590,6 @@ describe("canvas hover events", () => {
       fireEvent(canvas, hitEvent("pointermove"))
       fireEvent(canvas, makeEvent("pointerleave", HIT_X, HIT_Y))
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerEnter).toHaveBeenCalledTimes(2)
     })
@@ -627,7 +602,6 @@ describe("canvas hover events", () => {
 
       fireEvent(canvas, hitEvent("pointermove"))
       fireEvent(canvas, makeEvent("pointerleave", HIT_X, HIT_Y))
-      await settled()
 
       expect(handlePointerLeave).toHaveBeenCalledTimes(1)
     })
@@ -639,7 +613,6 @@ describe("canvas hover events", () => {
       const { canvas } = await test(() => null, { onPointerMove: handlePointerMove })
 
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerMove).toHaveBeenCalledTimes(1)
     })
@@ -652,7 +625,6 @@ describe("canvas hover events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerMove).toHaveBeenCalledTimes(1)
     })
@@ -665,7 +637,6 @@ describe("canvas hover events", () => {
       )
 
       fireEvent(canvas, hitEvent("pointermove"))
-      await settled()
 
       expect(handlePointerMove).not.toHaveBeenCalled()
     })
@@ -680,7 +651,6 @@ describe("canvas hover events", () => {
       const { canvas } = await test(() => null, { onMouseEnter: handleMouseEnter })
 
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseEnter).toHaveBeenCalledTimes(1)
     })
@@ -692,7 +662,6 @@ describe("canvas hover events", () => {
       fireEvent(canvas, hitEvent("mousemove"))
       fireEvent(canvas, hitEvent("mousemove"))
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseEnter).toHaveBeenCalledTimes(1)
     })
@@ -704,7 +673,6 @@ describe("canvas hover events", () => {
       fireEvent(canvas, hitEvent("mousemove"))
       fireEvent(canvas, makeEvent("mouseleave", HIT_X, HIT_Y))
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseEnter).toHaveBeenCalledTimes(2)
     })
@@ -717,7 +685,6 @@ describe("canvas hover events", () => {
 
       fireEvent(canvas, hitEvent("mousemove"))
       fireEvent(canvas, makeEvent("mouseleave", HIT_X, HIT_Y))
-      await settled()
 
       expect(handleMouseLeave).toHaveBeenCalledTimes(1)
     })
@@ -729,7 +696,6 @@ describe("canvas hover events", () => {
       const { canvas } = await test(() => null, { onMouseMove: handleMouseMove })
 
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseMove).toHaveBeenCalledTimes(1)
     })
@@ -742,7 +708,6 @@ describe("canvas hover events", () => {
       )
 
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseMove).toHaveBeenCalledTimes(1)
     })
@@ -755,7 +720,6 @@ describe("canvas hover events", () => {
       )
 
       fireEvent(canvas, hitEvent("mousemove"))
-      await settled()
 
       expect(handleMouseMove).not.toHaveBeenCalled()
     })
