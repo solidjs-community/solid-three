@@ -326,7 +326,7 @@ article.article-fullbleed > div {
   color: inherit;
   font-weight: 500;
   cursor: pointer;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px) brightness(0.5);
   z-index: 2;
 }
 
