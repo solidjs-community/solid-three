@@ -1,0 +1,74 @@
+---
+title: LoaderCache
+---
+
+# LoaderCache
+
+`LoaderCache` is the default cache for [`useLoader`](/api/hooks/use-loader). It implements the [`LoaderRegistry`](/api/hooks/use-loader#custom-cache) interface and adds reference counting and disposal helpers on top.
+
+## How it works
+
+- **Reference counting** — tracks whether a resource is currently in use.
+- **Deferred disposal** — when a resource's last user unmounts, it moves to a free list rather than being disposed immediately, so it survives a quick unmount/remount.
+
+## Disposal methods
+
+| Method | Description |
+| --- | --- |
+| `dispose(loader, path)` | Dispose one resource, by loader and path. |
+| `disposeResource(resource)` | Dispose one resource, passed directly. |
+| `disposeFreeList()` | Dispose every resource that currently has no references. |
+
+## Example
+
+```tsx
+const TexturedBox = () => {
+  // This increments the reference count for 'texture.jpg'
+  const texture = useLoader(TextureLoader, "texture.jpg")
+
+  // When this component unmounts, the reference count decreases.
+  // If it reaches zero, the texture moves to the free list.
+  return (
+    <T.Mesh>
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial map={texture()} />
+    </T.Mesh>
+  )
+}
+
+// Multiple components can share the same cached resource
+const Scene = () => (
+  <>
+    <TexturedBox /> {/* ref count: 1 */}
+    <TexturedBox /> {/* ref count: 2 */}
+    <TexturedBox /> {/* ref count: 3 */}
+  </>
+)
+
+const App = () => {
+  const [visible, setVisible] = createSignal(true)
+
+  onMount(() => {
+    // Not disposed — still referenced (3 times)
+    useLoader.cache.disposeFreeList()
+
+    setVisible(false)
+
+    // Now disposed — no longer referenced
+    useLoader.cache.disposeFreeList()
+  })
+
+  return (
+    <Canvas>
+      <Show when={visible()}>
+        <Scene />
+      </Show>
+    </Canvas>
+  )
+}
+```
+
+## See also
+
+- [`useLoader`](/api/hooks/use-loader) — the hook this cache backs, and how to swap it via `cache`.
+- [Loaders & Resource](/tour/06-loaders-and-resource) — the tutorial chapter.

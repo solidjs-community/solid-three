@@ -1,0 +1,75 @@
+---
+title: useThree
+---
+
+# useThree
+
+`useThree` gives you the `three.js` context from inside a `<Canvas>` — the renderer, scene, camera, raycaster, and more.
+
+## Signature
+
+```tsx
+// The full context object
+useThree(): Context
+
+// A reactive accessor for one derived value
+useThree<T>(selector: (context: Context) => T): Accessor<T>
+```
+
+Call it with no arguments for the whole context. Pass a selector to derive a single value reactively:
+
+```tsx
+const camera = useThree(context => context.camera)
+// camera() is an Accessor<Camera>
+```
+
+## Returns
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `bounds` | `Measure` | Reactive canvas bounds measurement. |
+| `viewport` | `Viewport` | Viewport measurements — `width`, `height`, `top`, `left`, plus `factor`, `distance`, and `aspect`. |
+| `camera` | `CameraKind` | The current camera (`PerspectiveCamera \| OrthographicCamera`). |
+| `setCamera` | `(camera: CameraKind) => () => void` | Push a camera onto the stack, making it active. Returns a cleanup that pops it. Accepts only a `PerspectiveCamera` or `OrthographicCamera`. |
+| `canvas` | `HTMLCanvasElement` | The canvas DOM element. |
+| `clock` | `Clock` | The three.js clock, for timing. |
+| `dpr` | `number` | Device pixel ratio of the active renderer. Falls back to `1` for renderers without `getPixelRatio` (e.g. `CSS3DRenderer`, `SVGRenderer`). |
+| `gl` | `Meta<ResolvedRenderer>` | The active renderer, wrapped with [`meta`](/api/utilities/metadata) so you can read solid-three metadata via `getMeta(three.gl)`. Narrow it project-wide with [Register augmentation](/api/components/canvas#narrowing-the-renderer-type-project-wide). |
+| `raycaster` | `Raycaster \| EventRaycaster` | The current raycaster used for pointer events. |
+| `setRaycaster` | `(raycaster: Raycaster) => () => void` | Push a raycaster onto the stack. Returns a cleanup that pops it. |
+| `render` | `(delta: number) => void` | Manually trigger a render. |
+| `requestRender` | `() => void` | Request a render on the next frame. |
+| `scene` | `Meta<Scene>` | The root scene, wrapped with [`meta`](/api/utilities/metadata). |
+| `props` | `CanvasProps` | The props the host [`<Canvas>`](/api/components/canvas) was rendered with. |
+| `xr` | `{ connect: () => void; disconnect: () => void }` | WebXR connection management. |
+
+## Behavior
+
+The camera and raycaster are each managed as a **stack**. The `camera` and `raycaster` from [`<Canvas>`](/api/components/canvas) props sit at the bottom; whatever is on top is the active one that `three.camera` / `three.raycaster` return.
+
+`setCamera` and `setRaycaster` push a new one onto the stack, making it active, and return a cleanup that pops it back off — restoring the previous one. Pair the cleanup with `onCleanup` so the previous camera or raycaster comes back when your component unmounts.
+
+## Examples
+
+Switching to an orthographic camera while a signal is set, and restoring the previous one on cleanup:
+
+```tsx
+const three = useThree()
+const [useOrtho, setUseOrtho] = createSignal(false)
+
+createEffect(() => {
+  if (useOrtho()) {
+    const orthoCamera = new OrthographicCamera(-5, 5, 5, -5, 0.1, 1000)
+    orthoCamera.position.set(0, 0, 5)
+
+    const restore = three.setCamera(orthoCamera)
+    onCleanup(restore)
+  }
+})
+```
+
+## See also
+
+- [`<Canvas/>`](/api/components/canvas) — sets the default camera, raycaster, and scene this hook reads.
+- [Raycasters](/api/utilities/raycasters) — the raycaster types `setRaycaster` accepts.
+- [Metadata](/api/utilities/metadata) — reading solid-three metadata off `gl` and `scene`.
