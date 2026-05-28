@@ -1,10 +1,13 @@
 import { createMemo, createSignal, onCleanup, onMount } from "solid-js"
 import { Canvas, createT, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
-import fontUrl from "../../IFKica-Regular.ttf?url"
 
 const T = createT(THREE)
 
+// Served from public/ so the absolute URL resolves the same whether this
+// snippet runs as a built module or is recompiled in the editor's blob iframe.
+// A relative ?url import would break in edit mode.
+const fontUrl = "/IFKica-Regular.ttf"
 const FONT_FAMILY = "IFKica-Tunnel"
 const TEXT = "SOLID THREE"
 const TUBE_RADIUS = 2.2

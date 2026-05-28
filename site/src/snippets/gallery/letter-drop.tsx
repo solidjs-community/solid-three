@@ -6,7 +6,11 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
 import { Font, FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
 import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
-import fontTtfUrl from "../../IFKica-Regular.ttf?url"
+
+// Served from public/ so the absolute URL resolves the same whether this
+// snippet runs as a built module or is recompiled in the editor's blob iframe.
+// A relative ?url import would break in edit mode.
+const fontTtfUrl = "/IFKica-Regular.ttf"
 
 const T = createT(THREE)
 
