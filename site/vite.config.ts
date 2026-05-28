@@ -37,13 +37,15 @@ export default defineConfig({
   resolve: {
     dedupe: ["@solidjs/start", "@kobalte/solidbase"],
   },
-  // The hero lazy-loads gallery snippets (letter-drop, rubiks) that pull in
-  // cannon-es and several three/examples/jsm modules. Behind a dynamic import,
-  // Vite only discovers them mid-session and re-optimizes — a slow full reload.
-  // Skip pre-bundling them; they're already ESM, and `three` stays optimized so
-  // there's still a single three instance.
+  // The hero lazy-loads gallery snippets (letter-drop, rubiks, tunnel) that
+  // pull in three, cannon-es, and several three/examples/jsm modules. Behind a
+  // dynamic import, Vite never sees them at startup — it discovers them on first
+  // demo load and re-optimizes mid-session, a slow full reload. Skip pre-bundling
+  // them; they're already ESM. Everything that imports `three` resolves to the
+  // same excluded copy, so there's still a single three instance.
   optimizeDeps: {
     exclude: [
+      "three",
       "cannon-es",
       "three/examples/jsm/environments/RoomEnvironment.js",
       "three/examples/jsm/geometries/TextGeometry.js",
