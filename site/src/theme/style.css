@@ -20,6 +20,13 @@
   text-align: left;
 }
 
+/* SolidBase doesn't brighten --sb-active-link-color for dark mode, so the
+ * accent reads dim against dark backgrounds. Bump it to a lighter blue
+ * site-wide. */
+html[data-theme*="dark"] {
+  --sb-active-link-color: hsl(200, 95%, 68%);
+}
+
 /* SolidBase sets data-theme="sdark" / "slight" on <html>. Mirror that into
  * a CSS variable so the demo chrome adapts to the site's theme. */
 html {
@@ -203,6 +210,65 @@ article.article-fullbleed > div {
   overflow: hidden;
 }
 
+/* --- Narrow layout (sidebar collapsed off-canvas) ---------------------- */
+@media screen and (max-width: 1100px) {
+  /* The hero spans the full pane once the sidebar is off-canvas, so drop the
+   * left gutter that exists on desktop only to clear the sidebar's overflow. */
+  article.article-fullbleed {
+    margin-left: 0;
+  }
+
+  /* Collapse SolidBase's two-row mobile header to a single row: the toggle is
+   * lifted into the header (below), so reclaim the height SolidBase reserves
+   * for its under-header bar. The selector is deliberately specific to beat
+   * SolidBase's own `html:has(.header .mobile-bar)` rule (which sets 6.25rem). */
+  html[data-theme]:has(header [class*="mobile-bar"]) {
+    --sb-header-height: 3.5rem !important;
+  }
+
+  /* Pull the sidebar toggle out of the (now removed) under-header bar and onto
+   * the header's left edge. */
+  header [class*="mobile-bar"] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 1rem;
+    margin: 0;
+    padding: 0;
+    border: none;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Hide the "On this page" table-of-contents trigger. */
+  header [class*="mobile-bar"] [aria-haspopup] {
+    display: none;
+  }
+
+  /* The off-canvas sidebar repeats the "solid-three" title at its top; drop it. */
+  [class*="sidenav-header"] {
+    display: none;
+  }
+
+  /* Match the off-canvas sidebar to the desktop sidebar's 14rem width
+   * (SolidBase defaults the narrow drawer to min(20rem, 70dvw)). */
+  [role="dialog"][class*="sidenav"] {
+    width: 14rem;
+  }
+
+  /* Center the title between the toggle (left) and theme controls (right). */
+  header > div:first-of-type {
+    justify-content: flex-end;
+  }
+  header [class*="logo-cluster"] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
 .hero-canvas {
   position: absolute;
   inset: 0;
@@ -218,7 +284,7 @@ article.article-fullbleed > div {
   position: absolute;
   bottom: 1rem;
   right: 1rem;
-  padding: 0.6rem 1.1rem;
+  padding: 0.3rem 0.9rem;
   border-radius: 1.5rem;
   border: 1px solid #ffffff;
   background: transparent;

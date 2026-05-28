@@ -26,6 +26,10 @@ that wraps it. `createT` is `solid-three`'s helper for doing that in
 bulk: hand it an object of classes and you get back a proxy where
 every key is its own JSX component.
 
+For a single class — or one only known at runtime — you can skip the
+namespace and wrap it inline with
+[`<Entity from={Class}>`](/api/components/entity) instead.
+
 <Demo code={createTSnippet} url={createTUrl} />
 
 The colour comes from `MeshNormalMaterial`, which tints each face by its

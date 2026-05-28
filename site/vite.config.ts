@@ -1,6 +1,6 @@
-import { importChunkUrl } from "@lightningjs/vite-plugin-import-chunk-url"
 import { createSolidBase, defineTheme } from "@kobalte/solidbase/config"
 import defaultTheme from "@kobalte/solidbase/default-theme"
+import { importChunkUrl } from "@lightningjs/vite-plugin-import-chunk-url"
 import { solidStart } from "@solidjs/start/config"
 import { nitroV2Plugin } from "@solidjs/vite-plugin-nitro-2"
 import { defineConfig } from "vite"
@@ -13,6 +13,24 @@ const theme = defineTheme({
   extends: defaultTheme,
 })
 
+// SolidBase rewrites each sidebar item's link by prepending its prefix key, so
+// the same chapter list is emitted relative to `/tutorial` (for tutorial pages)
+// and as full paths under `/` (the home-page fallback).
+const tutorialChapters: Array<[title: string, slug: string]> = [
+  ["Getting started", "00-getting-started"],
+  ["Your first scene", "01-your-first-scene"],
+  ["Props and children", "02-props-and-children"],
+  ["Control flow", "03-control-flow"],
+  ["Pointer events", "04-pointer-events"],
+  ["useFrame", "05-use-frame"],
+  ["Loaders & Resource", "06-loaders-and-resource"],
+  ["Portal", "07-portal"],
+  ["Let's build Tetris!", "08-tetris"],
+  ["A peek at WebGPU", "09-webgpu-peek"],
+]
+const tutorialSidebar = (base: string) =>
+  tutorialChapters.map(([title, slug]) => ({ title, link: `${base}${slug}` }))
+
 const solidBase = createSolidBase(theme)
 
 export default defineConfig({
@@ -20,10 +38,10 @@ export default defineConfig({
     dedupe: ["@solidjs/start", "@kobalte/solidbase"],
   },
   plugins: [
-    { ...importChunkUrl(), applyToEnvironment: (env) => env.name === "client" },
+    { ...importChunkUrl(), applyToEnvironment: env => env.name === "client" },
     {
       name: "importChunkUrl-ssr-stub",
-      applyToEnvironment: (env) => env.name !== "client",
+      applyToEnvironment: env => env.name !== "client",
       resolveId(id) {
         if (id.endsWith("?importChunkUrl")) return id
       },
@@ -34,77 +52,60 @@ export default defineConfig({
     solidbaseJsxFallback(),
     solidThreeBundlePlugin(),
     solidBase.plugin({
-      title: "solid-three",
+      title: "solid three",
       description: "A SolidJS renderer for three.js — learn by reading.",
       lang: "en",
       themeConfig: {
         socialLinks: {
           github: "https://github.com/solidjs-community/solid-three",
         },
-        sidebar: [
-          {
-            title: "Tutorial",
-            collapsed: false,
-            items: [
-              { title: "Your first scene", link: "/tutorial/01-your-first-scene" },
-              { title: "Props and children", link: "/tutorial/02-props-and-children" },
-              { title: "Control flow", link: "/tutorial/03-control-flow" },
-              { title: "Pointer events", link: "/tutorial/04-pointer-events" },
-              { title: "useFrame", link: "/tutorial/05-use-frame" },
-              { title: "Loaders & Resource", link: "/tutorial/06-loaders-and-resource" },
-              { title: "Portal", link: "/tutorial/07-portal" },
-              { title: "Let's build Tetris!", link: "/tutorial/08-tetris" },
-              { title: "A peek at WebGPU", link: "/tutorial/09-webgpu-peek" },
-            ],
-          },
-          {
-            title: "API reference",
-            collapsed: false,
-            items: [
-              { title: "Introduction", link: "/api" },
-              {
-                title: "Components",
-                collapsed: true,
-                items: [
-                  { title: "Canvas", link: "/api/components/canvas" },
-                  { title: "Entity", link: "/api/components/entity" },
-                  { title: "T / createT", link: "/api/components/t" },
-                  { title: "Portal", link: "/api/components/portal" },
-                  { title: "Resource", link: "/api/components/resource" },
-                ],
-              },
-              {
-                title: "Hooks",
-                collapsed: true,
-                items: [
-                  { title: "useThree", link: "/api/hooks/use-three" },
-                  { title: "useFrame", link: "/api/hooks/use-frame" },
-                  { title: "useLoader", link: "/api/hooks/use-loader" },
-                  { title: "useProps", link: "/api/hooks/use-props" },
-                ],
-              },
-              {
-                title: "Utilities",
-                collapsed: true,
-                items: [
-                  { title: "Raycasters", link: "/api/utilities/raycasters" },
-                  { title: "LoaderCache", link: "/api/utilities/loader-cache" },
-                  { title: "autodispose", link: "/api/utilities/autodispose" },
-                  { title: "Metadata", link: "/api/utilities/metadata" },
-                  { title: "Testing", link: "/api/utilities/testing" },
-                ],
-              },
-              {
-                title: "Events",
-                collapsed: true,
-                items: [
-                  { title: "Overview", link: "/api/events/overview" },
-                  { title: "raycastable", link: "/api/events/raycastable" },
-                ],
-              },
-            ],
-          },
-        ],
+        sidebar: {
+          "/": tutorialSidebar("/tutorial/"),
+          "/tutorial": tutorialSidebar("/"),
+          "/api": [
+            {
+              title: "Components",
+              collapsed: true,
+              items: [
+                { title: "Canvas", link: "/components/canvas" },
+                { title: "Entity", link: "/components/entity" },
+                { title: "T / createT", link: "/components/t" },
+                { title: "Portal", link: "/components/portal" },
+                { title: "Resource", link: "/components/resource" },
+              ],
+            },
+            {
+              title: "Hooks",
+              collapsed: true,
+              items: [
+                { title: "useThree", link: "/hooks/use-three" },
+                { title: "useFrame", link: "/hooks/use-frame" },
+                { title: "useLoader", link: "/hooks/use-loader" },
+                { title: "useProps", link: "/hooks/use-props" },
+              ],
+            },
+            {
+              title: "Utilities",
+              collapsed: true,
+              items: [
+                { title: "Raycasters", link: "/utilities/raycasters" },
+                { title: "LoaderCache", link: "/utilities/loader-cache" },
+                { title: "autodispose", link: "/utilities/autodispose" },
+                { title: "Metadata", link: "/utilities/metadata" },
+                { title: "Testing", link: "/utilities/testing" },
+              ],
+            },
+            {
+              title: "Events",
+              collapsed: true,
+              items: [
+                { title: "Overview", link: "/events/overview" },
+                { title: "raycastable", link: "/events/raycastable" },
+              ],
+            },
+            { title: "Types", link: "/types" },
+          ],
+        },
       },
     }),
     solidStart(solidBase.startConfig()),
