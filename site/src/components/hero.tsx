@@ -88,7 +88,7 @@ export function Hero() {
           class="hero-edit-toggle"
           onClick={() => startTransition(() => setEditorOpen(value => !value))}
         >
-          {editorOpen() ? "close editor" : "edit"}
+          {editorOpen() ? "close" : "edit"}
         </button>
       </Show>
     </div>

@@ -91,10 +91,8 @@ html[data-theme*="light"] {
 .hero-edit-toggle,
 .demo-reset {
   position: absolute;
-  right: 1rem;
   padding: 0.25rem 0.75rem;
-  background: rgba(20, 23, 31, 0.85);
-  color: #c8c8c8;
+  background: var(--demo-canvas-bg);
   border: 1px solid #c8c8c87b;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -104,10 +102,12 @@ html[data-theme*="light"] {
 
 .demo-reset {
   top: 0.5rem;
+  right: 1rem;
 }
 
 .hero-edit-toggle {
   bottom: 0.5rem;
+  right: 0.5rem;
 }
 
 .demo-reset:hover {
