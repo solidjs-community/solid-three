@@ -20,6 +20,12 @@
   text-align: left;
 }
 
+/* Drop the blur on the off-canvas sidebar's backdrop; the default theme's
+ * .sidenav-overlay sets backdrop-filter: blur(2px). */
+[class*="sidenav-overlay"] {
+  backdrop-filter: none;
+}
+
 /* SolidBase doesn't brighten --sb-active-link-color for dark mode, so the
  * accent reads dim against dark backgrounds. Bump it to a lighter blue
  * site-wide. */
