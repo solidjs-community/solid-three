@@ -334,9 +334,14 @@ git commit -m "test(xr): verify sessionend listener detaches on renderer swap"
 
 ---
 
-### Task 5 (optional, pending naming decision): rename `context.render` → `context.advance`
+### Task 5 — DROPPED (naming decision: keep `render`)
 
-Only do this if the user confirms the `advance` name (the one open question in the spec). Functionally inert — `context.render` already works as the consumer's per-frame callback.
+Decision: keep `context.render` / `context.requestRender` as-is. The rename to `advance` would have broken the coherent `render`/`requestRender` pairing. No code change. This task is not performed.
+
+<details>
+<summary>Original (not pursued): rename `context.render` → `context.advance`</summary>
+
+Functionally inert — `context.render` already works as the consumer's per-frame callback.
 
 **Files:**
 - Modify: `src/types.ts` (the `render` member), `src/create-three.tsx` (definition, the `context` literal entry, the `loop` call at 576), `src/canvas.tsx:106`, `tests/core/renderer.test.tsx` (the `state.render(...)` call in the frame-forward test).
@@ -378,6 +383,8 @@ Expected: PASS, exit 0.
 git add src/types.ts src/create-three.tsx src/canvas.tsx tests/core/renderer.test.tsx
 git commit -m "refactor(api): rename Context.render to Context.advance"
 ```
+
+</details>
 
 ---
 
