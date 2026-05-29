@@ -1217,4 +1217,17 @@ describe("renderer", () => {
     second.forceContextLoss()
     removeSpy.mockRestore()
   })
+
+  it("does not crash for a renderer whose xr manager lacks addEventListener (WebGPU-style stub)", async () => {
+    // WebGPURenderer's XRManager has `enabled` but is not an event target in
+    // older builds. The sessionend effect must skip it, not call a missing
+    // addEventListener.
+    const fake = Object.assign(makeFakeRenderer(), { xr: { enabled: false } })
+    const state = test(() => <T.Group />, { gl: fake })
+
+    await state.waitTillNextFrame()
+
+    expect(state.gl).toBe(fake)
+    expect(fake.render).toHaveBeenCalled()
+  })
 })

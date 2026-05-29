@@ -131,6 +131,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   let pendingRenderRequest: number | undefined
 
+  // True while an XR session owns the frame loop. Window-initiated renders
+  // (`loop`, `requestRender`, and the resize repaint in canvas.tsx) must yield
+  // to it; `render` itself stays unguarded because the session calls it.
+  const isPresenting = () => !!context.gl?.xr?.isPresenting
+
   function render(timestamp: number, frame?: XRFrame) {
     // `WebGPURenderer.init()` must complete before the first render; the
     // render loop spins harmlessly until the resource flips to "ready".
@@ -149,7 +154,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     updateFrameListeners("after", delta, frame)
   }
   function requestRender() {
-    if (context.gl?.xr?.isPresenting) return
+    if (isPresenting()) return
     if (pendingRenderRequest) return
     pendingRenderRequest = requestAnimationFrame(render)
   }
@@ -523,7 +528,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   let pendingLoopRequest: number | undefined
   function loop(value: number) {
-    if (context.gl?.xr?.isPresenting) {
+    if (isPresenting()) {
       // The XR session drives the per-frame render now; let this chain die.
       // The sessionend listener restarts it.
       pendingLoopRequest = undefined
@@ -550,9 +555,10 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     const resume = () => {
       if (canvasProps.frameloop === "always") {
         if (!pendingLoopRequest) pendingLoopRequest = requestAnimationFrame(loop)
-      } else {
+      } else if (canvasProps.frameloop === "demand") {
         requestRender() // one repaint so the flat canvas reflects post-XR state
       }
+      // "never" is fully manual — the consumer repaints if/when they want to.
     }
     xr.addEventListener("sessionend", resume)
     onCleanup(() => xr.removeEventListener("sessionend", resume))
