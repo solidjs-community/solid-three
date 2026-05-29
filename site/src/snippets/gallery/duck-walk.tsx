@@ -140,6 +140,7 @@ function DuckAnimator(props: {
   leftHip: () => THREE.Group | undefined
   rightHip: () => THREE.Group | undefined
 }) {
+  const three = useThree()
   const baseY = 0.55
   // useFrame's callback receives (context, delta). Read the engine clock's
   // `elapsedTime` PROPERTY (not getElapsedTime(), which calls getDelta() and
@@ -159,6 +160,8 @@ function DuckAnimator(props: {
       // Roll side-to-side with the stride.
       root.rotation.x = Math.sin(phase) * WADDLE
     }
+    // The Canvas does not auto-aim the camera; point it at the duck.
+    three.camera.lookAt(0, baseY, 0)
   })
   return null
 }
@@ -169,7 +172,7 @@ export default function DuckWalk() {
   let rightHip: THREE.Group | undefined
 
   return (
-    <Canvas camera={{ position: [3, 1.5, 3], fov: 45 }}>
+    <Canvas camera={{ position: [2.4, 0.9, 2.4], fov: 45 }}>
       <T.AmbientLight intensity={0.7} />
       <T.DirectionalLight position={[4, 6, 4]} intensity={1.1} />
       <T.GridHelper args={[12, 24]} />
