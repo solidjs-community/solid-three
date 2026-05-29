@@ -14,6 +14,11 @@ const SOLID_PATH =
 const BODY_SCALE = 0.006
 const BODY_DEPTH = 50
 
+const STEP_OMEGA = 3.2 // radians/sec of the step cycle
+const LEG_SWING = 0.5 // radians
+const BODY_BOB = 0.04 // units
+const WADDLE = 0.08 // radians of roll
+
 // The geometries below are module-scope singletons, shared across every mount
 // of this demo (the gallery caches the module). They are intentionally never
 // disposed: their lifetime is the module's, not the component's — disposing on
@@ -130,6 +135,34 @@ function Duck(props: {
   )
 }
 
+function DuckAnimator(props: {
+  duckRoot: () => THREE.Group | undefined
+  leftHip: () => THREE.Group | undefined
+  rightHip: () => THREE.Group | undefined
+}) {
+  const baseY = 0.55
+  // useFrame's callback receives (context, delta). Read the engine clock's
+  // `elapsedTime` PROPERTY (not getElapsedTime(), which calls getDelta() and
+  // would corrupt the render loop's own getDelta()).
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
+    const phase = t * STEP_OMEGA
+    const left = props.leftHip()
+    const right = props.rightHip()
+    const root = props.duckRoot()
+    // Legs swing fore/aft about the lateral axis (local z), opposite phase.
+    if (left) left.rotation.z = Math.sin(phase) * LEG_SWING
+    if (right) right.rotation.z = -Math.sin(phase) * LEG_SWING
+    if (root) {
+      // Body dips twice per stride as each foot plants.
+      root.position.y = baseY + Math.abs(Math.sin(phase)) * BODY_BOB
+      // Roll side-to-side with the stride.
+      root.rotation.x = Math.sin(phase) * WADDLE
+    }
+  })
+  return null
+}
+
 export default function DuckWalk() {
   let duckRoot: THREE.Group | undefined
   let leftHip: THREE.Group | undefined
@@ -144,6 +177,11 @@ export default function DuckWalk() {
         rootRef={group => (duckRoot = group)}
         leftHipRef={group => (leftHip = group)}
         rightHipRef={group => (rightHip = group)}
+      />
+      <DuckAnimator
+        duckRoot={() => duckRoot}
+        leftHip={() => leftHip}
+        rightHip={() => rightHip}
       />
     </Canvas>
   )
