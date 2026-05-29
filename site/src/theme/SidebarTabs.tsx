@@ -22,14 +22,22 @@ function expandActiveSection(pathname: string) {
   })
 }
 
+// location.pathname carries the deploy base (e.g. /solid-three) under a
+// subpath deploy, so strip it before matching app-relative routes.
+const BASE_PREFIX = import.meta.env.BASE_URL.replace(/\/+$/, "")
+
 export default function SidebarTabs() {
   const location = useLocation()
+  const relativePath = () => {
+    const path = location.pathname
+    return BASE_PREFIX && path.startsWith(BASE_PREFIX) ? path.slice(BASE_PREFIX.length) || "/" : path
+  }
   // The home page falls back to the tour sidebar, so anything that isn't
   // under /api counts as the Tour tab.
-  const isApi = () => location.pathname.startsWith("/api")
+  const isApi = () => relativePath().startsWith("/api")
 
   createEffect(() => {
-    const pathname = location.pathname // re-run on navigation
+    const pathname = relativePath() // re-run on navigation
     // Defer a frame so the sidebar triggers for the new route are in the DOM.
     requestAnimationFrame(() => expandActiveSection(pathname))
   })

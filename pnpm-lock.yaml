@@ -4,17 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-catalogs:
-  default:
-    '@kobalte/solidbase':
-      specifier: ^0.6.3
-      version: 0.6.3
-
 overrides:
   '@swc/helpers': 0.5.21
   electron-to-chromium: 1.5.361
   '@solidjs/start': https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080
   '@solidjs/router': ^0.16.1
+  '@kobalte/solidbase': github:bigmistqke/solidbase#5f147ec
 
 importers:
 
@@ -142,8 +137,8 @@ importers:
         specifier: ^0.2.8
         version: 0.2.8(@babel/standalone@7.29.7)(dom-serializer@2.0.0)(domutils@3.2.2)(htmlparser2@10.1.0)(monaco-editor@0.52.2)(solid-js@1.9.13)(typescript@5.9.3)
       '@kobalte/solidbase':
-        specifier: 'catalog:'
-        version: 0.6.3(@solidjs/start@https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)))(solid-js@1.9.13)(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))
+        specifier: github:bigmistqke/solidbase#5f147ec
+        version: https://codeload.github.com/bigmistqke/solidbase/tar.gz/5f147ec064f408a4ea4f8de4c795cc6bd6bf857f(@solidjs/start@https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)))(solid-js@1.9.13)(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))
       '@solidjs/router':
         specifier: ^0.16.1
         version: 0.16.1(solid-js@1.9.13)
@@ -1205,11 +1200,11 @@ packages:
   '@iconify/utils@3.1.3':
     resolution: {integrity: sha512-LPKOXPn/zV+zis1oOfGWogaXVpqUybF3ZS6SCZIsz8vg0ivVp9+fVqyYB7xq0aiST/VhUQYGO1qo6uoYSiEJqw==}
 
-  '@internationalized/date@3.12.1':
-    resolution: {integrity: sha512-6IedsVWXyq4P9Tj+TxuU8WGWM70hYLl12nbYU8jkikVpa6WXapFazPUcHUMDMoWftIDE2ILDkFFte6W2nFCkRQ==}
+  '@internationalized/date@3.12.2':
+    resolution: {integrity: sha512-FY1Y+H64NDs+HAF6omlnWxm3mEpfgaCSWtL5l551ZZfImA+kGjPFgrnJrGjH6lfmLL0g8Z/mBu1R3kufeCp6Jw==}
 
-  '@internationalized/number@3.6.6':
-    resolution: {integrity: sha512-iFgmQaXHE0vytNfpLZWOC2mEJCBRzcUxt53Xf/yCXG93lRvqas237i3r7X4RKMwO3txiyZD4mQjKAByFv6UGSQ==}
+  '@internationalized/number@3.6.7':
+    resolution: {integrity: sha512-3ji1fcrT+FPAK86UqEhB/psHixYo6niWPJtt7+qRaYFynt/BaJG8GhAPimtWUpEiVSTq8ZM8L5psMxGquiB/Vg==}
 
   '@ioredis/commands@1.5.1':
     resolution: {integrity: sha512-JH8ZL/ywcJyR9MmJ5BNqZllXNZQqQbnVZOqpPQqE1vHiFgAw4NHbvE0FOduNU8IX9babitBT46571OnPTT0Zcw==}
@@ -1320,9 +1315,9 @@ packages:
     peerDependencies:
       solid-js: ^1.8.15
 
-  '@kobalte/solidbase@0.6.3':
-    resolution: {integrity: sha512-wyyIuAEsBoz+2qkBUW7qrbu+MeOBKxS+qFOpz+pW8gc3sIFyQZo14vNlCfrcjuB4nV7ouENkR9uUmsg6aiN7WA==}
-    version: 0.6.3
+  '@kobalte/solidbase@https://codeload.github.com/bigmistqke/solidbase/tar.gz/5f147ec064f408a4ea4f8de4c795cc6bd6bf857f':
+    resolution: {gitHosted: true, integrity: sha512-e/9iUVKvcgMf8WPHS+oLAd8Kf1LFm5xdr95mN+moHEbNmAQ83hHcRHn7/bR0ox3D7sr8RPBQIzilPSxqKqb46w==, tarball: https://codeload.github.com/bigmistqke/solidbase/tar.gz/5f147ec064f408a4ea4f8de4c795cc6bd6bf857f}
+    version: 0.6.3-dev
     engines: {node: '>=22'}
     peerDependencies:
       '@solidjs/start': ^2.0.0
@@ -7137,11 +7132,11 @@ snapshots:
       '@iconify/types': 2.0.0
       import-meta-resolve: 4.2.0
 
-  '@internationalized/date@3.12.1':
+  '@internationalized/date@3.12.2':
     dependencies:
       '@swc/helpers': 0.5.21
 
-  '@internationalized/number@3.6.6':
+  '@internationalized/number@3.6.7':
     dependencies:
       '@swc/helpers': 0.5.21
 
@@ -7359,8 +7354,8 @@ snapshots:
   '@kobalte/core@0.13.11(solid-js@1.9.13)':
     dependencies:
       '@floating-ui/dom': 1.7.6
-      '@internationalized/date': 3.12.1
-      '@internationalized/number': 3.6.6
+      '@internationalized/date': 3.12.2
+      '@internationalized/number': 3.6.7
       '@kobalte/utils': 0.9.1(solid-js@1.9.13)
       '@solid-primitives/props': 3.2.3(solid-js@1.9.13)
       '@solid-primitives/resize-observer': 2.1.5(solid-js@1.9.13)
@@ -7368,7 +7363,7 @@ snapshots:
       solid-presence: 0.1.8(solid-js@1.9.13)
       solid-prevent-scroll: 0.1.10(solid-js@1.9.13)
 
-  '@kobalte/solidbase@0.6.3(@solidjs/start@https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)))(solid-js@1.9.13)(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))':
+  '@kobalte/solidbase@https://codeload.github.com/bigmistqke/solidbase/tar.gz/5f147ec064f408a4ea4f8de4c795cc6bd6bf857f(@solidjs/start@https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0)))(solid-js@1.9.13)(vite@8.0.10(@types/node@25.9.1)(esbuild@0.25.12)(jiti@2.7.0)(terser@5.48.0)(yaml@2.9.0))':
     dependencies:
       '@alloc/quick-lru': 5.2.0
       '@bprogress/core': 1.3.4
