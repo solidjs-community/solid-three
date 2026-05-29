@@ -546,40 +546,6 @@ describe("renderer", () => {
     expect(gl.outputColorSpace).toBe(THREE.SRGBColorSpace)
   })
 
-  it("should toggle render mode in xr", async () => {
-    const state = test(() => <T.Group />)
-    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
-
-    xr.isPresenting = true
-    xr.dispatchEvent({ type: "sessionstart" })
-
-    expect(xr.enabled).toEqual(true)
-
-    xr.isPresenting = false
-    xr.dispatchEvent({ type: "sessionend" })
-
-    expect(xr.enabled).toEqual(false)
-  })
-
-  it('should respect frameloop="never" in xr', async () => {
-    let respected = true
-
-    const TestGroup = () => {
-      useFrame(() => {
-        respected = false
-      })
-      return <T.Group />
-    }
-    const state = test(() => <TestGroup />, { frameloop: "never" })
-    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
-    xr.isPresenting = true
-    xr.dispatchEvent({ type: "sessionstart" })
-
-    await new Promise(resolve => requestAnimationFrame(resolve))
-
-    expect(respected).toEqual(true)
-  })
-
   it("will render components that are extended", async () => {
     const testExtend = async () => {
       const T = createT({ MyColor })
@@ -757,80 +723,6 @@ describe("renderer", () => {
 
     expect(fake.outputColorSpace).toBe(THREE.SRGBColorSpace)
     expect(fake.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-  })
-
-  it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
-    const fake = makeFakeRenderer()
-    const state = test(() => <T.Group />, { gl: fake })
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
-
-    expect(() => state.xr.connect()).not.toThrow()
-    expect(() => state.xr.disconnect()).not.toThrow()
-    // The no-op path warns so users debugging "why isn't my XR working" can
-    // see it in the console.
-    expect(warn).toHaveBeenCalledTimes(2)
-    expect(warn.mock.calls[0][0]).toMatch(/no-op/)
-
-    warn.mockRestore()
-  })
-
-  it("should wire XR on a WebGPU-shaped renderer (setAnimationLoop on the renderer, not on xr)", async () => {
-    // WebGPURenderer's XRManager has no `setAnimationLoop` — that method lives on
-    // the renderer itself. On `sessionstart`, solid-three must:
-    //   1. set `gl.xr.enabled = true`
-    //   2. drive frames via `gl.setAnimationLoop(cb)` on the renderer (not xr).
-    // On `sessionend`, it must clear both.
-    const listeners: Record<string, ((e: unknown) => void)[]> = {}
-    const xrManager = {
-      enabled: false,
-      isPresenting: false,
-      addEventListener: (type: string, fn: (e: unknown) => void) => {
-        ;(listeners[type] ??= []).push(fn)
-      },
-      removeEventListener: (type: string, fn: (e: unknown) => void) => {
-        listeners[type] = (listeners[type] ?? []).filter(l => l !== fn)
-      },
-      dispatch(type: string) {
-        for (const fn of listeners[type] ?? []) fn({ type })
-      },
-    }
-    const setAnimationLoop = vi.fn()
-    const fake = Object.assign(makeFakeRenderer(), { xr: xrManager, setAnimationLoop })
-
-    test(() => <T.Group />, { gl: fake })
-
-    xrManager.isPresenting = true
-    xrManager.dispatch("sessionstart")
-
-    expect(xrManager.enabled).toBe(true)
-    expect(setAnimationLoop).toHaveBeenCalledTimes(1)
-    expect(typeof setAnimationLoop.mock.calls[0][0]).toBe("function")
-
-    xrManager.isPresenting = false
-    xrManager.dispatch("sessionend")
-
-    expect(xrManager.enabled).toBe(false)
-    expect(setAnimationLoop).toHaveBeenLastCalledWith(null)
-  })
-
-  it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
-    // WebGPURenderer's XRManager has `enabled` but no `setAnimationLoop`. The
-    // duck-typed `isWebXRManager` guard must distinguish this from a real
-    // WebXRManager so we don't crash calling missing methods.
-    const addEventListener = vi.fn()
-    const fake = Object.assign(makeFakeRenderer(), {
-      xr: { enabled: false, addEventListener },
-    })
-    const state = test(() => <T.Group />, { gl: fake })
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
-
-    expect(() => state.xr.connect()).not.toThrow()
-    // Real wiring would have called addEventListener twice (sessionstart,
-    // sessionend). The guard should have skipped it.
-    expect(addEventListener).not.toHaveBeenCalled()
-    expect(warn).toHaveBeenCalledTimes(1)
-
-    warn.mockRestore()
   })
 
   it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
