@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && node scripts/rewrite-base.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -32,6 +32,6 @@
     "typescript": "^5.4.5"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }
