@@ -19,10 +19,16 @@ const LEG_SWING = 0.5 // radians
 const BODY_BOB = 0.04 // units
 const WADDLE = 0.08 // radians of roll
 
-// The geometries below are module-scope singletons, shared across every mount
-// of this demo (the gallery caches the module). They are intentionally never
-// disposed: their lifetime is the module's, not the component's — disposing on
-// unmount would break the meshes when the gallery returns to this demo.
+const GRID_CELL = 0.5 // 12 / 24, one cell of the GridHelper
+const TREADMILL_SPEED = 0.6 // units/sec the ground scrolls
+const ORBIT_RADIUS = 2 // matches the framed distance the design liked
+const ORBIT_HEIGHT = 0.9
+const ORBIT_OMEGA = 0.1 // radians/sec of the turntable
+const ORBIT_START = Math.PI / 4 // start at a three-quarter angle, not head-on
+
+// Shapes are cheap CPU-side data, defined once. The actual geometries are
+// created declaratively in JSX (and centered via the geometry's `ref`), so the
+// renderer owns and disposes them per mount.
 
 // Fixed single-path SVG, so it yields exactly one path and one shape.
 const teardropShape = SVGLoader.createShapes(
@@ -31,42 +37,24 @@ const teardropShape = SVGLoader.createShapes(
 
 const bodyExtrudeOptions = {
   depth: BODY_DEPTH,
+  curveSegments: 48, // smooth the curved SVG outline instead of faceting it
   bevelEnabled: true,
   bevelThickness: 0.02,
   bevelSize: 0.02,
   bevelSegments: 3,
 }
 
-function makeCenteredExtrude(
-  shape: THREE.Shape,
-  options: THREE.ExtrudeGeometryOptions,
-): THREE.ExtrudeGeometry {
-  const geometry = new THREE.ExtrudeGeometry(shape, options)
-  geometry.center()
-  return geometry
-}
-
-const teardropGeometry = makeCenteredExtrude(teardropShape, bodyExtrudeOptions)
-
 const beakShape = new THREE.Shape()
 beakShape.moveTo(5, 0)
 beakShape.lineTo(-4, 6)
 beakShape.lineTo(-4, -3)
 beakShape.closePath()
-const beakGeometry = makeCenteredExtrude(beakShape, {
-  depth: BODY_DEPTH + 0.8,
-  bevelEnabled: false,
-})
 
 const footShape = new THREE.Shape()
 footShape.moveTo(-0.14, 0)
 footShape.lineTo(0.2, 0.08)
 footShape.lineTo(0.2, -0.08)
 footShape.closePath()
-const footGeometry = new THREE.ExtrudeGeometry(footShape, {
-  depth: 0.04,
-  bevelEnabled: false,
-})
 
 function Leg(props: { lateral: number; hipRef: (group: THREE.Group) => void }) {
   // Hip group sits at the joint so rotating it swings the whole leg + foot.
@@ -76,8 +64,34 @@ function Leg(props: { lateral: number; hipRef: (group: THREE.Group) => void }) {
         <T.CylinderGeometry args={[0.03, 0.03, 0.3]} />
         <T.MeshStandardMaterial color={SOLID_YELLOW} />
       </T.Mesh>
-      <T.Mesh geometry={footGeometry} rotation={[Math.PI / 2, 0, 0]} position={[0, -0.26, 0]}>
+      <T.Mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.26, 0]}>
+        <T.ExtrudeGeometry args={[footShape, { depth: 0.04, bevelEnabled: false }]} />
         <T.MeshStandardMaterial color={SOLID_YELLOW} />
+      </T.Mesh>
+    </T.Group>
+  )
+}
+
+function Eye(props: { lateral: number }) {
+  const three = useThree()
+  const cameraPosition = new THREE.Vector3()
+  let group: THREE.Group | undefined
+  // lookAt aims the group's local -z at the camera, swivelling the pupil
+  // (offset along -z) toward it. It accounts for the duck's parent rotations.
+  useFrame(() => {
+    if (!group) return
+    three.camera.getWorldPosition(cameraPosition)
+    group.lookAt(cameraPosition)
+  })
+  return (
+    <T.Group ref={element => (group = element)} position={[0, 0.16, props.lateral]}>
+      <T.Mesh>
+        <T.SphereGeometry args={[0.1]} />
+        <T.MeshStandardMaterial color="#ffffff" />
+      </T.Mesh>
+      <T.Mesh position={[0, 0, 0.09]}>
+        <T.SphereGeometry args={[0.03]} />
+        <T.MeshStandardMaterial color="#000000" />
       </T.Mesh>
     </T.Group>
   )
@@ -92,41 +106,28 @@ function Duck(props: {
     <T.Group ref={props.rootRef} position={[0, 0.55, 0]} rotation={[0, -Math.PI / 2, 0]}>
       {/* Body: two teardrops, parent flipped on x like the original */}
       <T.Group rotation={[Math.PI, 0, 0]}>
-        <T.Mesh geometry={teardropGeometry} position={[-0.05, 0.16, 0]} scale={BODY_SCALE}>
-          <T.MeshStandardMaterial color={SOLID_BLUE} />
+        <T.Mesh position={[-0.05, 0.16, 0]} scale={BODY_SCALE}>
+          <T.ExtrudeGeometry args={[teardropShape, bodyExtrudeOptions]} ref={geometry => geometry.center()} />
+          <T.MeshPhongMaterial color={SOLID_BLUE} />
         </T.Mesh>
-        <T.Mesh
-          geometry={teardropGeometry}
-          position={[0.05, -0.16, 0]}
-          rotation={[0, 0, Math.PI]}
-          scale={BODY_SCALE}
-        >
-          <T.MeshStandardMaterial color={SOLID_BLUE_LIGHT} />
+        <T.Mesh position={[0.05, -0.16, 0]} rotation={[0, 0, Math.PI]} scale={BODY_SCALE}>
+          <T.ExtrudeGeometry args={[teardropShape, bodyExtrudeOptions]} ref={geometry => geometry.center()} />
+          <T.MeshPhongMaterial color={SOLID_BLUE_LIGHT} />
         </T.Mesh>
       </T.Group>
 
       {/* Beak */}
-      <T.Mesh geometry={beakGeometry} position={[0.375, 0.14, 0]} scale={BODY_SCALE}>
+      <T.Mesh position={[0.375, 0.14, 0]} scale={BODY_SCALE}>
+        <T.ExtrudeGeometry
+          args={[beakShape, { depth: BODY_DEPTH + 0.8, bevelEnabled: false }]}
+          ref={geometry => geometry.center()}
+        />
         <T.MeshStandardMaterial color={SOLID_YELLOW} />
       </T.Mesh>
 
-      {/* Eyes + pupils, mirrored across lateral axis */}
-      <T.Mesh position={[0, 0.16, 0.15]}>
-        <T.SphereGeometry args={[0.1]} />
-        <T.MeshStandardMaterial color="#ffffff" />
-      </T.Mesh>
-      <T.Mesh position={[0, 0.16, 0.25]}>
-        <T.SphereGeometry args={[0.03]} />
-        <T.MeshStandardMaterial color="#000000" />
-      </T.Mesh>
-      <T.Mesh position={[0, 0.16, -0.15]}>
-        <T.SphereGeometry args={[0.1]} />
-        <T.MeshStandardMaterial color="#ffffff" />
-      </T.Mesh>
-      <T.Mesh position={[0, 0.16, -0.25]}>
-        <T.SphereGeometry args={[0.03]} />
-        <T.MeshStandardMaterial color="#000000" />
-      </T.Mesh>
+      {/* Eyes track the camera, mirrored across the lateral axis */}
+      <Eye lateral={0.15} />
+      <Eye lateral={-0.15} />
 
       {/* Legs */}
       <Leg lateral={0.1} hipRef={props.leftHipRef} />
@@ -139,6 +140,7 @@ function DuckAnimator(props: {
   duckRoot: () => THREE.Group | undefined
   leftHip: () => THREE.Group | undefined
   rightHip: () => THREE.Group | undefined
+  grid: () => THREE.GridHelper | undefined
 }) {
   const three = useThree()
   const baseY = 0.55
@@ -160,7 +162,16 @@ function DuckAnimator(props: {
       // Roll side-to-side with the stride.
       root.rotation.x = Math.sin(phase) * WADDLE
     }
-    // The Canvas does not auto-aim the camera; point it at the duck.
+    // Treadmill: scroll the grid under the duck, wrapping by one cell to loop.
+    const gridHelper = props.grid()
+    if (gridHelper) gridHelper.position.z = -((t * TREADMILL_SPEED) % GRID_CELL)
+    // Turntable: orbit the camera around the duck, always aiming at it.
+    const angle = ORBIT_START + t * ORBIT_OMEGA
+    three.camera.position.set(
+      Math.sin(angle) * ORBIT_RADIUS,
+      ORBIT_HEIGHT,
+      Math.cos(angle) * ORBIT_RADIUS,
+    )
     three.camera.lookAt(0, baseY, 0)
   })
   return null
@@ -170,12 +181,13 @@ export default function DuckWalk() {
   let duckRoot: THREE.Group | undefined
   let leftHip: THREE.Group | undefined
   let rightHip: THREE.Group | undefined
+  let grid: THREE.GridHelper | undefined
 
   return (
-    <Canvas camera={{ position: [2.4, 0.9, 2.4], fov: 45 }}>
+    <Canvas camera={{ position: [1, 0.9, 1], fov: 45 }}>
       <T.AmbientLight intensity={0.7} />
       <T.DirectionalLight position={[4, 6, 4]} intensity={1.1} />
-      <T.GridHelper args={[12, 24]} />
+      <T.GridHelper ref={element => (grid = element)} args={[12, 24]} />
       <Duck
         rootRef={group => (duckRoot = group)}
         leftHipRef={group => (leftHip = group)}
@@ -185,6 +197,7 @@ export default function DuckWalk() {
         duckRoot={() => duckRoot}
         leftHip={() => leftHip}
         rightHip={() => rightHip}
+        grid={() => grid}
       />
     </Canvas>
   )
