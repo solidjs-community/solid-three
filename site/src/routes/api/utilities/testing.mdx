@@ -1,0 +1,66 @@
+---
+title: Testing
+---
+
+# Testing utilities
+
+Available from `"solid-three/testing"`. Designed for real-browser test
+runners (e.g. vitest browser mode); jsdom is not supported.
+
+## `test`
+
+```tsx
+test(children: () => JSX.Element, props?: CanvasProps): TestApi
+```
+
+Mounts `children` inside a fresh [`<Canvas>`](/api/components/canvas) and
+returns the same `Context` shape [`useThree()`](/api/hooks/use-three)
+exposes, plus two extras:
+
+- `unmount()` — disposes the Solid root, frees the WebGL context, and
+  removes the canvas from the DOM.
+- `waitTillNextFrame()` — resolves on the next render-loop tick.
+  Use after mutating a signal to read the renderer's next frame.
+
+```tsx
+import { test, cleanup } from "solid-three/testing"
+import { afterEach } from "vitest"
+
+afterEach(cleanup)
+
+const scene = test(() => <T.Mesh />)
+await scene.waitTillNextFrame()
+expect(scene.scene.children).toHaveLength(1)
+```
+
+## `cleanup`
+
+Unmounts every active `test()` instance. Wire into your runner's
+`afterEach`. Important on real browsers: WebGL contexts are
+process-capped (~16 in Chromium), so tests that don't clean up exhaust
+the limit and the page crashes.
+
+## `TestCanvas`
+
+A thin [`<Canvas>`](/api/components/canvas) wrapper that fills its
+container and accepts the usual
+[`CanvasProps`](/api/components/canvas). Useful for component-level
+tests that go through the JSX render path:
+
+```tsx
+import { TestCanvas } from "solid-three/testing"
+
+render(() => (
+  <TestCanvas camera={{ position: [0, 0, 5] }}>
+    <T.Mesh>
+      <T.BoxGeometry />
+      <T.MeshBasicMaterial />
+    </T.Mesh>
+  </TestCanvas>
+))
+```
+
+## See also
+
+- [`<Canvas/>`](/api/components/canvas) — the props `test` and `TestCanvas` accept.
+- [`useThree`](/api/hooks/use-three) — the `Context` shape `test()` returns.

@@ -1,0 +1,61 @@
+---
+title: Loaders & Resource
+---
+
+import useLoaderSnippet from "../../snippets/06-use-loader.tsx?raw"
+import useLoaderUrl from "../../snippets/06-use-loader.tsx?importChunkUrl"
+import resourceSnippet from "../../snippets/06-resource.tsx?raw"
+import resourceUrl from "../../snippets/06-resource.tsx?importChunkUrl"
+
+# Loaders & Resource
+
+Textures, models, audio — `three.js` ships a loader class for each kind.
+`solid-three` exposes two ways to use them that both plug into Solid's
+`<Suspense>` so the rest of the scene keeps rendering while the asset is
+fetching.
+
+## `useLoader`: the hook
+
+[`useLoader(loaderClass, url)`](/api/hooks/use-loader) returns an
+`Accessor` that resolves to the
+loaded asset. Wrap the consumer in a `<Suspense>` so Solid knows what to
+do while it's pending.
+
+<Demo code={useLoaderSnippet} url={useLoaderUrl} />
+
+A cube with a random photo from `picsum.photos` mapped onto every face.
+While the image is loading, `<Suspense>` shows nothing (you can give it a
+`fallback` if you want a placeholder).
+
+`useLoader` caches by URL across the whole app, so two components
+asking for the same texture share one load and one GPU upload. The
+[`LoaderCache`](/api/utilities/loader-cache) is configurable per call
+when you need different scoping.
+
+## `Resource`: the component
+
+The declarative version. [`<Resource loader={...} url="...">`](/api/components/resource) does the same
+fetching, but you write it as JSX inside the scene tree. When the
+attachment is obvious — a `TextureLoader` result going into `.map` of the
+parent material — `attach` does the wiring for you.
+
+<Demo code={resourceSnippet} url={resourceUrl} />
+
+Same outcome, different shape. Use whichever reads better in context:
+
+- **`useLoader`** when you need the value as a Solid signal — to derive
+  other signals from it, pass it to a function, or do something
+  programmatic.
+- **`<Resource>`** when you just want to drop a loaded asset into the tree
+  and forget about it.
+
+Both forms return Solid resources, so the usual reactivity rules apply:
+read them inside `createMemo`/`createEffect` to track loading state,
+or inside `<Suspense>` to render a fallback. Cache behaviour, base URLs,
+array/record URL shapes, error handling — see
+[`useLoader`](/api/hooks/use-loader) for the full surface.
+
+That's the everyday tree: components, props, signals, events, frames,
+loaders. The next chapter is a deliberate break from the mapping — a
+way to send children somewhere *other* than where their JSX would
+suggest.

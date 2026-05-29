@@ -1,0 +1,101 @@
+---
+title: Props and children
+---
+
+import buttonToggleSnippet from "../../snippets/02-button-toggle.tsx?raw"
+import buttonToggleUrl from "../../snippets/02-button-toggle.tsx?importChunkUrl"
+import transformsSnippet from "../../snippets/02-transforms.tsx?raw"
+import transformsUrl from "../../snippets/02-transforms.tsx?importChunkUrl"
+import groupSnippet from "../../snippets/02-group.tsx?raw"
+import groupUrl from "../../snippets/02-group.tsx?importChunkUrl"
+import shorthandsSnippet from "../../snippets/02-shorthands.tsx?raw"
+import shorthandsUrl from "../../snippets/02-shorthands.tsx?importChunkUrl"
+import argsSnippet from "../../snippets/02-args.tsx?raw"
+import argsUrl from "../../snippets/02-args.tsx?importChunkUrl"
+
+# Props and children
+
+A scene in `solid-three` is a reactive view over a `three.js` graph.
+Anything that drives a Solid component also drives the scene — and the
+easiest way to see that is to hand a prop a signal.
+
+<Demo code={buttonToggleSnippet} url={buttonToggleUrl} />
+
+Click the button repeatedly. The counter at the top says "App body has
+run: 1 time" — and it stays at 1, no matter how often you click. The
+component's body runs once. Only the small reactive expression that
+reads `hot()` re-runs, and all it does is hand a new value to
+`material.color.set(...)`. The mesh stays mounted, the canvas keeps the
+same renderer, nothing else moves.
+
+That's the through-line. The rest of this chapter is just *what props
+you can pass*.
+
+## Transforms
+
+A `three.js` scene is a tree. Every object has a parent and a (possibly
+empty) list of children — in `solid-three`, that tree *is* your JSX.
+Nest one element inside another and you've made a parent-child
+relationship in the scene.
+
+Every object accepts three transform props:
+
+- `position={[x, y, z]}`
+- `rotation={[x, y, z]}` (radians)
+- `scale={[x, y, z]}` (or a single number — `scale={2}` doubles every axis)
+
+<Demo code={transformsSnippet} url={transformsUrl} />
+
+## Composing transforms
+
+When you nest, transforms compose. A child sits in its parent's frame:
+the parent's position, rotation, and scale all apply first, then the
+child's on top.
+
+`T.Group` is the empty container you reach for when you want to move
+several things together without a visible mesh of their own.
+
+<Demo code={groupSnippet} url={groupUrl} />
+
+Same two cubes, but now they sit inside a `<T.Group>` that's rotated.
+The rotation applies to the group's frame, so both cubes tilt together
+— including their positions, which now swing slightly toward and away
+from the camera.
+
+Rotate the group instead of the cubes any time you want the
+*arrangement* to move, not just the individual shapes. Almost every
+scene you'll build is some tree of groups holding meshes.
+
+## Constructor arguments: `args`
+
+Not everything has a setter. `BoxGeometry`'s width, height, and depth
+are constructor parameters — you set them when the geometry is born.
+For cases like this, pass an `args` array:
+
+<Demo code={argsSnippet} url={argsUrl} />
+
+`args` is spread into the constructor: `new BoxGeometry(...args)`.
+Change `args` and the geometry is rebuilt — which is what you want,
+since geometries and materials don't have setters for these
+fundamentals.
+
+## Why arrays work on a `Vector3`
+
+You've been writing `position={[0, 0, 3]}` — but `Mesh.position` isn't
+an array, it's a `Vector3`. `solid-three` is forgiving about the shape
+of what you hand it: arrays unpack into `.set(...)`, single numbers
+broadcast via `.setScalar(...)`, strings and hex go through `.set(...)`
+on a `Color`, and so on.
+
+<Demo code={shorthandsSnippet} url={shorthandsUrl} />
+
+The principle: pass whatever's most ergonomic for the shape of data
+you have. `solid-three` checks which setter the target supports —
+`.set(...)`, `.setScalar(...)`, or `.copy(...)` — and uses the first
+one that fits. The full conversion table — plus how `attach`, dashed
+paths like `shadow-mapSize-width={1024}`, and refs work — lives on
+[`useProps`](/api/hooks/use-props).
+
+Next: every Solid control-flow primitive you already know — `<Show>`,
+`<For>`, `<Switch>`, `<Index>`, `<Suspense>` — works inside the scene
+the same way it works inside a `<div>`.

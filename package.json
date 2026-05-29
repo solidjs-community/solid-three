@@ -7,6 +7,10 @@
     "url": "git+https://github.com/solidjs-community/solid-three.git"
   },
   "type": "module",
+  "packageManager": "pnpm@11.3.0",
+  "engines": {
+    "pnpm": ">=11.3.0"
+  },
   "module": "./dist/index.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -19,9 +23,9 @@
   ],
   "scripts": {
     "build": "tsup",
-    "build:dev": "vite build playground",
+    "build:site": "pnpm -C site build",
     "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
-    "dev": "vite playground",
+    "dev:site": "pnpm -C site dev",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "lint:circular": "dpdm -T src",
     "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
@@ -78,6 +82,7 @@
     "vite-tsconfig-paths": "^5.1.4"
   },
   "devDependencies": {
+    "@bigmistqke/repl": "link:../repl",
     "@solidjs/router": "^0.15.3",
     "@solidjs/testing-library": "^0.8.8",
     "@types/three": "^0.181.0",

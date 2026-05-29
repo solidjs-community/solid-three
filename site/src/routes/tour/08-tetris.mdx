@@ -1,0 +1,86 @@
+---
+title: Let's build Tetris
+---
+
+import tetris1 from "../../snippets/08-tetris-1-render.tsx?raw"
+import tetris1Url from "../../snippets/08-tetris-1-render.tsx?importChunkUrl"
+import tetris2 from "../../snippets/08-tetris-2-fall.tsx?raw"
+import tetris2Url from "../../snippets/08-tetris-2-fall.tsx?importChunkUrl"
+import tetris3 from "../../snippets/08-tetris-3-lines.tsx?raw"
+import tetris3Url from "../../snippets/08-tetris-3-lines.tsx?importChunkUrl"
+
+# Let's build Tetris
+
+This chapter is bigger than the others. We're building Tetris across three
+demos so you can watch the state grow.
+
+## Stage 1 — Two stores, some JSX
+
+<Demo code={tetris1} url={tetris1Url} />
+
+There's no game here yet — just two stores and JSX that reads them.
+
+- **The board** is a 2D matrix of optional colors, stored with
+  `createStore`. We render it with two nested `<Index>` components, one
+  per row, one per cell. Empty cells are skipped with `<Show>`.
+- **The piece** is a `{ type, shape, position }` store. The `<Tetromino>`
+  component reads it and emits one `<Cell>` per filled square in the
+  shape, offset by the piece's position.
+
+The two are rendered as **two parallel passes**: the locked board owns
+its JSX, the active piece owns its JSX. No merge step — each piece of
+state draws itself.
+
+Click any cube of the piece to cycle it through I → O → T → S → Z → J → L
+and back. Mutating the store is the only thing that's changing.
+
+## Stage 2 — Gravity and keys
+
+<Demo code={tetris2} url={tetris2Url} />
+
+We added three things:
+
+- A `setInterval` that calls `tryMove(0, 1)` every half-second. That's
+  gravity.
+- A `keydown` listener on `window`. ← and → move the piece, ↓ soft-drops
+  one cell, ↑ rotates, **space** hard-drops to the bottom.
+- A `tryMove(dx, dy)` function that checks the new position against the
+  board's bounds and locked cells before mutating the piece's position.
+  If the move was downward and blocked, it locks the piece into the
+  board and spawns the next one.
+
+Notice what isn't here: nothing 3D, nothing `solid-three`-specific. Same
+wiring you'd use for a todo app.
+
+## Stage 3 — Lines and score
+
+<Demo code={tetris3} url={tetris3Url} />
+
+Two more additions:
+
+- After every lock, `clearLines()` finds full rows and `splice`s them out
+  of the board store inside a `produce`, prepending empties to keep the
+  matrix the same shape. The number of rows cleared maps to the classic
+  scoring table: 100 / 300 / 500 / 800.
+- A `score` signal. A [`<Portal>`](/api/components/portal) puts the score panel in the DOM next
+  to the canvas. When a fresh piece can't fit at the top, a `<Show>`
+  reveals a "play again" button that resets everything.
+
+## The takeaway
+
+Game development is state management. Solid is a state manager that
+happens to render [`<T.Mesh>`](/api/components/t).
+
+Look back at what we built. Every visible cube is a function of two
+stores. Every input — a key press, an interval tick, a click — is a
+plain function that mutates one of those stores. Solid's job is to
+re-run the JSX bindings that read the changed state; our job is to
+describe the JSX and decide when to mutate.
+
+The shape of every other `solid-three` app you'll write is the same as
+this one: signals and stores describing state, JSX describing the scene,
+`<T.*>` keeping the scene in sync with state. The
+[API reference](/api/types) is there when you need a specific export.
+
+If you'd like a peek at where the library is heading next, the encore is
+WebGPU.

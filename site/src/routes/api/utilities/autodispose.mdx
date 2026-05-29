@@ -1,0 +1,60 @@
+---
+title: autodispose
+---
+
+# autodispose
+
+`autodispose(obj)` registers a `.dispose()` call against the current
+Solid owner: when that owner cleans up, `obj.dispose()` runs. It returns
+the same object you passed in, so it's safe to thread through any
+expression.
+
+Use it for the things in `three.js` that hold GPU memory and need to
+be released by hand — `Geometry`, `Material`, `Texture`, `RenderTarget`
+and friends. [`<T.*>`](/api/components/t) already does this for
+objects it creates from JSX; `autodispose` is the manual version for
+objects you instantiate
+yourself (e.g. to pass through [`<Entity from={...}/>`](/api/components/entity)).
+
+## Examples
+
+Conditional rendering, where objects need cleanup when they unmount:
+
+```tsx
+import { Show, createSignal } from "solid-js"
+import { Entity, autodispose } from "solid-three"
+import { Mesh, BoxGeometry, MeshBasicMaterial } from "three"
+
+const [visible, setVisible] = createSignal(true)
+
+// These will be disposed when ConditionalMesh unmounts
+const geometry = autodispose(new BoxGeometry())
+const material = autodispose(new MeshBasicMaterial())
+
+return (
+  <Show when={visible()}>
+    <Entity from={new Mesh(geometry, material)} />
+  </Show>
+)
+```
+
+Reusable instances that should be disposed with the component:
+
+```tsx
+const geometry = autodispose(new THREE.SphereGeometry(0.3, 16, 16))
+const material = autodispose(new THREE.MeshStandardMaterial())
+
+<Index each={Array.from({ length: instanceCount() })}>
+  {(_, i) => (
+    <T.Mesh position={[(i - instanceCount() / 2) * 0.8, 0, 0]}>
+      <Entity from={geometry} />
+      <Entity from={material} />
+    </T.Mesh>
+  )}
+</Index>
+```
+
+## See also
+
+- [`<Entity/>`](/api/components/entity) — the common reason to instantiate objects by hand and dispose them yourself.
+- [`<T.*>`](/api/components/t) — already auto-disposes the objects it creates from JSX.
