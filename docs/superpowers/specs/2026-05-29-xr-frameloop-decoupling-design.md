@@ -282,7 +282,11 @@ the original report that motivated the work.
   present on the new path).
 - Controller/hand model ergonomics — consumers use three's addons directly via `gl.xr`.
 
-## Open question
+## Resolved decisions
 
-- Final name of the per-frame primitive: `advance(timestamp?, frame?)` (recommended,
-  matches "advance one frame") vs. keeping `render`. Everything else is settled.
+- **Per-frame primitive name: keep `render`** (with the corrected
+  `(timestamp, frame?)` type). It pairs coherently with `requestRender`
+  (do-now / schedule-next-frame); renaming only `render` → `advance` would
+  break that pairing. The surface collision with `gl.render(scene, camera)` is
+  acceptable since they live on different objects and consumers rarely call
+  `gl.render` directly.
