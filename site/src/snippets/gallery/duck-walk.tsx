@@ -1,4 +1,3 @@
-import { onCleanup } from "solid-js"
 import { Canvas, createT, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js"
@@ -15,6 +14,12 @@ const SOLID_PATH =
 const BODY_SCALE = 0.006
 const BODY_DEPTH = 50
 
+// The geometries below are module-scope singletons, shared across every mount
+// of this demo (the gallery caches the module). They are intentionally never
+// disposed: their lifetime is the module's, not the component's — disposing on
+// unmount would break the meshes when the gallery returns to this demo.
+
+// Fixed single-path SVG, so it yields exactly one path and one shape.
 const teardropShape = SVGLoader.createShapes(
   new SVGLoader().parse(`<svg><path d="${SOLID_PATH}"/></svg>`).paths[0],
 )[0]
@@ -129,12 +134,6 @@ export default function DuckWalk() {
   let duckRoot: THREE.Group | undefined
   let leftHip: THREE.Group | undefined
   let rightHip: THREE.Group | undefined
-
-  onCleanup(() => {
-    teardropGeometry.dispose()
-    beakGeometry.dispose()
-    footGeometry.dispose()
-  })
 
   return (
     <Canvas camera={{ position: [3, 1.5, 3], fov: 45 }}>
