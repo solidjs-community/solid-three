@@ -189,26 +189,28 @@ userland sugar over the contract above and can be designed later without changin
 - `warnNonXR`
 
 **Add** core's only remaining XR responsibility — keep its own window loop out of the
-headset's way. A render effect that, for the current renderer exposing an event-target
-`xr`, attaches two listeners that manage *core's own* loop (never the renderer's):
+headset's way. This is a **self-stopping guard plus a single `sessionend` listener**:
+
+- The guard (below) makes the `always` loop chain *die on its own* the first frame
+  `isPresenting` is true — no `sessionstart` listener needed.
+- Only resuming needs a signal, because a dead loop chain can't restart itself when
+  `isPresenting` flips back to false. One `sessionend` listener does that:
 
 ```ts
 createRenderEffect(() => {
   const _gl = gl()
-  const xr = (_gl as { xr?: EventTarget & { isPresenting?: boolean } }).xr
+  const xr = (_gl as { xr?: EventTarget }).xr
   if (!xr || typeof xr.addEventListener !== "function") return
 
-  const stop = () => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest)
   const resume = () => {
-    if (canvasProps.frameloop === "always") pendingLoopRequest = requestAnimationFrame(loop)
-    else requestRender() // one repaint so the flat canvas reflects post-XR state
+    if (canvasProps.frameloop === "always") {
+      if (!pendingLoopRequest) pendingLoopRequest = requestAnimationFrame(loop)
+    } else {
+      requestRender() // one repaint so the flat canvas reflects post-XR state
+    }
   }
-  xr.addEventListener("sessionstart", stop)
   xr.addEventListener("sessionend", resume)
-  onCleanup(() => {
-    xr.removeEventListener("sessionstart", stop)
-    xr.removeEventListener("sessionend", resume)
-  })
+  onCleanup(() => xr.removeEventListener("sessionend", resume))
 })
 ```
 
@@ -217,9 +219,10 @@ createRenderEffect(() => {
 the *schedulers*, never in `advance` itself — the XR session calls `advance` precisely
 while `isPresenting` is true, so guarding `advance` would blank the headset:
 
-- `loop` (574): `if (context.gl?.xr?.isPresenting) return` before `context.render(value)`
-  (also fixes the existing latent `frameloop="always"` + XR double-drive bug).
-- `requestRender` (193): same guard before scheduling the rAF.
+- `loop` (574): if `context.gl?.xr?.isPresenting`, set `pendingLoopRequest = undefined`
+  and `return` *without rescheduling* — the chain dies and `sessionend`/`resume` revives
+  it (also fixes the existing latent `frameloop="always"` + XR double-drive bug).
+- `requestRender` (193): if `context.gl?.xr?.isPresenting`, `return` before scheduling.
 - `advance` (the per-frame fn at 176): **no guard** — it must run on demand from any source.
 
 **Expose** the per-frame primitive on the context as `advance` (the function currently
