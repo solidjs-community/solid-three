@@ -4,6 +4,8 @@ import { build } from "esbuild"
 import { solidPlugin as esbuildSolidPlugin } from "esbuild-plugin-solid"
 import type { Plugin } from "vite"
 
+import { BASE } from "../base.config"
+
 /**
  * Entry of the local solid-three source. Resolved from `process.cwd()`
  * (the `site/` directory) so the path stays correct after vinxi bundles
@@ -38,6 +40,10 @@ export function solidThreeBundlePlugin(): Plugin {
         "import.meta.env.NODE_ENV": `"development"`,
         "import.meta.env.PROD": "false",
         "import.meta.env.DEV": "true",
+        // Snippets run here (the editor's blob iframe) as well as on the main
+        // page; Vite defines BASE_URL there but esbuild must define it here so
+        // base-relative asset URLs (e.g. the hero font) resolve under the base.
+        "import.meta.env.BASE_URL": JSON.stringify(BASE),
       },
       logLevel: "warning",
     })
