@@ -1,40 +1,47 @@
-name: Deploy to GitHub Pages
+name: Deploy site to GitHub Pages
 
 on:
   push:
     branches:
-      - main
       - next
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: install latest corepack
+      - name: Install latest corepack
         run: npm install corepack@latest -g
 
       - run: corepack enable
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build project
+      - name: Build library
         run: pnpm build
 
-      - name: Build demo
-        run: pnpm build:dev
+      - name: Build site
+        run: pnpm build:site
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./playground/dist # Adjust if your build output directory is different
-          publish_branch: gh-pages # Specify the branch to deploy to
+          publish_dir: ./site/.output/public
+          publish_branch: gh-pages

@@ -5,6 +5,7 @@ import { solidStart } from "@solidjs/start/config"
 import { nitroV2Plugin } from "@solidjs/vite-plugin-nitro-2"
 import { defineConfig } from "vite"
 
+import { BASE } from "./base.config"
 import { solidThreeBundlePlugin } from "./vite-plugins/solid-three-bundle"
 import { solidbaseJsxFallback } from "./vite-plugins/solidbase-jsx-fallback"
 
@@ -34,6 +35,7 @@ const tutorialSidebar = (base: string) =>
 const solidBase = createSolidBase(theme)
 
 export default defineConfig({
+  base: BASE,
   resolve: {
     dedupe: ["@solidjs/start", "@kobalte/solidbase"],
   },
@@ -128,6 +130,7 @@ export default defineConfig({
     solidStart(solidBase.startConfig()),
     nitroV2Plugin({
       preset: "static",
+      baseURL: BASE,
       prerender: {
         crawlLinks: true,
         routes: ["/"],
