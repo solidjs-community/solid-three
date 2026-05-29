@@ -75,8 +75,11 @@ const externalEsmHost = "https://esm.sh"
 const externalDepsParam = "external=solid-js,three&deps=solid-js@1.8,three@0.181,cannon-es@0.20"
 
 function getLocalSolidThreeUrl(): string {
-  if (typeof window === "undefined") return "/@tutorial/solid-three.js"
-  return new URL("/@tutorial/solid-three.js", window.location.href).toString()
+  // Emitted into the client build at "@tutorial/solid-three.js"; reference it
+  // under the deploy base so it resolves on a subpath deploy (not the origin root).
+  const path = `${import.meta.env.BASE_URL}@tutorial/solid-three.js`
+  if (typeof window === "undefined") return path
+  return new URL(path, window.location.href).toString()
 }
 
 function resolveBareSpecifier(specifier: string): string {
@@ -162,16 +165,17 @@ function errorModule(message: string): string {
 }
 
 function buildReplHostHtml(theme: "dark" | "light"): string {
-  // The iframe loads from a blob: URL, which can't resolve root-absolute paths
-  // at runtime (e.g. a loader fetching "/zalando-sans-expanded-latin-600-normal.ttf"). Pin a <base> to
-  // the parent origin — module specifiers are already rewritten to absolute
+  // The iframe loads from a blob: URL, which can't resolve relative or
+  // root-absolute paths at runtime (e.g. a loader fetching the hero font). Pin
+  // a <base> to the parent origin + deploy base so runtime fetches resolve to
+  // public/ under the base. Module specifiers are already rewritten to absolute
   // blob/esm URLs, so this only affects runtime fetches.
   const origin = window.location.origin
   return `<!doctype html>
 <html style="color-scheme: ${theme}">
   <head>
     <meta charset="utf-8" />
-    <base href="${origin}/" />
+    <base href="${origin}${import.meta.env.BASE_URL}" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
@@ -219,7 +223,8 @@ if (root) {
 function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): string {
   // The iframe loads from a blob: URL, whose scheme isn't hierarchical and
   // can't resolve absolute-path module specifiers. Inlining a <base> tag
-  // pinned to the parent origin lets `/src/...` paths resolve correctly.
+  // pinned to the parent origin + deploy base lets `/src/...` module paths and
+  // runtime asset fetches (e.g. the hero font) resolve correctly under a subpath.
   const origin = window.location.origin
   const absoluteRuntimeUrl = new URL(snippetRuntimeUrl, origin).toString()
   const absoluteSnippetUrl = new URL(snippetUrl, origin).toString()
@@ -227,7 +232,7 @@ function buildInitialBootstrap(snippetUrl: string, theme: "dark" | "light"): str
 <html style="color-scheme: ${theme}">
   <head>
     <meta charset="utf-8" />
-    <base href="${origin}/" />
+    <base href="${origin}${import.meta.env.BASE_URL}" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; }
       canvas { display: block; }
