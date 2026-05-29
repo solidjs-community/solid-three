@@ -46,6 +46,13 @@ class MyColor extends THREE.Color {
 }
 const T = createT({ ...THREE, HasObject3dMember, HasObject3dMethods, MyColor })
 
+const nextFrames = (n: number) =>
+  new Promise<void>(resolve => {
+    let i = 0
+    const tick = () => (++i >= n ? resolve() : requestAnimationFrame(tick))
+    requestAnimationFrame(tick)
+  })
+
 beforeAll(() => {
   Object.defineProperty(globalThis, "devicePixelRatio", {
     configurable: true,
@@ -1137,5 +1144,52 @@ describe("renderer", () => {
     expect(ref).toBe(object1)
     expect(ref!.children).toStrictEqual([child1, child])
     expect(ref!.userData.attach).toBe(attachedChild)
+  })
+
+  it("yields the window render loop while an XR session is presenting, resumes after", async () => {
+    const state = test(() => <T.Group />, { frameloop: "always" })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+    await state.waitTillNextFrame() // ensure the loop is running normally
+
+    const renderSpy = vi.spyOn(gl, "render")
+
+    // Enter "presenting": the session now owns frames; the window loop must go quiet.
+    gl.xr.isPresenting = true
+    gl.xr.dispatchEvent({ type: "sessionstart" })
+    await nextFrames(3)
+    expect(renderSpy).not.toHaveBeenCalled()
+
+    // Exit: window loop resumes.
+    gl.xr.isPresenting = false
+    gl.xr.dispatchEvent({ type: "sessionend" })
+    await state.waitTillNextFrame()
+    expect(renderSpy).toHaveBeenCalled()
+
+    renderSpy.mockRestore()
+  })
+
+  it("does not touch gl.xr.enabled — the consumer owns it", async () => {
+    const state = test(() => <T.Group />, { frameloop: "always" })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+
+    expect(gl.xr.enabled).toBe(false)
+    gl.xr.isPresenting = true
+    gl.xr.dispatchEvent({ type: "sessionstart" })
+    // Core must leave enabled alone; the consumer sets it before setSession.
+    expect(gl.xr.enabled).toBe(false)
+  })
+
+  it("forwards the XRFrame argument through to useFrame listeners", async () => {
+    let received: XRFrame | undefined
+    const fakeFrame = {} as XRFrame
+    const state = test(() => {
+      useFrame((_ctx, _delta, frame) => {
+        received = frame
+      })
+      return <T.Group />
+    })
+
+    state.render(performance.now(), fakeFrame)
+    expect(received).toBe(fakeFrame)
   })
 })

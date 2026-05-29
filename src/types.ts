@@ -237,10 +237,6 @@ export interface Context {
   setCamera(camera: CameraKind): () => void
   setRaycaster(camera: Raycaster): () => void
   viewport: Viewport
-  xr: {
-    connect: () => void
-    disconnect: () => void
-  }
 }
 
 export interface Viewport {
