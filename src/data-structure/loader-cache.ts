@@ -51,13 +51,13 @@ interface LoaderTreeRegistryMap extends Map<Loader<any, any>, any> {
 }
 
 interface LoaderTreeRegistry<TLoader extends Loader<any, any>> extends TreeRegistry<object> {
-  get(paths: LoaderUrl<TLoader>, warn?: boolean): CacheNode<TLoader>
+  get(paths: LoaderUrl<TLoader>, warn?: boolean): CacheNode<TLoader> | undefined
   set(paths: LoaderUrl<TLoader>, data: CacheNode<TLoader>): void
 }
 
 export class LoaderCache implements LoaderRegistry {
   /** Map of loader instances to their respective tree registries */
-  #treeRegistryMap: LoaderTreeRegistryMap = new Map() as unknown as LoaderTreeRegistryMap
+  #treeRegistryMap: LoaderTreeRegistryMap = new Map()
   /** Weak map for reverse lookup from data to cache nodes */
   #dataMap = new WeakMap<object, CacheNode<Loader<any, any>>>()
 
@@ -134,7 +134,7 @@ export class LoaderCache implements LoaderRegistry {
     url: LoaderUrl<TLoader>,
     options?: { force?: boolean },
   ) {
-    const node = this.#registry(loader)?.get(url)
+    const node = this.#registry(loader).get(url)
 
     if (!node) {
       console.error(`Error while deleting path ${url}. Could not find CacheNode.`)
@@ -156,7 +156,7 @@ export class LoaderCache implements LoaderRegistry {
     url: LoaderUrl<TLoader>,
     warn?: boolean,
   ): PromiseMaybe<LoaderData<TLoader>> | undefined {
-    const node = this.#registry(loader)?.get(url, warn)
+    const node = this.#registry(loader).get(url, warn)
 
     if (!node) return undefined
 
@@ -178,7 +178,7 @@ export class LoaderCache implements LoaderRegistry {
     options?: { force?: boolean },
   ) {
     const registry = this.#registry(loader)
-    let node = registry?.get(path, false)
+    let node = registry.get(path, false)
 
     if (node) {
       node.update(data, options)
