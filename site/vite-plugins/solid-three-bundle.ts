@@ -40,10 +40,6 @@ export function solidThreeBundlePlugin(): Plugin {
         "import.meta.env.NODE_ENV": `"development"`,
         "import.meta.env.PROD": "false",
         "import.meta.env.DEV": "true",
-        // Snippets run here (the editor's blob iframe) as well as on the main
-        // page; Vite defines BASE_URL there but esbuild must define it here so
-        // base-relative asset URLs (e.g. the hero font) resolve under the base.
-        "import.meta.env.BASE_URL": JSON.stringify(BASE),
       },
       logLevel: "warning",
     })
@@ -58,7 +54,10 @@ export function solidThreeBundlePlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url) return next()
         const url = req.url.split("?")[0]
-        if (url !== SOLID_THREE_VIRTUAL_PATH) return next()
+        // req.url may or may not carry the deploy base depending on Vite's dev
+        // base handling; normalise against BASE before matching the virtual path.
+        const baseless = BASE !== "/" && url.startsWith(BASE) ? `/${url.slice(BASE.length)}` : url
+        if (baseless !== SOLID_THREE_VIRTUAL_PATH) return next()
         try {
           const code = await bundle()
           res.setHeader("Content-Type", "application/javascript")

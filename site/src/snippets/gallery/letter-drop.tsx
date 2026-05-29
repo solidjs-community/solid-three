@@ -7,11 +7,11 @@ import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
 import { Font, FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
 import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 
-// Served from public/ under the deploy base. The base-prefixed absolute URL
-// resolves the same whether this snippet runs as a built module or is
-// recompiled in the editor's blob iframe (BASE_URL is defined in both). A
-// relative ?url import would break in edit mode.
-const fontTtfUrl = `${import.meta.env.BASE_URL}zalando-sans-expanded-latin-600-normal.ttf`
+// Served from public/. A relative URL resolves against the document base —
+// which the editor iframe pins to the deploy base — so it works under a
+// subpath deploy without referencing build-time env (undefined in the blob).
+// A relative ?url import would break in edit mode.
+const fontTtfUrl = "zalando-sans-expanded-latin-600-normal.ttf"
 
 const T = createT(THREE)
 
