@@ -234,11 +234,11 @@ function DuckAnimator(props: {
   rightHip: () => THREE.Group | undefined
 }) {
   const baseY = 0.55
-  // solid-three's useFrame callback receives (context, delta), NOT a clock.
-  // Mirror letter-drop.tsx: capture a start time and derive elapsed seconds.
-  const startTime = performance.now()
-  useFrame(() => {
-    const t = (performance.now() - startTime) / 1000
+  // useFrame's callback receives (context, delta). Read the engine clock's
+  // `elapsedTime` PROPERTY (not getElapsedTime(), which calls getDelta() and
+  // would corrupt the render loop's own getDelta() at create-three.tsx:188).
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
     const phase = t * STEP_OMEGA
     const left = props.leftHip()
     const right = props.rightHip()
@@ -351,9 +351,9 @@ function DuckAnimator(props: {
 }) {
   const three = useThree()
   const baseY = 0.55
-  const startTime = performance.now()
-  useFrame(() => {
-    const t = (performance.now() - startTime) / 1000
+  // Read clock.elapsedTime (property), not getElapsedTime() — see Task 2 note.
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime
     const phase = t * STEP_OMEGA
     const left = props.leftHip()
     const right = props.rightHip()
