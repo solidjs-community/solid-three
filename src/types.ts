@@ -231,7 +231,7 @@ export interface Context {
   dpr: number
   gl: Meta<ResolvedRenderer>
   props: CanvasProps
-  render: (delta: number) => void
+  render: (timestamp: number, frame?: XRFrame) => void
   requestRender: () => void
   scene: Meta<Scene>
   setCamera(camera: CameraKind): () => void
