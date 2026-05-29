@@ -4,10 +4,11 @@ import * as THREE from "three"
 
 const T = createT(THREE)
 
-// Served from public/ so the absolute URL resolves the same whether this
-// snippet runs as a built module or is recompiled in the editor's blob iframe.
-// A relative ?url import would break in edit mode.
-const fontUrl = "/zalando-sans-expanded-latin-600-normal.ttf"
+// Served from public/ under the deploy base. The base-prefixed absolute URL
+// resolves the same whether this snippet runs as a built module or is
+// recompiled in the editor's blob iframe (BASE_URL is defined in both). A
+// relative ?url import would break in edit mode.
+const fontUrl = `${import.meta.env.BASE_URL}zalando-sans-expanded-latin-600-normal.ttf`
 const FONT_FAMILY = "Zalando Sans Expanded Tunnel"
 const TEXT = "SOLID THREE"
 const TUBE_RADIUS = 2.2
