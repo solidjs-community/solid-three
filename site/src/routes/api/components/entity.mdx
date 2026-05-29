@@ -6,6 +6,8 @@ title: Entity
 
 `Entity` is a JSX wrapper around any `three.js` class. Where [`<T.Mesh/>`](/api/components/t) is shorthand for "make me a `Mesh`", `<Entity from={Mesh}/>` says the same thing without pre-building a [`T`](/api/components/t) namespace — useful in libraries, or when the class is only known at runtime.
 
+Conceptually it mirrors Solid's [`<Dynamic>`](https://docs.solidjs.com/reference/components/dynamic): a component that takes *what to render* as a prop rather than baking it into the tag.
+
 Pass a constructor:
 
 ```tsx

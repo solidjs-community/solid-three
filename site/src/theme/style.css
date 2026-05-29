@@ -33,6 +33,15 @@ html[data-theme*="dark"] {
   --sb-active-link-color: hsl(200, 95%, 68%);
 }
 
+/* SolidBase draws a link's underline as an inset box-shadow on the <a>, which
+ * an inline <code> child's own background paints over — so a code-only link
+ * (e.g. `<Entity>`) reads as plain code. Tint it with the link accent and
+ * outline it so it's recognisable as a link without shifting layout. */
+article a code {
+  color: var(--sb-active-link-color);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sb-active-link-color) 50%, transparent);
+}
+
 /* SolidBase sets data-theme="sdark" / "slight" on <html>. Mirror that into
  * a CSS variable so the demo chrome adapts to the site's theme. */
 html {

@@ -21,14 +21,23 @@ export default () => <Canvas />
 Empty for now. Everything else — cubes, lights, cameras — lives as
 children of it.
 
-To put a `three.js` class into that tree, you need a JSX component
-that wraps it. `createT` is `solid-three`'s helper for doing that in
-bulk: hand it an object of classes and you get back a proxy where
-every key is its own JSX component.
+To put a `three.js` class into that tree, you wrap it in a JSX
+component. The fundamental wrapper is
+[`<Entity from={Class}>`](/api/components/entity): hand it a
+constructor (or an existing instance) and it puts that object into the
+scene.
 
-For a single class — or one only known at runtime — you can skip the
-namespace and wrap it inline with
-[`<Entity from={Class}>`](/api/components/entity) instead.
+```tsx
+<Entity from={Mesh}>
+  <Entity from={BoxGeometry} />
+  <Entity from={MeshNormalMaterial} />
+</Entity>
+```
+
+Writing `<Entity from={...}>` for every node gets noisy, so
+[`createT`](/api/components/t) builds them in bulk: hand it an object of classes and you get back a
+proxy where every key is a ready-made component. `T.Mesh` is exactly
+`<Entity from={THREE.Mesh}>`.
 
 <Demo code={createTSnippet} url={createTUrl} />
 
@@ -37,14 +46,17 @@ surface normal — a handy debugging material because it makes geometry
 visible without any lights.
 
 `T.Mesh`, `T.BoxGeometry`, `T.MeshNormalMaterial` — every class in the
-`THREE` namespace becomes available the same way. We'll pass the full
-namespace throughout this tutorial because it's easier to follow when
-imports aren't the point. (In real apps you'd hand `createT` a curated
-object to keep your bundle small; see
-[the API reference](/api/components/t) for the details.)
+`THREE` namespace becomes available the same way.
 
-Three new ideas appeared in that snippet — `createT`, the `T.*`
-namespace, and the way `<T.Mesh>` consumes its children as a geometry
-and a material.
-We unpack the last one in the next chapter, where nesting becomes the
-scene graph.
+> [!NOTE]
+> For brevity we hand `createT` the whole namespace throughout this
+> tutorial. In real apps you'd pass only the classes you use: the
+> namespace is typed to exactly that object — `T.Foo` is a compile error
+> if `Foo` isn't in it — so whatever you leave out tree-shakes away and
+> your bundle stays small. See [the API reference](/api/components/t)
+> for the details.
+
+One detail we glossed over: how `<T.Mesh>` knew to take its children —
+the `BoxGeometry` and the `MeshNormalMaterial` — as its geometry and
+material. That is the scene graph at work, and it's what the next
+chapter is about.
