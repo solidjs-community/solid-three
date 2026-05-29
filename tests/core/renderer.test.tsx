@@ -1192,4 +1192,29 @@ describe("renderer", () => {
     state.render(performance.now(), fakeFrame)
     expect(received).toBe(fakeFrame)
   })
+
+  it("detaches the sessionend listener when the renderer swaps", async () => {
+    const first = new THREE.WebGLRenderer({ canvas: document.createElement("canvas") })
+    const second = new THREE.WebGLRenderer({ canvas: document.createElement("canvas") })
+    const removeSpy = vi.spyOn(first.xr, "removeEventListener")
+
+    const [glAccessor, setGl] = createSignal<THREE.WebGLRenderer>(first)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return glAccessor()
+      },
+    })
+    expect(state.gl).toBe(first)
+
+    setGl(second)
+    await state.waitTillNextFrame()
+
+    expect(removeSpy).toHaveBeenCalledWith("sessionend", expect.any(Function))
+
+    first.dispose()
+    first.forceContextLoss()
+    second.dispose()
+    second.forceContextLoss()
+    removeSpy.mockRestore()
+  })
 })
