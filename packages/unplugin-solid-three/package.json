@@ -1,0 +1,28 @@
+{
+  "name": "unplugin-solid-three",
+  "version": "0.0.0",
+  "type": "module",
+  "license": "MIT",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }
+  },
+  "files": ["dist/**"],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:oracle": "vitest run --config vitest.browser.config.ts"
+  },
+  "dependencies": {
+    "magic-string": "^0.30.0",
+    "ts-morph": "^25.0.0",
+    "unplugin": "^2.0.0"
+  },
+  "peerDependencies": { "typescript": ">=5.0.0" },
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.7"
+  }
+}
