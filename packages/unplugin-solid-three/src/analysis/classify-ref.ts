@@ -42,8 +42,18 @@ export function classifyRef(ref: Node): RefClass {
     return { kind: "open", reason: "array/complex binding" }
   }
 
-  if (Node.isExportSpecifier(parent) || Node.isExportAssignment(parent)) {
-    // Re-export: findReferencesAsNodes already crosses it; nothing to collect here.
+  if (
+    Node.isImportSpecifier(ref) ||
+    Node.isExportSpecifier(ref) ||
+    Node.isImportSpecifier(parent) ||
+    Node.isExportSpecifier(parent) ||
+    Node.isImportClause(parent) ||
+    Node.isExportAssignment(parent) ||
+    Node.isNamedImports(parent) ||
+    Node.isNamedExports(parent)
+  ) {
+    // Import/re-export crossing: findReferencesAsNodes also yields the downstream
+    // local usages, which carry the real member accesses; nothing to collect here.
     return { kind: "ignore" }
   }
 
