@@ -12,4 +12,4 @@ overrides:
   "electron-to-chromium": "1.5.361"
   "@solidjs/start": "https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2080"
   "@solidjs/router": "^0.16.1"
-  "@kobalte/solidbase": "github:bigmistqke/solidbase#5f147ec"
+  "@kobalte/solidbase": "github:bigmistqke/solidbase#f48198d"
