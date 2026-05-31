@@ -13,7 +13,7 @@ export default createHandler(() => (
           {getFontPreloadLinkAttrs().map((attrs: Record<string, string>) => (
             <link {...attrs} />
           ))}
-          <link rel="icon" href="/favicon.ico" />
+          <link rel="icon" href={`${import.meta.env.BASE_URL}favicon.ico`} />
           {assets}
         </head>
         <body>

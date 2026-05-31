@@ -128,7 +128,6 @@ export default defineConfig({
     solidStart(solidBase.startConfig()),
     nitroV2Plugin({
       preset: "static",
-      baseURL: BASE,
       prerender: {
         crawlLinks: true,
         routes: ["/"],
