@@ -342,12 +342,51 @@ authoring cost. This invariant is the backstop behind every layer below.
    plugin; assert excluded class identifiers are absent from output and included
    ones present. Run across the **bundler matrix** (Vite, Rollup, esbuild,
    webpack, rspack) since adapters differ in transform/resolve semantics.
-5. **Generative/fuzz.** Generate random valid programs from a grammar over the
-   three axes and assert the soundness oracle via differential render. This is
-   what pushes coverage past hand-written cases toward true exhaustiveness — the
-   point of the whole effort.
+5. **Generative/fuzz (see "Generative testing" below).** Generate random valid
+   programs from a grammar over the three axes and verify soundness via two
+   oracles plus metamorphic relations. This pushes coverage past hand-written
+   cases toward the *interaction* space — the point of the whole effort.
 6. **Diagnostics tests.** WARN on a namespace defeated by dynamic access; error
    under `strict`; INFO on proxy/store; no diagnostic on a curated literal.
+
+### Generative testing (layer 5, in depth)
+
+This domain fits property-based testing unusually well: the input space is
+structured and combinatorial, the *un-narrowed* build is a free exact oracle,
+and the generator knows the truth by construction (it emits the accesses).
+
+- **Grammar = the three axes as composable productions.** Sample a catalogue
+  shape (namespace / literal / spreads / adversarial), a `T`-flow (local /
+  exported+imported / re-export / rename / alias chain / escape), and a set of
+  access shapes (member / JSX / element / destructure / computed / reflection).
+  Draw class names from the **real `@types/three` exports** so generated
+  programs typecheck and resolve through the TS checker (which the analyzer
+  depends on) — the fuzzed namespace is the real catalogue, not a toy.
+- **Two oracles, layered by cost.**
+  - *White-box (cheap, thousands/run, every CI):* the generator records its
+    known-used set and whether it injected a bail/escape trigger. Assert
+    soundness (every known-used class survives), effectiveness on no-trigger
+    cases (only those survive), and keep-whole on trigger cases. Analysis-only,
+    pure Node — no bundling, no render.
+  - *Black-box (expensive, sampled, nightly):* build twice (plugin on/off),
+    render both in Chromium, assert identical scene graph + the proxy oracle.
+    Catches indirect effects the white-box truth misses.
+- **Metamorphic relations (no ground truth needed).** Behavior-preserving edits
+  must not change the narrowed output: rename `T`→`T2` everywhere; move the
+  `createT`+accesses behind a re-export in another file; add an *unused* class to
+  the namespace; reorder independent accesses. Generate once, transform, diff the
+  two outputs. These catch symbol-resolution and precedence bugs directly.
+- **Shrinking.** Use a framework with automatic shrinking (`fast-check`) so a
+  failing generated program collapses to a minimal reproducer. **Every shrunk
+  failure is promoted to a permanent hand-fixture** — the regression corpus
+  grows itself.
+- **Why it matters:** hand-written fixtures cover each axis one at a time;
+  generation covers their *product*, where precedence-×-symbol-resolution bugs
+  hide. Since a soundness bug ships a silently-broken scene, dense sampling of
+  the interaction space is the only honest route to "exhaustive."
+- **Reproducibility:** pin a base seed in CI for determinism; log the seed and
+  shrunk case on failure; a separate nightly job rotates seeds to explore more
+  space and files any failure into the corpus.
 
 ### Meta-tests (prove the suite is actually exhaustive)
 
