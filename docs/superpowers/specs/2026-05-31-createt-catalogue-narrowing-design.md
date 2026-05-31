@@ -289,25 +289,81 @@ interface Options {
 (No `force` / directive in v1 — curation is the escape hatch. A directive could
 layer on later for the "concise form + dynamic access + still narrow" niche.)
 
-## Testing
+## Testing — the suite *is* the correctness guarantee
+
+Reliability here is unusually test-dependent. The failure mode is **silent and
+catastrophic**: narrowing away a class that's actually used produces *no build
+error* — `T.Foo` returns `undefined` and the scene breaks at runtime. So tests
+are not after-the-fact validation; they are the safety net that makes unsound
+narrowing impossible to ship. Two invariants, asymmetric in severity:
+
+- **Soundness (must never fail):** every class reachable through `T` at runtime
+  survives narrowing. A violation = broken scene.
+- **Effectiveness (the value-prop):** unused classes are actually dropped. A
+  violation = a bigger bundle, not a crash — important, but not dangerous.
 
 The runtime library is browser-only (jsdom dropped; vitest browser mode in real
-Chromium). This plugin is **pure Node**, so it gets its own Node-based vitest
-project, separate from the runtime suite:
+Chromium). The plugin itself is **pure Node**, so it gets its own Node-based
+vitest project; the soundness oracle (layer 3) rides the existing browser suite.
 
-1. **Tracking unit tests** — fixtures for each Axis-2/3 classification: member,
-   JSX member, literal element access, static destructure (+rename), alias
-   recursion, cross-file re-export, import rename; and each bail/escape trigger.
-2. **Narrowability tests** — one per clause, including the adversarial cases:
-   proxy argument, `createStore` argument, opaque getter (verbatim keep + whole
-   prune), eager-value-expression (no prune), spread shadowing precedence,
-   ambiguous non-enumerable spread (keep), catalogue escape (keep).
-3. **Rewrite tests** — emitted code per argument shape; precedence collapsing
-   picks the last provider; opaque values copied verbatim.
-4. **End-to-end bundle test** — bundle a fixture through the plugin; assert
-   excluded classes absent, included present.
-5. **Diagnostics tests** — WARN on namespace defeated by dynamic access; error
+### The linchpin — a soundness oracle
+
+Instrument the `createT` proxy to record every key requested of it. For any
+rendered fixture, assert:
+
+```
+{ keys requested of each T proxy during render } ⊆ { keys in that T's narrowed catalogue }
+```
+
+This is a *metamorphic* check that catches **any** unsound narrowing
+automatically, regardless of how exotic the access path was. Because it rides a
+real render, every browser test — including the actual `site`, `demo`, and
+gallery scenes — doubles as a correctness check for the plugin at no extra
+authoring cost. This invariant is the backstop behind every layer below.
+
+### Layers (dense/fast → representative/slow)
+
+1. **Analysis unit tests (densest).** Phase-1 output over a *fixture matrix* —
+   the three axes (argument shape × `T`-flow × access shape) crossed with the
+   narrowability clauses, one fixture per cell. Pure, fast, exhaustive. Assert
+   the computed used-set, outcome kind, and diagnostic. Adversarial cells called
+   out explicitly: proxy argument, `createStore` argument, opaque getter
+   (verbatim keep + whole prune), eager-value-expression (no prune), spread
+   shadowing precedence, ambiguous non-enumerable spread (keep), catalogue
+   escape (keep), every bail/escape trigger.
+2. **Rewrite snapshot tests.** Emitted code per argument shape; precedence
+   collapsing picks the last provider; opaque values copied verbatim; escape
+   guard keeps whole.
+3. **Differential soundness oracle (browser).** The oracle above, run over both
+   hand-written fixtures and the real `site`/`demo`/gallery scenes. The
+   strongest guarantee in the suite — and the one that must be green before any
+   release.
+4. **End-to-end bundle assertions.** Actually bundle fixtures through the
+   plugin; assert excluded class identifiers are absent from output and included
+   ones present. Run across the **bundler matrix** (Vite, Rollup, esbuild,
+   webpack, rspack) since adapters differ in transform/resolve semantics.
+5. **Generative/fuzz.** Generate random valid programs from a grammar over the
+   three axes and assert the soundness oracle via differential render. This is
+   what pushes coverage past hand-written cases toward true exhaustiveness — the
+   point of the whole effort.
+6. **Diagnostics tests.** WARN on a namespace defeated by dynamic access; error
    under `strict`; INFO on proxy/store; no diagnostic on a curated literal.
+
+### Meta-tests (prove the suite is actually exhaustive)
+
+- **Mutation testing** (e.g. Stryker) on the plugin's analysis: deliberately
+  mutate the logic and confirm tests fail. Catches the "tests present but not
+  load-bearing" trap — essential given soundness can't be allowed to regress.
+- **TypeScript-version matrix.** ts-morph rides the TS compiler; pin and test
+  across a couple of TS versions so a compiler behavior shift can't silently
+  change reference resolution.
+
+### Release gate
+
+Soundness layers (1 analysis, 2 rewrite-keep paths, 3 oracle, 6 diagnostics)
+must be green to release; effectiveness layers (4 absence assertions, 5 fuzz
+effectiveness) failing blocks a *quality* release but never ships a broken
+scene. CI fails the build on any soundness-layer regression.
 
 ## Open questions
 
