@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "test:oracle": "vitest run --config vitest.browser.config.ts"
+    "test:oracle": "vitest run --config vitest.browser.config.ts",
+    "test:ts": "tsc --noEmit -p tsconfig.json && vitest run"
   },
   "dependencies": {
     "magic-string": "^0.30.0",
