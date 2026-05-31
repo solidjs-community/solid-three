@@ -1316,7 +1316,7 @@ packages:
       solid-js: ^1.8.15
 
   '@kobalte/solidbase@https://codeload.github.com/bigmistqke/solidbase/tar.gz/f48198dd6b4ebfdbeb88429290d04bdfe6f9397c':
-    resolution: {gitHosted: true, integrity: sha512-mmnbrf6JGnXVvLHeUqAxp4jRkI7w8zVxXbYUr+HqnzU6vVgSs0M1uyWQYcNPTqiX9Qpm6tAnRBRSHkWvputJQw==, tarball: https://codeload.github.com/bigmistqke/solidbase/tar.gz/f48198dd6b4ebfdbeb88429290d04bdfe6f9397c}
+    resolution: {gitHosted: true, tarball: https://codeload.github.com/bigmistqke/solidbase/tar.gz/f48198dd6b4ebfdbeb88429290d04bdfe6f9397c}
     version: 0.6.3-dev
     engines: {node: '>=22'}
     peerDependencies:
@@ -5665,6 +5665,10 @@ packages:
     resolution: {integrity: sha512-M/Q0B2cp4K7kynaT/vnED1j8TlLY+Pp7C6Wl2bl/7u/F0mUVwdyOpwomQb8JpYLitHUssAJRmLZdMCGsrx7i+g==}
     engines: {node: '>=18'}
 
+  tinyexec@1.2.3:
+    resolution: {integrity: sha512-g62dB+w1/OEFnPvmX0yd/HnetYITOL+1nJW7kitOycOeAvmbWC/nu0fwmmQ/kupNojqExzyC/T++pST/jRJ2mQ==}
+    engines: {node: '>=18'}
+
   tinyglobby@0.2.16:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
@@ -6375,7 +6379,7 @@ snapshots:
   '@antfu/install-pkg@1.1.0':
     dependencies:
       package-manager-detector: 1.6.0
-      tinyexec: 1.2.2
+      tinyexec: 1.2.3
 
   '@antfu/utils@0.7.10': {}
 
@@ -12990,6 +12994,8 @@ snapshots:
   tinyexec@0.3.2: {}
 
   tinyexec@1.2.2: {}
+
+  tinyexec@1.2.3: {}
 
   tinyglobby@0.2.16:
     dependencies:
