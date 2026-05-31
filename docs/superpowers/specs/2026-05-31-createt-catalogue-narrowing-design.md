@@ -413,9 +413,16 @@ must be green to release; effectiveness (4 absence assertions) failing blocks a
 *quality* release but never ships a broken scene. CI fails the build on any
 soundness-layer regression.
 
+## Resolved decisions
+
+- **Factory-returned `T`** (`function makeT(){ return createT(THREE) }`): treated
+  as an **escape — keep the catalogue whole** (clause 5), *except* the trivially
+  local case where the factory's result never leaves analyzable scope. Following
+  arbitrary call sites is interprocedural and not worth the soundness risk for
+  v1; a richer interprocedural pass can relax this later.
+
 ## Open questions
 
-- Factory-returned `T` (`function makeT(){ return createT(THREE) }`): follow call
-  sites, or always treat as escape/keep? (Lean: keep unless trivially local.)
 - `Project` build cost on very large consumer apps; if it bottlenecks, cache
   references between builds or scope the Project to files reachable from `createT`.
+  (Performance tuning, not a correctness blocker — resolve during implementation.)
