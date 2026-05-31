@@ -21,8 +21,17 @@
   },
   "peerDependencies": { "typescript": ">=5.0.0" },
   "devDependencies": {
+    "@solidjs/testing-library": "^0.8.8",
+    "@vitest/browser": "^4.1.7",
+    "@vitest/browser-playwright": "^4.1.7",
+    "playwright": "^1.60.0",
+    "solid-js": "^1.8.17",
+    "solid-three": "workspace:*",
+    "three": "^0.181.2",
     "tsup": "^8.0.2",
     "typescript": "^5.4.5",
+    "vite": "6.4.2",
+    "vite-plugin-solid": "2.11.12",
     "vitest": "^4.1.7"
   }
 }

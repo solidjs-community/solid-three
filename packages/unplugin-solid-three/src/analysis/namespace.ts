@@ -11,11 +11,14 @@ export function enumerateNamespaceExports(node: Node | undefined): Set<string> |
   const decl = symbol?.getDeclarations()?.[0]
   if (!decl || !Node.isNamespaceImport(decl)) return null
 
-  // The aliased symbol is the imported module; its exports are the namespace members.
-  const moduleSymbol = symbol?.getAliasedSymbol()
-  if (!moduleSymbol) return null
-
+  // Use the namespace identifier's TYPE (the `typeof import("…")` namespace type).
+  // Its properties are the module's fully-resolved exports — unlike
+  // Symbol.getExports(), this flattens `export *` re-exports (which is how the
+  // `three` types are structured, so getExports() would miss almost everything).
   const names = new Set<string>()
-  for (const exp of moduleSymbol.getExports()) names.add(exp.getName())
+  for (const prop of node.getType().getProperties()) {
+    const name = prop.getName()
+    if (!name.startsWith("__")) names.add(name) // skip compiler-internal helpers
+  }
   return names.size ? names : null
 }
