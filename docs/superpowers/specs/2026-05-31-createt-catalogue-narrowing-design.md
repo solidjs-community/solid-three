@@ -321,7 +321,7 @@ real render, every browser test — including the actual `site`, `demo`, and
 gallery scenes — doubles as a correctness check for the plugin at no extra
 authoring cost. This invariant is the backstop behind every layer below.
 
-### Layers (dense/fast → representative/slow)
+### v1 layers (dense/fast → representative/slow)
 
 1. **Analysis unit tests (densest).** Phase-1 output over a *fixture matrix* —
    the three axes (argument shape × `T`-flow × access shape) crossed with the
@@ -334,22 +334,33 @@ authoring cost. This invariant is the backstop behind every layer below.
 2. **Rewrite snapshot tests.** Emitted code per argument shape; precedence
    collapsing picks the last provider; opaque values copied verbatim; escape
    guard keeps whole.
-3. **Differential soundness oracle (browser).** The oracle above, run over both
-   hand-written fixtures and the real `site`/`demo`/gallery scenes. The
-   strongest guarantee in the suite — and the one that must be green before any
-   release.
-4. **End-to-end bundle assertions.** Actually bundle fixtures through the
-   plugin; assert excluded class identifiers are absent from output and included
-   ones present. Run across the **bundler matrix** (Vite, Rollup, esbuild,
-   webpack, rspack) since adapters differ in transform/resolve semantics.
-5. **Generative/fuzz (see "Generative testing" below).** Generate random valid
-   programs from a grammar over the three axes and verify soundness via two
-   oracles plus metamorphic relations. This pushes coverage past hand-written
-   cases toward the *interaction* space — the point of the whole effort.
-6. **Diagnostics tests.** WARN on a namespace defeated by dynamic access; error
+3. **Differential soundness oracle (browser).** Instrument the proxy and run the
+   subset check over hand-written fixtures and the real `site`/`demo`/gallery
+   scenes. The strongest guarantee in the suite — must be green before any
+   release. (Cheap to add: it rides the existing browser suite.)
+4. **End-to-end bundle assertions.** Bundle fixtures through the plugin; assert
+   excluded class identifiers are absent from output and included ones present.
+   **v1: Vite adapter only.** Other bundlers in the matrix (Rollup, esbuild,
+   webpack, rspack) follow once the core is proven — see deferred.
+5. **Diagnostics tests.** WARN on a namespace defeated by dynamic access; error
    under `strict`; INFO on proxy/store; no diagnostic on a curated literal.
 
-### Generative testing (layer 5, in depth)
+### Deferred to follow-up (not v1)
+
+These raise the ceiling on exhaustiveness but v1 reliability doesn't depend on
+them, given the analysis matrix (1) and the soundness oracle (3):
+
+- **Generative/fuzz testing** (full mechanics in "Generative testing" below) —
+  a meaningful sub-project on its own (grammar, dual oracles, shrinking, seed
+  management). High value *early* because of the silent failure mode, so it's
+  the first follow-up — but not a v1 blocker.
+- **Full bundler matrix** — extend layer 4 to Rollup/esbuild/webpack/rspack.
+- **Mutation testing** — prove the suite is load-bearing once it has stabilized.
+
+### Generative testing (deferred follow-up — design recorded here)
+
+> Not v1. Captured now so the first follow-up has a blueprint; the v1 plan can
+> skip this section.
 
 This domain fits property-based testing unusually well: the input space is
 structured and combinatorial, the *un-narrowed* build is a free exact oracle,
@@ -388,21 +399,19 @@ and the generator knows the truth by construction (it emits the accesses).
   shrunk case on failure; a separate nightly job rotates seeds to explore more
   space and files any failure into the corpus.
 
-### Meta-tests (prove the suite is actually exhaustive)
+### TypeScript-version matrix (v1, modest)
 
-- **Mutation testing** (e.g. Stryker) on the plugin's analysis: deliberately
-  mutate the logic and confirm tests fail. Catches the "tests present but not
-  load-bearing" trap — essential given soundness can't be allowed to regress.
-- **TypeScript-version matrix.** ts-morph rides the TS compiler; pin and test
-  across a couple of TS versions so a compiler behavior shift can't silently
-  change reference resolution.
+ts-morph rides the TS compiler; pin and test across a couple of TS versions so a
+compiler behavior shift can't silently change reference resolution. (Mutation
+testing — proving the suite is load-bearing — is a deferred follow-up; see
+above.)
 
 ### Release gate
 
-Soundness layers (1 analysis, 2 rewrite-keep paths, 3 oracle, 6 diagnostics)
-must be green to release; effectiveness layers (4 absence assertions, 5 fuzz
-effectiveness) failing blocks a *quality* release but never ships a broken
-scene. CI fails the build on any soundness-layer regression.
+Soundness layers (1 analysis, 2 rewrite-keep paths, 3 oracle, 5 diagnostics)
+must be green to release; effectiveness (4 absence assertions) failing blocks a
+*quality* release but never ships a broken scene. CI fails the build on any
+soundness-layer regression.
 
 ## Open questions
 
