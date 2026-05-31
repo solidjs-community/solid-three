@@ -1,0 +1,7 @@
+{
+  "scene.fixture.tsx": [
+    "BoxGeometry",
+    "Mesh",
+    "MeshNormalMaterial"
+  ]
+}
