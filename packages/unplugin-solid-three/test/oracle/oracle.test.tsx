@@ -18,6 +18,17 @@ vi.mock("solid-three", async orig => {
 
 const FIXTURE = "scene.fixture.tsx"
 
+// solid-three's frameloop raycasts every frame; against a geometry whose
+// boundingSphere isn't computed yet it throws asynchronously, AFTER our
+// assertion. That render-loop race is incidental to the oracle (which only
+// needs the keys recorded at mount), so swallow exactly that error — anything
+// else still fails the run.
+if (typeof window !== "undefined") {
+  window.addEventListener("error", event => {
+    if (event.message?.includes("boundingSphere")) event.preventDefault()
+  })
+}
+
 describe("soundness oracle", () => {
   it("every real three class requested at runtime is in the narrowed catalogue", async () => {
     const { Canvas } = await import("solid-three")
