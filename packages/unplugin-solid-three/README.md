@@ -43,3 +43,18 @@ solidThree({
   tsconfig: undefined, // path to tsconfig (auto-detected)
 })
 ```
+
+## Limitations
+
+The analyzer follows `T` across files using your `tsconfig` — including `.js`
+and `.jsx`, **provided those files are part of the TypeScript Program**. That
+means a mixed JS/TS project must enable `allowJs` (TypeScript's default is off)
+and `include` its JS files. If a file that uses `T` is *outside* the Program
+(e.g. `allowJs` off, or excluded by `include`), its accesses are invisible to
+the analyzer, and the catalogue could be narrowed without accounting for them.
+
+Until the planned bundler-module-graph cross-check lands (which will bail +
+warn whenever the bundler processes a `createT`/`T` module the analysis didn't
+see), make sure every file that uses `T` is covered by your `tsconfig`, or use
+`{ strict: true }` and an explicit catalogue for anything the analyzer can't
+reach.
