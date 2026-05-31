@@ -16,6 +16,7 @@ export function findCreateTCalls(project: Project): CallExpression[] {
 
         // Local binding may be renamed (`createT as makeNamespace`).
         const localNode = named.getAliasNode() ?? named.getNameNode()
+        if (!Node.isIdentifier(localNode)) continue
         for (const ref of localNode.findReferencesAsNodes()) {
           const parent = ref.getParent()
           if (Node.isCallExpression(parent) && parent.getExpression() === ref) {

@@ -7,10 +7,9 @@ import { fixtureProject } from "../helpers.ts"
 function refsOfT(project: Project) {
   const file = project.getSourceFileOrThrow("/src/a.tsx")
   const decl = file.getVariableDeclarationOrThrow("T")
-  return decl
-    .getNameNode()
-    .findReferencesAsNodes()
-    .filter(n => n !== decl.getNameNode())
+  const nameNode = decl.getNameNode()
+  if (!Node.isIdentifier(nameNode)) throw new Error("expected identifier name")
+  return nameNode.findReferencesAsNodes().filter(n => n !== nameNode)
 }
 
 function single(src: string) {
