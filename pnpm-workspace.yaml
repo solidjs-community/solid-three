@@ -1,5 +1,6 @@
 packages:
   - "site"
+  - "packages/vite-plugin-solid-three"
 catalog:
   "@kobalte/solidbase": ^0.6.3
 allowBuilds:
