@@ -47,3 +47,34 @@ const T = createT(SOMETHING)`
     expect(bails[0].reason).toMatch(/not.*namespace|unresolved/i)
   })
 })
+
+describe("analyzeModule — object arg", () => {
+  it("reads explicit entries with verbatim value text", () => {
+    const code = `import { createT } from "solid-three"
+import { MyMesh } from "./x"
+export const T = createT({ Mesh: MyMesh })`
+    const { sites } = analyzeModule(code, "/c.ts")
+    expect(sites[0].sources).toEqual([{ kind: "entry", key: "Mesh", valueText: "MyMesh" }])
+  })
+
+  it("reads a namespace spread then an overriding entry, in order", () => {
+    const code = `import { createT } from "solid-three"
+import * as THREE from "three"
+import { Custom } from "./x"
+export const T = createT({ ...THREE, Mesh: Custom })`
+    const { sites } = analyzeModule(code, "/c.ts")
+    expect(sites[0].sources).toEqual([
+      { kind: "namespace", localName: "THREE", moduleId: "three" },
+      { kind: "entry", key: "Mesh", valueText: "Custom" },
+    ])
+  })
+
+  it("keeps a getter verbatim", () => {
+    const code = `import { createT } from "solid-three"
+export const T = createT({ get Foo(){ return Date.now() > 0 ? A : B } })`
+    const { sites } = analyzeModule(code, "/c.ts")
+    const src = sites[0].sources[0]
+    expect(src).toMatchObject({ kind: "entry", key: "Foo" })
+    expect((src as any).valueText).toContain("get Foo()")
+  })
+})

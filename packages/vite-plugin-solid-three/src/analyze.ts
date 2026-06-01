@@ -108,11 +108,41 @@ function classifyArg(
   return { bail: `unsupported catalogue argument (${ts.SyntaxKind[arg.kind]})` }
 }
 
-/** Stub — replaced in Task 4. */
 function classifyObject(
-  _obj: ts.ObjectLiteralExpression,
-  _namespaces: Map<string, string>,
-  _sf: ts.SourceFile,
+  obj: ts.ObjectLiteralExpression,
+  namespaces: Map<string, string>,
+  sf: ts.SourceFile,
 ): { sources: CatalogueSource[] } | { bail: string } {
-  return { bail: "object literals — Task 4" }
+  const sources: CatalogueSource[] = []
+  for (const prop of obj.properties) {
+    if (ts.isSpreadAssignment(prop)) {
+      if (!ts.isIdentifier(prop.expression)) return { bail: "spread of a non-identifier" }
+      const moduleId = namespaces.get(prop.expression.text)
+      if (!moduleId) return { bail: `spread of non-namespace ${prop.expression.text}` }
+      sources.push({ kind: "namespace", localName: prop.expression.text, moduleId })
+      continue
+    }
+    // computed keys are not statically enumerable
+    const nameNode =
+      ts.isPropertyAssignment(prop) || ts.isShorthandPropertyAssignment(prop) ||
+      ts.isGetAccessorDeclaration(prop) || ts.isMethodDeclaration(prop)
+        ? prop.name
+        : undefined
+    if (!nameNode) return { bail: "unsupported property" }
+    if (ts.isComputedPropertyName(nameNode)) return { bail: "computed property key" }
+    const key = ts.isIdentifier(nameNode) || ts.isStringLiteral(nameNode) ? nameNode.text : undefined
+    if (key === undefined) return { bail: "non-static property key" }
+
+    if (ts.isPropertyAssignment(prop)) {
+      sources.push({ kind: "entry", key, valueText: prop.initializer.getText(sf) })
+    } else if (ts.isShorthandPropertyAssignment(prop)) {
+      sources.push({ kind: "entry", key, valueText: key })
+    } else if (ts.isGetAccessorDeclaration(prop) || ts.isMethodDeclaration(prop)) {
+      sources.push({ kind: "entry", key, valueText: prop.getText(sf) }) // verbatim getter/method
+    } else {
+      return { bail: "unsupported property" }
+    }
+  }
+  if (sources.length === 0) return { bail: "empty catalogue" }
+  return { sources }
 }
