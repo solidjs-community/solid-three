@@ -8,7 +8,7 @@
   "exports": { ".": { "import": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } } },
   "files": ["dist/**"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts",
+    "build": "tsup",
     "test": "vitest run",
     "test:oracle": "vitest run --config vitest.browser.config.ts",
     "test:ts": "tsc --noEmit -p tsconfig.json && vitest run"
