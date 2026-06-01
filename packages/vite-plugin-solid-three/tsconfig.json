@@ -12,5 +12,6 @@
   "include": ["src", "test"],
   // Build-input fixtures carry their own tsconfig (solid-js JSX). They are exercised
   // by `vite build` in the test runner, not type-checked against the library config.
-  "exclude": ["test/fixtures"]
+  // The browser oracle is likewise solid-js JSX exercised in a real browser, not tsc.
+  "exclude": ["test/fixtures", "test/oracle"]
 }
