@@ -109,16 +109,20 @@ Gone: ts-morph whole-project `Program`, `findReferencesAsNodes` symbol following
 ## Non-goals
 
 - No change to the `createT` runtime API or its dynamism. Dynamic catalogues stay fully dynamic (we bail).
-- No cross-bundler support. Vite only. (The mechanism is Rollup-native, so a Rollup plugin is a later possibility, but not a goal.)
+- No cross-bundler support *for now* — Vite only. Unlike the old design, cross-bundler is no longer architecturally blocked (see "unplugin / cross-bundler" under Open questions); it's deferred, not impossible.
 - No dev-mode narrowing — dev keeps the runtime proxy.
+
+## Resolved during implementation
+
+- **Orchestration:** proven. A single Vite plugin spawns one nested `build()` from `buildStart` (re-entrancy via a module-level `measuring` flag), captures `renderedExports` in the measure build's `generateBundle` into module-level maps, and the real build's `transform` reads them. Single-instance config-replay (`{ ...userConfig, configFile: false, build: { write: false } }`) worked; the two-plugin fallback was not needed.
+- **`createT` argument parser:** settled on `ts.createSourceFile` (single-file, syntactic — no Program, no type-checking).
+- **Multiple `createT` calls / catalogues:** handled by a per-call `siteIndex`; one scaffold + used-set per call.
 
 ## Open questions
 
-- **Orchestration details:** nested `build()` ergonomics, re-entrancy flag mechanism, and threading `renderedExports` from sub-build to real build. The main thing to prototype.
-- **Multiple `createT` calls / multiple catalogues:** one scaffold + used-set per call; confirm per-call isolation in the measurement build.
-- **`createT` argument parser:** `this.parse` vs a bundled parser; must handle TS/JSX at `enforce: "pre"`.
-- **2× build cost:** acceptable for production? Possible mitigations (lighter measure build: no minify, skip non-essential plugins) — but the measure graph must match the real graph, so prune carefully.
-- **Single-pass fast path (deferred):** if the wrapped-namespace form were ever an acceptable shipped runtime, `createT(THREE)` could skip pass 2 entirely. Rejected for now (debugging clarity; keep `createT`), but the mechanism supports it.
+- **The build-cost trilemma.** You can have any two of: single pass · `createT` kept in the output · exact bundler-measured narrowing. We chose the latter two, which costs a second build. Single-pass + `createT` is only possible by measuring the used-set ourselves (the deleted ts-morph/static-analysis approach, over-approximate). Single-pass + exact is only possible by shipping the wrapped-namespace form instead of `createT` (dropped for debugging clarity, but the mechanism supports it — worth revisiting if build time outweighs the keep-`createT` preference).
+- **Cheaper measurement pass (the practical lever).** Pass 1 only needs the module graph + tree-shaking to read `renderedExports`; it doesn't need minification, sourcemaps, or output writing (already `write: false`). Trimming toward "build until tree-shaking, read, abort" moves the cost from ~2× toward ~1.4–1.6×. The measure graph must still match the real graph, so prune only output-stage work, never modules/plugins that affect the graph. Plus: cache the measured set across rebuilds (watch mode) when the reachable graph is unchanged.
+- **unplugin / cross-bundler — the door is reopened.** unplugin was rejected originally because cross-bundler *soundness* required reconstructing each bundler's alias/resolution, which only Vite could do faithfully. This design reconstructs no resolution — the bundler does its own and tree-shakes soundly — so cross-bundler soundness is now *achievable*. The bundler-agnostic core (`analyze`/`providers`/`rewrite`/`scaffold`, plus `transform`/`resolveId`/`load`) already maps to unplugin universal hooks. Two seams remain bundler-specific and would need a per-bundler adapter + spike: (1) spawning the nested measurement build (`rollup.rollup()` / `webpack()` / `esbuild.build()` / `rspack()`), and (2) reading which exports survived tree-shaking — Rollup/Vite `renderedExports` (proven), webpack/rspack `usedExports` in stats (likely), esbuild metafile (coarser — uncertain). Recommendation: stay Vite-only for now (the consumer base is ~all Vite), but isolate those two seams behind a small interface in `index.ts` so a future unplugin port is additive adapters, not a rearchitecture.
 
 ## Test strategy
 
