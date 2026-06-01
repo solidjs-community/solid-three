@@ -32,3 +32,12 @@ describe("fixture matrix — shapes", () => {
     expect(code).not.toContain("TorusKnotGeometry")
   })
 })
+
+describe("fixture matrix — code splitting", () => {
+  it("code-split: a class only in a lazy chunk survives", async () => {
+    expect(await buildFixture("code-split")).toContain("DodecahedronGeometry")
+  })
+  it("dynamic-import: a class only in a dynamically-imported scene survives", async () => {
+    expect(await buildFixture("dynamic-import")).toContain("TorusKnotGeometry")
+  })
+})
