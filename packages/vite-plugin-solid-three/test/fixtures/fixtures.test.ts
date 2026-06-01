@@ -8,3 +8,27 @@ describe("fixture matrix", () => {
     expect(code).not.toContain("BoxGeometry")
   })
 })
+
+describe("fixture matrix — shapes", () => {
+  it("literal: drops the unused custom class", async () => {
+    const code = await buildFixture("literal")
+    expect(code).toContain("Mesh")
+    expect(code).not.toContain("BoxGeometry")
+  })
+  it("override: last-write-wins keeps CustomMesh + Group, drops unused three", async () => {
+    const code = await buildFixture("override")
+    expect(code).toContain("customMeshMarker")
+    expect(code).toContain("Group")
+    expect(code).not.toContain("BoxGeometry")
+  })
+  it("dynamic: bails to full catalogue, build still works", async () => {
+    const code = await buildFixture("dynamic")
+    expect(code).toContain("BoxGeometry") // not narrowed
+  })
+  it("union: keeps the union across files", async () => {
+    const code = await buildFixture("union", "entry.tsx")
+    expect(code).toContain("Mesh")
+    expect(code).toContain("Group")
+    expect(code).not.toContain("TorusKnotGeometry")
+  })
+})

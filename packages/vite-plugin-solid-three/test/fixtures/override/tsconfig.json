@@ -1,0 +1,1 @@
+{ "compilerOptions": { "jsx": "preserve", "jsxImportSource": "solid-js", "module": "ESNext", "moduleResolution": "bundler", "target": "ESNext", "allowImportingTsExtensions": true, "strict": true, "skipLibCheck": true } }
