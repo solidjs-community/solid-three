@@ -6,6 +6,9 @@ import { rewriteEmit, rewriteMeasure } from "./rewrite.ts"
 import { decodeScaffoldId, encodeScaffoldId, isScaffoldId, scaffoldSource } from "./scaffold.ts"
 
 // Module-level coordination between the real build and its nested measure build.
+// NOTE: this couples a build to its nested measure build by process-global state,
+// so only one build may run per process at a time. Vite builds are sequential by
+// default; do not run concurrent builds (e.g. parallel multi-config) in one process.
 let measuring = false
 // moduleId -> siteIndex -> used keys (filled by the measure build, read by the real build).
 const measured = new Map<string, Map<number, Set<string>>>()
@@ -42,6 +45,9 @@ export default function solidThree(): Plugin {
 
     async buildStart() {
       if (measuring) return // we ARE the measurement build — don't recurse
+      // Fresh state for this build (clears anything left by a prior build in the process).
+      measured.clear()
+      scaffoldKeys.clear()
       measuring = true
       try {
         // Replay the user's config (including their plugins — e.g. vite-plugin-solid,

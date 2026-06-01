@@ -138,7 +138,8 @@ function classifyObject(
     } else if (ts.isShorthandPropertyAssignment(prop)) {
       sources.push({ kind: "entry", key, valueText: key })
     } else if (ts.isGetAccessorDeclaration(prop) || ts.isMethodDeclaration(prop)) {
-      sources.push({ kind: "entry", key, valueText: prop.getText(sf) }) // verbatim getter/method
+      // verbatim getter/method — its text already declares its own key
+      sources.push({ kind: "entry", key, valueText: prop.getText(sf), verbatim: true })
     } else {
       return { bail: "unsupported property" }
     }

@@ -51,3 +51,4 @@ So you never have to opt in or annotate anything — the plugin optimizes what i
 
 - Vite (build step). The mechanism is Rollup-native; other bundlers aren't supported.
 - `typescript` is used to parse your catalogue module (a peer dependency).
+- One build per process at a time. The measurement pass runs a nested build coordinated via process-global state, so don't run concurrent builds (e.g. parallel multi-config) in the same process. Vite builds are sequential by default.

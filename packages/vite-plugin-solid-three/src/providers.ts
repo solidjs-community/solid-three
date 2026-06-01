@@ -11,12 +11,23 @@ export function keyUniverse(sources: CatalogueSource[], nsKeys: NsKeys): Set<str
   return keys
 }
 
-/** The provider expression for `key`, applying last-writer-wins over sources. */
-export function providerFor(key: string, sources: CatalogueSource[], nsKeys: NsKeys): string | undefined {
+/**
+ * The provider for `key`, applying last-writer-wins over sources.
+ * `verbatim` is true for a getter/method whose `text` is a whole object member
+ * (it declares its own key, so emit must NOT prefix it with `key:`).
+ */
+export interface Provider {
+  text: string
+  verbatim: boolean
+}
+
+export function providerFor(key: string, sources: CatalogueSource[], nsKeys: NsKeys): Provider | undefined {
   for (let i = sources.length - 1; i >= 0; i--) {
     const s = sources[i]
-    if (s.kind === "entry" && s.key === key) return s.valueText
-    if (s.kind === "namespace" && (nsKeys.get(s.moduleId) ?? []).includes(key)) return `${s.localName}.${key}`
+    if (s.kind === "entry" && s.key === key) return { text: s.valueText, verbatim: s.verbatim ?? false }
+    if (s.kind === "namespace" && (nsKeys.get(s.moduleId) ?? []).includes(key)) {
+      return { text: `${s.localName}.${key}`, verbatim: false }
+    }
   }
   return undefined
 }

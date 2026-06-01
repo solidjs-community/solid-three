@@ -13,8 +13,12 @@ describe("providers", () => {
     expect([...keyUniverse(sources, nsKeys)].sort()).toEqual(["Box", "Group", "Mesh"])
   })
   it("last writer wins: Mesh -> Custom, Group -> THREE.Group", () => {
-    expect(providerFor("Mesh", sources, nsKeys)).toBe("Custom")
-    expect(providerFor("Group", sources, nsKeys)).toBe("THREE.Group")
+    expect(providerFor("Mesh", sources, nsKeys)).toEqual({ text: "Custom", verbatim: false })
+    expect(providerFor("Group", sources, nsKeys)).toEqual({ text: "THREE.Group", verbatim: false })
+  })
+  it("marks a verbatim getter/method provider", () => {
+    const withGetter: CatalogueSource[] = [{ kind: "entry", key: "Foo", valueText: "get Foo(){ return A }", verbatim: true }]
+    expect(providerFor("Foo", withGetter, nsKeys)).toEqual({ text: "get Foo(){ return A }", verbatim: true })
   })
   it("returns undefined for a key no source provides", () => {
     expect(providerFor("Nope", sources, nsKeys)).toBeUndefined()

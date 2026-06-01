@@ -40,7 +40,9 @@ export function rewriteEmit(
     for (const key of used) {
       if (!universe.has(key)) continue // accessed key not in catalogue — leave to runtime (proxy semantics)
       const provider = providerFor(key, site.sources, nsKeys)
-      if (provider !== undefined) entries.push(`${key}: ${provider}`)
+      if (provider === undefined) continue
+      // A verbatim member (getter/method) already declares its own key.
+      entries.push(provider.verbatim ? provider.text : `${key}: ${provider.text}`)
     }
     s.overwrite(site.argStart, site.argEnd, `{ ${entries.join(", ")} }`)
   }

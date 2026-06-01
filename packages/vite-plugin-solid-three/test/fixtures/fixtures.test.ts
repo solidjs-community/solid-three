@@ -9,6 +9,18 @@ describe("fixture matrix", () => {
   })
 })
 
+describe("fixture matrix — verbatim getter & escape", () => {
+  it("getter: a verbatim getter entry emits valid code and keeps its provider", async () => {
+    const code = await buildFixture("getter")
+    expect(code).toContain("getterMarker") // the getter's returned class survived
+    expect(code).not.toContain("BoxGeometry") // unused three dropped
+  })
+  it("escape: T passed as a whole value keeps the full catalogue (sound deopt)", async () => {
+    const code = await buildFixture("escape")
+    expect(code).toContain("BoxGeometry") // not narrowed
+  })
+})
+
 describe("fixture matrix — shapes", () => {
   it("literal: drops the unused custom class", async () => {
     const code = await buildFixture("literal")

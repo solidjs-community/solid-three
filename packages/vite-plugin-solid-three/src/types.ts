@@ -1,7 +1,9 @@
 // A catalogue is an ordered list of sources (last writer wins on key collisions).
 export type CatalogueSource =
   | { kind: "namespace"; localName: string; moduleId: string } // createT(THREE) or {...THREE}
-  | { kind: "entry"; key: string; valueText: string }          // { Mesh: X } or { get Foo(){…} } (verbatim)
+  // `{ Mesh: X }` (valueText "X") or a verbatim member `{ get Foo(){…} }` / `{ m(){…} }`
+  // (valueText is the whole member text and `verbatim` is true — it declares its own key).
+  | { kind: "entry"; key: string; valueText: string; verbatim?: boolean }
 
 export interface CatalogueSite {
   binding: string            // result binding name, e.g. "T"
