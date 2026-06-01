@@ -16,7 +16,7 @@ const scaffoldKeys = new Map<string, Map<number, string[]>>()
 const PUBLIC_PREFIX = "vps3-scaffold:"
 
 function normalize(id: string): string {
-  return id.split("?")[0]
+  return id.split("?")[0].split("#")[0]
 }
 
 /** The specifier emitted into source (drops the leading NUL of the internal scaffold id). */
@@ -44,6 +44,10 @@ export default function solidThree(): Plugin {
       if (measuring) return // we ARE the measurement build — don't recurse
       measuring = true
       try {
+        // Replay the user's config (including their plugins — e.g. vite-plugin-solid,
+        // which the measure build needs to transform JSX) so the measurement graph
+        // matches the real one. Side effect: the user's plugins run a second time;
+        // plugins with their own build-side effects will fire twice during a build.
         await build({
           ...userConfig,
           configFile: false,
@@ -106,7 +110,7 @@ export default function solidThree(): Plugin {
           if (!isScaffoldId(mid)) continue
           const { moduleId, siteIndex } = decodeScaffoldId(mid)
           const perSite = measured.get(moduleId) ?? new Map<number, Set<string>>()
-          perSite.set(siteIndex, new Set(mod.renderedExports))
+          perSite.set(siteIndex, new Set(mod.renderedExports ?? []))
           measured.set(moduleId, perSite)
         }
       }

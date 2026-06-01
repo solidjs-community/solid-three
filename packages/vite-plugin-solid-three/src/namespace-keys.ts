@@ -21,6 +21,8 @@ export function enumerateNamespaceKeys(moduleId: string, root: string): Promise<
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 function exportNames(ns: Record<string, unknown>): string[] {
+  // `default` and `__`-prefixed names (e.g. `__esModule`) are interop bookkeeping,
+  // not catalogue members — they pass the identifier test but must still be dropped.
   return Object.keys(ns).filter(k => k !== "default" && !k.startsWith("__") && IDENTIFIER.test(k))
 }
 
