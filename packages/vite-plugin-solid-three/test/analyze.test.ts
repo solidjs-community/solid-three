@@ -78,3 +78,17 @@ export const T = createT({ get Foo(){ return Date.now() > 0 ? A : B } })`
     expect((src as any).valueText).toContain("get Foo()")
   })
 })
+
+describe("analyzeModule — bails", () => {
+  it.each([
+    [`const T = createT(store)`, /not a resolvable namespace/i],
+    [`const T = createT({ [k]: X })`, /computed property/i],
+    [`const T = createT({ ...runtimeObj })`, /non-namespace/i],
+    [`const T = createT(makeIt())`, /unsupported catalogue argument/i],
+  ])("bails on %s", (body, reason) => {
+    const code = `import { createT } from "solid-three"\n${body}`
+    const { sites, bails } = analyzeModule(code, "/c.ts")
+    expect(sites).toHaveLength(0)
+    expect(bails[0].reason).toMatch(reason)
+  })
+})
