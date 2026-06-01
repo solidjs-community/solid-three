@@ -1,4 +1,5 @@
 import { T } from "./catalog.ts"
-export function Heavy() {
+// default export so `lazy(() => import("./Heavy.tsx"))` typechecks
+export default function Heavy() {
   return <T.DodecahedronGeometry />
 }
