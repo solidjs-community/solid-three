@@ -97,6 +97,7 @@ export default defineConfig({
               items: [
                 { title: "useThree", link: "/hooks/use-three" },
                 { title: "useFrame", link: "/hooks/use-frame" },
+                { title: "createXR", link: "/hooks/create-xr" },
                 { title: "useLoader", link: "/hooks/use-loader" },
                 { title: "useProps", link: "/hooks/use-props" },
               ],
