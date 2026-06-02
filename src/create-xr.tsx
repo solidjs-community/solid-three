@@ -100,5 +100,14 @@ export function createXR() {
     return xrSession
   }
 
-  return { connect, enter, isPresenting: presenting, session }
+  async function exit() {
+    // Ending the session fires `sessionend`; the listener effect does all teardown.
+    await session()?.end()
+  }
+
+  function isSupported(mode: XRSessionMode): Promise<boolean> {
+    return navigator.xr?.isSessionSupported(mode) ?? Promise.resolve(false)
+  }
+
+  return { connect, enter, exit, isSupported, isPresenting: presenting, session }
 }
