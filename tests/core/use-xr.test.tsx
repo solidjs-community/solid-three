@@ -97,3 +97,10 @@ describe("createXR().Provider + useXR", () => {
     dispose()
   })
 })
+
+describe("package entry", () => {
+  it("re-exports useXR from solid-three", async () => {
+    const mod = await import("../../src/index.ts")
+    expect(typeof mod.useXR).toBe("function")
+  })
+})
