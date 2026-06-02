@@ -1,6 +1,9 @@
 import { createRoot } from "solid-js"
+import { render } from "solid-js/web"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { Canvas } from "../../src/canvas.tsx"
 import { createXR, useXR, type XRState } from "../../src/create-xr.tsx"
+import { useThree } from "../../src/hooks.ts"
 
 describe("useXR", () => {
   it("throws when used outside <xr.Provider>", () => {
@@ -102,5 +105,52 @@ describe("package entry", () => {
   it("re-exports useXR from solid-three", async () => {
     const mod = await import("../../src/index.ts")
     expect(typeof mod.useXR).toBe("function")
+  })
+})
+
+describe("createXR().Provider — across the Canvas boundary", () => {
+  it("bridges provider state into a component inside <Canvas>", async () => {
+    const host = document.createElement("div")
+    document.body.appendChild(host)
+
+    let isPresenting!: () => boolean
+    let gl!: {
+      xr: { dispatchEvent: (e: { type: string }) => void }
+      dispose?: () => void
+      forceContextLoss?: () => void
+    }
+
+    function Probe() {
+      isPresenting = useXR().isPresenting
+      gl = useThree(c => c.gl)() as typeof gl
+      return null
+    }
+    function App() {
+      const xr = createXR()
+      return (
+        <xr.Provider>
+          <Canvas ref={xr.connect}>
+            <Probe />
+          </Canvas>
+        </xr.Provider>
+      )
+    }
+
+    const dispose = render(() => <App />, host)
+    // Canvas creates the renderer in onMount; wait one frame so xr.connect ran
+    // and the sessionstart/sessionend listeners are attached to gl.xr.
+    await new Promise(resolve => requestAnimationFrame(() => resolve(null)))
+
+    expect(isPresenting()).toBe(false)
+    gl.xr.dispatchEvent({ type: "sessionstart" })
+    expect(isPresenting()).toBe(true)
+    gl.xr.dispatchEvent({ type: "sessionend" })
+    expect(isPresenting()).toBe(false)
+
+    dispose()
+    // Free the GPU context — browsers cap concurrent WebGL contexts (~16).
+    gl.dispose?.()
+    gl.forceContextLoss?.()
+    host.remove()
   })
 })
