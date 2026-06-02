@@ -132,3 +132,88 @@ describe("createXR — state & wiring", () => {
     dispose()
   })
 })
+
+describe("createXR — enter", () => {
+  it("installs setAnimationLoop(render) before setSession (snapshot order)", async () => {
+    setFakeNavigatorXR()
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+
+    await xr.enter("immersive-vr")
+
+    const loopOrder = ctx.gl.setAnimationLoop.mock.invocationCallOrder[0]
+    const sessionOrder = ctx.gl.xr.setSession.mock.invocationCallOrder[0]
+    expect(loopOrder).toBeLessThan(sessionOrder)
+    expect(ctx.gl.setAnimationLoop).toHaveBeenCalledWith(ctx.render)
+    expect(ctx.gl.xr.enabled).toBe(true)
+
+    dispose()
+  })
+
+  it("calls requestSession before touching the renderer (transient activation)", async () => {
+    const requestSession = vi.fn(async () => makeFakeSession())
+    setFakeNavigatorXR(requestSession)
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+
+    await xr.enter("immersive-vr")
+
+    expect(requestSession.mock.invocationCallOrder[0]).toBeLessThan(
+      ctx.gl.setAnimationLoop.mock.invocationCallOrder[0],
+    )
+
+    dispose()
+  })
+
+  it("forwards mode + sessionInit verbatim to requestSession", async () => {
+    const requestSession = vi.fn(async () => makeFakeSession())
+    setFakeNavigatorXR(requestSession)
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+
+    const init = { requiredFeatures: ["local-floor"], optionalFeatures: ["hand-tracking"] }
+    await xr.enter("immersive-ar", init)
+
+    expect(requestSession).toHaveBeenCalledWith("immersive-ar", init)
+
+    dispose()
+  })
+
+  it("enter(session) wires a provided session without calling requestSession", async () => {
+    const requestSession = vi.fn(async () => makeFakeSession())
+    setFakeNavigatorXR(requestSession)
+    const ctx = makeFakeContext()
+    const session = makeFakeSession()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+
+    await xr.enter(session)
+
+    expect(requestSession).not.toHaveBeenCalled()
+    expect(ctx.gl.xr.setSession).toHaveBeenCalledWith(session)
+    expect(xr.session()).toBe(session)
+
+    dispose()
+  })
+
+  it("throws a clear error when called before connect", async () => {
+    setFakeNavigatorXR()
+    const { xr, dispose } = renderXR()
+    await expect(xr.enter("immersive-vr")).rejects.toThrow(/before .*connect/)
+    dispose()
+  })
+
+  it("throws when navigator.xr is unavailable", async () => {
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+    // The Chromium test runner has a native navigator.xr; shadow it with
+    // undefined to exercise the unavailability guard.
+    Object.defineProperty(navigator, "xr", { value: undefined, configurable: true })
+    await expect(xr.enter("immersive-vr")).rejects.toThrow(/WebXR unavailable/)
+    dispose()
+  })
+})
