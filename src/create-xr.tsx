@@ -72,5 +72,33 @@ export function createXR() {
     return () => setContext(undefined)
   }
 
-  return { connect, isPresenting: presenting, session }
+  function requestSession(mode: XRSessionMode, init?: XRSessionInit) {
+    if (!navigator.xr) {
+      throw new Error("S3: WebXR unavailable (navigator.xr is undefined)")
+    }
+    return navigator.xr.requestSession(mode, init)
+  }
+
+  async function enter(arg: XRSessionMode | XRSession, init?: XRSessionInit): Promise<XRSession> {
+    const ctx = context()
+    if (!ctx) {
+      throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected")
+    }
+    const gl = asXRRenderer(ctx.gl)
+    if (!gl.xr) {
+      throw new Error("S3: the active renderer has no xr manager")
+    }
+
+    // Edge 3: requestSession FIRST — nothing awaited before it (transient activation).
+    const xrSession = typeof arg === "string" ? await requestSession(arg, init) : arg
+
+    // Edge 1: setAnimationLoop(render) BEFORE setSession (WebGPU snapshots here).
+    gl.setAnimationLoop(ctx.render)
+    gl.xr.enabled = true
+    await gl.xr.setSession(xrSession)
+    setSession(xrSession)
+    return xrSession
+  }
+
+  return { connect, enter, isPresenting: presenting, session }
 }
