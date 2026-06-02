@@ -217,3 +217,43 @@ describe("createXR — enter", () => {
     dispose()
   })
 })
+
+describe("createXR — exit & isSupported", () => {
+  it("exit() ends the active session", async () => {
+    const session = makeFakeSession()
+    setFakeNavigatorXR(vi.fn(async () => session))
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+    await xr.enter("immersive-vr")
+
+    await xr.exit()
+    expect(session.end).toHaveBeenCalledTimes(1)
+
+    dispose()
+  })
+
+  it("exit() is a no-op when there is no active session", async () => {
+    const ctx = makeFakeContext()
+    const { xr, dispose } = renderXR()
+    xr.connect(ctx)
+    await expect(xr.exit()).resolves.toBeUndefined()
+    dispose()
+  })
+
+  it("isSupported delegates to navigator.xr.isSessionSupported", async () => {
+    const fake = setFakeNavigatorXR()
+    const { xr, dispose } = renderXR()
+    expect(await xr.isSupported("immersive-ar")).toBe(true)
+    expect(fake.isSessionSupported).toHaveBeenCalledWith("immersive-ar")
+    dispose()
+  })
+
+  it("isSupported returns false when navigator.xr is undefined", async () => {
+    const { xr, dispose } = renderXR()
+    // Native navigator.xr exists in the runner; shadow it with undefined.
+    Object.defineProperty(navigator, "xr", { value: undefined, configurable: true })
+    expect(await xr.isSupported("immersive-vr")).toBe(false)
+    dispose()
+  })
+})
