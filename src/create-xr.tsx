@@ -1,5 +1,42 @@
-import { createRenderEffect, createSignal, onCleanup } from "solid-js"
+import {
+  type Accessor,
+  createContext,
+  createRenderEffect,
+  createSignal,
+  type JSX,
+  onCleanup,
+  useContext,
+} from "solid-js"
 import type { Context } from "./types.ts"
+
+/**
+ * The in-scene XR state distributed by `createXR().Provider` and read by
+ * [`useXR`](#useXR). It is the read/control slice scene code needs — not the
+ * full `createXR` instance, whose `connect`/`enter` are meaningless in-scene.
+ */
+export type XRState = {
+  isPresenting: Accessor<boolean>
+  session: Accessor<XRSession | undefined>
+  exit: () => Promise<void>
+}
+
+const xrContext = createContext<XRState>()
+
+/**
+ * Reads the XR state supplied by `createXR().Provider`. Use it in a scene
+ * component (descendant of `<xr.Provider>`) to react to session state or drive
+ * in-world UI — e.g. a mesh whose `onClick` calls `exit()`, since the DOM exit
+ * button is not rendered while an immersive session is presenting.
+ *
+ * @throws if used outside a `<xr.Provider>`.
+ */
+export function useXR(): XRState {
+  const state = useContext(xrContext)
+  if (!state) {
+    throw new Error("S3: useXR must be used within <xr.Provider> (from createXR())")
+  }
+  return state
+}
 
 /**
  * What `createXR` needs from a scene to drive a session: the renderer (`gl`) and
