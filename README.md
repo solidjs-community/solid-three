@@ -29,6 +29,7 @@
    - [useThree](#usethree)
    - [useFrame](#useframe)
    - [createXR](#createxr)
+   - [useXR](#usexr)
    - [useProps](#useprops)
 5. [Utilities](#utilities)
    - [Raycasters](#raycasters)
@@ -611,6 +612,7 @@ It handles the ordering rules that make a session enter cleanly — most importa
 - **isPresenting** (`() => boolean`): Reactive — `true` while a session is presenting.
 - **session** (`() => XRSession | undefined`): Reactive — the active session, or `undefined`.
 - **isSupported** (`(mode) => Promise<boolean>`): Whether the device supports a session mode. Use it to decide whether to show the button; don't `await` it before calling `enter`.
+- **Provider** (`(props: { children: JSX.Element }) => JSX.Element`): Distributes this `createXR`'s state to the scene. Wrap the subtree that needs in-scene XR access (typically `<Canvas>` and its button); read it inside with [`useXR`](#usexr).
 
 <details>
 <summary>Typescript Interface</summary>
@@ -624,6 +626,7 @@ function createXR(): {
   isPresenting: () => boolean
   session: () => XRSession | undefined
   isSupported: (mode: XRSessionMode) => Promise<boolean>
+  Provider: (props: { children: JSX.Element }) => JSX.Element
 }
 ```
 
@@ -679,6 +682,50 @@ const [supported] = createResource(() => xr.isSupported("immersive-ar"))
 > **Reading controller and hand poses:** you don't need `createXR` inside the scene. The third argument to [`useFrame`](#useframe) is the live `XRFrame` during a session — read poses from there.
 
 > **`WebGPURenderer` note:** on three.js ≤ r184, driving a WebXR session through the WebGPU backend requires a WebGL2 fallback. `createXR` itself is backend-agnostic; configure the renderer at the `<Canvas gl={…}>` level.
+
+
+### useXR
+
+Reads the XR state distributed by [`createXR().Provider`](#createxr) from **inside the scene**. Use it when a component needs to react to the session or drive in-world UI — most importantly an in-VR exit control, since the DOM "Exit" button is not rendered while an immersive session is presenting.
+
+Wrap the subtree with `<xr.Provider>`, then call `useXR()` in any descendant (including components inside `<Canvas>`):
+
+```tsx
+import { Canvas, createXR, useXR } from "solid-three"
+import { Show } from "solid-js"
+
+function ExitButton() {
+  const { isPresenting, exit } = useXR()
+  return (
+    <Show when={isPresenting()}>
+      <T.Mesh position={[0, 1.4, -1]} onClick={() => exit()}>
+        <T.BoxGeometry args={[0.3, 0.15, 0.02]} />
+        <T.MeshBasicMaterial color="crimson" />
+      </T.Mesh>
+    </Show>
+  )
+}
+
+function App() {
+  const xr = createXR()
+  return (
+    <xr.Provider>
+      <button onClick={() => xr.enter("immersive-vr")}>Enter VR</button>
+      <Canvas ref={xr.connect}>
+        <ExitButton />
+      </Canvas>
+    </xr.Provider>
+  )
+}
+```
+
+**Returns** the read/control slice of the XR state:
+
+- **isPresenting** (`() => boolean`): Reactive — `true` while a session is presenting.
+- **session** (`() => XRSession | undefined`): Reactive — the active session, or `undefined`.
+- **exit** (`() => Promise<void>`): Ends the active session.
+
+> `useXR` throws if called outside a `<xr.Provider>`. For controller and hand poses, read the `XRFrame` from [`useFrame`](#useframe)'s third argument — that does not require `useXR`.
 
 
 ### useLoader

@@ -98,6 +98,7 @@ export default defineConfig({
                 { title: "useThree", link: "/hooks/use-three" },
                 { title: "useFrame", link: "/hooks/use-frame" },
                 { title: "createXR", link: "/hooks/create-xr" },
+                { title: "useXR", link: "/hooks/use-xr" },
                 { title: "useLoader", link: "/hooks/use-loader" },
                 { title: "useProps", link: "/hooks/use-props" },
               ],
