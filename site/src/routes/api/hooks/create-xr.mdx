@@ -18,7 +18,7 @@ const xr = createXR()
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `connect` | `(context: Context) => () => void` | A ref for `<Canvas ref={xr.connect}>`. Hands the renderer to `createXR`, and returns a cleanup that runs when the Canvas unmounts. |
+| `connect` | `(context: XRContext) => () => void` | Hands `createXR` the renderer `gl` and the per-frame `render` (an `XRContext` — `Pick<Context, "gl" \| "render">`), and returns a cleanup that detaches them. `<Canvas ref={xr.connect}>` is the usual wiring — it passes the scene's `Context` for you — but `connect` isn't tied to `<Canvas>`; any `{ gl, render }` works. |
 | `enter` | `(mode, sessionInit?) => Promise<XRSession>` | Requests a session and enters it. `mode` is `"immersive-vr"`, `"immersive-ar"`, or `"inline"`; `sessionInit` passes straight to `navigator.xr.requestSession`. Call it directly from a click handler, without `await`ing first (see the example). You may instead pass an `XRSession` you already created, to skip the request and just wire it. |
 | `exit` | `() => Promise<void>` | Ends the active session. |
 | `isPresenting` | `() => boolean` | Reactive — `true` while a session is presenting. |

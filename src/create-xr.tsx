@@ -2,6 +2,15 @@ import { createRenderEffect, createSignal, onCleanup } from "solid-js"
 import type { Context } from "./types.ts"
 
 /**
+ * What `createXR` needs from a scene to drive a session: the renderer (`gl`) and
+ * solid-three's per-frame callback (`render`, installed as the XR animation
+ * loop). A full [`Context`](./types.ts) satisfies it, so the usual wiring is
+ * `<Canvas ref={xr.connect}>` — but `connect` isn't tied to `<Canvas>` or its
+ * ref; any `{ gl, render }` works.
+ */
+export type XRContext = Pick<Context, "gl" | "render">
+
+/**
  * The structural slice of a renderer that `createXR` drives. WebGLRenderer's
  * `WebXRManager` and WebGPURenderer's `XRManager` expose the same runtime XR
  * surface but with differently-typed event maps, so their union is not callable
@@ -19,10 +28,6 @@ type XRRenderer = {
   }
 }
 
-function asXRRenderer(gl: Context["gl"]): XRRenderer {
-  return gl as unknown as XRRenderer
-}
-
 /**
  * Consumer-owned WebXR entry primitive. Call it in a component body (it owns a
  * reactive effect), then connect it to the renderer with
@@ -36,11 +41,11 @@ function asXRRenderer(gl: Context["gl"]): XRRenderer {
  *   3. `requestSession` is called first, with nothing awaited before it, to keep
  *      the immersive request inside transient user activation.
  *
- * Built only on the public `Context` and the renderer's `xr` event target — no
- * core internals, no WebGL-vs-WebGPU branching.
+ * Built only on the public [`XRContext`](#XRContext) (`gl` + `render`) and the
+ * renderer's `xr` event target — no core internals, no WebGL-vs-WebGPU branching.
  */
 export function createXR() {
-  const [context, setContext] = createSignal<Context>()
+  const [context, setContext] = createSignal<XRContext>()
   const [presenting, setPresenting] = createSignal(false)
   const [session, setSession] = createSignal<XRSession>()
 
@@ -49,7 +54,7 @@ export function createXR() {
   // (via connect's disconnect) cascades through here to tear everything down.
   createRenderEffect(() => {
     const ctx = context()
-    const gl = ctx ? asXRRenderer(ctx.gl) : undefined
+    const gl = ctx ? (ctx.gl as unknown as XRRenderer) : undefined
     const xr = gl?.xr
     if (!gl || !xr || typeof xr.addEventListener !== "function") return
     const onStart = () => setPresenting(true)
@@ -67,7 +72,7 @@ export function createXR() {
     })
   })
 
-  function connect(value: Context) {
+  function connect(value: XRContext) {
     setContext(value)
     return () => setContext(undefined)
   }
@@ -84,7 +89,7 @@ export function createXR() {
     if (!ctx) {
       throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected")
     }
-    const gl = asXRRenderer(ctx.gl)
+    const gl = ctx.gl as unknown as XRRenderer
     if (!gl.xr) {
       throw new Error("S3: the active renderer has no xr manager")
     }

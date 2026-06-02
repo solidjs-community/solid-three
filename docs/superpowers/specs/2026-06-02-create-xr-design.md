@@ -49,7 +49,7 @@ No provider, no new Canvas prop, no `createSignal` juggling. The button closes o
 ```ts
 const xr = createXR()
 
-xr.connect              // Ref<Context> — pass to <Canvas ref={xr.connect}>; returns a cleanup
+xr.connect              // Ref<XRContext> — pass to <Canvas ref={xr.connect}>; returns a cleanup
 xr.enter(mode, init?)   // request a session + wire it           → Promise<XRSession>
 xr.enter(session)       // escape hatch: wire a session you made  → Promise<XRSession>
 xr.exit()               // end the active session                 → Promise<void>
@@ -101,16 +101,17 @@ export function createXR() {
 
 `isPresenting()` is driven by three's authoritative `sessionstart`/`sessionend` events (the decision over a hook-local boolean), so it reflects the renderer's actual state even if a session starts or ends outside `enter`/`exit`, and stays consistent with core's own `sessionend` listener. `session()` is the handle: set in `enter` once obtained, cleared on `sessionend`.
 
-### `connect` — minimal `Ref<Context>` with a cleanup return
+### `connect` — minimal `Ref<XRContext>` with a cleanup return
 
 ```ts
-function connect(context: Context) {
+// XRContext = Pick<Context, "gl" | "render"> — the only fields createXR reads.
+function connect(context: XRContext) {
   setContext(context)
   return () => setContext(undefined)   // Canvas unmount → clear → cascades teardown via the effect
 }
 ```
 
-`connect` does nothing but stash the context and hand back a disconnect. It reads no members itself; the effect and `enter`/`exit` read `context.gl`/`context.render` lazily. The single requirement `connect` imposes lands on `createXR`, not itself: the effect needs a reactive owner, so `createXR()` is a component-body primitive.
+`connect` does nothing but stash the context and hand back a disconnect. It reads no members itself; the effect and `enter`/`exit` read `context.gl`/`context.render` lazily. The parameter is narrowed to `XRContext` (`Pick<Context, "gl" | "render">`) so the type states the real dependency: `createXR` needs the renderer and solid-three's per-frame callback, nothing else. A full `Context` satisfies it, so `<Canvas ref={xr.connect}>` is unchanged — but `connect` isn't tied to `<Canvas>` or its ref; any `{ gl, render }` works. The single requirement `connect` imposes lands on `createXR`, not itself: the effect needs a reactive owner, so `createXR()` is a component-body primitive.
 
 ### `enter` — request-first, then snapshot-safe wiring
 
