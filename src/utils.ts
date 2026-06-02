@@ -1,5 +1,5 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createRenderEffect, mergeProps, onCleanup, type Ref } from "solid-js"
+import { createRenderEffect, mergeProps, onCleanup } from "solid-js"
 import {
   type BufferGeometry,
   Camera,
@@ -22,6 +22,7 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  RefWithCleanup,
   Renderer,
   RendererLike,
 } from "./types.ts"
@@ -477,16 +478,16 @@ export async function load<
 /*                                                                                */
 /**********************************************************************************/
 
-export function useRef<T>(props: { ref?: Ref<T> }, value: T | Accessor<T>) {
+export function useRef<T>(props: { ref?: RefWithCleanup<T> }, value: T | Accessor<T>) {
   createRenderEffect(() => {
     const result =
       typeof value === "function"
-        ? // @ts-expect-error
+        ? // @ts-expect-error — T may itself be callable; the Accessor branch is intended
           value()
         : value
     if (typeof props.ref === "function") {
-      // @ts-expect-error
-      props.ref(result)
+      const cleanup = (props.ref as (value: T) => void | (() => void))(result)
+      if (typeof cleanup === "function") onCleanup(cleanup)
     } else {
       props.ref = result
     }
