@@ -7,7 +7,6 @@ import { defineConfig } from "vite"
 
 import { BASE } from "./base.config"
 import { solidThreeBundlePlugin } from "./vite-plugins/solid-three-bundle"
-import { solidbaseJsxFallback } from "./vite-plugins/solidbase-jsx-fallback"
 
 const theme = defineTheme({
   componentsPath: new URL("./src/theme/", import.meta.url).href,
@@ -68,7 +67,6 @@ export default defineConfig({
         if (id.endsWith("?importChunkUrl")) return `export default ""`
       },
     },
-    solidbaseJsxFallback(),
     solidThreeBundlePlugin(),
     solidBase.plugin({
       title: "solid three",
@@ -130,7 +128,6 @@ export default defineConfig({
     solidStart(solidBase.startConfig()),
     nitroV2Plugin({
       preset: "static",
-      baseURL: BASE,
       prerender: {
         crawlLinks: true,
         routes: ["/"],

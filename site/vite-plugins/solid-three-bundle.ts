@@ -4,6 +4,8 @@ import { build } from "esbuild"
 import { solidPlugin as esbuildSolidPlugin } from "esbuild-plugin-solid"
 import type { Plugin } from "vite"
 
+import { BASE } from "../base.config"
+
 /**
  * Entry of the local solid-three source. Resolved from `process.cwd()`
  * (the `site/` directory) so the path stays correct after vinxi bundles
@@ -52,7 +54,10 @@ export function solidThreeBundlePlugin(): Plugin {
       server.middlewares.use(async (req, res, next) => {
         if (!req.url) return next()
         const url = req.url.split("?")[0]
-        if (url !== SOLID_THREE_VIRTUAL_PATH) return next()
+        // req.url may or may not carry the deploy base depending on Vite's dev
+        // base handling; normalise against BASE before matching the virtual path.
+        const baseless = BASE !== "/" && url.startsWith(BASE) ? `/${url.slice(BASE.length)}` : url
+        if (baseless !== SOLID_THREE_VIRTUAL_PATH) return next()
         try {
           const code = await bundle()
           res.setHeader("Content-Type", "application/javascript")
