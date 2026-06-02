@@ -50,7 +50,7 @@ The camera and raycaster are each managed as a **stack**. The `camera` and `rayc
 
 ### WebXR
 
-solid-three does not manage XR sessions for you — entering and exiting a session is the consumer's job. For almost all cases, reach for [`createXR`](/api/hooks/create-xr), which handles the ordering rules (install the render loop before the session starts, request the session inside the user gesture, release the loop on exit) so you don't have to.
+solid-three does not manage XR sessions for you — entering and exiting a session is the consumer's job. For almost all cases, reach for [`createXR`](/api/hooks/create-xr), which handles the session-ordering rules for you.
 
 If you need to drive the renderer directly instead, the rule to remember is: install the render callback **before** `setSession` runs.
 
@@ -68,7 +68,7 @@ gl.setAnimationLoop(null)
 gl.xr.enabled = false
 ```
 
-While a session is presenting, the renderer's own loop (driven by the headset) owns rendering, so solid-three's window loop steps aside automatically. The same code works for both `WebGLRenderer` and `WebGPURenderer`. For XR with `WebGPURenderer` on three ≤ r184, construct it with `{ forceWebGL: true }` (the WebGPU backend's XR support is unreleased as of r184).
+While a session is presenting, the renderer's own loop (driven by the headset) owns rendering, so solid-three's window loop steps aside automatically. The same code works for both `WebGLRenderer` and `WebGPURenderer`. For XR with `WebGPURenderer` on three ≤ r184, construct it with `{ forceWebGL: true }`.
 
 ## Examples
 

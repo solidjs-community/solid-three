@@ -116,7 +116,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
   - `"never"`: Disables automatic rendering
 - **style**: Custom CSS styles for the canvas container.
 - **class**: CSS class names for the canvas container.
-- **ref**: Receives the scene's [`Context`](#usethree) once the renderer is created, so code outside `<Canvas>` can reach it. A callback ref may return a cleanup that runs when the Canvas unmounts (the React-19 cleanup-callback-ref shape) — [`createXR`](#createxr) uses this to release the renderer when the scene goes away.
+- **ref**: Receives the scene's [`Context`](#usethree) once the renderer is created, so code outside `<Canvas>` can reach it. A callback ref may return a cleanup that runs when the Canvas unmounts — [`createXR`](#createxr) uses this.
 - **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onClickMissed`, etc.)
 
 <details>
@@ -599,9 +599,9 @@ useFrame(
 
 Enters and exits WebXR sessions (VR and AR) for the scene's renderer. The same code works on both `WebGLRenderer` and `WebGPURenderer`.
 
-Unlike the `use*` hooks, `createXR` is called **outside** `<Canvas>` — typically in the same component as your "Enter XR" button, which lives in the DOM rather than the 3D scene. You connect it to the renderer with `<Canvas ref={xr.connect}>`. `createXR` owns a reactive effect, so call it in a component body (like `createSignal`).
+Unlike the `use*` hooks, `createXR` lives **outside** `<Canvas>` — next to the DOM "Enter XR" button that triggers a session. Call it in a component body (like `createSignal`), then connect it to the renderer with `<Canvas ref={xr.connect}>`.
 
-It exists because entering a session correctly has a few ordering rules that are easy to get wrong — the animation loop must be installed before the session starts, the immersive request must run synchronously inside the button's click handler, and the loop must be released on exit. `createXR` handles all of them so you don't have to.
+It handles the ordering rules that make a session enter cleanly — most importantly, call `enter` directly from a click handler (see the example).
 
 **Returns** an object with:
 
