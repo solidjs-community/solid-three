@@ -151,5 +151,16 @@ export function createXR() {
     return navigator.xr?.isSessionSupported(mode) ?? Promise.resolve(false)
   }
 
-  return { connect, enter, exit, isSupported, isPresenting: presenting, session }
+  const state: XRState = { isPresenting: presenting, session, exit }
+
+  /**
+   * Distributes this `createXR`'s state into the scene via context. Wrap the
+   * subtree that needs in-scene XR access (typically `<Canvas>` and its
+   * "Enter XR" button); descendants read it with [`useXR`](#useXR).
+   */
+  function Provider(props: { children: JSX.Element }) {
+    return <xrContext.Provider value={state}>{props.children}</xrContext.Provider>
+  }
+
+  return { connect, enter, exit, isSupported, isPresenting: presenting, session, Provider }
 }
