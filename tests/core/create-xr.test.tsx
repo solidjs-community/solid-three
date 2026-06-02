@@ -1,7 +1,12 @@
 import { createRoot, createSignal } from "solid-js"
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { createXR } from "../../src/create-xr.tsx"
-import type { Context } from "../../src/types.ts"
+import type { CanvasProps } from "../../src/canvas.tsx"
+import { createXR, type XRContext } from "../../src/create-xr.tsx"
+
+// Compile-time only: narrowing connect's param to XRContext must keep it
+// assignable to `<Canvas ref={xr.connect}>` (Context satisfies XRContext).
+const _connectIsAssignableToCanvasRef: CanvasProps["ref"] = (_context: XRContext) => () => {}
+void _connectIsAssignableToCanvasRef
 
 /* -------------------------------- fakes -------------------------------- */
 
@@ -32,7 +37,7 @@ function makeFakeGl(xr = makeFakeXR()) {
 type FakeGl = ReturnType<typeof makeFakeGl>
 
 function makeFakeContext(gl: FakeGl = makeFakeGl()) {
-  return { gl, render: vi.fn() } as unknown as Context & {
+  return { gl, render: vi.fn() } as unknown as XRContext & {
     gl: FakeGl
     render: ReturnType<typeof vi.fn>
   }
@@ -102,7 +107,7 @@ describe("createXR — state & wiring", () => {
         return gl()
       },
       render: vi.fn(),
-    } as unknown as Context
+    } as unknown as XRContext
     const { xr, dispose } = renderXR()
     xr.connect(ctx)
 
@@ -117,7 +122,7 @@ describe("createXR — state & wiring", () => {
 
   it("does not crash for an xr manager lacking addEventListener", () => {
     const gl = { xr: { enabled: false }, setAnimationLoop: vi.fn() }
-    const ctx = { gl, render: vi.fn() } as unknown as Context
+    const ctx = { gl, render: vi.fn() } as unknown as XRContext
     const { xr, dispose } = renderXR()
     expect(() => xr.connect(ctx)).not.toThrow()
     dispose()
