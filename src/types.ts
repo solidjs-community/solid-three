@@ -34,6 +34,13 @@ import type { Measure } from "./utils/use-measure.ts"
 export type AccessorMaybe<T> = T | Accessor<T>
 export type PromiseMaybe<T> = T | Promise<T>
 
+/**
+ * A ref that is a value sink, a callback, or a callback returning a cleanup
+ * (the React-19 cleanup-callback-ref shape). The cleanup runs when the ref's
+ * reactive owner disposes or the ref value changes.
+ */
+export type RefWithCleanup<T> = T | ((value: T) => void | (() => void))
+
 export type ClassInstance<T extends object> = T & { constructor: Function }
 
 /** Generic constructor. Returns instance of given type. Defaults to any. */
