@@ -1,5 +1,5 @@
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { onMount, type JSX, type ParentProps, type Ref } from "solid-js"
+import { onMount, type JSX, type ParentProps } from "solid-js"
 import {
   Camera,
   OrthographicCamera,
@@ -11,13 +11,13 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props, ResolvedRenderer } from "./types.ts"
+import type { CanvasEventHandlers, Context, Props, RefWithCleanup, ResolvedRenderer } from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
 export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
-  ref?: Ref<Context>
+  ref?: RefWithCleanup<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
   camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera

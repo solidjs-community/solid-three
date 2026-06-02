@@ -1,6 +1,13 @@
 import { createRoot } from "solid-js"
 import { describe, expect, it, vi } from "vitest"
+import type { CanvasProps } from "../../src/canvas.tsx"
+import type { Context } from "../../src/types.ts"
 import { useRef } from "../../src/utils.ts"
+
+// Compile-time only: a cleanup-returning ref must be assignable to Canvas's ref.
+// This line fails to typecheck if CanvasProps.ref was not widened.
+const _cleanupRefIsAssignable: CanvasProps["ref"] = (_context: Context) => () => {}
+void _cleanupRefIsAssignable
 
 describe("useRef", () => {
   it("invokes a function ref with the value", () => {
