@@ -18,5 +18,5 @@
     "target": "ESNext",
     "verbatimModuleSyntax": true
   },
-  "exclude": ["dist", "build", "node_modules", "demo"]
+  "exclude": ["dist", "build", "node_modules", "demo", "demo-xr"]
 }
