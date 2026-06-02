@@ -22,6 +22,7 @@ title: Canvas
 | `fallback` | `JSX.Element` | — | Shown while content loads asynchronously. |
 | `style` | `JSX.CSSProperties` | — | CSS for the canvas container. |
 | `class` | `string` | — | CSS class for the canvas container. |
+| `ref` | `RefWithCleanup<Context>` | — | Receives the [`Context`](/api/hooks/use-three) once the renderer is created, so code outside `<Canvas>` can reach it. A callback ref may return a cleanup that runs when the Canvas unmounts (the React-19 cleanup-callback-ref shape); [`createXR`](/api/hooks/create-xr) uses this. |
 | event handlers | `Partial<CanvasEventHandlers>` | — | Any [event handler](/api/events/overview), firing after the event bubbles through the whole scene (e.g. `onClick`, `onClickMissed`). |
 
 <details>
@@ -29,7 +30,7 @@ title: Canvas
 
 ```tsx
 interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
-  ref?: Ref<Context>
+  ref?: RefWithCleanup<Context> // Context | ((context: Context) => void | (() => void))
   camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
   fallback?: JSX.Element
   gl?:
