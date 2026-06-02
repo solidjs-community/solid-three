@@ -1,0 +1,56 @@
+---
+title: useXR
+---
+
+# useXR
+
+Reads the XR state distributed by [`createXR().Provider`](/api/hooks/create-xr) from inside the scene. Use it to react to the session or build in-world UI — most importantly an in-VR exit control, since the DOM "Exit" button is not shown while an immersive session is presenting.
+
+Wrap the subtree with `<xr.Provider>`, then call `useXR()` in any descendant, including components inside `<Canvas>`.
+
+```tsx
+import { Canvas, createXR, useXR } from "solid-three"
+import { Show } from "solid-js"
+
+function ExitButton() {
+  const { isPresenting, exit } = useXR()
+  return (
+    <Show when={isPresenting()}>
+      <T.Mesh position={[0, 1.4, -1]} onClick={() => exit()}>
+        <T.BoxGeometry args={[0.3, 0.15, 0.02]} />
+        <T.MeshBasicMaterial color="crimson" />
+      </T.Mesh>
+    </Show>
+  )
+}
+
+function App() {
+  const xr = createXR()
+  return (
+    <xr.Provider>
+      <button onClick={() => xr.enter("immersive-vr")}>Enter VR</button>
+      <Canvas ref={xr.connect}>
+        <ExitButton />
+      </Canvas>
+    </xr.Provider>
+  )
+}
+```
+
+## Returns
+
+- **isPresenting** (`() => boolean`): Reactive — `true` while a session is presenting.
+- **session** (`() => XRSession | undefined`): Reactive — the active session, or `undefined`.
+- **exit** (`() => Promise<void>`): Ends the active session.
+
+`useXR` throws if called outside a `<xr.Provider>`. For controller and hand poses, read the `XRFrame` from [`useFrame`](/api/hooks/use-frame)'s third argument — that does not require `useXR`.
+
+## Typescript Interface
+
+```tsx
+function useXR(): {
+  isPresenting: () => boolean
+  session: () => XRSession | undefined
+  exit: () => Promise<void>
+}
+```
