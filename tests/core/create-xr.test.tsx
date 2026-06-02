@@ -257,3 +257,10 @@ describe("createXR — exit & isSupported", () => {
     dispose()
   })
 })
+
+describe("createXR — public export", () => {
+  it("is exported from the package entry", async () => {
+    const entry = await import("../../src/index.ts")
+    expect(typeof entry.createXR).toBe("function")
+  })
+})
