@@ -1,6 +1,6 @@
-import { Vector2 } from "three"
+import { Vector2, type Object3D } from "three"
 import { Pointer } from "./pointers.ts"
-import type { ScreenRaycaster } from "./raycasters.tsx"
+import { ControllerRaycaster, type ScreenRaycaster } from "./raycasters.tsx"
 import type { Context } from "./types.ts"
 
 type RayEvent = PointerEvent | MouseEvent | WheelEvent
@@ -106,6 +106,56 @@ export class DOMPointerManager {
       canvas.removeEventListener("dblclick", onDoubleClick)
       canvas.removeEventListener("contextmenu", onContextMenu)
       canvas.removeEventListener("wheel", onWheel)
+    }
+  }
+}
+
+/** A controller's targetRay space that also dispatches XR select events. */
+type SelectTarget = {
+  addEventListener(type: string, listener: () => void): void
+  removeEventListener(type: string, listener: () => void): void
+}
+
+/**
+ * Wires XR controllers as pointers. three's `renderer.xr.getController(i)` returns
+ * an `Object3D` that is both the controller's targetRay space (its `matrixWorld`
+ * aims the ray) and the dispatcher of `selectstart`/`selectend`. Each controller
+ * gets its own `Pointer` (with a `ControllerRaycaster`); a select press/release
+ * drives `onPointerDown`/`onPointerUp`, and a release synthesizes `onClick`
+ * (controllers have no DOM click). Event-driven only — continuous sweep-hover
+ * needs a per-frame tick and is out of scope here.
+ */
+export class XRPointerManager {
+  private cleanups: Array<() => void> = []
+
+  constructor(
+    private context: Context,
+    private xr: { getController(index: number): Object3D },
+    private count = 2,
+  ) {}
+
+  connect(): () => void {
+    for (let index = 0; index < this.count; index++) {
+      const controller = this.xr.getController(index)
+      const pointer = new Pointer(this.context, new ControllerRaycaster(controller))
+      const target = controller as unknown as SelectTarget
+
+      const onSelectStart = () => pointer.down(new Event("selectstart"))
+      const onSelectEnd = () => {
+        pointer.up(new Event("selectend"))
+        pointer.click("onClick", new Event("click"))
+      }
+
+      target.addEventListener("selectstart", onSelectStart)
+      target.addEventListener("selectend", onSelectEnd)
+      this.cleanups.push(() => {
+        target.removeEventListener("selectstart", onSelectStart)
+        target.removeEventListener("selectend", onSelectEnd)
+      })
+    }
+    return () => {
+      for (const cleanup of this.cleanups) cleanup()
+      this.cleanups = []
     }
   }
 }

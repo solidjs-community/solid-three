@@ -7,6 +7,8 @@ import {
   onCleanup,
   useContext,
 } from "solid-js"
+import type { Object3D } from "three"
+import { XRPointerManager } from "./pointer-managers.ts"
 import type { Context } from "./types.ts"
 
 /**
@@ -89,23 +91,44 @@ export function createXR() {
   // `context.gl` is a reactive getter, so this re-runs on renderer swap;
   // onCleanup detaches the previous manager's listeners. Clearing context()
   // (via connect's disconnect) cascades through here to tear everything down.
+  // Connected XR-controller pointer wiring, torn down on sessionend / disconnect.
+  let disconnectPointers: (() => void) | undefined
+
   createRenderEffect(() => {
     const ctx = context()
     const gl = ctx ? (ctx.gl as unknown as XRRenderer) : undefined
     const xr = gl?.xr
     if (!gl || !xr || typeof xr.addEventListener !== "function") return
-    const onStart = () => setPresenting(true)
+    const onStart = () => {
+      setPresenting(true)
+      // Wire XR controllers as pointers (event-driven select → down/up/click).
+      // Guarded: only when the renderer exposes `getController` and the connected
+      // value is a full Context (the `<Canvas ref>` passes one); a bare
+      // `{ gl, render }` fake or a getController-less renderer skips this.
+      const fullContext = ctx as unknown as Context
+      const xrManager = xr as { getController?(index: number): Object3D }
+      if (typeof xrManager.getController === "function" && Array.isArray(fullContext.eventRegistry)) {
+        disconnectPointers = new XRPointerManager(
+          fullContext,
+          xrManager as { getController(index: number): Object3D },
+        ).connect()
+      }
+    }
     const onEnd = () => {
       setPresenting(false)
       setSession(undefined)
       gl.setAnimationLoop(null) // edge 2: stop three re-driving render post-exit
       gl.xr.enabled = false
+      disconnectPointers?.()
+      disconnectPointers = undefined
     }
     xr.addEventListener("sessionstart", onStart)
     xr.addEventListener("sessionend", onEnd)
     onCleanup(() => {
       xr.removeEventListener("sessionstart", onStart)
       xr.removeEventListener("sessionend", onEnd)
+      disconnectPointers?.()
+      disconnectPointers = undefined
     })
   })
 
