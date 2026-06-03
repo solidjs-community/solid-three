@@ -108,7 +108,7 @@ function raycast<TNativeEvent extends MouseEvent | WheelEvent>(
   event: TNativeEvent,
 ): Intersection<Meta<Object3D>>[] {
   if ("update" in context.raycaster) {
-    context.raycaster.update(event, context)
+    context.raycaster.update?.(event, context)
   }
 
   const nodeSet = new Set<Object3D>()
