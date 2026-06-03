@@ -357,6 +357,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     },
     canvas,
     clock,
+    eventRegistry: [],
     get dpr() {
       // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
       // anything — reporting `1` is honest. Users who need the device's

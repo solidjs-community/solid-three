@@ -4,6 +4,7 @@ import type {
   ColorRepresentation,
   Intersection,
   Loader,
+  Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   Raycaster,
@@ -234,6 +235,8 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
+  /** Objects carrying any pointer handler; raycast by the pointer system. */
+  eventRegistry: Object3D[]
   raycaster: Raycaster | EventRaycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
