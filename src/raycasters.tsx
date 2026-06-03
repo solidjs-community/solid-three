@@ -2,8 +2,6 @@ import { Quaternion, Raycaster, Vector2, Vector3, type Intersection, type Object
 import type { Context, Meta } from "./types.ts"
 import { getMeta } from "./utils.ts"
 
-type RayEvent = PointerEvent | MouseEvent | WheelEvent
-
 const CENTER = new Vector2(0, 0)
 
 export interface EventRaycaster extends Raycaster {
@@ -14,8 +12,6 @@ export interface EventRaycaster extends Raycaster {
    * for screen pointers, `matrixWorld` for an XR controller).
    */
   cast(registry: Object3D[], context: Context): Intersection<Meta<Object3D>>[]
-  /** @deprecated legacy aim hook used by the pre-`Pointer` engine; removed once that path is gone. */
-  update?(event: RayEvent, context: Context): void
 }
 
 /** Screen-ray family: aimed from a 2D cursor position in NDC. */
@@ -57,11 +53,6 @@ export class CursorRaycaster extends Raycaster implements ScreenRaycaster {
     this.setFromCamera(this.pointer, context.camera)
     return castRegistry(this, registry)
   }
-  update(event: RayEvent, context: Context) {
-    this.pointer.x = (event.offsetX / context.bounds.width) * 2 - 1
-    this.pointer.y = -(event.offsetY / context.bounds.height) * 2 + 1
-    this.setFromCamera(this.pointer, context.camera)
-  }
 }
 
 export class CenterRaycaster extends Raycaster implements ScreenRaycaster {
@@ -72,9 +63,6 @@ export class CenterRaycaster extends Raycaster implements ScreenRaycaster {
   cast(registry: Object3D[], context: Context) {
     this.setFromCamera(CENTER, context.camera)
     return castRegistry(this, registry)
-  }
-  update(_event: RayEvent, context: Context) {
-    this.setFromCamera(CENTER, context.camera)
   }
 }
 

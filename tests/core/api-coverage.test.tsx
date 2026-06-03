@@ -154,24 +154,30 @@ describe("CursorRaycaster / CenterRaycaster", () => {
     } as unknown as Context
   }
 
-  it("CursorRaycaster maps pointer coords to NDC and seeds the ray from the camera", () => {
+  it("CursorRaycaster seeds the ray from the camera at the set cursor", () => {
     const raycaster = new CursorRaycaster()
     const context = makeContext(100, 50)
     const setFromCamera = vi.spyOn(raycaster, "setFromCamera")
 
-    raycaster.update({ offsetX: 75, offsetY: 25 } as PointerEvent, context)
+    raycaster.setCursor(new THREE.Vector2(0.5, 0))
+    raycaster.cast([], context)
 
-    // 75 / 100 * 2 - 1 = 0.5; -(25 / 50 * 2 - 1) = 0
     expect(raycaster.pointer.x).toBeCloseTo(0.5)
     expect(raycaster.pointer.y).toBeCloseTo(0)
     expect(setFromCamera).toHaveBeenCalledWith(raycaster.pointer, context.camera)
   })
 
-  it("CenterRaycaster always points to (0, 0) regardless of the event", () => {
+  it("CenterRaycaster always casts from (0, 0), ignoring setCursor", () => {
     const raycaster = new CenterRaycaster()
     const context = makeContext(200, 100)
-    raycaster.update({ offsetX: 999, offsetY: -42 } as PointerEvent, context)
-    expect(raycaster.pointer.x).toBeCloseTo(0)
-    expect(raycaster.pointer.y).toBeCloseTo(0)
+    const setFromCamera = vi.spyOn(raycaster, "setFromCamera")
+
+    raycaster.setCursor(new THREE.Vector2(0.99, 0.99)) // ignored — centre is fixed
+    raycaster.cast([], context)
+
+    expect(setFromCamera).toHaveBeenCalledWith(
+      expect.objectContaining({ x: 0, y: 0 }),
+      context.camera,
+    )
   })
 })
