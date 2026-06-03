@@ -46,6 +46,13 @@ class MyColor extends THREE.Color {
 }
 const T = createT({ ...THREE, HasObject3dMember, HasObject3dMethods, MyColor })
 
+const nextFrames = (n: number) =>
+  new Promise<void>(resolve => {
+    let i = 0
+    const tick = () => (++i >= n ? resolve() : requestAnimationFrame(tick))
+    requestAnimationFrame(tick)
+  })
+
 beforeAll(() => {
   Object.defineProperty(globalThis, "devicePixelRatio", {
     configurable: true,
@@ -546,40 +553,6 @@ describe("renderer", () => {
     expect(gl.outputColorSpace).toBe(THREE.SRGBColorSpace)
   })
 
-  it("should toggle render mode in xr", async () => {
-    const state = test(() => <T.Group />)
-    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
-
-    xr.isPresenting = true
-    xr.dispatchEvent({ type: "sessionstart" })
-
-    expect(xr.enabled).toEqual(true)
-
-    xr.isPresenting = false
-    xr.dispatchEvent({ type: "sessionend" })
-
-    expect(xr.enabled).toEqual(false)
-  })
-
-  it('should respect frameloop="never" in xr', async () => {
-    let respected = true
-
-    const TestGroup = () => {
-      useFrame(() => {
-        respected = false
-      })
-      return <T.Group />
-    }
-    const state = test(() => <TestGroup />, { frameloop: "never" })
-    const xr = (state.gl as unknown as THREE.WebGLRenderer).xr
-    xr.isPresenting = true
-    xr.dispatchEvent({ type: "sessionstart" })
-
-    await new Promise(resolve => requestAnimationFrame(resolve))
-
-    expect(respected).toEqual(true)
-  })
-
   it("will render components that are extended", async () => {
     const testExtend = async () => {
       const T = createT({ MyColor })
@@ -757,80 +730,6 @@ describe("renderer", () => {
 
     expect(fake.outputColorSpace).toBe(THREE.SRGBColorSpace)
     expect(fake.toneMapping).toBe(THREE.ACESFilmicToneMapping)
-  })
-
-  it("should no-op xr.connect/disconnect when renderer has no xr manager", async () => {
-    const fake = makeFakeRenderer()
-    const state = test(() => <T.Group />, { gl: fake })
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
-
-    expect(() => state.xr.connect()).not.toThrow()
-    expect(() => state.xr.disconnect()).not.toThrow()
-    // The no-op path warns so users debugging "why isn't my XR working" can
-    // see it in the console.
-    expect(warn).toHaveBeenCalledTimes(2)
-    expect(warn.mock.calls[0][0]).toMatch(/no-op/)
-
-    warn.mockRestore()
-  })
-
-  it("should wire XR on a WebGPU-shaped renderer (setAnimationLoop on the renderer, not on xr)", async () => {
-    // WebGPURenderer's XRManager has no `setAnimationLoop` — that method lives on
-    // the renderer itself. On `sessionstart`, solid-three must:
-    //   1. set `gl.xr.enabled = true`
-    //   2. drive frames via `gl.setAnimationLoop(cb)` on the renderer (not xr).
-    // On `sessionend`, it must clear both.
-    const listeners: Record<string, ((e: unknown) => void)[]> = {}
-    const xrManager = {
-      enabled: false,
-      isPresenting: false,
-      addEventListener: (type: string, fn: (e: unknown) => void) => {
-        ;(listeners[type] ??= []).push(fn)
-      },
-      removeEventListener: (type: string, fn: (e: unknown) => void) => {
-        listeners[type] = (listeners[type] ?? []).filter(l => l !== fn)
-      },
-      dispatch(type: string) {
-        for (const fn of listeners[type] ?? []) fn({ type })
-      },
-    }
-    const setAnimationLoop = vi.fn()
-    const fake = Object.assign(makeFakeRenderer(), { xr: xrManager, setAnimationLoop })
-
-    test(() => <T.Group />, { gl: fake })
-
-    xrManager.isPresenting = true
-    xrManager.dispatch("sessionstart")
-
-    expect(xrManager.enabled).toBe(true)
-    expect(setAnimationLoop).toHaveBeenCalledTimes(1)
-    expect(typeof setAnimationLoop.mock.calls[0][0]).toBe("function")
-
-    xrManager.isPresenting = false
-    xrManager.dispatch("sessionend")
-
-    expect(xrManager.enabled).toBe(false)
-    expect(setAnimationLoop).toHaveBeenLastCalledWith(null)
-  })
-
-  it("should skip XR wiring when renderer.xr lacks setAnimationLoop (WebGPU-style stub)", async () => {
-    // WebGPURenderer's XRManager has `enabled` but no `setAnimationLoop`. The
-    // duck-typed `isWebXRManager` guard must distinguish this from a real
-    // WebXRManager so we don't crash calling missing methods.
-    const addEventListener = vi.fn()
-    const fake = Object.assign(makeFakeRenderer(), {
-      xr: { enabled: false, addEventListener },
-    })
-    const state = test(() => <T.Group />, { gl: fake })
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
-
-    expect(() => state.xr.connect()).not.toThrow()
-    // Real wiring would have called addEventListener twice (sessionstart,
-    // sessionend). The guard should have skipped it.
-    expect(addEventListener).not.toHaveBeenCalled()
-    expect(warn).toHaveBeenCalledTimes(1)
-
-    warn.mockRestore()
   })
 
   it("should accept a renderer without setPixelRatio/getPixelRatio (CSS/SVG-style)", async () => {
@@ -1245,5 +1144,90 @@ describe("renderer", () => {
     expect(ref).toBe(object1)
     expect(ref!.children).toStrictEqual([child1, child])
     expect(ref!.userData.attach).toBe(attachedChild)
+  })
+
+  it("yields the window render loop while an XR session is presenting, resumes after", async () => {
+    const state = test(() => <T.Group />, { frameloop: "always" })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+    await state.waitTillNextFrame() // ensure the loop is running normally
+
+    const renderSpy = vi.spyOn(gl, "render")
+
+    // Enter "presenting": the session now owns frames; the window loop must go quiet.
+    gl.xr.isPresenting = true
+    gl.xr.dispatchEvent({ type: "sessionstart" })
+    await nextFrames(3)
+    expect(renderSpy).not.toHaveBeenCalled()
+
+    // Exit: window loop resumes.
+    gl.xr.isPresenting = false
+    gl.xr.dispatchEvent({ type: "sessionend" })
+    await state.waitTillNextFrame()
+    expect(renderSpy).toHaveBeenCalled()
+
+    renderSpy.mockRestore()
+  })
+
+  it("does not touch gl.xr.enabled — the consumer owns it", async () => {
+    const state = test(() => <T.Group />, { frameloop: "always" })
+    const gl = state.gl as unknown as THREE.WebGLRenderer
+
+    expect(gl.xr.enabled).toBe(false)
+    gl.xr.isPresenting = true
+    gl.xr.dispatchEvent({ type: "sessionstart" })
+    // Core must leave enabled alone; the consumer sets it before setSession.
+    expect(gl.xr.enabled).toBe(false)
+  })
+
+  it("forwards the XRFrame argument through to useFrame listeners", async () => {
+    let received: XRFrame | undefined
+    const fakeFrame = {} as XRFrame
+    const state = test(() => {
+      useFrame((_ctx, _delta, frame) => {
+        received = frame
+      })
+      return <T.Group />
+    })
+
+    state.render(performance.now(), fakeFrame)
+    expect(received).toBe(fakeFrame)
+  })
+
+  it("detaches the sessionend listener when the renderer swaps", async () => {
+    const first = new THREE.WebGLRenderer({ canvas: document.createElement("canvas") })
+    const second = new THREE.WebGLRenderer({ canvas: document.createElement("canvas") })
+    const removeSpy = vi.spyOn(first.xr, "removeEventListener")
+
+    const [glAccessor, setGl] = createSignal<THREE.WebGLRenderer>(first)
+    const state = test(() => <T.Group />, {
+      get gl() {
+        return glAccessor()
+      },
+    })
+    expect(state.gl).toBe(first)
+
+    setGl(second)
+    await state.waitTillNextFrame()
+
+    expect(removeSpy).toHaveBeenCalledWith("sessionend", expect.any(Function))
+
+    first.dispose()
+    first.forceContextLoss()
+    second.dispose()
+    second.forceContextLoss()
+    removeSpy.mockRestore()
+  })
+
+  it("does not crash for a renderer whose xr manager lacks addEventListener (WebGPU-style stub)", async () => {
+    // WebGPURenderer's XRManager has `enabled` but is not an event target in
+    // older builds. The sessionend effect must skip it, not call a missing
+    // addEventListener.
+    const fake = Object.assign(makeFakeRenderer(), { xr: { enabled: false } })
+    const state = test(() => <T.Group />, { gl: fake })
+
+    await state.waitTillNextFrame()
+
+    expect(state.gl).toBe(fake)
+    expect(fake.render).toHaveBeenCalled()
   })
 })

@@ -51,7 +51,6 @@ import {
   getPendingInit,
   isRenderer,
   isWebGLShadowMap,
-  canDriveXR,
   meta,
   removeElementFromArray,
   useRef,
@@ -126,52 +125,16 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   /**********************************************************************************/
   /*                                                                                */
-  /*                                        XR                                      */
-  /*                                                                                */
-  /**********************************************************************************/
-
-  // Handle frame behavior in WebXR
-  const handleXRFrame: XRFrameRequestCallback = (timestamp: number, frame?: XRFrame) => {
-    if (canvasProps.frameloop === "never") return
-    render(timestamp, frame)
-  }
-  // Both WebGL and WebGPU expose `setAnimationLoop` on the *renderer* — that's
-  // the XR-aware loop driver. WebGL's `WebXRManager` mirrors it on `xr` as
-  // well; WebGPU's `XRManager` does not. Driving the loop via the renderer
-  // unifies both paths.
-  function warnNonXR(method: string) {
-    console.warn(
-      `solid-three: ${method} is a no-op — the active renderer can't host an XR session (needs an event-target \`xr\` manager and \`setAnimationLoop\` on the renderer). Pass a WebGLRenderer or a WebGPURenderer.`,
-    )
-  }
-  function handleSessionChange() {
-    const _gl = context.gl
-    if (!canDriveXR(_gl)) return
-    _gl.xr.enabled = _gl.xr.isPresenting
-    _gl.setAnimationLoop(_gl.xr.isPresenting ? handleXRFrame : null)
-  }
-  const xr = {
-    connect() {
-      const _gl = context.gl
-      if (!canDriveXR(_gl)) return warnNonXR("xr.connect()")
-      _gl.xr.addEventListener("sessionstart", handleSessionChange)
-      _gl.xr.addEventListener("sessionend", handleSessionChange)
-    },
-    disconnect() {
-      const _gl = context.gl
-      if (!canDriveXR(_gl)) return warnNonXR("xr.disconnect()")
-      _gl.xr.removeEventListener("sessionstart", handleSessionChange)
-      _gl.xr.removeEventListener("sessionend", handleSessionChange)
-    },
-  }
-
-  /**********************************************************************************/
-  /*                                                                                */
   /*                                     Render                                     */
   /*                                                                                */
   /**********************************************************************************/
 
   let pendingRenderRequest: number | undefined
+
+  // True while an XR session owns the frame loop. Window-initiated renders
+  // (`loop`, `requestRender`, and the resize repaint in canvas.tsx) must yield
+  // to it; `render` itself stays unguarded because the session calls it.
+  const isPresenting = () => !!context.gl?.xr?.isPresenting
 
   function render(timestamp: number, frame?: XRFrame) {
     // `WebGPURenderer.init()` must complete before the first render; the
@@ -191,6 +154,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     updateFrameListeners("after", delta, frame)
   }
   function requestRender() {
+    if (isPresenting()) return
     if (pendingRenderRequest) return
     pendingRenderRequest = requestAnimationFrame(render)
   }
@@ -406,7 +370,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     get viewport() {
       return viewport()
     },
-    xr,
     // elements
     get camera() {
       return cameraStack.peek() ?? camera()
@@ -504,13 +467,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
         }
       })
 
-      createEffect(() => {
-        // Wire XR only when the active renderer can host a session. Inner
-        // `xr.connect()`/`disconnect()` guards reinforce this if `context.gl`
-        // swaps later.
-        if (canDriveXR(gl())) context.xr.connect()
-      })
-
       // Color management and tone-mapping. Both WebGLRenderer and
       // WebGPURenderer expose `outputColorSpace` and `toneMapping`; we
       // structurally check so exotic renderers (SVGRenderer, custom) that
@@ -572,6 +528,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   let pendingLoopRequest: number | undefined
   function loop(value: number) {
+    if (isPresenting()) {
+      // The XR session drives the per-frame render now; let this chain die.
+      // The sessionend listener restarts it.
+      pendingLoopRequest = undefined
+      return
+    }
     pendingLoopRequest = requestAnimationFrame(loop)
     context.render(value)
   }
@@ -580,6 +542,26 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       pendingLoopRequest = requestAnimationFrame(loop)
     }
     onCleanup(() => pendingLoopRequest && cancelAnimationFrame(pendingLoopRequest))
+  })
+
+  // Core's sole XR responsibility: when the consumer-driven session ends,
+  // revive the window loop (which self-stopped via the isPresenting guard).
+  // No sessionstart listener needed — the guard handles stopping. Depends only
+  // on `addEventListener`/`isPresenting`, shared by both renderer families.
+  createRenderEffect(() => {
+    const _gl = gl() as { xr?: EventTarget }
+    const xr = _gl.xr
+    if (!xr || typeof xr.addEventListener !== "function") return
+    const resume = () => {
+      if (canvasProps.frameloop === "always") {
+        if (!pendingLoopRequest) pendingLoopRequest = requestAnimationFrame(loop)
+      } else if (canvasProps.frameloop === "demand") {
+        requestRender() // one repaint so the flat canvas reflects post-XR state
+      }
+      // "never" is fully manual — the consumer repaints if/when they want to.
+    }
+    xr.addEventListener("sessionend", resume)
+    onCleanup(() => xr.removeEventListener("sessionend", resume))
   })
 
   /**********************************************************************************/

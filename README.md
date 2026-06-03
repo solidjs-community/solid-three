@@ -9,6 +9,7 @@
 - **Declarative `three.js` Components**: Utilize `three.js` objects as JSX components.
 - **Reactive Prop Updates**: Properties of 3D objects update reactively, promoting efficient re-renders.
 - **Integrated Animation Loop**: `useFrame` hook allows for easy animations.
+- **WebXR (VR & AR)**: `createXR` enters and exits immersive sessions on both `WebGLRenderer` and `WebGPURenderer`.
 - **Comprehensive Event System**: Enhanced event handling with support for `three.js` pointer and mouse events.
 - **Extensible and Customizable**: Easily extendable with additional `three.js` entities or custom behaviors.
 - **Optimized for `solid-js`**: Leverages `solid-js`' fine-grained reactivity for optimal performance.
@@ -27,6 +28,8 @@
 4. [Hooks](#hooks)
    - [useThree](#usethree)
    - [useFrame](#useframe)
+   - [createXR](#createxr)
+   - [useXR](#usexr)
    - [useProps](#useprops)
 5. [Utilities](#utilities)
    - [Raycasters](#raycasters)
@@ -114,6 +117,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
   - `"never"`: Disables automatic rendering
 - **style**: Custom CSS styles for the canvas container.
 - **class**: CSS class names for the canvas container.
+- **ref**: Receives the scene's [`Context`](#usethree) once the renderer is created, so code outside `<Canvas>` can reach it. A callback ref may return a cleanup that runs when the Canvas unmounts — [`createXR`](#createxr) uses this.
 - **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onClickMissed`, etc.)
 
 <details>
@@ -485,10 +489,9 @@ const camera = useThree(ctx => ctx.camera)
 - **gl** (`Renderer`): The active renderer — `WebGLRenderer | WebGPURenderer | RendererLike` by default. Narrow to a concrete type project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
 - **raycaster** (`Raycaster`): The current raycaster used for pointer events.
 - **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster.
-- **render** (`(delta: number) => void`): Function to manually trigger a render.
+- **render** (`(timestamp: number, frame?: XRFrame) => void`): Drives a single frame — runs the registered `useFrame` callbacks, then renders the scene. The optional `frame` is forwarded to those callbacks; an active WebXR session passes it on each immersive frame.
 - **requestRender** (`() => void`): Function to request a render on the next frame.
 - **scene** (`Scene`): The root scene.
-- **xr** (`{ connect: () => void; disconnect: () => void }`): WebXR connection management.
 
 **Camera and Raycaster Stack System:**
 
@@ -591,6 +594,138 @@ useFrame(
   { stage: "after", priority: 10 },
 )
 ```
+
+
+### createXR
+
+Enters and exits WebXR sessions (VR and AR) for the scene's renderer. The same code works on both `WebGLRenderer` and `WebGPURenderer`.
+
+Unlike the `use*` hooks, `createXR` lives **outside** `<Canvas>` — next to the DOM "Enter XR" button that triggers a session. Call it in a component body (like `createSignal`), then connect it to the renderer with `<Canvas ref={xr.connect}>`.
+
+It handles the ordering rules that make a session enter cleanly — most importantly, call `enter` directly from a click handler (see the example).
+
+**Returns** an object with:
+
+- **connect** (`(context: Context) => () => void`): A ref for `<Canvas ref={xr.connect}>`. Hands the renderer to `createXR` and returns a cleanup that runs on unmount.
+- **enter** (`(mode, sessionInit?) => Promise<XRSession>`): Requests a session and enters it. `mode` is `"immersive-vr"` / `"immersive-ar"` / `"inline"`; `sessionInit` is passed straight through to `navigator.xr.requestSession`. Call it directly from a user-gesture handler (a click), so the immersive request keeps its user activation. You may also pass an `XRSession` you created yourself, to skip the request and just wire it.
+- **exit** (`() => Promise<void>`): Ends the active session.
+- **isPresenting** (`() => boolean`): Reactive — `true` while a session is presenting.
+- **session** (`() => XRSession | undefined`): Reactive — the active session, or `undefined`.
+- **isSupported** (`(mode) => Promise<boolean>`): Whether the device supports a session mode. Use it to decide whether to show the button; don't `await` it before calling `enter`.
+- **Provider** (`(props: { children: JSX.Element }) => JSX.Element`): Distributes this `createXR`'s state to the scene. Wrap the subtree that needs in-scene XR access (typically `<Canvas>` and its button); read it inside with [`useXR`](#usexr).
+
+<details>
+<summary>Typescript Interface</summary>
+
+```tsx
+function createXR(): {
+  connect: (context: Context) => () => void
+  enter: (mode: XRSessionMode, sessionInit?: XRSessionInit) => Promise<XRSession>
+  enter: (session: XRSession) => Promise<XRSession>
+  exit: () => Promise<void>
+  isPresenting: () => boolean
+  session: () => XRSession | undefined
+  isSupported: (mode: XRSessionMode) => Promise<boolean>
+  Provider: (props: { children: JSX.Element }) => JSX.Element
+}
+```
+
+</details>
+
+**Usage:**
+
+```tsx
+import { Canvas, createXR } from "solid-three"
+import { Show } from "solid-js"
+
+function App() {
+  const xr = createXR()
+
+  return (
+    <>
+      {/* The button is DOM, outside the Canvas. onClick is the user gesture. */}
+      <button onClick={() => xr.enter("immersive-vr")}>Enter VR</button>
+      <Show when={xr.isPresenting()}>
+        <button onClick={() => xr.exit()}>Exit VR</button>
+      </Show>
+
+      <Canvas ref={xr.connect}>
+        <Scene />
+      </Canvas>
+    </>
+  )
+}
+```
+
+**AR with feature descriptors, gated on support:**
+
+```tsx
+import { createResource, Show } from "solid-js"
+
+const xr = createXR()
+const [supported] = createResource(() => xr.isSupported("immersive-ar"))
+
+<Show when={supported()}>
+  <button
+    onClick={() =>
+      xr.enter("immersive-ar", {
+        requiredFeatures: ["local-floor"],
+        optionalFeatures: ["hand-tracking", "depth-sensing"],
+      })
+    }
+  >
+    Enter AR
+  </button>
+</Show>
+```
+
+> **Reading controller and hand poses:** you don't need `createXR` inside the scene. The third argument to [`useFrame`](#useframe) is the live `XRFrame` during a session — read poses from there.
+
+> **`WebGPURenderer` note:** on three.js ≤ r184, driving a WebXR session through the WebGPU backend requires a WebGL2 fallback. `createXR` itself is backend-agnostic; configure the renderer at the `<Canvas gl={…}>` level.
+
+
+### useXR
+
+Reads the XR state distributed by [`createXR().Provider`](#createxr) from **inside the scene**. Use it when a component needs to react to the session or drive in-world UI — most importantly an in-VR exit control, since the DOM "Exit" button is not rendered while an immersive session is presenting.
+
+Wrap the subtree with `<xr.Provider>`, then call `useXR()` in any descendant (including components inside `<Canvas>`):
+
+```tsx
+import { Canvas, createXR, useXR } from "solid-three"
+import { Show } from "solid-js"
+
+function ExitButton() {
+  const { isPresenting, exit } = useXR()
+  return (
+    <Show when={isPresenting()}>
+      <T.Mesh position={[0, 1.4, -1]} onClick={() => exit()}>
+        <T.BoxGeometry args={[0.3, 0.15, 0.02]} />
+        <T.MeshBasicMaterial color="crimson" />
+      </T.Mesh>
+    </Show>
+  )
+}
+
+function App() {
+  const xr = createXR()
+  return (
+    <xr.Provider>
+      <button onClick={() => xr.enter("immersive-vr")}>Enter VR</button>
+      <Canvas ref={xr.connect}>
+        <ExitButton />
+      </Canvas>
+    </xr.Provider>
+  )
+}
+```
+
+**Returns** the read/control slice of the XR state:
+
+- **isPresenting** (`() => boolean`): Reactive — `true` while a session is presenting.
+- **session** (`() => XRSession | undefined`): Reactive — the active session, or `undefined`.
+- **exit** (`() => Promise<void>`): Ends the active session.
+
+> `useXR` throws if called outside a `<xr.Provider>`. For controller and hand poses, read the `XRFrame` from [`useFrame`](#useframe)'s third argument — that does not require `useXR`.
 
 
 ### useLoader

@@ -1,0 +1,100 @@
+---
+title: createXR
+---
+
+# createXR
+
+`createXR` enters and exits WebXR sessions — VR and AR — for the scene's renderer. The same code works on both `WebGLRenderer` and `WebGPURenderer`.
+
+Unlike the `use*` hooks, `createXR` lives **outside** `<Canvas>` — next to the DOM "Enter XR" button that triggers a session. Call it in a component body (like `createSignal`), then connect it to the renderer with `<Canvas ref={xr.connect}>`.
+
+## Signature
+
+```tsx
+const xr = createXR()
+```
+
+## Returns
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `connect` | `(context: XRContext) => () => void` | Hands `createXR` the renderer `gl` and the per-frame `render` (an `XRContext` — `Pick<Context, "gl" \| "render">`), and returns a cleanup that detaches them. `<Canvas ref={xr.connect}>` is the usual wiring — it passes the scene's `Context` for you — but `connect` isn't tied to `<Canvas>`; any `{ gl, render }` works. |
+| `enter` | `(mode, sessionInit?) => Promise<XRSession>` | Requests a session and enters it. `mode` is `"immersive-vr"`, `"immersive-ar"`, or `"inline"`; `sessionInit` passes straight to `navigator.xr.requestSession`. Call it directly from a click handler, without `await`ing first (see the example). You may instead pass an `XRSession` you already created, to skip the request and just wire it. |
+| `exit` | `() => Promise<void>` | Ends the active session. |
+| `isPresenting` | `() => boolean` | Reactive — `true` while a session is presenting. |
+| `session` | `() => XRSession \| undefined` | Reactive — the active session, or `undefined`. |
+| `isSupported` | `(mode: XRSessionMode) => Promise<boolean>` | Whether the device supports a session mode. Use it to decide whether to show the button. |
+
+## Examples
+
+A VR scene with a DOM "Enter VR" button:
+
+```tsx
+import { Canvas, createXR } from "solid-three"
+import { Show } from "solid-js"
+
+function App() {
+  const xr = createXR()
+
+  return (
+    <>
+      {/* The button is DOM, outside the Canvas. onClick is the user gesture. */}
+      <button onClick={() => xr.enter("immersive-vr")}>Enter VR</button>
+      <Show when={xr.isPresenting()}>
+        <button onClick={() => xr.exit()}>Exit VR</button>
+      </Show>
+
+      <Canvas ref={xr.connect}>
+        <Scene />
+      </Canvas>
+    </>
+  )
+}
+```
+
+> Call `enter` straight from the click handler — don't `await` anything (like `isSupported`) before it, or the immersive request loses its [user activation](https://developer.mozilla.org/en-US/docs/Web/API/XRSystem/requestSession) and fails.
+
+AR with feature descriptors, shown only when the device supports it:
+
+```tsx
+import { createResource, Show } from "solid-js"
+
+const xr = createXR()
+const [supported] = createResource(() => xr.isSupported("immersive-ar"))
+
+<Show when={supported()}>
+  <button
+    onClick={() =>
+      xr.enter("immersive-ar", {
+        requiredFeatures: ["local-floor"],
+        optionalFeatures: ["hand-tracking", "depth-sensing"],
+      })
+    }
+  >
+    Enter AR
+  </button>
+</Show>
+```
+
+Reading controller and hand poses — no `createXR` needed inside the scene. The third argument to [`useFrame`](/api/hooks/use-frame) is the live `XRFrame` during a session:
+
+```tsx
+function Player() {
+  useFrame((context, delta, frame) => {
+    if (!frame) return // only present during a session
+    // read XRFrame poses, move the rig, etc.
+  })
+  return null
+}
+```
+
+## Notes
+
+- **WebGPU on three ≤ r184:** driving XR through the WebGPU backend needs a WebGL2 fallback — build the renderer with `{ forceWebGL: true }` at the [`<Canvas gl>`](/api/components/canvas) level.
+- To drive a session manually instead of using `createXR`, see [`useThree`](/api/hooks/use-three#webxr).
+
+## See also
+
+- [`useFrame`](/api/hooks/use-frame) — carries the `XRFrame` per session frame.
+- [`<Canvas/>`](/api/components/canvas) — its `ref` accepts `xr.connect`.
+- [`useThree`](/api/hooks/use-three) — the `Context` `connect` receives.

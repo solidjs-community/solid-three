@@ -1,5 +1,5 @@
 import type { Accessor, Context, JSX } from "solid-js"
-import { createRenderEffect, mergeProps, onCleanup, type Ref } from "solid-js"
+import { createRenderEffect, mergeProps, onCleanup } from "solid-js"
 import {
   type BufferGeometry,
   Camera,
@@ -11,7 +11,6 @@ import {
   Texture,
   Vector3,
   type WebGLShadowMap,
-  type WebXRManager,
 } from "three"
 import { $S3C } from "./constants.ts"
 import type {
@@ -23,6 +22,7 @@ import type {
   LoaderUrl,
   Meta,
   Prettify,
+  RefWithCleanup,
   Renderer,
   RendererLike,
 } from "./types.ts"
@@ -277,30 +277,6 @@ export function isRenderer(value: unknown): value is Renderer {
 }
 
 /**
- * Returns true if the renderer can host an XR session: its `xr` manager is an
- * event target (so we can subscribe to `sessionstart`/`sessionend`) and the
- * renderer itself exposes `setAnimationLoop` (the XR-aware loop driver, which
- * lives on the renderer in both WebGL and WebGPU builds — only the WebGL
- * `WebXRManager` *also* mirrors it).
- *
- * Unifies WebGL and WebGPU XR wiring: we always drive the loop via
- * `gl.setAnimationLoop(...)` rather than `gl.xr.setAnimationLoop(...)`, which
- * three's WebGPU `XRManager` doesn't expose.
- */
-export function canDriveXR(
-  gl: unknown,
-): gl is { xr: WebXRManager; setAnimationLoop: (cb: XRFrameRequestCallback | null) => void } {
-  if (!gl || typeof gl !== "object") return false
-  const xr = (gl as { xr?: unknown }).xr
-  const setLoop = (gl as { setAnimationLoop?: unknown }).setAnimationLoop
-  return (
-    !!xr &&
-    typeof (xr as { addEventListener?: unknown }).addEventListener === "function" &&
-    typeof setLoop === "function"
-  )
-}
-
-/**
  * Duck-typed narrow to `WebGLShadowMap`. `needsUpdate` is the WebGL-only
  * field we set; WebGPURenderer's `shadowMap` is `{ enabled, type }` without it.
  */
@@ -502,16 +478,16 @@ export async function load<
 /*                                                                                */
 /**********************************************************************************/
 
-export function useRef<T>(props: { ref?: Ref<T> }, value: T | Accessor<T>) {
+export function useRef<T>(props: { ref?: RefWithCleanup<T> }, value: T | Accessor<T>) {
   createRenderEffect(() => {
     const result =
       typeof value === "function"
-        ? // @ts-expect-error
+        ? // @ts-expect-error — T may itself be callable; the Accessor branch is intended
           value()
         : value
     if (typeof props.ref === "function") {
-      // @ts-expect-error
-      props.ref(result)
+      const cleanup = (props.ref as (value: T) => void | (() => void))(result)
+      if (typeof cleanup === "function") onCleanup(cleanup)
     } else {
       props.ref = result
     }

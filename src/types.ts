@@ -34,6 +34,13 @@ import type { Measure } from "./utils/use-measure.ts"
 export type AccessorMaybe<T> = T | Accessor<T>
 export type PromiseMaybe<T> = T | Promise<T>
 
+/**
+ * A ref that is a value sink, a callback, or a callback returning a cleanup
+ * (the React-19 cleanup-callback-ref shape). The cleanup runs when the ref's
+ * reactive owner disposes or the ref value changes.
+ */
+export type RefWithCleanup<T> = T | ((value: T) => void | (() => void))
+
 export type ClassInstance<T extends object> = T & { constructor: Function }
 
 /** Generic constructor. Returns instance of given type. Defaults to any. */
@@ -231,16 +238,12 @@ export interface Context {
   dpr: number
   gl: Meta<ResolvedRenderer>
   props: CanvasProps
-  render: (delta: number) => void
+  render: (timestamp: number, frame?: XRFrame) => void
   requestRender: () => void
   scene: Meta<Scene>
   setCamera(camera: CameraKind): () => void
   setRaycaster(camera: Raycaster): () => void
   viewport: Viewport
-  xr: {
-    connect: () => void
-    disconnect: () => void
-  }
 }
 
 export interface Viewport {
