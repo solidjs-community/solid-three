@@ -11,14 +11,14 @@ describe("events", () => {
   it("can handle onPointerDown", async () => {
     const handlePointerDown = vi.fn()
 
-    const { canvas, waitTillNextFrame } = test(() => (
-      <T.Mesh onMouseDown={handlePointerDown}>
+    const { canvas } = test(() => (
+      <T.Mesh onPointerDown={handlePointerDown}>
         <T.BoxGeometry args={[2, 2]} />
         <T.MeshBasicMaterial />
       </T.Mesh>
     ))
 
-    fireEvent(canvas, new MouseEvent("mousedown", { clientX: 640, clientY: 400, bubbles: true }))
+    fireEvent(canvas, new PointerEvent("pointerdown", { clientX: 640, clientY: 400, pointerId: 1, bubbles: true }))
 
     expect(handlePointerDown).toHaveBeenCalled()
   })
