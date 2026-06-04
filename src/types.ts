@@ -378,7 +378,15 @@ export type ThreeEvent<
   },
 > = Intersect<
   [
-    { nativeEvent: TEvent },
+    {
+      nativeEvent: TEvent
+      /**
+       * The node a bubbled handler is currently firing on (the ancestor reached
+       * while walking up the hit chain), or `undefined` for the canvas-level
+       * dispatch. Set by `Pointer.dispatch`; plugin sources (e.g. XR) read it.
+       */
+      element?: Object3D
+    },
     When<
       TConfig["stoppable"],
       {

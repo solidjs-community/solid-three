@@ -75,4 +75,17 @@ describe("Pointer dispatch", () => {
     expect(meshMissed).toHaveBeenCalledTimes(1)
     expect(canvasMissed).toHaveBeenCalledTimes(1)
   })
+
+  it("dispatch sets event.element to the bubbling node and merges extra fields", () => {
+    const seen: any[] = []
+    const parent = eventful({ onPing: (e: any) => seen.push({ element: e.element, k: e.k }) })
+    const child = eventful({ onPing: (e: any) => seen.push({ element: e.element, k: e.k }) })
+    ;(child as any).parent = parent
+    const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
+
+    ;(pointer as any).dispatch("onPing", new Event("x"), { k: 42 })
+    expect(seen[0].element).toBe(child) // handler on child sees child
+    expect(seen[1].element).toBe(parent) // bubbled handler on parent sees parent
+    expect(seen.every(s => s.k === 42)).toBe(true) // extra merged onto every dispatch
+  })
 })

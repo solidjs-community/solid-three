@@ -147,21 +147,26 @@ export class Pointer {
    * Bubble a "default"-style gesture to an arbitrary handler name (plugin-extensible:
    * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
    * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
-   * `stopPropagation`, then fires canvas-level if unstopped.
+   * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
+   * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
+   * `event.element` exposes the node a handler is firing on.
    */
-  dispatch(handler: string, nativeEvent: Event) {
+  dispatch(handler: string, nativeEvent: Event, extra?: Record<string, unknown>) {
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const event: any = createThreeEvent(nativeEvent, { intersections })
+    if (extra) Object.assign(event, extra)
     for (const intersection of intersections) {
       event.currentIntersection = intersection
       let node: Object3D | null = intersection.object
       while (node && !event.stopped) {
+        event.element = node
         ;(getMeta(node)?.props as any)?.[handler]?.(event)
         node = node.parent
       }
     }
     if (!event.stopped) {
       delete event.currentIntersection
+      event.element = undefined
       ;(this.context.props as Record<string, any>)[handler]?.(event)
     }
   }
