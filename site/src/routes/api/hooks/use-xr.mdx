@@ -9,7 +9,8 @@ Reads the XR state distributed by [`createXR().Provider`](/api/hooks/create-xr) 
 Wrap the subtree with `<xr.Provider>`, then call `useXR()` in any descendant, including components inside `<Canvas>`.
 
 ```tsx
-import { Canvas, createXR, useXR } from "solid-three"
+import { Canvas } from "solid-three"
+import { createXR, useXR } from "solid-three/xr"
 import { Show } from "solid-js"
 
 function ExitButton() {

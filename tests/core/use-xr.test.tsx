@@ -2,7 +2,7 @@ import { createRoot } from "solid-js"
 import { render } from "solid-js/web"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { Canvas } from "../../src/canvas.tsx"
-import { createXR, useXR, type XRState } from "../../src/create-xr.tsx"
+import { createXR, useXR, type XRState } from "../../src/xr/create-xr.tsx"
 import { useThree } from "../../src/hooks.ts"
 
 describe("useXR", () => {
@@ -102,8 +102,8 @@ describe("createXR().Provider + useXR", () => {
 })
 
 describe("package entry", () => {
-  it("re-exports useXR from solid-three", async () => {
-    const mod = await import("../../src/index.ts")
+  it("re-exports useXR from solid-three/xr", async () => {
+    const mod = await import("../../src/xr/index.tsx")
     expect(typeof mod.useXR).toBe("function")
   })
 })

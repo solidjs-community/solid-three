@@ -2,7 +2,7 @@ import * as THREE from "three"
 import { assertType, describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/create-t.tsx"
 import { test as renderThree } from "../../src/testing/index.tsx"
-import { XRControllerSource, type XRThreeEvent, xrEvents } from "../../src/xr.ts"
+import { XRControllerSource, type XRThreeEvent, xrEvents } from "../../src/xr/events.ts"
 import { meta } from "../../src/utils.ts"
 
 function makeFakeXR(getController: (index: number) => THREE.Object3D) {

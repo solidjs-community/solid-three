@@ -7,7 +7,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js"
-import type { Context } from "./types.ts"
+import type { Context } from "../types.ts"
 
 /**
  * The in-scene XR state distributed by `createXR().Provider` and read by
@@ -57,7 +57,9 @@ export type XRContext = Pick<Context, "gl" | "render">
  */
 type XRRenderer = {
   setAnimationLoop(callback: ((time: number, frame?: XRFrame) => void) | null): void
-  xr: {
+  // Optional: a renderer cast to this slice may be a non-XR renderer at runtime
+  // (the guards below check before use), so the type must allow `xr` absent.
+  xr?: {
     enabled: boolean
     setSession(session: XRSession): Promise<void>
     addEventListener(type: string, listener: () => void): void
@@ -99,7 +101,7 @@ export function createXR() {
       setPresenting(false)
       setSession(undefined)
       gl.setAnimationLoop(null) // edge 2: stop three re-driving render post-exit
-      gl.xr.enabled = false
+      xr.enabled = false
     }
     xr.addEventListener("sessionstart", onStart)
     xr.addEventListener("sessionend", onEnd)
@@ -127,7 +129,8 @@ export function createXR() {
       throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected")
     }
     const gl = ctx.gl as unknown as XRRenderer
-    if (!gl.xr) {
+    const xr = gl.xr
+    if (!xr) {
       throw new Error("S3: the active renderer has no xr manager")
     }
 
@@ -136,8 +139,8 @@ export function createXR() {
 
     // Edge 1: setAnimationLoop(render) BEFORE setSession (WebGPU snapshots here).
     gl.setAnimationLoop(ctx.render)
-    gl.xr.enabled = true
-    await gl.xr.setSession(xrSession)
+    xr.enabled = true
+    await xr.setSession(xrSession)
     setSession(xrSession)
     return xrSession
   }

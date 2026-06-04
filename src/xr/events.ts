@@ -1,9 +1,9 @@
 import { onCleanup, runWithOwner } from "solid-js"
 import type { Intersection, Object3D } from "three"
-import { Pointer } from "./pointers.ts"
-import { ControllerRaycaster } from "./raycasters.tsx"
-import type { Context, Plugin, ThreeEvent } from "./types.ts"
-import { getMeta } from "./utils.ts"
+import { Pointer } from "../pointers.ts"
+import { ControllerRaycaster } from "../raycasters.tsx"
+import type { Context, Plugin, ThreeEvent } from "../types.ts"
+import { getMeta } from "../utils.ts"
 
 /** The rich payload XR handlers receive. */
 export type XRThreeEvent = ThreeEvent<XRInputSourceEvent> & {
@@ -60,7 +60,7 @@ export class XRControllerSource {
         const pointer = new Pointer(this.context, new ControllerRaycaster(controller))
         const listeners = PAIRS.map(([native, handler]) => {
           const listener = (event: ControllerEvent) => {
-            const inputSource = event?.data
+            const inputSource = event.data
             pointer.dispatch(handler, new Event(native), {
               controller,
               inputSource,
