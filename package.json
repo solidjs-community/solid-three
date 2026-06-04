@@ -66,6 +66,22 @@
         "types": "./dist/testing/index.d.ts",
         "default": "./dist/testing.js"
       }
+    },
+    "./xr": {
+      "solid": {
+        "development": "./dist/xr.dev.solid.jsx",
+        "import": "./dist/xr.dev.js"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/xr.d.ts",
+          "default": "./dist/xr.dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/xr.d.ts",
+        "default": "./dist/xr.js"
+      }
     }
   },
   "typesVersions": {

@@ -10,6 +10,7 @@ export default defineConfig(config => {
   const packageEntries: Entry[] = [
     { entry: "src/index.ts", name: "index" },
     { entry: "src/testing/index.tsx", name: "testing" },
+    { entry: "src/xr.ts", name: "xr" },
   ]
 
   return packageEntries.flatMap(({ entry, name }, i) => {
