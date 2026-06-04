@@ -234,35 +234,25 @@ export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebG
 /*                                     Plugin                                     */
 /**********************************************************************************/
 
-type DistributeOverride<T, F> = T extends undefined ? F : T
-type PluginOverride<T, U> = T extends any
-  ? U extends any
-    ? {
-        [K in keyof T]: K extends keyof U ? DistributeOverride<U[K], T[K]> : T[K]
-      } & {
-        [K in keyof U]: K extends keyof T ? DistributeOverride<U[K], T[K]> : U[K]
-      }
-    : T & U
-  : T & U
-type PluginSimplify<T> = T extends any ? { [K in keyof T]: T[K] } : T
-type _PluginMerge<T extends readonly unknown[], Current = {}> = T extends readonly [
-  infer Next | (() => infer Next),
-  ...infer Rest,
-]
-  ? _PluginMerge<Rest, PluginOverride<Current, Next>>
-  : T extends readonly [...infer Rest, infer Next]
-  ? PluginOverride<_PluginMerge<Rest, Current>, Next>
-  : T extends readonly []
-  ? Current
-  : Current
-type PluginMerge<T extends readonly unknown[]> = PluginSimplify<_PluginMerge<T>>
+// Intersect a union of method-prop objects into one object. UnionToIntersection
+// (rather than a recursive tuple merge) is deliberate: TS can evaluate it *during*
+// JSX generic inference, so `<Entity plugins={[…]} contributedProp={…}/>` infers
+// `TPlugins` from the prop. A recursive merge over the plugin tuple is too heavy to
+// evaluate at inference time and silently defaults the type-param (investigated
+// empirically — see docs/superpowers/notes). The plugin-tuple constraints are
+// `readonly` because a `const`-inferred JSX array is a readonly tuple.
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
+  k: infer I,
+) => void
+  ? I
+  : never
 
 /**
  * A composable extension: a function `(element) => methods`. A contributed
  * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
  * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
  */
-export type Plugin<TFn = (...args: any[]) => any> = TFn
+export type Plugin<TFn = (element: any) => any> = TFn
 
 /** The three `plugin()` creation forms: global, class-filtered, type-guard. */
 export interface PluginFn {
@@ -272,11 +262,11 @@ export interface PluginFn {
   <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
     Constructors: T,
     methods: (element: T extends readonly Constructor<infer U>[] ? U : never) => Methods,
-  ): Plugin<{ (element: T extends readonly Constructor<infer U>[] ? U : never): Methods }>
+  ): Plugin<(element: T extends readonly Constructor<infer U>[] ? U : never) => Methods>
   <const T, const Methods extends Record<string, any>>(
     condition: (element: unknown) => element is T,
     methods: (element: T) => Methods,
-  ): Plugin<{ (element: T): Methods }>
+  ): Plugin<(element: T) => Methods>
 }
 
 type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
@@ -288,14 +278,16 @@ type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
   : {}
 
 /** Resolves the contributed props for element type `TKind` across `TPlugins`. */
-export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = PluginMerge<{
-  [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
-    string,
-    any
-  >
-    ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
-    : {}
-}>
+export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
+  {
+    [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
+      string,
+      any
+    >
+      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      : {}
+  }[number]
+>
 
 export interface Context {
   bounds: Measure
@@ -458,11 +450,12 @@ export type MapToRepresentation<T> = {
 }
 
 /**
- * Generic `solid-three` props of a given class, optionally widened with the
- * props contributed by `TPlugins` for this element class (see {@link PluginPropsOf}).
- * `TPlugins` defaults to `[]`, so single-arg `Props<T>` is unchanged.
+ * Generic `solid-three` props of a given class. Plugin-contributed props are NOT
+ * baked in here — they're intersected directly at the composition sites (`createT`
+ * proxy + `<Entity>`) via {@link PluginPropsOf}, which keeps `TPlugins` inferable at
+ * those sites (burying it in this `Overwrite` defeats inference — see notes).
  */
-export type Props<T, TPlugins extends readonly Plugin[] = []> = Partial<
+export type Props<T> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,
@@ -480,7 +473,6 @@ export type Props<T, TPlugins extends readonly Plugin[] = []> = Partial<
          */
         raycastable: boolean
       },
-      PluginPropsOf<InstanceOf<T>, TPlugins>,
     ]
   >
 >

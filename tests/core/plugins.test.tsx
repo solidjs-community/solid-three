@@ -2,6 +2,7 @@ import { assertType, describe, expect, it, vi } from "vitest"
 import { Mesh, Object3D, PerspectiveCamera } from "three"
 import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 import { createT } from "../../src/create-t.tsx"
+import { Entity } from "../../src/components.tsx"
 import { test as renderThree } from "../../src/testing/index.tsx"
 
 describe("plugin()", () => {
@@ -46,6 +47,27 @@ describe("plugin prop routing", () => {
     const three = renderThree(() => <TP.Mesh shake={0.1} />)
     expect(shake).toHaveBeenCalledWith(0.1)
     expect("shake" in three.scene.children[0]!).toBe(false)
+    three.unmount()
+  })
+})
+
+describe("<Entity plugins>", () => {
+  it("invokes a contributed method passed via <Entity plugins>", () => {
+    const shake = vi.fn()
+    const three = renderThree(() => (
+      <Entity from={Mesh} plugins={[plugin([Mesh], () => ({ shake }))]} shake={0.2} />
+    ))
+    expect(shake).toHaveBeenCalledWith(0.2)
+    expect("shake" in three.scene.children[0]!).toBe(false)
+    three.unmount()
+  })
+
+  it("enforces contributed-prop types (rejects a bogus prop) — not permissive like #37", () => {
+    const p = plugin([Mesh], () => ({ shake: (_i: number) => {} }))
+    const three = renderThree(() => (
+      // @ts-expect-error — `boguz` is not a contributed prop; lint:types must reject it.
+      <Entity from={Mesh} plugins={[p]} boguz={1} />
+    ))
     three.unmount()
   })
 })
