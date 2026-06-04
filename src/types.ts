@@ -230,15 +230,72 @@ export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebG
 /*                                                                                */
 /**********************************************************************************/
 
+/**********************************************************************************/
+/*                                     Plugin                                     */
+/**********************************************************************************/
+
+type DistributeOverride<T, F> = T extends undefined ? F : T
+type PluginOverride<T, U> = T extends any
+  ? U extends any
+    ? {
+        [K in keyof T]: K extends keyof U ? DistributeOverride<U[K], T[K]> : T[K]
+      } & {
+        [K in keyof U]: K extends keyof T ? DistributeOverride<U[K], T[K]> : U[K]
+      }
+    : T & U
+  : T & U
+type PluginSimplify<T> = T extends any ? { [K in keyof T]: T[K] } : T
+type _PluginMerge<T extends unknown[], Current = {}> = T extends [
+  infer Next | (() => infer Next),
+  ...infer Rest,
+]
+  ? _PluginMerge<Rest, PluginOverride<Current, Next>>
+  : T extends [...infer Rest, infer Next]
+  ? PluginOverride<_PluginMerge<Rest, Current>, Next>
+  : T extends []
+  ? Current
+  : Current
+type PluginMerge<T extends unknown[]> = PluginSimplify<_PluginMerge<T>>
+
 /**
- * A composable extension. Its `setup` runs once per `Context` (deduped, in the
- * Canvas owner) the first time an element carrying it attaches to the scene.
- * Input-agnostic — core never inspects what `setup` does.
+ * A composable extension: a function `(element) => methods`. A contributed
+ * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
+ * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
  */
-export type Plugin = {
-  name?: string
-  setup?: (context: Context) => void
+export type Plugin<TFn = (element: any) => any> = TFn
+
+/** The three `plugin()` creation forms: global, class-filtered, type-guard. */
+export interface PluginFn {
+  <const Methods extends Record<string, any>>(
+    methods: (element: any) => Methods,
+  ): Plugin<(element: any) => Methods>
+  <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
+    Constructors: T,
+    methods: (element: T extends readonly Constructor<infer U>[] ? U : never) => Methods,
+  ): Plugin<{ (element: T extends readonly Constructor<infer U>[] ? U : never): Methods }>
+  <const T, const Methods extends Record<string, any>>(
+    condition: (element: unknown) => element is T,
+    methods: (element: T) => Methods,
+  ): Plugin<{ (element: T): Methods }>
 }
+
+type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
+  ? TFn extends { (element: infer TElement): infer TReturnType }
+    ? TKind extends TElement
+      ? TReturnType
+      : {}
+    : {}
+  : {}
+
+/** Resolves the contributed props for element type `TKind` across `TPlugins`. */
+export type PluginPropsOf<TKind, TPlugins extends Plugin[]> = PluginMerge<{
+  [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
+    string,
+    any
+  >
+    ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+    : {}
+}>
 
 export interface Context {
   bounds: Measure

@@ -1,20 +1,40 @@
 import { runWithOwner } from "solid-js"
-import type { Context, Plugin } from "./types.ts"
+import type { Constructor, Context, Plugin, PluginFn } from "./types.ts"
 
 /**
- * Run each plugin's `setup` once per context, in the Canvas owner.
+ * Create a plugin. Three forms:
+ * - `plugin(el => methods)` — applies to every element.
+ * - `plugin([Mesh, Camera], el => methods)` — only elements `instanceof` one of the constructors.
+ * - `plugin(guard, el => methods)` — only elements passing the type-guard.
  *
- * Called from element creation (`createEntity` / `<Entity>`) — gated by a cheap
- * `plugins.length` check there — NOT from the per-attach scene-graph path, so a
- * no-plugin app pays nothing. Dedup is per-context (`context.initializedPlugins`),
- * so the first element carrying a plugin runs its setup and later ones skip it.
- * `runWithOwner(context.owner, …)` ties the setup's lifetime to the Canvas, so its
- * `onCleanup` fires on Canvas unmount, not when the triggering element unmounts.
+ * Returns `(element) => methods | undefined`; a non-matching element yields `undefined`.
+ * A contributed method's first-param type becomes the element prop type.
  */
+export const plugin: PluginFn = (selectorOrMethods: any, methods?: any): Plugin<any> => {
+  if (methods === undefined) {
+    return (element: any) => selectorOrMethods(element)
+  }
+  return (element: any) => {
+    if (Array.isArray(selectorOrMethods)) {
+      for (const Ctor of selectorOrMethods as Constructor[]) {
+        if (element instanceof Ctor) return methods(element)
+      }
+      return undefined
+    }
+    if (typeof selectorOrMethods === "function" && selectorOrMethods(element)) {
+      return methods(element)
+    }
+    return undefined
+  }
+}
+
+// TODO(PT8): removed once createT/Entity migrate to resolvePluginMethods (PT4/PT6).
+// Kept transitionally so the interim build runs; `Plugin` is now a function type,
+// so `.setup` no longer exists — this is a no-op for function-plugins.
 export function initPlugins(context: Context, plugins: Plugin[]) {
   for (const plugin of plugins) {
     if (context.initializedPlugins.has(plugin)) continue
     context.initializedPlugins.add(plugin)
-    runWithOwner(context.owner, () => plugin.setup?.(context))
+    runWithOwner(context.owner, () => (plugin as any).setup?.(context))
   }
 }
