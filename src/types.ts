@@ -277,6 +277,16 @@ type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
     : {}
   : {}
 
+/**
+ * An element's full prop type: its base {@link Props} plus the props contributed by
+ * `TPlugins` for this element class. `PluginPropsOf` is intersected DIRECTLY (a plain
+ * top-level intersection, not nested in `Props`'s `Overwrite`) so `TPlugins` stays
+ * inferable at the JSX/usage site — see the inference notes. Used by `createT`'s
+ * element proxy and `<Entity>`.
+ */
+export type PropsWithPlugins<T, TPlugins extends readonly Plugin[]> = Props<T> &
+  Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
+
 /** Resolves the contributed props for element type `TKind` across `TPlugins`. */
 export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
   {

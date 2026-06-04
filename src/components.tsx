@@ -17,8 +17,8 @@ import type {
   LoaderUrl,
   Meta,
   Plugin,
-  PluginPropsOf,
   Props,
+  PropsWithPlugins,
 } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, meta, withContext, type LoadOutput } from "./utils.ts"
@@ -83,9 +83,9 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
 /**
  * Wraps a `ThreeElement` and allows it to be used as a JSX-component within a `solid-three` scene.
  *
- * The `{from, children, plugins} & Props<T, TPlugins>` intersection (rather than a
- * wrapper) + `const TPlugins` is what lets the JSX `plugins` array const-infer into
- * a tuple, so a per-element plugin's contributed methods surface as typed props.
+ * The `& PropsWithPlugins<T, TPlugins>` intersection + `const TPlugins` is what lets
+ * the JSX `plugins` array const-infer into a tuple, so a per-element plugin's
+ * contributed methods surface as typed (and enforced) props.
  *
  * @param props - The Three.js object's props (methods, children, ref) plus the
  *                element-scoped `plugins` and their contributed props.
@@ -95,13 +95,9 @@ export function Entity<
   const T extends object | Constructor<object> = object,
   const TPlugins extends readonly Plugin[] = readonly Plugin[],
 >(
-  // PluginPropsOf is intersected DIRECTLY (not via Props's Overwrite tuple): burying
-  // TPlugins inside Overwrite kills its inference at the JSX site. `Props<T>` (default
-  // plugins) gives the base props; the direct `& Partial<PluginPropsOf<…, TPlugins>>`
-  // surfaces contributed props with a JSX-inferrable TPlugins. (createT doesn't need
-  // this — it infers TPlugins from its function arg before Props is instantiated.)
-  props: { from: T; children?: JSXElement; plugins?: TPlugins } & Props<T> &
-    Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>,
+  // PropsWithPlugins keeps PluginPropsOf a direct top-level intersection (not buried in
+  // Props's Overwrite) so TPlugins stays inferable from the JSX `plugins` prop.
+  props: { from: T; children?: JSXElement; plugins?: TPlugins } & PropsWithPlugins<T, TPlugins>,
 ) {
   // `plugins` is split out of `rest` so it isn't applied to the three instance;
   // its contributed methods are resolved once (gated) inside useProps.
