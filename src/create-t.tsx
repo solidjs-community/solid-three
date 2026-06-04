@@ -9,13 +9,14 @@ import { autodispose, meta } from "./utils.ts"
 /*                                                                                */
 /**********************************************************************************/
 
-export function createT<TCatalogue extends Record<string, unknown>>(
-  catalogue: TCatalogue,
-  plugins: Plugin[] = [],
-) {
+export function createT<
+  const TCatalogue extends Record<string, unknown>,
+  const TPlugins extends readonly Plugin[] = readonly Plugin[],
+>(catalogue: TCatalogue, plugins?: TPlugins) {
+  const pluginList: Plugin[] = plugins ? [...plugins] : []
   const cache = new Map<string, Component<any>>()
   return new Proxy<{
-    [K in keyof TCatalogue]: Component<Props<TCatalogue[K]>>
+    [K in keyof TCatalogue]: Component<Props<TCatalogue[K], TPlugins>>
   }>({} as any, {
     get: (_, name: string) => {
       /* Create and memoize a wrapper component for the specified property. */
@@ -27,7 +28,7 @@ export function createT<TCatalogue extends Record<string, unknown>>(
         if (!constructor) return undefined
 
         /* Otherwise, create and memoize a component for that constructor. */
-        cache.set(name, createEntity(constructor, plugins))
+        cache.set(name, createEntity(constructor, pluginList))
       }
 
       return cache.get(name)

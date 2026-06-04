@@ -245,24 +245,24 @@ type PluginOverride<T, U> = T extends any
     : T & U
   : T & U
 type PluginSimplify<T> = T extends any ? { [K in keyof T]: T[K] } : T
-type _PluginMerge<T extends unknown[], Current = {}> = T extends [
+type _PluginMerge<T extends readonly unknown[], Current = {}> = T extends readonly [
   infer Next | (() => infer Next),
   ...infer Rest,
 ]
   ? _PluginMerge<Rest, PluginOverride<Current, Next>>
-  : T extends [...infer Rest, infer Next]
+  : T extends readonly [...infer Rest, infer Next]
   ? PluginOverride<_PluginMerge<Rest, Current>, Next>
-  : T extends []
+  : T extends readonly []
   ? Current
   : Current
-type PluginMerge<T extends unknown[]> = PluginSimplify<_PluginMerge<T>>
+type PluginMerge<T extends readonly unknown[]> = PluginSimplify<_PluginMerge<T>>
 
 /**
  * A composable extension: a function `(element) => methods`. A contributed
  * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
  * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
  */
-export type Plugin<TFn = (element: any) => any> = TFn
+export type Plugin<TFn = (...args: any[]) => any> = TFn
 
 /** The three `plugin()` creation forms: global, class-filtered, type-guard. */
 export interface PluginFn {
@@ -288,7 +288,7 @@ type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
   : {}
 
 /** Resolves the contributed props for element type `TKind` across `TPlugins`. */
-export type PluginPropsOf<TKind, TPlugins extends Plugin[]> = PluginMerge<{
+export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = PluginMerge<{
   [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
     string,
     any
@@ -457,8 +457,12 @@ export type MapToRepresentation<T> = {
   [TKey in keyof T]: Representation<T[TKey]>
 }
 
-/** Generic `solid-three` props of a given class. */
-export type Props<T> = Partial<
+/**
+ * Generic `solid-three` props of a given class, optionally widened with the
+ * props contributed by `TPlugins` for this element class (see {@link PluginPropsOf}).
+ * `TPlugins` defaults to `[]`, so single-arg `Props<T>` is unchanged.
+ */
+export type Props<T, TPlugins extends readonly Plugin[] = []> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,
@@ -476,6 +480,7 @@ export type Props<T> = Partial<
          */
         raycastable: boolean
       },
+      PluginPropsOf<InstanceOf<T>, TPlugins>,
     ]
   >
 >

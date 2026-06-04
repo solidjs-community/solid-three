@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { assertType, describe, expect, it, vi } from "vitest"
 import { Mesh, Object3D, PerspectiveCamera } from "three"
 import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 import { createT } from "../../src/create-t.tsx"
@@ -11,18 +11,20 @@ describe("plugin()", () => {
   })
 
   it("class-filtered plugin returns methods only for matching elements", () => {
-    const p = plugin([Mesh], () => ({ shake: vi.fn() }))
-    expect(p(new Mesh())).toHaveProperty("shake")
-    expect(p(new PerspectiveCamera())).toBeUndefined()
+    // The filtered overload types the param narrowly; runtime accepts anything,
+    // so cast to a loose callable to exercise the non-matching path.
+    const call = plugin([Mesh], () => ({ shake: vi.fn() })) as (el: object) => unknown
+    expect(call(new Mesh())).toHaveProperty("shake")
+    expect(call(new PerspectiveCamera())).toBeUndefined()
   })
 
   it("type-guard plugin returns methods only when the guard passes", () => {
-    const p = plugin(
+    const call = plugin(
       (el): el is Mesh => el instanceof Mesh,
       () => ({ setColor: vi.fn() }),
-    )
-    expect(p(new Mesh())).toHaveProperty("setColor")
-    expect(p(new Object3D())).toBeUndefined()
+    ) as (el: object) => unknown
+    expect(call(new Mesh())).toHaveProperty("setColor")
+    expect(call(new Object3D())).toBeUndefined()
   })
 })
 
@@ -45,5 +47,15 @@ describe("plugin prop routing", () => {
     expect(shake).toHaveBeenCalledWith(0.1)
     expect("shake" in three.scene.children[0]!).toBe(false)
     three.unmount()
+  })
+})
+
+describe("plugin prop types", () => {
+  it("a contributed method's first-param type becomes the element prop type", () => {
+    const TP = createT({ Mesh }, [plugin([Mesh], () => ({ shake: (_intensity: number) => {} }))])
+    type MeshProps = Parameters<typeof TP.Mesh>[0]
+    // vitest's assertType is tsc-checked (lint:types): errors if `shake` isn't a `number` prop.
+    assertType<number | undefined>(({} as MeshProps).shake)
+    expect(true).toBe(true)
   })
 })
