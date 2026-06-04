@@ -299,8 +299,12 @@ export interface Context {
   bounds: Measure
   /** The Canvas's reactive owner — plugin setup runs under it (see Plugin). */
   owner: Owner | null
-  /** Plugins whose `setup` has already run in this context (lazy-trigger dedup). */
-  initializedPlugins: Set<Plugin>
+  /**
+   * Run `fn` exactly once per context for a given `token` (a plugin or a symbol the
+   * author chooses). The home for a plugin's one-time, per-context setup — e.g. an
+   * XR plugin wiring its controller source on the first `onXRSelect` registration.
+   */
+  initializePlugin(token: unknown, fn: () => void): void
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
@@ -448,6 +452,12 @@ export type Data<T> = {
   props: BaseProps<InstanceOf<T>>
   parent: any
   children: Set<Meta<any>>
+  /**
+   * The context this element is rendered under (its mount-site `Context`), set by
+   * `useProps` for plugged elements. Plugin methods reach the store via
+   * `getMeta(element).ctx` — see {@link Plugin} / {@link Context.initializePlugin}.
+   */
+  ctx?: Context
 }
 
 /** Maps properties of given type to their `solid-three` representations. */

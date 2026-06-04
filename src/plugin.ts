@@ -1,5 +1,4 @@
-import { runWithOwner } from "solid-js"
-import type { Constructor, Context, Plugin, PluginFn } from "./types.ts"
+import type { Constructor, Plugin, PluginFn } from "./types.ts"
 
 /**
  * Create a plugin. Three forms:
@@ -49,15 +48,4 @@ export function resolvePluginMethods(
     }
   }
   return merged
-}
-
-// TODO(PT8): removed once createT/Entity migrate to resolvePluginMethods (PT4/PT6).
-// Kept transitionally so the interim build runs; `Plugin` is now a function type,
-// so `.setup` no longer exists — this is a no-op for function-plugins.
-export function initPlugins(context: Context, plugins: Plugin[]) {
-  for (const plugin of plugins) {
-    if (context.initializedPlugins.has(plugin)) continue
-    context.initializedPlugins.add(plugin)
-    runWithOwner(context.owner, () => (plugin as any).setup?.(context))
-  }
 }

@@ -374,7 +374,15 @@ export function useProps<T extends Record<string, any>>(
 
     // Gated: a no-plugin element does one length check and resolves nothing —
     // keeps plugin resolution off the per-element hot path (see plugin-system spec).
-    const pluginMethods = plugins.length ? resolvePluginMethods(object, plugins) : EMPTY_METHODS
+    let pluginMethods = EMPTY_METHODS
+    if (plugins.length) {
+      pluginMethods = resolvePluginMethods(object, plugins)
+      // Give plugin code the mount-site context via getMeta(element).ctx. Set at
+      // creation (here), not attach: contributed methods run during applyProp, before
+      // a top-level element attaches to the scene. Gated, so no-plugin elements pay nothing.
+      const childMeta = getMeta(object)
+      if (childMeta) childMeta.ctx = context as Context
+    }
 
     // Assign ref
     createRenderEffect(() => {

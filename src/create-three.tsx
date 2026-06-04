@@ -352,12 +352,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const clock = new Clock()
   clock.start()
 
+  // Per-context dedup set for `initializePlugin` (private — exposed only via the method).
+  const initializedPlugins = new Set<unknown>()
+
   const context: Context = {
     get bounds() {
       return measure.bounds()
     },
     owner: getOwner(),
-    initializedPlugins: new Set(),
+    initializePlugin(token: unknown, fn: () => void) {
+      if (initializedPlugins.has(token)) return
+      initializedPlugins.add(token)
+      fn()
+    },
     canvas,
     clock,
     eventRegistry: [],

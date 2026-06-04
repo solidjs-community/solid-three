@@ -4,6 +4,7 @@ import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 import { createT } from "../../src/create-t.tsx"
 import { Entity } from "../../src/components.tsx"
 import { test as renderThree } from "../../src/testing/index.tsx"
+import { getMeta } from "../../src/utils.ts"
 
 describe("plugin()", () => {
   it("global plugin returns methods for any element", () => {
@@ -79,5 +80,28 @@ describe("plugin prop types", () => {
     // vitest's assertType is tsc-checked (lint:types): errors if `shake` isn't a `number` prop.
     assertType<number | undefined>(({} as MeshProps).shake)
     expect(true).toBe(true)
+  })
+})
+
+describe("meta.ctx + initializePlugin", () => {
+  it("a contributed method reaches the mount-site context via getMeta(el).ctx and dedups once-per-ctx", () => {
+    const setupOnce = vi.fn()
+    const token = Symbol("test")
+    const p = plugin(el => ({
+      onPing() {
+        const ctx = getMeta(el)!.ctx!
+        ctx.initializePlugin(token, setupOnce)
+      },
+    }))
+    const TP = createT({ Mesh }, [p])
+    const three = renderThree(() => (
+      <>
+        <TP.Mesh onPing={() => {}} />
+        <TP.Mesh onPing={() => {}} />
+      </>
+    ))
+    expect(setupOnce).toHaveBeenCalledTimes(1) // once per ctx across both meshes
+    expect(getMeta(three.scene.children[0]!)?.ctx?.scene).toBe(three.scene)
+    three.unmount()
   })
 })
