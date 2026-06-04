@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { Mesh, Object3D, PerspectiveCamera } from "three"
-import { plugin } from "../../src/plugin.ts"
+import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 
 describe("plugin()", () => {
   it("global plugin returns methods for any element", () => {
@@ -21,5 +21,16 @@ describe("plugin()", () => {
     )
     expect(p(new Mesh())).toHaveProperty("setColor")
     expect(p(new Object3D())).toBeUndefined()
+  })
+})
+
+describe("resolvePluginMethods", () => {
+  it("merges matching plugins' methods, skips non-matching, returns {} for none", () => {
+    const a = plugin([Mesh], () => ({ shake: () => "shake" }))
+    const b = plugin(() => ({ ping: () => "ping" }))
+    const c = plugin([PerspectiveCamera], () => ({ orbit: () => "orbit" }))
+    const merged = resolvePluginMethods(new Mesh(), [a, b, c])
+    expect(Object.keys(merged).sort()).toEqual(["ping", "shake"])
+    expect(resolvePluginMethods(new Mesh(), [])).toEqual({})
   })
 })

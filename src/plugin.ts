@@ -28,6 +28,29 @@ export const plugin: PluginFn = (selectorOrMethods: any, methods?: any): Plugin<
   }
 }
 
+/**
+ * Run each plugin's factory against `element` and merge the returned method
+ * objects into one plain object (no proxy — optimize for access). Non-matching
+ * plugins return `undefined` and are skipped. Called once per plugged element at
+ * creation (gated by `plugins.length`), never on the per-attach path.
+ */
+export function resolvePluginMethods(
+  element: object,
+  plugins: Plugin[],
+): Record<string, (value: any) => void> {
+  const merged: Record<string, any> = {}
+  for (const plugin of plugins) {
+    const result = (plugin as (el: object) => Record<string, any> | undefined)(element)
+    if (!result) continue
+    for (const key in result) {
+      const descriptor = Object.getOwnPropertyDescriptor(result, key)
+      if (descriptor?.get || descriptor?.set) Object.defineProperty(merged, key, descriptor)
+      else merged[key] = result[key]
+    }
+  }
+  return merged
+}
+
 // TODO(PT8): removed once createT/Entity migrate to resolvePluginMethods (PT4/PT6).
 // Kept transitionally so the interim build runs; `Plugin` is now a function type,
 // so `.setup` no longer exists — this is a no-op for function-plugins.
