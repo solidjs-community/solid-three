@@ -63,7 +63,7 @@
         }
       },
       "import": {
-        "types": "./dist/testing/index.d.ts",
+        "types": "./dist/testing.d.ts",
         "default": "./dist/testing.js"
       }
     },
@@ -87,7 +87,7 @@
   "typesVersions": {
     "*": {
       "testing": [
-        "./dist/testing/index.d.ts"
+        "./dist/testing.d.ts"
       ],
       "xr": [
         "./dist/xr.d.ts"
