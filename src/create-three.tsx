@@ -5,6 +5,7 @@ import {
   createRenderEffect,
   createResource,
   createRoot,
+  getOwner,
   untrack,
   mergeProps,
   onCleanup,
@@ -355,6 +356,8 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     get bounds() {
       return measure.bounds()
     },
+    owner: getOwner(),
+    initializedPlugins: new Set(),
     canvas,
     clock,
     eventRegistry: [],

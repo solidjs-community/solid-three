@@ -134,17 +134,22 @@ export class Pointer {
   }
 
   down(nativeEvent: Event) {
-    this.dispatchBubbled("onPointerDown", nativeEvent)
+    this.dispatch("onPointerDown", nativeEvent)
   }
   up(nativeEvent: Event) {
-    this.dispatchBubbled("onPointerUp", nativeEvent)
+    this.dispatch("onPointerUp", nativeEvent)
   }
   wheel(nativeEvent: Event) {
-    this.dispatchBubbled("onWheel", nativeEvent)
+    this.dispatch("onWheel", nativeEvent)
   }
 
-  /** Shared body for the down/up/wheel "default" gestures (bubble + canvas-level). */
-  private dispatchBubbled(handler: "onPointerDown" | "onPointerUp" | "onWheel", nativeEvent: Event) {
+  /**
+   * Bubble a "default"-style gesture to an arbitrary handler name (plugin-extensible:
+   * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
+   * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
+   * `stopPropagation`, then fires canvas-level if unstopped.
+   */
+  dispatch(handler: string, nativeEvent: Event) {
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const event: any = createThreeEvent(nativeEvent, { intersections })
     for (const intersection of intersections) {

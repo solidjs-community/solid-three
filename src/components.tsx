@@ -10,8 +10,9 @@ import {
 } from "solid-js"
 import { Loader, Object3D } from "three"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
+import { initPlugins } from "./plugin.ts"
 import { useProps } from "./props.ts"
-import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Props } from "./types.ts"
+import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Plugin, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, meta, withContext, type LoadOutput } from "./utils.ts"
 
@@ -78,6 +79,8 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
     {
       from: T | undefined
       children?: JSXElement
+      /** Plugins scoped to this element (see Plugin / createT). */
+      plugins?: Plugin[]
     },
   ]
 >
@@ -91,7 +94,9 @@ type EntityProps<T extends object | Constructor<object>> = Overwrite<
  * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
  */
 export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
-  const [config, rest] = splitProps(props, ["from", "args"])
+  // `plugins` is read off `childMeta.props` by the scene-graph plugin trigger;
+  // split it out of `rest` so it isn't applied to the three instance as a property.
+  const [config, rest] = splitProps(props, ["from", "args", "plugins"])
   const instance = createMemo(() => {
     const from = config.from
     if (!from) return undefined
@@ -103,6 +108,8 @@ export function Entity<T extends object | Constructor<object>>(props: EntityProp
     ) as Meta<T>
   })
   useProps(instance, rest)
+  // Creation-gated plugin setup (see createEntity): only when this element opts in.
+  if (config.plugins?.length) initPlugins(useThree(), config.plugins)
   return instance as unknown as JSX.Element
 }
 

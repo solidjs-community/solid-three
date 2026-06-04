@@ -1,6 +1,8 @@
 import { createMemo, type Component, type JSX } from "solid-js"
+import { useThree } from "./hooks.ts"
+import { initPlugins } from "./plugin.ts"
 import { useProps } from "./props.ts"
-import type { Props } from "./types.ts"
+import type { Plugin, Props } from "./types.ts"
 import { autodispose, meta } from "./utils.ts"
 
 /**********************************************************************************/
@@ -9,7 +11,10 @@ import { autodispose, meta } from "./utils.ts"
 /*                                                                                */
 /**********************************************************************************/
 
-export function createT<TCatalogue extends Record<string, unknown>>(catalogue: TCatalogue) {
+export function createT<TCatalogue extends Record<string, unknown>>(
+  catalogue: TCatalogue,
+  plugins: Plugin[] = [],
+) {
   const cache = new Map<string, Component<any>>()
   return new Proxy<{
     [K in keyof TCatalogue]: Component<Props<TCatalogue[K]>>
@@ -24,7 +29,7 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
         if (!constructor) return undefined
 
         /* Otherwise, create and memoize a component for that constructor. */
-        cache.set(name, createEntity(constructor))
+        cache.set(name, createEntity(constructor, plugins))
       }
 
       return cache.get(name)
@@ -41,6 +46,7 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
  */
 export function createEntity<TConstructor>(
   Constructor: TConstructor,
+  plugins: Plugin[] = [],
 ): Component<Props<TConstructor>> {
   return (props: Props<TConstructor>) => {
     const memo = createMemo(() => {
@@ -54,6 +60,9 @@ export function createEntity<TConstructor>(
       }
     })
     useProps(memo, props)
+    // Plugin setup is creation-gated, not per-attach: a no-plugin namespace does
+    // a single closure-length check and never touches the scene-graph hot path.
+    if (plugins.length) initPlugins(useThree(), plugins)
     return memo as unknown as JSX.Element
   }
 }

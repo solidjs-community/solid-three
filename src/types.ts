@@ -1,4 +1,4 @@
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor, JSX, Owner } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -230,8 +230,22 @@ export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebG
 /*                                                                                */
 /**********************************************************************************/
 
+/**
+ * A composable extension. Its `setup` runs once per `Context` (deduped, in the
+ * Canvas owner) the first time an element carrying it attaches to the scene.
+ * Input-agnostic — core never inspects what `setup` does.
+ */
+export type Plugin = {
+  name?: string
+  setup?: (context: Context) => void
+}
+
 export interface Context {
   bounds: Measure
+  /** The Canvas's reactive owner — plugin setup runs under it (see Plugin). */
+  owner: Owner | null
+  /** Plugins whose `setup` has already run in this context (lazy-trigger dedup). */
+  initializedPlugins: Set<Plugin>
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
