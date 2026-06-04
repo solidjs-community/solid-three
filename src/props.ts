@@ -22,7 +22,8 @@ import {
 import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
 import { addToEventListeners } from "./internal-context.ts"
-import type { AccessorMaybe, Context, Meta } from "./types.ts"
+import { resolvePluginMethods } from "./plugin.ts"
+import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import {
   getMeta,
   hasColorSpace,
@@ -214,7 +215,14 @@ function applyProp<T extends Record<string, any>>(
   source: T,
   type: string,
   value: any,
+  pluginMethods: Record<string, (value: any) => void>,
 ) {
+  // A plugin-contributed prop: invoke its method instead of assigning to the instance.
+  if (type in pluginMethods) {
+    pluginMethods[type](value)
+    return
+  }
+
   if (!source) {
     console.error("error while applying prop", source, type, value)
     return
@@ -227,7 +235,7 @@ function applyProp<T extends Record<string, any>>(
   if (type.indexOf("-") > -1) {
     const [property, ...rest] = type.split("-")
 
-    applyProp(context, source[property], rest.join("-"), value)
+    applyProp(context, source[property], rest.join("-"), value, pluginMethods)
     return
   }
 
@@ -347,10 +355,13 @@ function applyProp<T extends Record<string, any>>(
  * @param props - An object containing the props to apply. This includes both direct properties
  *                and special properties like `ref` and `children`.
  */
+const EMPTY_METHODS: Record<string, (value: any) => void> = {}
+
 export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
   props: any,
   context: Pick<Context, "requestRender" | "gl" | "props"> = useThree(),
+  plugins: Plugin[] = [],
 ) {
   const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
 
@@ -360,6 +371,10 @@ export function useProps<T extends Record<string, any>>(
     const object = resolve(accessor)
 
     if (!object) return
+
+    // Gated: a no-plugin element does one length check and resolves nothing —
+    // keeps plugin resolution off the per-element hot path (see plugin-system spec).
+    const pluginMethods = plugins.length ? resolvePluginMethods(object, plugins) : EMPTY_METHODS
 
     // Assign ref
     createRenderEffect(() => {
@@ -375,12 +390,12 @@ export function useProps<T extends Record<string, any>>(
         // p.ex in <T.Mesh position={} position-x={}/> position's subKeys will be ['position-x']
         const subKeys = keys.filter(_key => key !== _key && _key.includes(key))
         createRenderEffect(() => {
-          applyProp(context, object, key, props[key])
+          applyProp(context, object, key, props[key], pluginMethods)
           // If property updates, apply its sub-properties immediately after.
           // NOTE:  Discuss - is this expected behavior? Feature or a bug?
           //        Should it be according to order of update instead?
           for (const subKey of subKeys) {
-            applyProp(context, object, subKey, props[subKey])
+            applyProp(context, object, subKey, props[subKey], pluginMethods)
           }
         })
       }

@@ -1,6 +1,4 @@
 import { createMemo, type Component, type JSX } from "solid-js"
-import { useThree } from "./hooks.ts"
-import { initPlugins } from "./plugin.ts"
 import { useProps } from "./props.ts"
 import type { Plugin, Props } from "./types.ts"
 import { autodispose, meta } from "./utils.ts"
@@ -59,10 +57,9 @@ export function createEntity<TConstructor>(
         throw new Error("")
       }
     })
-    useProps(memo, props)
-    // Plugin setup is creation-gated, not per-attach: a no-plugin namespace does
-    // a single closure-length check and never touches the scene-graph hot path.
-    if (plugins.length) initPlugins(useThree(), plugins)
+    // Plugin methods are resolved once per element inside useProps, gated by
+    // plugins.length — a no-plugin namespace never touches the plugin path.
+    useProps(memo, props, undefined, plugins)
     return memo as unknown as JSX.Element
   }
 }

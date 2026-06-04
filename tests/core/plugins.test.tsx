@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import { Mesh, Object3D, PerspectiveCamera } from "three"
 import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
+import { createT } from "../../src/create-t.tsx"
+import { test as renderThree } from "../../src/testing/index.tsx"
 
 describe("plugin()", () => {
   it("global plugin returns methods for any element", () => {
@@ -32,5 +34,16 @@ describe("resolvePluginMethods", () => {
     const merged = resolvePluginMethods(new Mesh(), [a, b, c])
     expect(Object.keys(merged).sort()).toEqual(["ping", "shake"])
     expect(resolvePluginMethods(new Mesh(), [])).toEqual({})
+  })
+})
+
+describe("plugin prop routing", () => {
+  it("invokes a contributed method when its prop is set, and does not assign it to the instance", () => {
+    const shake = vi.fn()
+    const TP = createT({ Mesh }, [plugin([Mesh], () => ({ shake }))])
+    const three = renderThree(() => <TP.Mesh shake={0.1} />)
+    expect(shake).toHaveBeenCalledWith(0.1)
+    expect("shake" in three.scene.children[0]!).toBe(false)
+    three.unmount()
   })
 })
