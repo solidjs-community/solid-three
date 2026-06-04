@@ -11,15 +11,7 @@ import {
 import { Loader, Object3D } from "three"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
 import { useProps } from "./props.ts"
-import type {
-  Constructor,
-  LoaderData,
-  LoaderUrl,
-  Meta,
-  Plugin,
-  Props,
-  PropsWithPlugins,
-} from "./types.ts"
+import type { BaseProps, Constructor, LoaderData, LoaderUrl, Meta, Plugin, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, meta, withContext, type LoadOutput } from "./utils.ts"
 
@@ -97,20 +89,20 @@ export function Entity<
 >(
   // PropsWithPlugins keeps PluginPropsOf a direct top-level intersection (not buried in
   // Props's Overwrite) so TPlugins stays inferable from the JSX `plugins` prop.
-  props: { from: T; children?: JSXElement; plugins?: TPlugins } & PropsWithPlugins<T, TPlugins>,
+  props: { from: T; children?: JSXElement; plugins?: TPlugins } & Props<T, TPlugins>,
 ) {
   // `plugins` is split out of `rest` so it isn't applied to the three instance;
   // its contributed methods are resolved once (gated) inside useProps.
   const [config, rest] = splitProps(props as any, ["from", "args", "plugins"])
   const instance = createMemo(() => {
     const from = config.from
-    if (!from) return undefined
-    // track key changes to force reconstruction
+    if (!from)
+      return undefined
+      // track key changes to force reconstruction
     ;(props as any).key
-    return meta(
-      isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
-      { props },
-    ) as Meta<T>
+    return meta(isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from, {
+      props,
+    }) as Meta<T>
   })
   useProps(instance, rest, undefined, config.plugins ? [...config.plugins] : [])
   return instance as unknown as JSX.Element
@@ -126,7 +118,7 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
   TLoader,
   LoaderUrl<TLoader>
 > &
-  Omit<Props<LoaderData<TLoader>>, "children"> & {
+  Omit<BaseProps<LoaderData<TLoader>>, "children"> & {
     loader: Constructor<TLoader>
     url: LoaderUrl<TLoader>
     children?: (result: Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>) => JSXElement

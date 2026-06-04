@@ -1,6 +1,6 @@
 import { createMemo, type Component, type JSX } from "solid-js"
 import { useProps } from "./props.ts"
-import type { Plugin, Props, PropsWithPlugins } from "./types.ts"
+import type { BaseProps, Plugin, Props } from "./types.ts"
 import { autodispose, meta } from "./utils.ts"
 
 /**********************************************************************************/
@@ -16,7 +16,7 @@ export function createT<
   const pluginList: Plugin[] = plugins ? [...plugins] : []
   const cache = new Map<string, Component<any>>()
   return new Proxy<{
-    [K in keyof TCatalogue]: Component<PropsWithPlugins<TCatalogue[K], TPlugins>>
+    [K in keyof TCatalogue]: Component<Props<TCatalogue[K], TPlugins>>
   }>({} as any, {
     get: (_, name: string) => {
       /* Create and memoize a wrapper component for the specified property. */
@@ -46,8 +46,8 @@ export function createT<
 export function createEntity<TConstructor>(
   Constructor: TConstructor,
   plugins: Plugin[] = [],
-): Component<Props<TConstructor>> {
-  return (props: Props<TConstructor>) => {
+): Component<BaseProps<TConstructor>> {
+  return (props: BaseProps<TConstructor>) => {
     const memo = createMemo(() => {
       // listen to key changes
       props.key

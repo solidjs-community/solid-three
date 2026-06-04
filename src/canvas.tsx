@@ -11,7 +11,13 @@ import {
 } from "three"
 import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
-import type { CanvasEventHandlers, Context, Props, RefWithCleanup, ResolvedRenderer } from "./types.ts"
+import type {
+  BaseProps,
+  CanvasEventHandlers,
+  Context,
+  RefWithCleanup,
+  ResolvedRenderer,
+} from "./types.ts"
 
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
@@ -20,9 +26,9 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   ref?: RefWithCleanup<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
-  camera?: Partial<Props<PerspectiveCamera> | Props<OrthographicCamera>> | Camera
+  camera?: Partial<BaseProps<PerspectiveCamera> | BaseProps<OrthographicCamera>> | Camera
   /** Configuration for the Raycaster used for mouse and pointer events. */
-  raycaster?: Partial<Props<EventRaycaster>> | EventRaycaster | Raycaster
+  raycaster?: Partial<BaseProps<EventRaycaster>> | EventRaycaster | Raycaster
   /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element
   /** Toggles flat interpolation for texture filtering. */
@@ -43,8 +49,7 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
    * The accepted renderer type narrows when you declare it via the `Register`
    * module-augmentation interface — see {@link Register} in `types.ts`.
    */
-  gl?:
-    // Flat object accepts both `WebGLRendererParameters` (constructor-only,
+  gl?: // Flat object accepts both `WebGLRendererParameters` (constructor-only,
     // e.g. `antialias`, `alpha`) and writable instance props (e.g.
     // `toneMapping`). solid-three splits them at construction: constructor args
     // are baked once; instance props stay reactive. Inspired by r3f's `gl` prop.
@@ -52,7 +57,7 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
     // collapses to `never` so the user is forced into the factory or instance
     // form that matches their declared renderer.
     | (WebGLRenderer extends ResolvedRenderer
-        ? Partial<Props<WebGLRenderer> & WebGLRendererParameters>
+        ? Partial<BaseProps<WebGLRenderer> & WebGLRendererParameters>
         : never)
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
@@ -61,7 +66,7 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
   /** Toggles between Orthographic and Perspective camera. */
   orthographic?: boolean
   /** Configuration for the Scene instance. */
-  scene?: Partial<Props<Scene>> | Scene
+  scene?: Partial<BaseProps<Scene>> | Scene
   /** Enables and configures shadows in the scene. */
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   /** Custom CSS styles for the canvas container. */

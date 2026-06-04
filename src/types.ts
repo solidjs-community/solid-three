@@ -54,8 +54,8 @@ export type Overwrite<T extends unknown[]> = T extends [infer First, ...infer Re
   ? Rest extends []
     ? First
     : Overwrite<Rest> extends infer Result
-    ? Omit<First, keyof Result> & Result
-    : never
+      ? Omit<First, keyof Result> & Result
+      : never
   : never
 
 /** Intersect a tuple of types: `Intersect<[A, B, C]>` → `A & B & C`. */
@@ -95,53 +95,50 @@ export type ConstructorOverloadParameters<T extends Constructor> = T extends {
 }
   ? U | U2 | U3 | U4 | U5 | U6 | U7
   : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-      new (...o: infer U6): void
-    }
-  ? U | U2 | U3 | U4 | U5 | U6
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-    }
-  ? U | U2 | U3 | U4 | U5
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-    }
-  ? U | U2 | U3 | U4
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-    }
-  ? U | U2 | U3
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-    }
-  ? U | U2
-  : T extends {
-      new (...o: infer U): void
-    }
-  ? U
-  : never
+        new (...o: infer U): void
+        new (...o: infer U2): void
+        new (...o: infer U3): void
+        new (...o: infer U4): void
+        new (...o: infer U5): void
+        new (...o: infer U6): void
+      }
+    ? U | U2 | U3 | U4 | U5 | U6
+    : T extends {
+          new (...o: infer U): void
+          new (...o: infer U2): void
+          new (...o: infer U3): void
+          new (...o: infer U4): void
+          new (...o: infer U5): void
+        }
+      ? U | U2 | U3 | U4 | U5
+      : T extends {
+            new (...o: infer U): void
+            new (...o: infer U2): void
+            new (...o: infer U3): void
+            new (...o: infer U4): void
+          }
+        ? U | U2 | U3 | U4
+        : T extends {
+              new (...o: infer U): void
+              new (...o: infer U2): void
+              new (...o: infer U3): void
+            }
+          ? U | U2 | U3
+          : T extends {
+                new (...o: infer U): void
+                new (...o: infer U2): void
+              }
+            ? U | U2
+            : T extends {
+                  new (...o: infer U): void
+                }
+              ? U
+              : never
 
-export type LoaderData<T extends Loader<any, any>> = T extends Loader<infer TData, any>
-  ? TData
-  : never
+export type LoaderData<T extends Loader<any, any>> =
+  T extends Loader<infer TData, any> ? TData : never
 
-export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl>
-  ? TUrl
-  : never
+export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl> ? TUrl : never
 
 /**********************************************************************************/
 /*                                                                                */
@@ -241,9 +238,7 @@ export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebG
 // evaluate at inference time and silently defaults the type-param (investigated
 // empirically — see docs/superpowers/notes). The plugin-tuple constraints are
 // `readonly` because a `const`-inferred JSX array is a readonly tuple.
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
-  k: infer I,
-) => void
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
   ? I
   : never
 
@@ -269,22 +264,23 @@ export interface PluginFn {
   ): Plugin<(element: T) => Methods>
 }
 
-type PluginReturn<TKind, TPlugin> = TPlugin extends Plugin<infer TFn>
-  ? TFn extends { (element: infer TElement): infer TReturnType }
-    ? TKind extends TElement
-      ? TReturnType
+type PluginReturn<TKind, TPlugin> =
+  TPlugin extends Plugin<infer TFn>
+    ? TFn extends { (element: infer TElement): infer TReturnType }
+      ? TKind extends TElement
+        ? TReturnType
+        : {}
       : {}
     : {}
-  : {}
 
 /**
- * An element's full prop type: its base {@link Props} plus the props contributed by
+ * An element's full prop type: its base {@link BaseProps} plus the props contributed by
  * `TPlugins` for this element class. `PluginPropsOf` is intersected DIRECTLY (a plain
  * top-level intersection, not nested in `Props`'s `Overwrite`) so `TPlugins` stays
  * inferable at the JSX/usage site — see the inference notes. Used by `createT`'s
  * element proxy and `<Entity>`.
  */
-export type PropsWithPlugins<T, TPlugins extends readonly Plugin[]> = Props<T> &
+export type Props<T, TPlugins extends readonly Plugin[]> = BaseProps<T> &
   Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
 
 /** Resolves the contributed props for element type `TKind` across `TPlugins`. */
@@ -422,10 +418,10 @@ interface ThreeVectorRepresentation extends ThreeMathRepresentation {
 export type Representation<T> = T extends ThreeColor
   ? ConstructorParameters<typeof ThreeColor> | ColorRepresentation
   : T extends ThreeVectorRepresentation | ThreeLayers | ThreeEuler
-  ? T | Parameters<T["set"]> | number
-  : T extends ThreeMathRepresentation
-  ? T | Parameters<T["set"]>
-  : T
+    ? T | Parameters<T["set"]> | number
+    : T extends ThreeMathRepresentation
+      ? T | Parameters<T["set"]>
+      : T
 
 export type Vector2 = Representation<ThreeVector2>
 export type Vector3 = Representation<ThreeVector3>
@@ -449,7 +445,7 @@ export type Meta<T = unknown> = T & {
 
 /** Metadata of a `solid-three` instance. */
 export type Data<T> = {
-  props: Props<InstanceOf<T>>
+  props: BaseProps<InstanceOf<T>>
   parent: any
   children: Set<Meta<any>>
 }
@@ -465,7 +461,7 @@ export type MapToRepresentation<T> = {
  * proxy + `<Entity>`) via {@link PluginPropsOf}, which keeps `TPlugins` inferable at
  * those sites (burying it in this `Overwrite` defeats inference — see notes).
  */
-export type Props<T> = Partial<
+export type BaseProps<T> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,
