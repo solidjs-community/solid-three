@@ -405,6 +405,25 @@ export type ThreeEvent<
   ]
 >
 
+export type PointerCapture = {
+  /**
+   * Capture this event's pointer to the node the handler is firing on
+   * (`event.element`). Subsequent move/up for this pointer deliver exclusively to
+   * that node's chain (still bubbling to the canvas-level handler) until released —
+   * even off-ray and, for the DOM source, off-canvas. Off-ray, `event.intersection`
+   * is reprojected onto the grabbed object's plane so `point` keeps tracking.
+   */
+  setPointerCapture(): void
+  /**
+   * Release a capture started with `setPointerCapture`. Also released
+   * automatically on pointerup/cancel for the DOM source, and on the paired end
+   * event for XR.
+   */
+  releasePointerCapture(): void
+  /** Whether this event's node currently holds the pointer capture. */
+  hasPointerCapture(): boolean
+}
+
 type EventHandlersMap = {
   onClick: Prettify<ThreeEvent<MouseEvent>>
   onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
@@ -412,9 +431,9 @@ type EventHandlersMap = {
   onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
   onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onPointerUp: Prettify<ThreeEvent<PointerEvent>>
-  onPointerDown: Prettify<ThreeEvent<PointerEvent>>
-  onPointerMove: Prettify<ThreeEvent<PointerEvent>>
+  onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
+  onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
+  onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onWheel: Prettify<ThreeEvent<WheelEvent>>
