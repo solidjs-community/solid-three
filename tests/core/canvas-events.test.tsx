@@ -1,4 +1,5 @@
 import { fireEvent } from "@solidjs/testing-library"
+import { createSignal } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/index.ts"
@@ -620,5 +621,40 @@ describe("pointer capture", () => {
 
     fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // off the mesh, no longer captured
     expect(onMove).not.toHaveBeenCalled()
+  })
+
+  it("releases capture when the captured mesh unmounts mid-drag (no dispatch to a detached node)", () => {
+    const onMove = vi.fn()
+    const [show, setShow] = createSignal(true)
+    const { canvas } = test(() => (show() ? <CapturingMesh onMove={onMove} /> : null))
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures the mesh
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // captured move reaches the mesh
+    expect(onMove).toHaveBeenCalledTimes(1)
+
+    setShow(false) // unmount mid-drag → registry removal releases the capture
+
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y))
+    expect(onMove).toHaveBeenCalledTimes(1) // no further dispatch to the detached mesh
+  })
+})
+
+/**********************************************************************************/
+/*                                                                                */
+/*                          Listener Lifecycle                                    */
+/*                                                                                */
+/**********************************************************************************/
+
+describe("listener lifecycle", () => {
+  it("removes its canvas listeners when the Canvas unmounts", () => {
+    const three = test(() => null)
+    const removeSpy = vi.spyOn(three.canvas, "removeEventListener")
+
+    three.unmount()
+
+    const removed = removeSpy.mock.calls.map(call => call[0])
+    expect(removed).toContain("pointermove")
+    expect(removed).toContain("lostpointercapture")
   })
 })

@@ -1,4 +1,4 @@
-import { Vector2 } from "three"
+import { Vector2, type Object3D } from "three"
 import { Pointer } from "./pointers.ts"
 import type { ScreenRaycaster } from "./raycasters.tsx"
 import type { Context } from "./types.ts"
@@ -25,6 +25,18 @@ export class DOMPointerManager {
     private raycaster: ScreenRaycaster,
   ) {
     this.primary = new Pointer(context, raycaster)
+  }
+
+  /**
+   * Release any pointer that currently holds `object` captured — called when the
+   * object leaves the event registry (unmount / last handler removed) so a drag
+   * doesn't keep dispatching to a detached node until the next pointerup. Uses
+   * `release()` so the OS-level canvas capture is dropped too.
+   */
+  releaseCaptured(object: Object3D) {
+    for (const pointer of this.pointers.values()) {
+      if (pointer.hasCaptured(object)) pointer.release()
+    }
   }
 
   private forId(id: number): Pointer {
