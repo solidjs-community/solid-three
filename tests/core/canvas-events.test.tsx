@@ -567,3 +567,58 @@ describe("canvas hover events", () => {
   })
 
 })
+
+/**********************************************************************************/
+/*                                                                                */
+/*                              Pointer Capture                                   */
+/*                                                                                */
+/**********************************************************************************/
+
+describe("pointer capture", () => {
+  const pointerAt = (type: string, x: number, y: number) =>
+    new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true })
+
+  /** A 2×2 mesh that captures on pointerdown and reports move/up. */
+  const CapturingMesh = (props: { onMove?: (e: any) => void; onUp?: (e: any) => void }) => (
+    <T.Mesh
+      onPointerDown={(e: any) => e.setPointerCapture()}
+      onPointerMove={(e: any) => props.onMove?.(e)}
+      onPointerUp={(e: any) => props.onUp?.(e)}
+    >
+      <T.BoxGeometry args={[2, 2]} />
+      <T.MeshBasicMaterial />
+    </T.Mesh>
+  )
+
+  it("keeps move/up on the captured mesh after the ray leaves it, and calls canvas.setPointerCapture", () => {
+    const onMove = vi.fn()
+    const onUp = vi.fn()
+    const { canvas } = test(() => <CapturingMesh onMove={onMove} onUp={onUp} />)
+    // Synthetic PointerEvents create no *active* pointer, so the real
+    // canvas.setPointerCapture(1) would throw InvalidStateError — mock it. We're
+    // testing our dispatch logic; events are fired directly at the canvas, so real
+    // OS routing isn't needed.
+    const captureSpy = vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures
+    expect(captureSpy).toHaveBeenCalledWith(1)
+
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // ray now off the mesh
+    fireEvent(canvas, pointerAt("pointerup", MISS_X, MISS_Y))
+
+    expect(onMove).toHaveBeenCalledTimes(1)
+    expect(onUp).toHaveBeenCalledTimes(1)
+  })
+
+  it("lostpointercapture clears capture; the next move resumes normal hover", () => {
+    const onMove = vi.fn()
+    const { canvas } = test(() => <CapturingMesh onMove={onMove} />)
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures
+    fireEvent(canvas, new PointerEvent("lostpointercapture", { pointerId: 1, bubbles: true }))
+
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // off the mesh, no longer captured
+    expect(onMove).not.toHaveBeenCalled()
+  })
+})

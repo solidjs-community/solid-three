@@ -30,7 +30,13 @@ export class DOMPointerManager {
   private forId(id: number): Pointer {
     let pointer = this.pointers.get(id)
     if (!pointer) {
-      pointer = new Pointer(this.context, this.raycaster)
+      const canvas = this.context.canvas
+      pointer = new Pointer(this.context, this.raycaster, {
+        capture: () => canvas.setPointerCapture(id),
+        release: () => {
+          if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id)
+        },
+      })
       this.pointers.set(id, pointer)
     }
     return pointer
@@ -85,12 +91,18 @@ export class DOMPointerManager {
       aim(event)
       this.primary.wheel(event)
     }
+    // The browser auto-releases capture on pointerup/cancel (and on explicit
+    // release), firing lostpointercapture — clear our matching capture state.
+    const onLostCapture = (event: PointerEvent) => {
+      this.pointers.get(event.pointerId)?.dropCapture()
+    }
 
     canvas.addEventListener("pointermove", onMove)
     canvas.addEventListener("pointerdown", onDown)
     canvas.addEventListener("pointerup", onUp)
     canvas.addEventListener("pointerleave", onLeaveOrCancel)
     canvas.addEventListener("pointercancel", onLeaveOrCancel)
+    canvas.addEventListener("lostpointercapture", onLostCapture)
     canvas.addEventListener("click", onClick)
     canvas.addEventListener("dblclick", onDoubleClick)
     canvas.addEventListener("contextmenu", onContextMenu)
@@ -102,6 +114,7 @@ export class DOMPointerManager {
       canvas.removeEventListener("pointerup", onUp)
       canvas.removeEventListener("pointerleave", onLeaveOrCancel)
       canvas.removeEventListener("pointercancel", onLeaveOrCancel)
+      canvas.removeEventListener("lostpointercapture", onLostCapture)
       canvas.removeEventListener("click", onClick)
       canvas.removeEventListener("dblclick", onDoubleClick)
       canvas.removeEventListener("contextmenu", onContextMenu)
