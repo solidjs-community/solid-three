@@ -12,6 +12,12 @@ export interface EventRaycaster extends Raycaster {
    * for screen pointers, `matrixWorld` for an XR controller).
    */
   cast(registry: Object3D[], context: Context): Intersection<Meta<Object3D>>[]
+  /**
+   * Position `this.ray` for the current pointer without intersecting anything —
+   * the aiming half of `cast`. Pointer capture calls this to reproject the live
+   * ray onto the captured object's plane.
+   */
+  aim(context: Context): void
 }
 
 /** Screen-ray family: aimed from a 2D cursor position in NDC. */
@@ -49,8 +55,11 @@ export class CursorRaycaster extends Raycaster implements ScreenRaycaster {
   setCursor(ndc: Vector2) {
     this.pointer.copy(ndc)
   }
-  cast(registry: Object3D[], context: Context) {
+  aim(context: Context) {
     this.setFromCamera(this.pointer, context.camera)
+  }
+  cast(registry: Object3D[], context: Context) {
+    this.aim(context)
     return castRegistry(this, registry)
   }
 }
@@ -60,8 +69,11 @@ export class CenterRaycaster extends Raycaster implements ScreenRaycaster {
   setCursor(_ndc: Vector2) {
     /* centre is fixed — ignore the cursor */
   }
-  cast(registry: Object3D[], context: Context) {
+  aim(context: Context) {
     this.setFromCamera(CENTER, context.camera)
+  }
+  cast(registry: Object3D[], context: Context) {
+    this.aim(context)
     return castRegistry(this, registry)
   }
 }
@@ -74,13 +86,16 @@ export class ControllerRaycaster extends Raycaster implements EventRaycaster {
   constructor(public space: Object3D) {
     super()
   }
-  cast(registry: Object3D[], _context: Context) {
+  aim(_context: Context) {
     this.space.updateMatrixWorld()
     const origin = new Vector3().setFromMatrixPosition(this.space.matrixWorld)
     const direction = new Vector3(0, 0, -1)
       .applyQuaternion(new Quaternion().setFromRotationMatrix(this.space.matrixWorld))
       .normalize()
     this.ray.set(origin, direction)
+  }
+  cast(registry: Object3D[], context: Context) {
+    this.aim(context)
     return castRegistry(this, registry)
   }
 }
