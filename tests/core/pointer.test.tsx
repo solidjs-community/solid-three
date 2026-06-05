@@ -145,4 +145,74 @@ describe("Pointer capture lifecycle", () => {
     pointer.capture(null as any, {} as any)
     expect(sink.capture).not.toHaveBeenCalled()
   })
+
+  it("delivers onPointerUp exclusively to the captured object after the ray moves off it", () => {
+    const capturedUp = vi.fn()
+    const otherUp = vi.fn()
+    const captured = eventful({
+      onPointerDown: (e: any) => e.setPointerCapture(),
+      onPointerUp: capturedUp,
+    })
+    const other = eventful({ onPointerUp: otherUp })
+    const state = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+
+    pointer.down(new Event("pointerdown")) // captures `captured`
+    state.target = other // ray now hits `other`
+    pointer.up(new Event("pointerup"))
+
+    expect(capturedUp).toHaveBeenCalledTimes(1)
+    expect(otherUp).not.toHaveBeenCalled()
+  })
+
+  it("bubbles a captured up to the canvas-level handler unless stopped", () => {
+    const canvasUp = vi.fn()
+    const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
+    const state = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([captured], { onPointerUp: canvasUp }), fakeRaycaster(state))
+
+    pointer.down(new Event("pointerdown"))
+    state.target = undefined
+    pointer.up(new Event("pointerup"))
+
+    expect(canvasUp).toHaveBeenCalledTimes(1) // canvas-level still fires during capture
+  })
+
+  it("reprojects the live ray onto the captured plane for a fresh point", () => {
+    let seenPoint: Vector3 | undefined
+    const captured = eventful({
+      onPointerDown: (e: any) => e.setPointerCapture(),
+      onPointerUp: (e: any) => (seenPoint = e.intersection.point.clone()),
+    })
+    // Plane: z = 0, normal +z, coplanar point (0,0,0).
+    const state = { target: captured as Object3D, point: new Vector3(0, 0, 0), normal: new Vector3(0, 0, 1) }
+    const raycaster = fakeRaycaster(state)
+    const pointer = new Pointer(ctx([captured]), raycaster)
+
+    pointer.down(new Event("pointerdown"))
+    state.target = undefined
+    raycaster.ray.set(new Vector3(1, 2, 5), new Vector3(0, 0, -1)) // aims at (1,2,0)
+    pointer.up(new Event("pointerup"))
+
+    expect(seenPoint?.x).toBeCloseTo(1)
+    expect(seenPoint?.y).toBeCloseTo(2)
+    expect(seenPoint?.z).toBeCloseTo(0)
+  })
+
+  it("releasePointerCapture() in onPointerUp restores normal delivery", () => {
+    const otherUp = vi.fn()
+    const captured = eventful({
+      onPointerDown: (e: any) => e.setPointerCapture(),
+      onPointerUp: (e: any) => e.releasePointerCapture(),
+    })
+    const other = eventful({ onPointerUp: otherUp })
+    const state = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+
+    pointer.down(new Event("pointerdown"))
+    pointer.up(new Event("pointerup")) // captured up, then releases
+    state.target = other
+    pointer.up(new Event("pointerup")) // no longer captured → normal delivery
+    expect(otherUp).toHaveBeenCalledTimes(1)
+  })
 })

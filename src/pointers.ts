@@ -116,6 +116,32 @@ export class Pointer {
     this.captured = null
   }
 
+  /**
+   * The forced intersection for a captured pointer: intersect the live ray with
+   * the stored plane for a fresh `point`/`distance`, keeping the original hit's
+   * `face`/`uv`/`object`. Falls back to the stored hit if the ray is parallel.
+   */
+  private reproject(captured: {
+    object: Object3D
+    plane: Plane
+    intersection: Intersection
+  }): Intersection {
+    this.raycaster.aim(this.context)
+    const point = this.raycaster.ray.intersectPlane(captured.plane, new Vector3())
+    if (!point) return captured.intersection
+    const distance = this.raycaster.ray.origin.distanceTo(point)
+    return { ...captured.intersection, point, distance }
+  }
+
+  /** Attach the capture methods to a capturable event (down/up/move). */
+  private attachCapture(event: any) {
+    event.setPointerCapture = () => {
+      if (event.element) this.capture(event.element, event.currentIntersection)
+    }
+    event.releasePointerCapture = () => this.release()
+    event.hasPointerCapture = () => !!event.element && this.hasCaptured(event.element)
+  }
+
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */
   move(nativeEvent: Event) {
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
@@ -179,10 +205,10 @@ export class Pointer {
   }
 
   down(nativeEvent: Event) {
-    this.dispatch("onPointerDown", nativeEvent)
+    this.dispatch("onPointerDown", nativeEvent, undefined, true)
   }
   up(nativeEvent: Event) {
-    this.dispatch("onPointerUp", nativeEvent)
+    this.dispatch("onPointerUp", nativeEvent, undefined, true)
   }
   wheel(nativeEvent: Event) {
     this.dispatch("onWheel", nativeEvent)
@@ -194,12 +220,37 @@ export class Pointer {
    * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
    * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
    * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
-   * `event.element` exposes the node a handler is firing on.
+   * `event.element` exposes the node a handler is firing on. When this pointer
+   * holds a capture, delivery is exclusive to the captured object's chain (the
+   * registry is not raycast) but still bubbles to the canvas-level handler; the
+   * intersection is the live ray reprojected onto the captured plane.
    */
-  dispatch(handler: string, nativeEvent: Event, extra?: Record<string, unknown>) {
+  dispatch(handler: string, nativeEvent: Event, extra?: Record<string, unknown>, capturable = false) {
+    const captured = this.captured
+    if (captured) {
+      const intersection = this.reproject(captured)
+      const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
+      if (extra) Object.assign(event, extra)
+      if (capturable) this.attachCapture(event)
+      event.currentIntersection = intersection
+      let node: Object3D | null = captured.object
+      while (node && !event.stopped) {
+        event.element = node
+        ;(getMeta(node)?.props as any)?.[handler]?.(event)
+        node = node.parent
+      }
+      if (!event.stopped) {
+        delete event.currentIntersection
+        event.element = undefined
+        ;(this.context.props as Record<string, any>)[handler]?.(event)
+      }
+      return
+    }
+
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const event: any = createThreeEvent(nativeEvent, { intersections })
     if (extra) Object.assign(event, extra)
+    if (capturable) this.attachCapture(event)
     for (const intersection of intersections) {
       event.currentIntersection = intersection
       let node: Object3D | null = intersection.object
