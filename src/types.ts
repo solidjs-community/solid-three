@@ -4,6 +4,7 @@ import type {
   ColorRepresentation,
   Intersection,
   Loader,
+  Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   Raycaster,
@@ -234,6 +235,8 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
+  /** Objects carrying any pointer handler; raycast by the pointer system. */
+  eventRegistry: Object3D[]
   raycaster: Raycaster | EventRaycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
@@ -308,11 +311,6 @@ type EventHandlersMap = {
   onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
   onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onMouseDown: Prettify<ThreeEvent<MouseEvent>>
-  onMouseEnter: Prettify<ThreeEvent<MouseEvent, { stoppable: false }>>
-  onMouseLeave: Prettify<ThreeEvent<MouseEvent, { stoppable: false }>>
-  onMouseMove: Prettify<ThreeEvent<MouseEvent>>
-  onMouseUp: Prettify<ThreeEvent<MouseEvent>>
   onPointerUp: Prettify<ThreeEvent<PointerEvent>>
   onPointerDown: Prettify<ThreeEvent<PointerEvent>>
   onPointerMove: Prettify<ThreeEvent<PointerEvent>>
