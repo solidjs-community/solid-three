@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { Object3D } from "three"
+import { Object3D, Ray, Vector3 } from "three"
 import { Pointer, type PointerRaycaster } from "../../src/pointers.ts"
 import { meta } from "../../src/utils.ts"
 
@@ -9,11 +9,29 @@ function eventful(handlers: Record<string, any>) {
 function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
   return { eventRegistry, props } as any
 }
-// Fake raycaster: `cast` hits whatever `state.target` is; phase-2 re-cast finds nothing.
-function fakeRaycaster(state: { target?: Object3D }): PointerRaycaster {
+// Fake raycaster: `cast` hits whatever `state.target` is (with a point+face so
+// capture() can build a plane); phase-2 re-cast finds nothing; `aim` is a no-op
+// (tests position `ray` directly).
+function fakeRaycaster(state: {
+  target?: Object3D
+  point?: Vector3
+  normal?: Vector3
+}): PointerRaycaster {
   return {
-    cast: () => (state.target ? [{ object: state.target, distance: 1 } as any] : []),
+    cast: () =>
+      state.target
+        ? [
+            {
+              object: state.target,
+              distance: 1,
+              point: (state.point ?? new Vector3()).clone(),
+              face: { normal: (state.normal ?? new Vector3(0, 0, 1)).clone() },
+            } as any,
+          ]
+        : [],
     intersectObject: () => [],
+    aim: () => {},
+    ray: new Ray(),
   }
 }
 
@@ -87,5 +105,44 @@ describe("Pointer dispatch", () => {
     expect(seen[0].element).toBe(child) // handler on child sees child
     expect(seen[1].element).toBe(parent) // bubbled handler on parent sees parent
     expect(seen.every(s => s.k === 42)).toBe(true) // extra merged onto every dispatch
+  })
+})
+
+// A minimal capture sink that records calls.
+function spySink() {
+  return { capture: vi.fn(), release: vi.fn() }
+}
+
+describe("Pointer capture lifecycle", () => {
+  it("capture() stores the object and calls the sink; release() clears it and calls the sink", () => {
+    const mesh = eventful({})
+    const sink = spySink()
+    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+
+    pointer.capture(mesh, { point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    expect(sink.capture).toHaveBeenCalledTimes(1)
+    expect(pointer.hasCaptured(mesh)).toBe(true)
+
+    pointer.release()
+    expect(sink.release).toHaveBeenCalledTimes(1)
+    expect(pointer.hasCaptured(mesh)).toBe(false)
+  })
+
+  it("dropCapture() clears state WITHOUT calling the sink's release", () => {
+    const mesh = eventful({})
+    const sink = spySink()
+    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+
+    pointer.capture(mesh, { point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    pointer.dropCapture()
+    expect(pointer.hasCaptured(mesh)).toBe(false)
+    expect(sink.release).not.toHaveBeenCalled()
+  })
+
+  it("capture(null) is a no-op", () => {
+    const sink = spySink()
+    const pointer = new Pointer(ctx([]), fakeRaycaster({}), sink)
+    pointer.capture(null as any, {} as any)
+    expect(sink.capture).not.toHaveBeenCalled()
   })
 })

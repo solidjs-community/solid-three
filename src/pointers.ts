@@ -54,6 +54,9 @@ export function createThreeEvent<
   >
 }
 
+/** The OS-level half of pointer capture, injected per source (DOM canvas vs XR). */
+export type PointerCaptureSink = { capture(): void; release(): void }
+
 /**
  * One pointer's dispatch + per-pointer state, decoupled from the DOM. A
  * `*PointerManager` owns the source (canvas / XR controller) and the raycaster,
@@ -69,11 +72,49 @@ export function createThreeEvent<
 export class Pointer {
   private hovered = new Set<Object3D>()
   private hoveredCanvas = false
+  private captured: { object: Object3D; plane: Plane; intersection: Intersection } | null = null
 
   constructor(
     private context: Context,
     private raycaster: PointerRaycaster,
+    private sink?: PointerCaptureSink,
   ) {}
+
+  /** Whether this pointer currently holds `object` captured. */
+  hasCaptured(object: Object3D): boolean {
+    return this.captured?.object === object
+  }
+
+  /**
+   * Capture this pointer to `object`: build the drag plane from the hit point and
+   * world-space normal (camera-facing if the hit has no face), then engage the
+   * OS sink. Subsequent move/up reproject the live ray onto this plane and deliver
+   * exclusively to `object`'s chain until released.
+   */
+  capture(object: Object3D, intersection: Intersection) {
+    if (!object) return
+    const normal = new Vector3()
+    if (intersection.face) {
+      normal.copy(intersection.face.normal).transformDirection(object.matrixWorld)
+    } else {
+      this.context.camera.getWorldDirection(normal).negate()
+    }
+    const plane = new Plane().setFromNormalAndCoplanarPoint(normal, intersection.point)
+    this.captured = { object, plane, intersection }
+    this.sink?.capture()
+  }
+
+  /** Release a held capture and notify the OS sink. Idempotent. */
+  release() {
+    if (!this.captured) return
+    this.captured = null
+    this.sink?.release()
+  }
+
+  /** Clear capture state only, without notifying the sink (the OS already released). */
+  dropCapture() {
+    this.captured = null
+  }
 
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */
   move(nativeEvent: Event) {
