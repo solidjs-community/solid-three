@@ -144,6 +144,29 @@ export class Pointer {
 
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */
   move(nativeEvent: Event) {
+    const captured = this.captured
+    if (captured) {
+      // Exclusive-but-bubbling: deliver onPointerMove to the captured chain only
+      // (no enter/leave on any object — hover frozen), then canvas-level if
+      // unstopped. Intersection is the live ray reprojected onto the captured plane.
+      const intersection = this.reproject(captured)
+      const moveEvent: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
+      this.attachCapture(moveEvent)
+      moveEvent.currentIntersection = intersection
+      let node: Object3D | null = captured.object
+      while (node && !moveEvent.stopped) {
+        moveEvent.element = node
+        ;(getMeta(node)?.props as any)?.onPointerMove?.(moveEvent)
+        node = node.parent
+      }
+      if (!moveEvent.stopped) {
+        delete moveEvent.currentIntersection
+        moveEvent.element = undefined
+        ;(this.context.props as Record<string, any>).onPointerMove?.(moveEvent)
+      }
+      return
+    }
+
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const props = this.context.props as Record<string, any>
 
@@ -164,8 +187,10 @@ export class Pointer {
       props.onPointerEnter?.(enterEvent)
     }
 
-    // Phase #2 — Move (bubble up, stoppable).
+    // Phase #2 — Move (bubble up, stoppable). Capturable: a handler may start a
+    // drag by calling `setPointerCapture()` from here.
     const moveEvent: any = createThreeEvent(nativeEvent, { intersections })
+    this.attachCapture(moveEvent)
     const moved = new Set<Object3D>()
     for (const intersection of intersections) {
       moveEvent.currentIntersection = intersection
@@ -174,6 +199,7 @@ export class Pointer {
         moved.add(current)
         const meta = getMeta(current)
         if (meta) {
+          moveEvent.element = current
           ;(meta.props as any).onPointerMove?.(moveEvent)
           if (moveEvent.stopped) break
         }
@@ -182,6 +208,7 @@ export class Pointer {
     }
     if (!moveEvent.stopped) {
       delete moveEvent.currentIntersection
+      moveEvent.element = undefined
       props.onPointerMove?.(moveEvent)
     }
 

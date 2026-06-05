@@ -215,4 +215,45 @@ describe("Pointer capture lifecycle", () => {
     pointer.up(new Event("pointerup")) // no longer captured → normal delivery
     expect(otherUp).toHaveBeenCalledTimes(1)
   })
+
+  it("while captured, move fires only on the captured object — not on others under the ray", () => {
+    const capturedMove = vi.fn()
+    const otherEnter = vi.fn()
+    const captured = eventful({
+      onPointerDown: (e: any) => e.setPointerCapture(),
+      onPointerMove: capturedMove,
+    })
+    const other = eventful({ onPointerEnter: otherEnter, onPointerMove: vi.fn() })
+    const state = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+
+    pointer.down(new Event("pointerdown"))
+    state.target = other // ray now over `other`
+    pointer.move(new Event("pointermove"))
+
+    expect(capturedMove).toHaveBeenCalledTimes(1)
+    expect(otherEnter).not.toHaveBeenCalled() // frozen hover — other objects stay quiet
+  })
+
+  it("while captured, canvas-level onPointerMove still fires unless stopped", () => {
+    const canvasMove = vi.fn()
+    const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
+    const state = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([captured], { onPointerMove: canvasMove }), fakeRaycaster(state))
+
+    pointer.down(new Event("pointerdown"))
+    state.target = undefined
+    pointer.move(new Event("pointermove"))
+
+    expect(canvasMove).toHaveBeenCalledTimes(1)
+  })
+
+  it("can start a capture from onPointerMove", () => {
+    const mesh = eventful({ onPointerMove: (e: any) => e.setPointerCapture() })
+    const state = { target: mesh as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
+
+    pointer.move(new Event("pointermove"))
+    expect(pointer.hasCaptured(mesh)).toBe(true)
+  })
 })
