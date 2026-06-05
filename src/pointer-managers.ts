@@ -64,6 +64,8 @@ export class DOMPointerManager {
       aim(event)
       this.forId(event.pointerId).up(event)
       // A lifted touch no longer exists — leave + drop it so it keeps no state.
+      // No explicit capture release needed: the browser auto-released on pointerup
+      // (firing lostpointercapture), and the dropped Pointer is unreachable anyway.
       if (event.pointerType === "touch") {
         this.pointers.get(event.pointerId)?.leave(event)
         this.pointers.delete(event.pointerId)

@@ -58,6 +58,12 @@ export function createThreeEvent<
 export type PointerCaptureSink = { capture(): void; release(): void }
 
 /**
+ * A held capture: the grabbed object, the drag plane the live ray reprojects onto,
+ * and the original hit (kept for its `face`/`uv`/`instanceId` while dragging).
+ */
+type Captured = { object: Object3D; plane: Plane; intersection: Intersection }
+
+/**
  * One pointer's dispatch + per-pointer state, decoupled from the DOM. A
  * `*PointerManager` owns the source (canvas / XR controller) and the raycaster,
  * and calls these gesture methods; the `Pointer` raycasts the context's single
@@ -72,7 +78,7 @@ export type PointerCaptureSink = { capture(): void; release(): void }
 export class Pointer {
   private hovered = new Set<Object3D>()
   private hoveredCanvas = false
-  private captured: { object: Object3D; plane: Plane; intersection: Intersection } | null = null
+  private captured: Captured | null = null
 
   constructor(
     private context: Context,
@@ -89,9 +95,10 @@ export class Pointer {
    * Capture this pointer to `object`: build the drag plane from the hit point and
    * world-space normal (camera-facing if the hit has no face), then engage the
    * OS sink. Subsequent move/up reproject the live ray onto this plane and deliver
-   * exclusively to `object`'s chain until released.
+   * exclusively to `object`'s chain until released. A nullish `object` (the
+   * canvas-level dispatch has no `event.element`) is a no-op.
    */
-  capture(object: Object3D, intersection: Intersection) {
+  capture(object: Object3D | null | undefined, intersection: Intersection) {
     if (!object) return
     const normal = new Vector3()
     if (intersection.face) {
@@ -101,7 +108,14 @@ export class Pointer {
     }
     const plane = new Plane().setFromNormalAndCoplanarPoint(normal, intersection.point)
     this.captured = { object, plane, intersection }
-    this.sink?.capture()
+    // Engage OS capture only after state is set; if it throws (e.g. the pointer
+    // isn't active), roll back so capture state never outlives a failed sink.
+    try {
+      this.sink?.capture()
+    } catch (error) {
+      this.captured = null
+      throw error
+    }
   }
 
   /** Release a held capture and notify the OS sink. Idempotent. */
@@ -121,11 +135,7 @@ export class Pointer {
    * the stored plane for a fresh `point`/`distance`, keeping the original hit's
    * `face`/`uv`/`object`. Falls back to the stored hit if the ray is parallel.
    */
-  private reproject(captured: {
-    object: Object3D
-    plane: Plane
-    intersection: Intersection
-  }): Intersection {
+  private reproject(captured: Captured): Intersection {
     this.raycaster.aim(this.context)
     const point = this.raycaster.ray.intersectPlane(captured.plane, new Vector3())
     if (!point) return captured.intersection
@@ -144,28 +154,10 @@ export class Pointer {
 
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */
   move(nativeEvent: Event) {
-    const captured = this.captured
-    if (captured) {
-      // Exclusive-but-bubbling: deliver onPointerMove to the captured chain only
-      // (no enter/leave on any object — hover frozen), then canvas-level if
-      // unstopped. Intersection is the live ray reprojected onto the captured plane.
-      const intersection = this.reproject(captured)
-      const moveEvent: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
-      this.attachCapture(moveEvent)
-      moveEvent.currentIntersection = intersection
-      let node: Object3D | null = captured.object
-      while (node && !moveEvent.stopped) {
-        moveEvent.element = node
-        ;(getMeta(node)?.props as any)?.onPointerMove?.(moveEvent)
-        node = node.parent
-      }
-      if (!moveEvent.stopped) {
-        delete moveEvent.currentIntersection
-        moveEvent.element = undefined
-        ;(this.context.props as Record<string, any>).onPointerMove?.(moveEvent)
-      }
-      return
-    }
+    // While captured, a move is just a captured `onPointerMove` dispatch:
+    // exclusive-but-bubbling delivery to the captured chain (no enter/leave on any
+    // object — hover frozen, since `dispatch` never touches `this.hovered`).
+    if (this.captured) return this.dispatch("onPointerMove", nativeEvent, undefined, true)
 
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const props = this.context.props as Record<string, any>
