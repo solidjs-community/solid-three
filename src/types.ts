@@ -1,4 +1,4 @@
-import type { Accessor, JSX } from "solid-js"
+import type { Accessor, JSX, Owner } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
@@ -54,8 +54,8 @@ export type Overwrite<T extends unknown[]> = T extends [infer First, ...infer Re
   ? Rest extends []
     ? First
     : Overwrite<Rest> extends infer Result
-    ? Omit<First, keyof Result> & Result
-    : never
+      ? Omit<First, keyof Result> & Result
+      : never
   : never
 
 /** Intersect a tuple of types: `Intersect<[A, B, C]>` → `A & B & C`. */
@@ -95,53 +95,50 @@ export type ConstructorOverloadParameters<T extends Constructor> = T extends {
 }
   ? U | U2 | U3 | U4 | U5 | U6 | U7
   : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-      new (...o: infer U6): void
-    }
-  ? U | U2 | U3 | U4 | U5 | U6
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-      new (...o: infer U5): void
-    }
-  ? U | U2 | U3 | U4 | U5
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-      new (...o: infer U4): void
-    }
-  ? U | U2 | U3 | U4
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-      new (...o: infer U3): void
-    }
-  ? U | U2 | U3
-  : T extends {
-      new (...o: infer U): void
-      new (...o: infer U2): void
-    }
-  ? U | U2
-  : T extends {
-      new (...o: infer U): void
-    }
-  ? U
-  : never
+        new (...o: infer U): void
+        new (...o: infer U2): void
+        new (...o: infer U3): void
+        new (...o: infer U4): void
+        new (...o: infer U5): void
+        new (...o: infer U6): void
+      }
+    ? U | U2 | U3 | U4 | U5 | U6
+    : T extends {
+          new (...o: infer U): void
+          new (...o: infer U2): void
+          new (...o: infer U3): void
+          new (...o: infer U4): void
+          new (...o: infer U5): void
+        }
+      ? U | U2 | U3 | U4 | U5
+      : T extends {
+            new (...o: infer U): void
+            new (...o: infer U2): void
+            new (...o: infer U3): void
+            new (...o: infer U4): void
+          }
+        ? U | U2 | U3 | U4
+        : T extends {
+              new (...o: infer U): void
+              new (...o: infer U2): void
+              new (...o: infer U3): void
+            }
+          ? U | U2 | U3
+          : T extends {
+                new (...o: infer U): void
+                new (...o: infer U2): void
+              }
+            ? U | U2
+            : T extends {
+                  new (...o: infer U): void
+                }
+              ? U
+              : never
 
-export type LoaderData<T extends Loader<any, any>> = T extends Loader<infer TData, any>
-  ? TData
-  : never
+export type LoaderData<T extends Loader<any, any>> =
+  T extends Loader<infer TData, any> ? TData : never
 
-export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl>
-  ? TUrl
-  : never
+export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer TUrl> ? TUrl : never
 
 /**********************************************************************************/
 /*                                                                                */
@@ -230,8 +227,84 @@ export type ResolvedRenderer = Register extends { renderer: infer R } ? R : WebG
 /*                                                                                */
 /**********************************************************************************/
 
+/**********************************************************************************/
+/*                                     Plugin                                     */
+/**********************************************************************************/
+
+// Intersect a union of method-prop objects into one object. UnionToIntersection
+// (rather than a recursive tuple merge) is deliberate: TS can evaluate it *during*
+// JSX generic inference, so `<Entity plugins={[…]} contributedProp={…}/>` infers
+// `TPlugins` from the prop. A recursive merge over the plugin tuple is too heavy to
+// evaluate at inference time and silently defaults the type-param (investigated
+// empirically — see docs/superpowers/notes). The plugin-tuple constraints are
+// `readonly` because a `const`-inferred JSX array is a readonly tuple.
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
+  ? I
+  : never
+
+/**
+ * A composable extension: a function `(element) => methods`. A contributed
+ * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
+ * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
+ */
+export type Plugin<TFn = (element: any) => any> = TFn
+
+/** The three `plugin()` creation forms: global, class-filtered, type-guard. */
+export interface PluginFn {
+  <const Methods extends Record<string, any>>(
+    methods: (element: any) => Methods,
+  ): Plugin<(element: any) => Methods>
+  <const T extends readonly Constructor[], const Methods extends Record<string, any>>(
+    Constructors: T,
+    methods: (element: T extends readonly Constructor<infer U>[] ? U : never) => Methods,
+  ): Plugin<(element: T extends readonly Constructor<infer U>[] ? U : never) => Methods>
+  <const T, const Methods extends Record<string, any>>(
+    condition: (element: unknown) => element is T,
+    methods: (element: T) => Methods,
+  ): Plugin<(element: T) => Methods>
+}
+
+type PluginReturn<TKind, TPlugin> =
+  TPlugin extends Plugin<infer TFn>
+    ? TFn extends { (element: infer TElement): infer TReturnType }
+      ? TKind extends TElement
+        ? TReturnType
+        : {}
+      : {}
+    : {}
+
+/**
+ * An element's full prop type: its base {@link BaseProps} plus the props contributed by
+ * `TPlugins` for this element class. `PluginPropsOf` is intersected DIRECTLY (a plain
+ * top-level intersection, not nested in `Props`'s `Overwrite`) so `TPlugins` stays
+ * inferable at the JSX/usage site — see the inference notes. Used by `createT`'s
+ * element proxy and `<Entity>`.
+ */
+export type Props<T, TPlugins extends readonly Plugin[]> = BaseProps<T> &
+  Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
+
+/** Resolves the contributed props for element type `TKind` across `TPlugins`. */
+export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
+  {
+    [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
+      string,
+      any
+    >
+      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      : {}
+  }[number]
+>
+
 export interface Context {
   bounds: Measure
+  /** The Canvas's reactive owner — plugin setup runs under it (see Plugin). */
+  owner: Owner | null
+  /**
+   * Run `fn` exactly once per context for a given `token` (a plugin or a symbol the
+   * author chooses). The home for a plugin's one-time, per-context setup — e.g. an
+   * XR plugin wiring its controller source on the first `onXRSelect` registration.
+   */
+  initializePlugin(token: unknown, fn: () => void): void
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
@@ -349,10 +422,10 @@ interface ThreeVectorRepresentation extends ThreeMathRepresentation {
 export type Representation<T> = T extends ThreeColor
   ? ConstructorParameters<typeof ThreeColor> | ColorRepresentation
   : T extends ThreeVectorRepresentation | ThreeLayers | ThreeEuler
-  ? T | Parameters<T["set"]> | number
-  : T extends ThreeMathRepresentation
-  ? T | Parameters<T["set"]>
-  : T
+    ? T | Parameters<T["set"]> | number
+    : T extends ThreeMathRepresentation
+      ? T | Parameters<T["set"]>
+      : T
 
 export type Vector2 = Representation<ThreeVector2>
 export type Vector3 = Representation<ThreeVector3>
@@ -376,9 +449,15 @@ export type Meta<T = unknown> = T & {
 
 /** Metadata of a `solid-three` instance. */
 export type Data<T> = {
-  props: Props<InstanceOf<T>>
+  props: BaseProps<InstanceOf<T>>
   parent: any
   children: Set<Meta<any>>
+  /**
+   * The context this element is rendered under (its mount-site `Context`), set by
+   * `useProps` for plugged elements. Plugin methods reach the store via
+   * `getMeta(element).ctx` — see {@link Plugin} / {@link Context.initializePlugin}.
+   */
+  ctx?: Context
 }
 
 /** Maps properties of given type to their `solid-three` representations. */
@@ -386,8 +465,13 @@ export type MapToRepresentation<T> = {
   [TKey in keyof T]: Representation<T[TKey]>
 }
 
-/** Generic `solid-three` props of a given class. */
-export type Props<T> = Partial<
+/**
+ * Generic `solid-three` props of a given class. Plugin-contributed props are NOT
+ * baked in here — they're intersected directly at the composition sites (`createT`
+ * proxy + `<Entity>`) via {@link PluginPropsOf}, which keeps `TPlugins` inferable at
+ * those sites (burying it in this `Overwrite` defeats inference — see notes).
+ */
+export type BaseProps<T> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,

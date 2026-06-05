@@ -5,6 +5,7 @@ import {
   createRenderEffect,
   createResource,
   createRoot,
+  getOwner,
   untrack,
   mergeProps,
   onCleanup,
@@ -351,9 +352,18 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const clock = new Clock()
   clock.start()
 
+  // Per-context dedup set for `initializePlugin` (private — exposed only via the method).
+  const initializedPlugins = new Set<unknown>()
+
   const context: Context = {
     get bounds() {
       return measure.bounds()
+    },
+    owner: getOwner(),
+    initializePlugin(token: unknown, fn: () => void) {
+      if (initializedPlugins.has(token)) return
+      initializedPlugins.add(token)
+      fn()
     },
     canvas,
     clock,

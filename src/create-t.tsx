@@ -1,6 +1,6 @@
 import { createMemo, type Component, type JSX } from "solid-js"
 import { useProps } from "./props.ts"
-import type { Props } from "./types.ts"
+import type { BaseProps, Plugin, Props } from "./types.ts"
 import { autodispose, meta } from "./utils.ts"
 
 /**********************************************************************************/
@@ -9,10 +9,14 @@ import { autodispose, meta } from "./utils.ts"
 /*                                                                                */
 /**********************************************************************************/
 
-export function createT<TCatalogue extends Record<string, unknown>>(catalogue: TCatalogue) {
+export function createT<
+  const TCatalogue extends Record<string, unknown>,
+  const TPlugins extends readonly Plugin[] = readonly Plugin[],
+>(catalogue: TCatalogue, plugins?: TPlugins) {
+  const pluginList: Plugin[] = plugins ? [...plugins] : []
   const cache = new Map<string, Component<any>>()
   return new Proxy<{
-    [K in keyof TCatalogue]: Component<Props<TCatalogue[K]>>
+    [K in keyof TCatalogue]: Component<Props<TCatalogue[K], TPlugins>>
   }>({} as any, {
     get: (_, name: string) => {
       /* Create and memoize a wrapper component for the specified property. */
@@ -24,7 +28,7 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
         if (!constructor) return undefined
 
         /* Otherwise, create and memoize a component for that constructor. */
-        cache.set(name, createEntity(constructor))
+        cache.set(name, createEntity(constructor, pluginList))
       }
 
       return cache.get(name)
@@ -41,8 +45,9 @@ export function createT<TCatalogue extends Record<string, unknown>>(catalogue: T
  */
 export function createEntity<TConstructor>(
   Constructor: TConstructor,
-): Component<Props<TConstructor>> {
-  return (props: Props<TConstructor>) => {
+  plugins: Plugin[] = [],
+): Component<BaseProps<TConstructor>> {
+  return (props: BaseProps<TConstructor>) => {
     const memo = createMemo(() => {
       // listen to key changes
       props.key
@@ -53,7 +58,9 @@ export function createEntity<TConstructor>(
         throw new Error("")
       }
     })
-    useProps(memo, props)
+    // Plugin methods are resolved once per element inside useProps, gated by
+    // plugins.length — a no-plugin namespace never touches the plugin path.
+    useProps(memo, props, undefined, plugins)
     return memo as unknown as JSX.Element
   }
 }

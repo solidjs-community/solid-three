@@ -11,7 +11,7 @@ import {
 import { Loader, Object3D } from "three"
 import { threeContext, useLoader, useThree, type UseLoaderOptions } from "./hooks.ts"
 import { useProps } from "./props.ts"
-import type { Constructor, LoaderData, LoaderUrl, Meta, Overwrite, Props } from "./types.ts"
+import type { BaseProps, Constructor, LoaderData, LoaderUrl, Meta, Plugin, Props } from "./types.ts"
 import { type InstanceOf } from "./types.ts"
 import { autodispose, hasMeta, isConstructor, meta, withContext, type LoadOutput } from "./utils.ts"
 
@@ -72,37 +72,39 @@ export function Portal<T extends Object3D>(props: PortalProps<T>) {
 /*                                                                                */
 /**********************************************************************************/
 
-type EntityProps<T extends object | Constructor<object>> = Overwrite<
-  [
-    Props<T>,
-    {
-      from: T | undefined
-      children?: JSXElement
-    },
-  ]
->
 /**
  * Wraps a `ThreeElement` and allows it to be used as a JSX-component within a `solid-three` scene.
  *
- * @function Entity
- * @template T - Extends `ThreeInstance`
- * @param props - The properties for the Three.js object including the object instance's methods,
- *                                    optional children, and a ref that provides access to the object instance.
- * @returns The Three.js object wrapped as a JSX element, allowing it to be used within Solid's component system.
+ * The `& PropsWithPlugins<T, TPlugins>` intersection + `const TPlugins` is what lets
+ * the JSX `plugins` array const-infer into a tuple, so a per-element plugin's
+ * contributed methods surface as typed (and enforced) props.
+ *
+ * @param props - The Three.js object's props (methods, children, ref) plus the
+ *                element-scoped `plugins` and their contributed props.
+ * @returns The Three.js object wrapped as a JSX element.
  */
-export function Entity<T extends object | Constructor<object>>(props: EntityProps<T>) {
-  const [config, rest] = splitProps(props, ["from", "args"])
+export function Entity<
+  const T extends object | Constructor<object> = object,
+  const TPlugins extends readonly Plugin[] = readonly Plugin[],
+>(
+  // PropsWithPlugins keeps PluginPropsOf a direct top-level intersection (not buried in
+  // Props's Overwrite) so TPlugins stays inferable from the JSX `plugins` prop.
+  props: { from: T; children?: JSXElement; plugins?: TPlugins } & Props<T, TPlugins>,
+) {
+  // `plugins` is split out of `rest` so it isn't applied to the three instance;
+  // its contributed methods are resolved once (gated) inside useProps.
+  const [config, rest] = splitProps(props as any, ["from", "args", "plugins"])
   const instance = createMemo(() => {
     const from = config.from
-    if (!from) return undefined
-    // track key changes to force reconstruction
-    props.key
-    return meta(
-      isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from,
-      { props },
-    ) as Meta<T>
+    if (!from)
+      return undefined
+      // track key changes to force reconstruction
+    ;(props as any).key
+    return meta(isConstructor(from) ? autodispose(new from(...(config.args ?? []))) : from, {
+      props,
+    }) as Meta<T>
   })
-  useProps(instance, rest)
+  useProps(instance, rest, undefined, config.plugins ? [...config.plugins] : [])
   return instance as unknown as JSX.Element
 }
 
@@ -116,7 +118,7 @@ type ResourceProps<TLoader extends Loader<object, any>> = UseLoaderOptions<
   TLoader,
   LoaderUrl<TLoader>
 > &
-  Omit<Props<LoaderData<TLoader>>, "children"> & {
+  Omit<BaseProps<LoaderData<TLoader>>, "children"> & {
     loader: Constructor<TLoader>
     url: LoaderUrl<TLoader>
     children?: (result: Accessor<LoadOutput<TLoader, LoaderUrl<TLoader>>>) => JSXElement
