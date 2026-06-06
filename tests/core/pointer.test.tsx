@@ -167,7 +167,7 @@ describe("Pointer capture lifecycle", () => {
     const sink = spySink()
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
 
-    pointer.capture(mesh, { point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    pointer.capture(mesh, { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
     expect(sink.capture).toHaveBeenCalledTimes(1)
     expect(pointer.hasCaptured(mesh)).toBe(true)
 
@@ -181,7 +181,7 @@ describe("Pointer capture lifecycle", () => {
     const sink = spySink()
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
 
-    pointer.capture(mesh, { point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    pointer.capture(mesh, { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
     pointer.dropCapture()
     expect(pointer.hasCaptured(mesh)).toBe(false)
     expect(sink.release).not.toHaveBeenCalled()
@@ -192,6 +192,77 @@ describe("Pointer capture lifecycle", () => {
     const pointer = new Pointer(ctx([]), fakeRaycaster({}), sink)
     pointer.capture(null as any, {} as any)
     expect(sink.capture).not.toHaveBeenCalled()
+  })
+
+  it("swallows a sink capture error and rolls back instead of surfacing it", () => {
+    const mesh = eventful({})
+    const sink = {
+      capture: vi.fn(() => {
+        throw new DOMException("pointer not active", "InvalidStateError")
+      }),
+      release: vi.fn(),
+    }
+    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+    expect(() =>
+      pointer.capture(mesh, {
+        object: mesh,
+        point: new Vector3(),
+        face: { normal: new Vector3(0, 0, 1) },
+      } as any),
+    ).not.toThrow()
+    expect(sink.capture).toHaveBeenCalledTimes(1)
+    expect(pointer.hasCaptured(mesh)).toBe(false) // rolled back, capture didn't engage
+  })
+
+  it("orients the drag plane with the hit leaf's transform, not event.element's", () => {
+    // Capture from a parent `element` while the hit leaf is a child rotated 90° about
+    // Y, so its local +Z face normal maps to world +X — the drag plane is x=0 (yz).
+    // The old code used `element`'s identity matrix → a z=0 plane.
+    let point: Vector3 | undefined
+    const element = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
+    const hitLeaf = new Object3D()
+    hitLeaf.rotation.y = Math.PI / 2
+    hitLeaf.updateMatrixWorld()
+    const raycaster: PointerRaycaster = {
+      cast: () => [],
+      intersectObject: () => [],
+      aim: () => {},
+      ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
+    }
+    const pointer = new Pointer(ctx([element]), raycaster)
+    pointer.capture(element, {
+      object: hitLeaf,
+      point: new Vector3(),
+      face: { normal: new Vector3(0, 0, 1) },
+    } as any)
+    pointer.move(new Event("pointermove")) // captured → reproject onto the plane
+
+    // x=0 plane: ray (2,1,0)+t(-1,0,0) crosses at (0,1,0) → y === 1.
+    // The buggy z=0 plane is parallel to this ray → fallback to the grab point → y === 0.
+    expect(point?.y).toBeCloseTo(1)
+  })
+
+  it("does not fire onPointerLeave while captured; leave resumes after release", () => {
+    const move = vi.fn()
+    const leave = vi.fn()
+    const mesh = eventful({
+      onPointerDown: (e: any) => e.setPointerCapture(),
+      onPointerMove: move,
+      onPointerLeave: leave,
+    })
+    const state: RayState = { target: mesh as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
+
+    pointer.move(new Event("pointermove")) // hover onto the mesh
+    pointer.down(new Event("pointerdown")) // captures it
+    state.target = undefined // ray now off everything
+    pointer.move(new Event("pointermove")) // captured move — hover is frozen
+    expect(move).toHaveBeenCalled()
+    expect(leave).not.toHaveBeenCalled() // no leave while captured
+
+    pointer.release()
+    pointer.move(new Event("pointermove")) // not captured; ray off → leave the still-hovered mesh
+    expect(leave).toHaveBeenCalledTimes(1)
   })
 
   it("delivers onPointerUp exclusively to the captured object after the ray moves off it", () => {

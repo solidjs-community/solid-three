@@ -57,11 +57,22 @@ export function createThreeEvent<
 /** The OS-level half of pointer capture, injected per source (DOM canvas vs XR). */
 export type PointerCaptureSink = { capture(): void; release(): void }
 
-/**
- * A held capture: the grabbed object, the drag plane the live ray reprojects onto,
- * and the original hit (kept for its `face`/`uv`/`instanceId` while dragging).
- */
-type Captured = { object: Object3D; plane: Plane; intersection: Intersection }
+/** A held pointer capture. */
+interface Captured {
+  /**
+   * The captured target — the node whose handler called `setPointerCapture`
+   * (`event.element`). Captured move/up deliver exclusively to its chain; may be
+   * an ancestor of the hit leaf.
+   */
+  element: Object3D
+  /** The drag plane the live ray reprojects onto each move. */
+  plane: Plane
+  /**
+   * The original hit. Its `point` seeds the plane, and its
+   * `face`/`uv`/`instanceId`/`object` (the hit leaf) carry through while dragging.
+   */
+  intersection: Intersection
+}
 
 /**
  * One pointer's dispatch + per-pointer state, decoupled from the DOM. A
@@ -88,33 +99,39 @@ export class Pointer {
 
   /** Whether this pointer currently holds `object` captured. */
   hasCaptured(object: Object3D): boolean {
-    return this.captured?.object === object
+    return this.captured?.element === object
   }
 
   /**
-   * Capture this pointer to `object`: build the drag plane from the hit point and
-   * world-space normal (camera-facing if the hit has no face), then engage the
-   * OS sink. Subsequent move/up reproject the live ray onto this plane and deliver
-   * exclusively to `object`'s chain until released. A nullish `object` (the
+   * Capture this pointer to `element` (the node whose handler called
+   * `setPointerCapture`): build the drag plane from the hit point and world-space
+   * normal (camera-facing if the hit has no face), then engage the OS sink.
+   * Subsequent move/up reproject the live ray onto this plane and deliver
+   * exclusively to `element`'s chain until released. A nullish `element` (the
    * canvas-level dispatch has no `event.element`) is a no-op.
+   *
+   * The face normal is expressed in the hit leaf's local space, so it's oriented
+   * with `intersection.object`'s world matrix — which differs from `element` when
+   * a handler on an ancestor captures.
    */
-  capture(object: Object3D | null | undefined, intersection: Intersection) {
-    if (!object) return
+  capture(element: Object3D | null | undefined, intersection: Intersection) {
+    if (!element) return
     const normal = new Vector3()
     if (intersection.face) {
-      normal.copy(intersection.face.normal).transformDirection(object.matrixWorld)
+      normal.copy(intersection.face.normal).transformDirection(intersection.object.matrixWorld)
     } else {
       this.context.camera.getWorldDirection(normal).negate()
     }
     const plane = new Plane().setFromNormalAndCoplanarPoint(normal, intersection.point)
-    this.captured = { object, plane, intersection }
-    // Engage OS capture only after state is set; if it throws (e.g. the pointer
-    // isn't active), roll back so capture state never outlives a failed sink.
+    this.captured = { element, plane, intersection }
+    // Engage the OS sink only after state is set. If it throws — e.g. the pointer
+    // isn't in an active-buttons state (a hover move with no button down) — roll
+    // back so capture never outlives a failed sink, and swallow the platform error
+    // rather than surfacing it into the user's handler.
     try {
       this.sink?.capture()
-    } catch (error) {
+    } catch {
       this.captured = null
-      throw error
     }
   }
 
@@ -267,7 +284,7 @@ export class Pointer {
       const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
       if (extra) Object.assign(event, extra)
       if (capturable) this.attachCapture(event)
-      this.bubble(event, handler, [[intersection, captured.object]])
+      this.bubble(event, handler, [[intersection, captured.element]])
       return
     }
 
