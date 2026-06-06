@@ -623,7 +623,7 @@ describe("pointer capture", () => {
     expect(onMove).not.toHaveBeenCalled()
   })
 
-  it("releases capture when the captured mesh unmounts mid-drag (no dispatch to a detached node)", () => {
+  it("releases capture when the captured mesh unmounts mid-drag (no dispatch to a detached node)", async () => {
     const onMove = vi.fn()
     const [show, setShow] = createSignal(true)
     const { canvas } = test(() => (show() ? <CapturingMesh onMove={onMove} /> : null))
@@ -633,10 +633,36 @@ describe("pointer capture", () => {
     fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // captured move reaches the mesh
     expect(onMove).toHaveBeenCalledTimes(1)
 
-    setShow(false) // unmount mid-drag → registry removal releases the capture
+    setShow(false) // unmount mid-drag → registry removal schedules the release
+    await Promise.resolve() // the release is deferred a microtask (drains before the next real event)
 
     fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y))
     expect(onMove).toHaveBeenCalledTimes(1) // no further dispatch to the detached mesh
+  })
+
+  it("keeps capture when a reactive handler re-registers mid-drag (not a real removal)", async () => {
+    const onMove = vi.fn()
+    const [flip, setFlip] = createSignal(false)
+    // The mesh's ONLY listener is a reactive onPointerMove (reads `flip()`, so flipping
+    // re-registers it: refcount 1 → 0 → 1 in one tick). It captures itself on first move.
+    const { canvas } = test(() => (
+      <T.Mesh
+        onPointerMove={(flip(), (e: any) => (e.setPointerCapture(), onMove(e)))}
+      >
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointermove", HIT_X, HIT_Y)) // captures the mesh
+    expect(onMove).toHaveBeenCalledTimes(1)
+
+    setFlip(true) // re-registers the only handler — must NOT drop the live capture
+    await Promise.resolve() // drain the deferred release check (object was re-added → skip)
+
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // off the mesh
+    expect(onMove).toHaveBeenCalledTimes(2) // still captured → second move reaches it
   })
 })
 

@@ -58,9 +58,14 @@ export function createEvents(context: Context) {
         refCounts.delete(object)
         const index = context.eventRegistry.indexOf(object)
         if (index !== -1) context.eventRegistry.splice(index, 1)
-        // The object is gone (unmount / last handler removed) — drop any active
-        // capture targeting it so a drag stops dispatching to a detached node.
-        manager.releaseCaptured(object)
+        // Drop any active capture on a gone object so a drag stops dispatching to a
+        // detached node. But a *reactive* handler (e.g. `onPointerMove={dragging() ?
+        // a : b}`) re-registers in the same tick — cleanup (refcount → 0) then body
+        // (→ 1) — which must NOT tear down a live capture mid-drag. Defer, and
+        // release only if the object is still gone (a real unmount), not re-added.
+        queueMicrotask(() => {
+          if (!refCounts.has(object)) manager.releaseCaptured(object)
+        })
       } else {
         refCounts.set(object, current - 1)
       }
