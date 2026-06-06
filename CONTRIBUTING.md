@@ -26,6 +26,31 @@ if (context.gl.xr) {
 Use full names: `raycaster`, not `rc`. When a name shadows an outer scope,
 prefix with `_` to disambiguate (`_raycaster`).
 
+## Architecture
+
+### Factories (`create*`) vs. classes
+
+The rule: `create*` functions are the Solid-facing glue; classes are the
+framework-agnostic core. They never overlap — a `create*` function holds Solid
+reactivity, a class holds none.
+
+- **`create*` factories** (`createThree`, `createEvents`, `createXR`, `createT`)
+  follow Solid's `createSignal`/`createStore` convention: they run synchronously
+  inside a reactive owner and wire up `onCleanup`, effects, and context. Reach for
+  one whenever setup must bind to the reactive scope.
+- **Classes** (`Pointer`, `DOMPointerManager`, the `*Raycaster`s, the data
+  structures) carry no Solid reactivity. Use a class for long-lived,
+  identity-bearing state behind a method API — especially when it must subclass a
+  three.js type (`extends Raycaster`), swap behind an interface
+  (`implements ScreenRaycaster`), or be `new`'d many times.
+
+Keep the core in classes so it stays unit-testable without a reactive runtime:
+tests `new Pointer(...)` with a fake raycaster — no `Canvas`, no owner. The
+`create*` layer is the thin seam that instantiates those classes inside Solid.
+
+(`createThreeEvent` is the lone lowercase "value factory": it returns a plain,
+spreadable event object, not a reactive primitive.)
+
 ## Tooling
 
 ### Package Management
