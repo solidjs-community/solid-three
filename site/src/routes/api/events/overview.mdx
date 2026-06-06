@@ -38,8 +38,9 @@ Every handler receives one event argument that combines the original DOM event w
 | `nativeEvent` | `MouseEvent \| PointerEvent \| WheelEvent` | always | The original DOM event that triggered the handler. |
 | `intersections` | `Intersection[]` | events that raycast | All hit intersections, sorted nearest-first. |
 | `intersection` | `Intersection` | events that raycast | Shorthand for `intersections[0]` — the closest hit overall. |
+| `object` | `Object3D` | events that raycast | The closest hit object (`intersections[0].object`) — stable after dispatch, the 3D analogue of a DOM event's `target`. |
 | `currentIntersection` | `Intersection` | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch. |
-| `element` | `Object3D` | inside an object handler | The node this handler is attached to. As the event bubbles, `element` walks up the ancestor chain while `currentIntersection` stays on the hit object. Absent on canvas-level dispatch. |
+| `currentObject` | `Object3D` | inside an object handler | The object this handler is firing on; as the event bubbles it walks up the ancestor chain (while `currentIntersection` stays on the hit) and is cleared after dispatch — the 3D analogue of a DOM event's `currentTarget`. |
 | `stopped` | `boolean` | stoppable events only | Whether `stopPropagation()` has been called. |
 | `stopPropagation` | `() => void` | stoppable events only | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events). |
 
@@ -93,7 +94,7 @@ This extra detail is what lets you go beyond "did they click it?". A few of the 
 The event object is created once per dispatch and **reused** as it bubbles up the chain — the same object is passed to every handler, just like a DOM event. Two things follow from that:
 
 - **Treat it as read-only.** `intersection`, `intersections`, and the rest are shared scene data, not per-handler copies. Mutating them affects the other handlers in the same dispatch (and, while a pointer is captured, persists across moves). Read from the event; don't write to it.
-- **`setPointerCapture()` must be called synchronously**, inside the handler. It captures `event.element` (the node currently firing), which is cleared once the dispatch finishes — so calling it later (after an `await`, a timer, etc.) is a no-op. Start a capture in the handler itself: in `onPointerDown`, or in `onPointerMove` once you've crossed a drag threshold.
+- **`setPointerCapture()` captures `event.currentObject`** (the object currently firing), which is cleared after dispatch — so the no-arg form must be called synchronously in the handler. To start a capture later (after an `await`, a timer), pass the object explicitly: `setPointerCapture(mesh)`. (With no live hit, a deferred capture drags on a camera-facing plane through the object's center.)
 
 ## Reading the full hit stack
 
@@ -228,13 +229,13 @@ Pointer capture fixes this. Inside an `onPointerDown`, `onPointerMove`, or `onPo
 
 | Method | Description |
 | --- | --- |
-| `setPointerCapture()` | Capture this pointer to `event.element` (the node the handler is firing on). |
+| `setPointerCapture(target?)` | Capture the pointer to `target`, or — with no argument — `event.currentObject` (the firing object; sync-only). |
 | `releasePointerCapture()` | Release a capture started with `setPointerCapture()`. |
 | `hasPointerCapture()` | Whether this event's node currently holds the capture. |
 
 Once captured, every subsequent `onPointerMove` and `onPointerUp` for that pointer is delivered **exclusively** to the captured node's chain — still bubbling up to the canvas-level handler, but no longer raycasting against the rest of the scene. Delivery continues even when the pointer is off the object, and (for the DOM pointer source) off the canvas. Hover is frozen for the duration: no enter/leave fires while a capture is held.
 
-Capture is **element-scoped** — you capture the node whose handler is running. Calling `setPointerCapture()` from a canvas-level handler is a no-op, because there is no `element` there.
+Capture is **object-scoped** — the no-arg form captures the object whose handler is running, so calling it from a canvas-level handler is a no-op (there's no `currentObject` there). Pass an explicit `target` to capture any object, including later/async.
 
 While the pointer is off the ray, `event.intersection` is reprojected onto a plane through the original grab point, so `event.intersection.point` keeps tracking a sensible world-space position to drag toward.
 
