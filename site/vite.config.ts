@@ -46,8 +46,23 @@ export default defineConfig({
   // them; they're already ESM. Everything that imports `three` resolves to the
   // same excluded copy, so there's still a single three instance.
   optimizeDeps: {
-    exclude: [
+    // The code-editor in <Demo> (lazy-loaded) statically imports `@bigmistqke/repl`
+    // and dynamically imports `tm-textarea/solid`, so Vite doesn't see them at
+    // startup — it discovers them on first demo mount, re-optimizes, and forces a
+    // full reload mid-session. Pre-bundle them up front so that cost is paid once.
+    include: [
+      "@bigmistqke/repl",
+      "tm-textarea/solid",
+      // Pulled transitively by the editor, also behind dynamic imports.
+      "@bigmistqke/solid-whenever",
+      "@solid-primitives/resize-observer",
+      // Pre-bundle three up front. Excluding it meant every import was served
+      // raw and run through vite-plugin-solid's Babel on demand — which chokes on
+      // the 1MB three.module.js. Pre-bundling (esbuild) skips that transform and
+      // pays the cost once at startup instead of mid-session.
       "three",
+    ],
+    exclude: [
       "cannon-es",
       "three/examples/jsm/environments/RoomEnvironment.js",
       "three/examples/jsm/geometries/TextGeometry.js",
