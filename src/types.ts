@@ -274,13 +274,33 @@ type PluginReturn<TKind, TPlugin> =
     : {}
 
 /**
- * An element's full prop type: its base {@link BaseProps} plus the props contributed by
- * `TPlugins` for this element class. `PluginPropsOf` is intersected DIRECTLY (a plain
- * top-level intersection, not nested in `Props`'s `Overwrite`) so `TPlugins` stays
- * inferable at the JSX/usage site — see the inference notes. Used by `createT`'s
+ * Base keys to drop from {@link Props} so a contributed prop *overrides* a native member
+ * of the same name (a plugin intercepts the prop at runtime, so its type must replace the
+ * native one, not intersect with it — `nativeMethod & V` is satisfiable by nothing).
+ *
+ * Guarded for the no-plugins case: when no specific plugins are inferred, `TPlugins` is the
+ * loose default `readonly Plugin[]` whose `length` is `number` (not a literal). There's no
+ * contribution to key off, and `keyof PluginPropsOf<…, Plugin[]>` would be every key — so
+ * yield `never` (drop nothing). Only a real inferred tuple (literal `length`, e.g. from an
+ * inline or `const` plugin array) contributes keys. A pre-typed `Plugin[]` variable still
+ * reads as loose, so its overrides fall back to the (harmless) intersection.
+ */
+type ContributedKeys<T, TPlugins extends readonly Plugin[]> = number extends TPlugins["length"]
+  ? never
+  : keyof PluginPropsOf<InstanceOf<T>, TPlugins>
+
+/**
+ * An element's full prop type: its base {@link BaseProps} with the props contributed by
+ * `TPlugins` for this element class layered on top — contributed props override native
+ * members of the same name (see {@link ContributedKeys}). `PluginPropsOf` is intersected
+ * DIRECTLY in the second half (a plain top-level intersection, not nested) so `TPlugins`
+ * stays inferable at the JSX/usage site — see the inference notes. Used by `createT`'s
  * element proxy and `<Entity>`.
  */
-export type Props<T, TPlugins extends readonly Plugin[]> = BaseProps<T> &
+export type Props<T, TPlugins extends readonly Plugin[]> = Omit<
+  BaseProps<T>,
+  ContributedKeys<T, TPlugins>
+> &
   Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
 
 /** Resolves the contributed props for element type `TKind` across `TPlugins`. */
