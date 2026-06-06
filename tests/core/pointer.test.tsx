@@ -132,6 +132,28 @@ describe("Pointer dispatch", () => {
     expect(childBDown).toHaveBeenCalledTimes(1)
     expect(groupDown).toHaveBeenCalledTimes(1) // shared ancestor fires once, not per-hit
   })
+
+  it("move stops a deeper hit when a closer onPointerMove stops propagation", () => {
+    const frontMove = vi.fn((event: any) => event.stopPropagation())
+    const backMove = vi.fn()
+    const front = eventful({ onPointerMove: frontMove })
+    const back = eventful({ onPointerMove: backMove })
+    // Two stacked hits along the ray; the closer one stops propagation.
+    const raycaster = {
+      cast: () => [
+        { object: front, distance: 1, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+        { object: back, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+      ],
+      intersectObject: () => [],
+      aim: () => {},
+      ray: new Ray(),
+    } as any as PointerRaycaster
+    const pointer = new Pointer(ctx([front, back]), raycaster)
+
+    pointer.move(new Event("pointermove"))
+    expect(frontMove).toHaveBeenCalledTimes(1)
+    expect(backMove).not.toHaveBeenCalled() // stop halts the deeper hit too
+  })
 })
 
 // A minimal capture sink that records calls.

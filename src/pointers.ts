@@ -183,26 +183,11 @@ export class Pointer {
     // drag by calling `setPointerCapture()` from here.
     const moveEvent: any = createThreeEvent(nativeEvent, { intersections })
     this.attachCapture(moveEvent)
-    const moved = new Set<Object3D>()
-    for (const intersection of intersections) {
-      moveEvent.currentIntersection = intersection
-      let current: Object3D | null = intersection.object
-      while (current && !moved.has(current)) {
-        moved.add(current)
-        const meta = getMeta(current)
-        if (meta) {
-          moveEvent.element = current
-          ;(meta.props as any).onPointerMove?.(moveEvent)
-          if (moveEvent.stopped) break
-        }
-        current = current.parent
-      }
-    }
-    if (!moveEvent.stopped) {
-      delete moveEvent.currentIntersection
-      moveEvent.element = undefined
-      props.onPointerMove?.(moveEvent)
-    }
+    this.bubble(
+      moveEvent,
+      "onPointerMove",
+      intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
+    )
 
     // Phase #3 — Leave (objects hovered last time but not now).
     const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
