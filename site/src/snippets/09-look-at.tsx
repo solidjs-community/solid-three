@@ -1,6 +1,6 @@
-import * as THREE from "three"
 import { createSignal, For } from "solid-js"
 import { Canvas, createT, plugin } from "solid-three"
+import * as THREE from "three"
 
 // A plugin: every Object3D gains a `lookAt` prop that calls three's `lookAt()`.
 const lookAt = plugin([THREE.Object3D], object => ({
@@ -9,9 +9,10 @@ const lookAt = plugin([THREE.Object3D], object => ({
 
 const T = createT(THREE, [lookAt])
 
-// One cone geometry, rotated so its tip points along -Z — the axis `lookAt` aims.
+// One cone geometry, rotated so its tip points along +Z — a Mesh's lookAt()
+// aims +Z at the target (cameras/lights aim -Z; meshes are the opposite).
 const cone = new THREE.ConeGeometry(0.18, 0.7, 24)
-cone.rotateX(-Math.PI / 2)
+cone.rotateX(Math.PI / 2)
 
 // A 5×5 grid of cone positions in the XY-plane.
 const positions: [number, number, number][] = []
