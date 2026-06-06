@@ -88,6 +88,13 @@ This extra detail is what lets you go beyond "did they click it?". A few of the 
 - `normal` — align a world-space gizmo to the surface;
 - `distance` — react to how far away the hit is.
 
+### Reading the event
+
+The event object is created once per dispatch and **reused** as it bubbles up the chain — the same object is passed to every handler, just like a DOM event. Two things follow from that:
+
+- **Treat it as read-only.** `intersection`, `intersections`, and the rest are shared scene data, not per-handler copies. Mutating them affects the other handlers in the same dispatch (and, while a pointer is captured, persists across moves). Read from the event; don't write to it.
+- **`setPointerCapture()` must be called synchronously**, inside the handler. It captures `event.element` (the node currently firing), which is cleared once the dispatch finishes — so calling it later (after an `await`, a timer, etc.) is a no-op. Start a capture in the handler itself: in `onPointerDown`, or in `onPointerMove` once you've crossed a drag threshold.
+
 ## Reading the full hit stack
 
 Most handlers care only about the nearest hit, which is what `intersection` resolves to. For x-ray tools, measure-through-walls, or click-through selection, `intersections` is sorted nearest-first:
