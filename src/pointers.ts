@@ -239,13 +239,16 @@ export class Pointer {
    * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
    * `[intersection, root]` pairs the starting node (`root`) with the intersection to
    * expose while walking it: the captured path passes a single pair rooted at the
-   * captured object, the normal path one pair per hit.
+   * captured object, the normal path one pair per hit. A node shared by several hits
+   * fires once (the closest hit's chain reaches it first), matching `move`/`click`.
    */
   private bubble(event: any, handler: string, roots: Array<[Intersection, Object3D]>) {
+    const visited = new Set<Object3D>()
     for (const [intersection, root] of roots) {
       event.currentIntersection = intersection
       let node: Object3D | null = root
-      while (node && !event.stopped) {
+      while (node && !event.stopped && !visited.has(node)) {
+        visited.add(node)
         event.element = node
         ;(getMeta(node)?.props as any)?.[handler]?.(event)
         node = node.parent

@@ -105,6 +105,33 @@ describe("Pointer dispatch", () => {
     expect(seen[1].element).toBe(parent) // bubbled handler on parent sees parent
     expect(seen.every(s => s.k === 42)).toBe(true) // extra merged onto every dispatch
   })
+
+  it("dispatch fires a shared ancestor once when two hits bubble through it", () => {
+    const groupDown = vi.fn()
+    const childADown = vi.fn()
+    const childBDown = vi.fn()
+    const group = eventful({ onPointerDown: groupDown })
+    const childA = eventful({ onPointerDown: childADown })
+    const childB = eventful({ onPointerDown: childBDown })
+    ;(childA as any).parent = group
+    ;(childB as any).parent = group
+    // Both children are hit along the ray; their chains share `group`.
+    const raycaster = {
+      cast: () => [
+        { object: childA, distance: 1, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+        { object: childB, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+      ],
+      intersectObject: () => [],
+      aim: () => {},
+      ray: new Ray(),
+    } as any as PointerRaycaster
+    const pointer = new Pointer(ctx([childA, childB]), raycaster)
+
+    pointer.down(new Event("pointerdown"))
+    expect(childADown).toHaveBeenCalledTimes(1) // each distinct hit still fires
+    expect(childBDown).toHaveBeenCalledTimes(1)
+    expect(groupDown).toHaveBeenCalledTimes(1) // shared ancestor fires once, not per-hit
+  })
 })
 
 // A minimal capture sink that records calls.
