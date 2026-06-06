@@ -19,6 +19,10 @@ type RayEvent = PointerEvent | MouseEvent | WheelEvent
 export class DOMPointerManager {
   private pointers = new Map<number, Pointer>()
   private primary: Pointer
+  /** Pointers that moved while captured this gesture — i.e. dragged. */
+  private dragged = new Set<number>()
+  /** A captured drag just ended; swallow its trailing click/dblclick/contextmenu. */
+  private suppressClick = false
 
   constructor(
     private context: Context,
@@ -66,15 +70,24 @@ export class DOMPointerManager {
 
     const onMove = (event: PointerEvent) => {
       aim(event)
-      this.forId(event.pointerId).move(event)
+      const pointer = this.forId(event.pointerId)
+      // Captured before this move → the pointer moved while captured: a drag.
+      if (pointer.capturing) this.dragged.add(event.pointerId)
+      pointer.move(event)
     }
     const onDown = (event: PointerEvent) => {
       aim(event)
+      // A fresh press starts a new gesture — re-arm clicks.
+      this.suppressClick = false
+      this.dragged.delete(event.pointerId)
       this.forId(event.pointerId).down(event)
     }
     const onUp = (event: PointerEvent) => {
       aim(event)
       this.forId(event.pointerId).up(event)
+      // A drag isn't a click: a gesture that moved while captured swallows the
+      // click/dblclick/contextmenu the browser synthesizes after this pointerup.
+      if (this.dragged.delete(event.pointerId)) this.suppressClick = true
       // A lifted touch no longer exists — leave + drop it so it keeps no state.
       // No explicit capture release needed: the browser auto-released on pointerup
       // (firing lostpointercapture), and the dropped Pointer is unreachable anyway.
@@ -87,17 +100,21 @@ export class DOMPointerManager {
       // Always fire the canvas-level leave (a fresh pointer's leave does that even
       // with nothing hovered), matching the old per-session leave behavior.
       this.forId(event.pointerId).leave(event)
+      this.dragged.delete(event.pointerId) // a cancel ends the gesture without a click
       this.pointers.delete(event.pointerId)
     }
     const onClick = (event: MouseEvent) => {
+      if (this.suppressClick) return // trailing click of a captured drag
       aim(event)
       this.primary.click("onClick", event)
     }
     const onDoubleClick = (event: MouseEvent) => {
+      if (this.suppressClick) return
       aim(event)
       this.primary.click("onDoubleClick", event)
     }
     const onContextMenu = (event: MouseEvent) => {
+      if (this.suppressClick) return
       aim(event)
       this.primary.click("onContextMenu", event)
     }

@@ -102,6 +102,11 @@ export class Pointer {
     return this.captured?.element === object
   }
 
+  /** Whether this pointer currently holds any capture. */
+  get capturing(): boolean {
+    return this.captured != null
+  }
+
   /**
    * Capture this pointer to `element` (the node whose handler called
    * `setPointerCapture`): build the drag plane from the hit point and world-space

@@ -664,6 +664,42 @@ describe("pointer capture", () => {
     fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // off the mesh
     expect(onMove).toHaveBeenCalledTimes(2) // still captured → second move reaches it
   })
+
+  const clickAt = (x: number, y: number) =>
+    new MouseEvent("click", { clientX: x, clientY: y, bubbles: true })
+
+  /** Captures on pointerdown and reports clicks. */
+  const Draggable = (props: { onClick?: (e: any) => void }) => (
+    <T.Mesh onPointerDown={(e: any) => e.setPointerCapture()} onClick={(e: any) => props.onClick?.(e)}>
+      <T.BoxGeometry args={[2, 2]} />
+      <T.MeshBasicMaterial />
+    </T.Mesh>
+  )
+
+  it("a captured drag suppresses the trailing click (a drag isn't a click)", () => {
+    const onClick = vi.fn()
+    const { canvas } = test(() => <Draggable onClick={onClick} />)
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures
+    fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y)) // moved while captured → dragged
+    fireEvent(canvas, pointerAt("pointerup", MISS_X, MISS_Y))
+    fireEvent(canvas, clickAt(MISS_X, MISS_Y)) // browser-synthesized click
+
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it("a captured press that doesn't move still clicks", () => {
+    const onClick = vi.fn()
+    const { canvas } = test(() => <Draggable onClick={onClick} />)
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures, no move
+    fireEvent(canvas, pointerAt("pointerup", HIT_X, HIT_Y))
+    fireEvent(canvas, clickAt(HIT_X, HIT_Y))
+
+    expect(onClick).toHaveBeenCalledTimes(1) // a tap, not a drag
+  })
 })
 
 /**********************************************************************************/
