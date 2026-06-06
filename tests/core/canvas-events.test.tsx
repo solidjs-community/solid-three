@@ -2,7 +2,7 @@ import { fireEvent } from "@solidjs/testing-library"
 import { createSignal } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
-import { createT } from "../../src/index.ts"
+import { createT, hasPointerCapture } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
 const T = createT(THREE)
@@ -699,6 +699,37 @@ describe("pointer capture", () => {
     fireEvent(canvas, clickAt(HIT_X, HIT_Y))
 
     expect(onClick).toHaveBeenCalledTimes(1) // a tap, not a drag
+  })
+
+  it("hasPointerCapture(object) reactively drives a prop binding (the demo pattern)", async () => {
+    // A signal ref, so the binding re-subscribes once the mesh mounts — refs flow
+    // bottom-up, so a plain `let` ref read by a child/descendant would still be
+    // undefined when that binding first runs.
+    const [mesh, setMesh] = createSignal<THREE.Mesh>()
+    const { canvas } = test(() => (
+      <T.Mesh
+        ref={setMesh}
+        visible={hasPointerCapture(mesh())}
+        onPointerDown={(e: any) => e.setPointerCapture()}
+      >
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    ))
+    vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
+    await Promise.resolve() // let the ref land and the binding take its first read
+
+    const before = mesh()?.visible
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures → true
+    await Promise.resolve()
+    const during = mesh()?.visible
+    fireEvent(canvas, pointerAt("pointerup", HIT_X, HIT_Y))
+    // The browser auto-releases on pointerup, firing lostpointercapture → false.
+    fireEvent(canvas, new PointerEvent("lostpointercapture", { pointerId: 1, bubbles: true }))
+    await Promise.resolve()
+    const after = mesh()?.visible
+
+    expect({ before, during, after }).toEqual({ before: false, during: true, after: false })
   })
 })
 

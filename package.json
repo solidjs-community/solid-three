@@ -77,6 +77,7 @@
   },
   "dependencies": {
     "@bigmistqke/solid-whenever": "^0.1.0",
+    "@solid-primitives/map": "^0.7.3",
     "@solid-primitives/resize-observer": "^2.0.25",
     "debounce": "^2.1.0",
     "vite-tsconfig-paths": "^5.1.4"

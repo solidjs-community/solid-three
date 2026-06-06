@@ -1,5 +1,5 @@
 import { Vector2, type Object3D } from "three"
-import { Pointer } from "./pointers.ts"
+import { Pointer, type PointerCaptureRegistry } from "./pointers.ts"
 import type { ScreenRaycaster } from "./raycasters.tsx"
 import type { Context } from "./types.ts"
 
@@ -27,8 +27,9 @@ export class DOMPointerManager {
   constructor(
     private context: Context,
     private raycaster: ScreenRaycaster,
+    private captureRegistry?: PointerCaptureRegistry,
   ) {
-    this.primary = new Pointer(context, raycaster)
+    this.primary = new Pointer(context, raycaster, undefined, captureRegistry)
   }
 
   /**
@@ -47,12 +48,17 @@ export class DOMPointerManager {
     let pointer = this.pointers.get(id)
     if (!pointer) {
       const canvas = this.context.canvas
-      pointer = new Pointer(this.context, this.raycaster, {
-        capture: () => canvas.setPointerCapture(id),
-        release: () => {
-          if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id)
+      pointer = new Pointer(
+        this.context,
+        this.raycaster,
+        {
+          capture: () => canvas.setPointerCapture(id),
+          release: () => {
+            if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id)
+          },
         },
-      })
+        this.captureRegistry,
+      )
       this.pointers.set(id, pointer)
     }
     return pointer

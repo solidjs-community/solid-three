@@ -58,6 +58,18 @@ export function createThreeEvent<
 /** The OS-level half of pointer capture, injected per source (DOM canvas vs XR). */
 export type PointerCaptureSink = { capture(): void; release(): void }
 
+/**
+ * A sink for capture-membership changes, injected by the Solid layer so this
+ * framework-agnostic class can feed a reactive `hasPointerCapture(object)` without
+ * importing any reactivity. `add` runs on a successful capture, `delete` on
+ * release/drop; the implementation refcounts (one object can be captured by more
+ * than one pointer).
+ */
+export interface PointerCaptureRegistry {
+  add(object: Object3D): void
+  delete(object: Object3D): void
+}
+
 /** A held pointer capture. */
 interface Captured {
   /**
@@ -96,6 +108,7 @@ export class Pointer {
     private context: Context,
     private raycaster: PointerRaycaster,
     private sink?: PointerCaptureSink,
+    private captureRegistry?: PointerCaptureRegistry,
   ) {}
 
   /** Whether this pointer currently holds `object` captured. */
@@ -138,18 +151,25 @@ export class Pointer {
       this.sink?.capture()
     } catch {
       this.captured = null
+      return
     }
+    // Record only a capture that actually took, so the reactive mirror never
+    // reports a rolled-back one.
+    this.captureRegistry?.add(element)
   }
 
   /** Release a held capture and notify the OS sink. Idempotent. */
   release() {
     if (!this.captured) return
+    this.captureRegistry?.delete(this.captured.element)
     this.captured = null
     this.sink?.release()
   }
 
   /** Clear capture state only, without notifying the sink (the OS already released). */
   dropCapture() {
+    if (!this.captured) return
+    this.captureRegistry?.delete(this.captured.element)
     this.captured = null
   }
 

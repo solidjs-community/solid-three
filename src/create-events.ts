@@ -1,5 +1,6 @@
 import { onCleanup } from "solid-js"
 import { Object3D } from "three"
+import { captureRegistry } from "./pointer-capture.ts"
 import { DOMPointerManager } from "./pointer-managers.ts"
 import { CursorRaycaster, type ScreenRaycaster } from "./raycasters.tsx"
 import type { Context, EventName, Meta } from "./types.ts"
@@ -40,7 +41,7 @@ export function createEvents(context: Context) {
     "setCursor" in candidate && "cast" in candidate
       ? (candidate as ScreenRaycaster)
       : new CursorRaycaster()
-  const manager = new DOMPointerManager(context, screenRaycaster)
+  const manager = new DOMPointerManager(context, screenRaycaster, captureRegistry)
   // Remove the canvas listeners when the Canvas owner disposes.
   onCleanup(manager.connect())
 
