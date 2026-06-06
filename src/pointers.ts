@@ -34,6 +34,7 @@ export function createThreeEvent<
   if (intersections) {
     event.intersections = intersections
     event.intersection = intersections[0]
+    event.object = intersections[0]?.object
   }
 
   return event as Prettify<
@@ -61,7 +62,7 @@ export type PointerCaptureSink = { capture(): void; release(): void }
 interface Captured {
   /**
    * The captured target — the node whose handler called `setPointerCapture`
-   * (`event.element`). Captured move/up deliver exclusively to its chain; may be
+   * (`event.currentObject`). Captured move/up deliver exclusively to its chain; may be
    * an ancestor of the hit leaf.
    */
   element: Object3D
@@ -113,7 +114,7 @@ export class Pointer {
    * normal (camera-facing if the hit has no face), then engage the OS sink.
    * Subsequent move/up reproject the live ray onto this plane and deliver
    * exclusively to `element`'s chain until released. A nullish `element` (the
-   * canvas-level dispatch has no `event.element`) is a no-op.
+   * canvas-level dispatch has no `event.currentObject`) is a no-op.
    *
    * The face normal is expressed in the hit leaf's local space, so it's oriented
    * with `intersection.object`'s world matrix — which differs from `element` when
@@ -168,11 +169,31 @@ export class Pointer {
 
   /** Attach the capture methods to a capturable event (down/up/move). */
   private attachCapture(event: any) {
-    event.setPointerCapture = () => {
-      if (event.element) this.capture(event.element, event.currentIntersection)
+    // No-arg captures `event.currentObject` (the firing node) — sync-only, since it's
+    // cleared after dispatch (like a DOM event's `currentTarget`). Pass a `target`
+    // to capture it later: the caller holds the reference, so it works async.
+    event.setPointerCapture = (target?: Object3D) => {
+      const element = target ?? event.currentObject
+      if (!element) return
+      // Sync: the live hit. Async (event already past dispatch, `currentIntersection`
+      // gone): synthesize a contact at the target's centre.
+      const intersection = event.currentIntersection ?? this.syntheticHit(element)
+      this.capture(element, intersection)
     }
     event.releasePointerCapture = () => this.release()
-    event.hasPointerCapture = () => !!event.element && this.hasCaptured(event.element)
+    event.hasPointerCapture = (target?: Object3D) => {
+      const element = target ?? event.currentObject
+      return element != null && this.hasCaptured(element)
+    }
+  }
+
+  /**
+   * A contact for an explicit/deferred capture with no live ray hit: the object's
+   * world-space centre, no face — so {@link capture} builds a camera-facing drag
+   * plane through it. Used by `setPointerCapture(target)` called after dispatch.
+   */
+  private syntheticHit(object: Object3D): Intersection {
+    return { object, point: object.getWorldPosition(new Vector3()), distance: 0 } as Intersection
   }
 
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */
@@ -243,7 +264,7 @@ export class Pointer {
 
   /**
    * Bubble `handler` up each root's parent chain — setting `event.currentIntersection`
-   * for the chain and `event.element` for each node it fires on — honoring
+   * for the chain and `event.currentObject` for each node it fires on — honoring
    * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
    * `[intersection, root]` pairs the starting node (`root`) with the intersection to
    * expose while walking it: the captured path passes a single pair rooted at the
@@ -257,7 +278,7 @@ export class Pointer {
       let node: Object3D | null = root
       while (node && !event.stopped && !visited.has(node)) {
         visited.add(node)
-        event.element = node
+        event.currentObject = node
         ;(getMeta(node)?.props as any)?.[handler]?.(event)
         node = node.parent
       }
@@ -265,7 +286,7 @@ export class Pointer {
     }
     if (!event.stopped) {
       delete event.currentIntersection
-      event.element = undefined
+      event.currentObject = undefined
       ;(this.context.props as Record<string, any>)[handler]?.(event)
     }
   }
@@ -276,7 +297,7 @@ export class Pointer {
    * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
    * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
    * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
-   * `event.element` exposes the node a handler is firing on. When this pointer
+   * `event.currentObject` exposes the node a handler is firing on. When this pointer
    * holds a capture, delivery is exclusive to the captured object's chain (the
    * registry is not raycast) but still bubbles to the canvas-level handler; the
    * intersection is the live ray reprojected onto the captured plane.
@@ -324,14 +345,14 @@ export class Pointer {
       while (node && !event.stopped && !visited.has(node)) {
         missed.delete(node)
         visited.add(node)
-        event.element = node
+        event.currentObject = node
         ;(getMeta(node)?.props as any)?.[kind]?.(event)
         node = node.parent
       }
     }
     if (!event.stopped) {
       delete event.currentIntersection
-      event.element = undefined
+      event.currentObject = undefined
       props[kind]?.(event)
     }
 

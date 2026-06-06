@@ -381,11 +381,12 @@ export type ThreeEvent<
     {
       nativeEvent: TEvent
       /**
-       * The node a bubbled handler is currently firing on (the ancestor reached
+       * The object a bubbled handler is currently firing on (the ancestor reached
        * while walking up the hit chain), or `undefined` for the canvas-level
-       * dispatch. Set by `Pointer.dispatch`; plugin sources (e.g. XR) read it.
+       * dispatch — the 3D analogue of a DOM event's `currentTarget`, so it's only
+       * valid during the handler. Set by `Pointer.dispatch`; plugin sources read it.
        */
-      element?: Object3D
+      currentObject?: Object3D
     },
     When<
       TConfig["stoppable"],
@@ -400,6 +401,8 @@ export type ThreeEvent<
         currentIntersection: Intersection
         intersection: Intersection
         intersections: Intersection[]
+        /** The closest hit object — `intersections[0].object`. The 3D analogue of a DOM event's `target`; stable after dispatch. */
+        object: Object3D
       }
     >,
   ]
@@ -407,21 +410,27 @@ export type ThreeEvent<
 
 export type PointerCapture = {
   /**
-   * Capture this event's pointer to the node the handler is firing on
-   * (`event.element`). Subsequent move/up for this pointer deliver exclusively to
-   * that node's chain (still bubbling to the canvas-level handler) until released —
-   * even off-ray and, for the DOM source, off-canvas. Off-ray, `event.intersection`
-   * is reprojected onto the grabbed object's plane so `point` keeps tracking.
+   * Capture this event's pointer to `target`, or — with no argument — to the node
+   * the handler is firing on (`event.currentObject`). Subsequent move/up for this pointer
+   * deliver exclusively to that object's chain (still bubbling to the canvas-level
+   * handler) until released — even off-ray and, for the DOM source, off-canvas.
+   * Off-ray, `event.intersection` is reprojected onto the captured plane so `point`
+   * keeps tracking.
+   *
+   * The no-arg form must be called synchronously in the handler (`event.currentObject` is
+   * cleared after dispatch, like a DOM event's `currentTarget`). Pass `target` to
+   * start a capture later (after an `await`/timer); with no live hit it drags on a
+   * camera-facing plane through the target's centre.
    */
-  setPointerCapture(): void
+  setPointerCapture(target?: Object3D): void
   /**
    * Release a capture started with `setPointerCapture`. Also released
    * automatically on pointerup/cancel for the DOM source, and on the paired end
    * event for XR.
    */
   releasePointerCapture(): void
-  /** Whether this event's node currently holds the pointer capture. */
-  hasPointerCapture(): boolean
+  /** Whether `target` (default: this event's node) currently holds the pointer capture. */
+  hasPointerCapture(target?: Object3D): boolean
 }
 
 type EventHandlersMap = {

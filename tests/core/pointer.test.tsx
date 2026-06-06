@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { Object3D, Ray, Vector3 } from "three"
+import { Object3D, PerspectiveCamera, Ray, Vector3 } from "three"
 import { Pointer, type PointerRaycaster } from "../../src/pointers.ts"
 import { meta } from "../../src/utils.ts"
 
@@ -82,10 +82,10 @@ describe("Pointer dispatch", () => {
     expect(click).toHaveBeenCalledTimes(1)
   })
 
-  it("click sets event.element to the bubbling node", () => {
+  it("click sets event.currentObject to the bubbling node", () => {
     const seen: any[] = []
-    const parent = eventful({ onClick: (e: any) => seen.push(e.element) })
-    const child = eventful({ onClick: (e: any) => seen.push(e.element) })
+    const parent = eventful({ onClick: (e: any) => seen.push(e.currentObject) })
+    const child = eventful({ onClick: (e: any) => seen.push(e.currentObject) })
     ;(child as any).parent = parent
     const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
 
@@ -105,16 +105,16 @@ describe("Pointer dispatch", () => {
     expect(canvasMissed).toHaveBeenCalledTimes(1)
   })
 
-  it("dispatch sets event.element to the bubbling node and merges extra fields", () => {
+  it("dispatch sets event.currentObject to the bubbling node and merges extra fields", () => {
     const seen: any[] = []
-    const parent = eventful({ onPing: (e: any) => seen.push({ element: e.element, k: e.k }) })
-    const child = eventful({ onPing: (e: any) => seen.push({ element: e.element, k: e.k }) })
+    const parent = eventful({ onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }) })
+    const child = eventful({ onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }) })
     ;(child as any).parent = parent
     const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
 
     ;(pointer as any).dispatch("onPing", new Event("x"), { k: 42 })
-    expect(seen[0].element).toBe(child) // handler on child sees child
-    expect(seen[1].element).toBe(parent) // bubbled handler on parent sees parent
+    expect(seen[0].currentObject).toBe(child) // handler on child sees child
+    expect(seen[1].currentObject).toBe(parent) // bubbled handler on parent sees parent
     expect(seen.every(s => s.k === 42)).toBe(true) // extra merged onto every dispatch
   })
 
@@ -226,7 +226,7 @@ describe("Pointer capture lifecycle", () => {
     expect(pointer.hasCaptured(mesh)).toBe(false) // rolled back, capture didn't engage
   })
 
-  it("orients the drag plane with the hit leaf's transform, not event.element's", () => {
+  it("orients the drag plane with the hit leaf's transform, not event.currentObject's", () => {
     // Capture from a parent `element` while the hit leaf is a child rotated 90° about
     // Y, so its local +Z face normal maps to world +X — the drag plane is x=0 (yz).
     // The old code used `element`'s identity matrix → a z=0 plane.
@@ -275,6 +275,36 @@ describe("Pointer capture lifecycle", () => {
     pointer.release()
     pointer.move(new Event("pointermove")) // not captured; ray off → leave the still-hovered mesh
     expect(leave).toHaveBeenCalledTimes(1)
+  })
+
+  it("setPointerCapture(target) captures after dispatch (async); the no-arg form doesn't", () => {
+    let captureWithTarget: (() => void) | undefined
+    let captureNoArg: (() => void) | undefined
+    const mesh = eventful({
+      onPointerDown: (e: any) => {
+        // Stash the calls instead of capturing now — run them after dispatch.
+        captureWithTarget = () => e.setPointerCapture(mesh)
+        captureNoArg = () => e.setPointerCapture()
+      },
+    })
+    const camera = new PerspectiveCamera()
+    camera.updateMatrixWorld() // syntheticHit builds a camera-facing plane
+    const sink = spySink()
+    const pointer = new Pointer(
+      { eventRegistry: [mesh], props: {}, camera } as any,
+      fakeRaycaster({ target: mesh }),
+      sink,
+    )
+
+    pointer.down(new Event("pointerdown")) // handler only stashes
+    expect(pointer.hasCaptured(mesh)).toBe(false)
+
+    captureNoArg!() // post-dispatch: event.currentObject is cleared → no-op
+    expect(pointer.hasCaptured(mesh)).toBe(false)
+
+    captureWithTarget!() // explicit target survives → captures
+    expect(pointer.hasCaptured(mesh)).toBe(true)
+    expect(sink.capture).toHaveBeenCalledTimes(1)
   })
 
   it("delivers onPointerUp exclusively to the captured object after the ray moves off it", () => {
