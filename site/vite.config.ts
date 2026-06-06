@@ -26,7 +26,8 @@ const tutorialChapters: Array<[title: string, slug: string]> = [
   ["Loaders & Resource", "06-loaders-and-resource"],
   ["Portal", "07-portal"],
   ["Let's build Tetris!", "08-tetris"],
-  ["A peek at WebGPU", "09-webgpu-peek"],
+  ["Plugins", "09-plugins"],
+  ["A peek at WebGPU", "10-webgpu-peek"],
 ]
 const tutorialSidebar = (base: string) =>
   tutorialChapters.map(([title, slug]) => ({ title, link: `${base}${slug}` }))
@@ -108,6 +109,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { title: "Raycasters", link: "/utilities/raycasters" },
+                { title: "Plugins", link: "/utilities/plugin" },
                 { title: "LoaderCache", link: "/utilities/loader-cache" },
                 { title: "autodispose", link: "/utilities/autodispose" },
                 { title: "Metadata", link: "/utilities/metadata" },

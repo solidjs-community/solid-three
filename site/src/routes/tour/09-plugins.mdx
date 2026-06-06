@@ -1,0 +1,72 @@
+---
+title: Plugins
+---
+
+import lookAtSnippet from "../../snippets/09-look-at.tsx?raw"
+import lookAtUrl from "../../snippets/09-look-at.tsx?importChunkUrl"
+
+# Plugins
+
+Every prop you've set so far has been just that — a *property*. `position`,
+`color`, `intensity`: solid-three takes the value and assigns it to the
+three.js object. That covers most of what a scene needs, but not all of it.
+
+Some of the things you'd reach for aren't properties — they're *methods*.
+three's `Object3D` has a `lookAt(target)` method that turns an object to
+face a point in space. You'd love to write `<T.Mesh lookAt={somePoint} />`
+and have it just work. But it won't: props get *assigned*, so solid-three
+would overwrite `mesh.lookAt` with your point and the method would be gone.
+Props set properties; they don't call methods.
+
+A **plugin** closes that gap. It teaches solid-three a new prop — one that
+runs a function instead of assigning a value.
+
+## Writing the plugin
+
+```tsx
+import { plugin } from "solid-three"
+
+const lookAt = plugin([THREE.Object3D], object => ({
+  lookAt: (target: THREE.Vector3) => object.lookAt(target),
+}))
+```
+
+That's the whole thing. `plugin([THREE.Object3D], …)` matches every element
+that's an `Object3D`, and for each one contributes a `lookAt` method. Now
+when you set a `lookAt` prop, solid-three calls this method with the value
+instead of assigning it — so `<T.Mesh lookAt={point} />` runs
+`mesh.lookAt(point)`, exactly what we wanted.
+
+## Registering it
+
+`createT` takes the plugins as its second argument. The `T` it hands back
+understands the props they add:
+
+```tsx
+const T = createT(THREE, [lookAt])
+```
+
+## Seeing it work
+
+Move the pointer over the field below — every cone turns to face it.
+
+<Demo code={lookAtSnippet} url={lookAtUrl} />
+
+Each cone is nothing more than `<T.Mesh lookAt={target()} />`. A wide,
+invisible backdrop reports the pointer's position with the `onPointerMove`
+and `intersection.point` from the [pointer chapter](/tour/04-pointer-events),
+and that point flows into every cone's `lookAt` prop. When the signal
+changes, the prop re-applies and the plugin calls `lookAt` again — the same
+reactivity that drives every other prop in the tour, now driving a method.
+
+## There's more
+
+`lookAt` is the simplest shape. Plugins can also match by a type-guard
+instead of a class, register on a single element with `<Entity plugins={…} />`
+instead of the whole renderer, and the props they contribute are fully
+typed — pass a wrong one and the type-checker stops you. The
+[Plugins reference](/api/utilities/plugin) covers the rest.
+
+That's the extension seam: when a prop you want isn't a property, a plugin
+makes it one. For the encore, a peek at where three.js — and this renderer —
+are heading: WebGPU.
