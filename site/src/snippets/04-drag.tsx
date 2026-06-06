@@ -1,32 +1,34 @@
 import * as THREE from "three"
 import { createSignal } from "solid-js"
-import { Canvas, createT } from "solid-three"
+import { Canvas, createT, hasPointerCapture } from "solid-three"
 
 const T = createT(THREE)
 
 export default () => {
   const [position, setPosition] = createSignal<[number, number, number]>([0, 0, 0])
-  const [dragging, setDragging] = createSignal(false)
+  // A signal ref, so the visuals can ask `hasPointerCapture(mesh())` reactively.
+  const [mesh, setMesh] = createSignal<THREE.Mesh>()
   // Offset from the mesh origin to the grabbed point, so it doesn't jump on grab.
   let grabOffset = new THREE.Vector3()
+  // Drag state is derived from the capture itself — no signal to keep in sync.
+  const dragging = () => hasPointerCapture(mesh())
 
   return (
     <Canvas camera={{ position: [0, 0, 5] }}>
       <T.Mesh
+        ref={setMesh}
         position={position()}
         scale={dragging() ? 1.15 : 1}
         onPointerDown={event => {
           event.setPointerCapture() // grab — moves now follow this mesh
           grabOffset = new THREE.Vector3(...position()).sub(event.intersection.point)
-          setDragging(true)
         }}
         onPointerMove={event => {
-          if (!event.hasPointerCapture()) return // the capture itself is the drag state
+          if (!event.hasPointerCapture()) return
           // event.intersection.point tracks the drag plane, even off the mesh.
           const next = event.intersection.point.clone().add(grabOffset)
           setPosition([next.x, next.y, next.z])
         }}
-        onPointerUp={() => setDragging(false)} // capture auto-releases on pointerup
       >
         <T.BoxGeometry />
         <T.MeshStandardMaterial color={dragging() ? "tomato" : "cornflowerblue"} />
