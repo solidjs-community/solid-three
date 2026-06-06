@@ -21,7 +21,7 @@ export default () => {
           setDragging(true)
         }}
         onPointerMove={event => {
-          if (!dragging()) return
+          if (!event.hasPointerCapture()) return // the capture itself is the drag state
           // event.intersection.point tracks the drag plane, even off the mesh.
           const next = event.intersection.point.clone().add(grabOffset)
           setPosition([next.x, next.y, next.z])
