@@ -155,7 +155,8 @@ export class Pointer {
   /**
    * The forced intersection for a captured pointer: intersect the live ray with
    * the stored plane for a fresh `point`/`distance`, keeping the original hit's
-   * `face`/`uv`/`object`. Falls back to the stored hit if the ray is parallel.
+   * `face`/`uv`/`object`. Falls back to the stored hit when there's no forward
+   * intersection — the ray is parallel to, or points away from, the plane.
    */
   private reproject(captured: Captured): Intersection {
     this.raycaster.aim(this.context)
