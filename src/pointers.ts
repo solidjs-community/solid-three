@@ -234,6 +234,32 @@ export class Pointer {
   }
 
   /**
+   * Bubble `handler` up each root's parent chain — setting `event.currentIntersection`
+   * for the chain and `event.element` for each node it fires on — honoring
+   * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
+   * `[intersection, root]` pairs the starting node (`root`) with the intersection to
+   * expose while walking it: the captured path passes a single pair rooted at the
+   * captured object, the normal path one pair per hit.
+   */
+  private bubble(event: any, handler: string, roots: Array<[Intersection, Object3D]>) {
+    for (const [intersection, root] of roots) {
+      event.currentIntersection = intersection
+      let node: Object3D | null = root
+      while (node && !event.stopped) {
+        event.element = node
+        ;(getMeta(node)?.props as any)?.[handler]?.(event)
+        node = node.parent
+      }
+      if (event.stopped) break
+    }
+    if (!event.stopped) {
+      delete event.currentIntersection
+      event.element = undefined
+      ;(this.context.props as Record<string, any>)[handler]?.(event)
+    }
+  }
+
+  /**
    * Bubble a "default"-style gesture to an arbitrary handler name (plugin-extensible:
    * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
    * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
@@ -247,22 +273,13 @@ export class Pointer {
   dispatch(handler: string, nativeEvent: Event, extra?: Record<string, unknown>, capturable = false) {
     const captured = this.captured
     if (captured) {
+      // Captured: exclusive delivery to the captured object's chain, with the live
+      // ray reprojected onto the captured plane.
       const intersection = this.reproject(captured)
       const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
       if (extra) Object.assign(event, extra)
       if (capturable) this.attachCapture(event)
-      event.currentIntersection = intersection
-      let node: Object3D | null = captured.object
-      while (node && !event.stopped) {
-        event.element = node
-        ;(getMeta(node)?.props as any)?.[handler]?.(event)
-        node = node.parent
-      }
-      if (!event.stopped) {
-        delete event.currentIntersection
-        event.element = undefined
-        ;(this.context.props as Record<string, any>)[handler]?.(event)
-      }
+      this.bubble(event, handler, [[intersection, captured.object]])
       return
     }
 
@@ -270,20 +287,11 @@ export class Pointer {
     const event: any = createThreeEvent(nativeEvent, { intersections })
     if (extra) Object.assign(event, extra)
     if (capturable) this.attachCapture(event)
-    for (const intersection of intersections) {
-      event.currentIntersection = intersection
-      let node: Object3D | null = intersection.object
-      while (node && !event.stopped) {
-        event.element = node
-        ;(getMeta(node)?.props as any)?.[handler]?.(event)
-        node = node.parent
-      }
-    }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.element = undefined
-      ;(this.context.props as Record<string, any>)[handler]?.(event)
-    }
+    this.bubble(
+      event,
+      handler,
+      intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
+    )
   }
 
   /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
