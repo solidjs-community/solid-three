@@ -1,0 +1,75 @@
+---
+title: Plugins
+---
+
+# Plugins
+
+A plugin teaches `solid-three` new **props**. It matches some set of elements and contributes methods to them; each contributed method surfaces as a typed prop, and assigning that prop calls the method. This is how features like XR controller events are layered onto the core without baking them in.
+
+## `plugin()`
+
+`plugin()` builds one plugin. It has three forms, differing only in which elements they match:
+
+```tsx
+import { Mesh } from "three"
+import { plugin } from "solid-three"
+
+// 1. Global — every element.
+plugin(element => ({ ping: () => {} }))
+
+// 2. Constructor-filtered — elements that are `instanceof` one of these.
+plugin([Mesh], mesh => ({ shake: (intensity: number) => {} }))
+
+// 3. Type-guard — elements that pass the guard.
+plugin((element): element is Mesh => element instanceof Mesh, mesh => ({ setColor: (hex: string) => {} }))
+```
+
+The factory receives the matched element and returns an object of methods. A non-matching element contributes nothing. A method's **first parameter type becomes the prop's type** — `shake: (intensity: number) => …` makes `shake` a `number` prop.
+
+## Registering plugins
+
+Two ways, depending on the scope you want.
+
+**Whole renderer — pass them to `createT`:**
+
+```tsx
+import * as THREE from "three"
+import { Canvas, createT, plugin } from "solid-three"
+
+const T = createT(THREE, [
+  // Every Mesh gains a `shake` prop.
+  plugin([THREE.Mesh], mesh => ({
+    shake: (intensity: number) => {
+      mesh.position.x += (Math.random() - 0.5) * intensity
+    },
+  })),
+])
+
+const App = () => (
+  <Canvas>
+    {/* `shake` is a typed prop now — pass a number, the method runs. */}
+    <T.Mesh shake={0.2}>
+      <T.BoxGeometry />
+      <T.MeshStandardMaterial />
+    </T.Mesh>
+  </Canvas>
+)
+```
+
+**One element — pass them to `<Entity plugins>`:**
+
+```tsx
+import { Mesh } from "three"
+import { Entity, plugin } from "solid-three"
+
+const App = () => (
+  <Entity from={Mesh} plugins={[plugin([Mesh], mesh => ({ shake: (i: number) => {} }))]} shake={0.2} />
+)
+```
+
+Either way the contributed prop is **type-checked**: a contributed method makes its prop available, and a prop that no plugin contributes is rejected by the type-checker. The method is invoked with the prop value; it is not assigned onto the three.js instance.
+
+## See also
+
+- [`T` / `createT`](/api/components/t) — the element factory plugins extend.
+- [`Entity`](/api/components/entity) — per-element plugin registration.

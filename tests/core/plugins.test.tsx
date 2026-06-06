@@ -1,5 +1,5 @@
 import { assertType, describe, expect, it, vi } from "vitest"
-import { Mesh, Object3D, PerspectiveCamera } from "three"
+import { Mesh, Object3D, PerspectiveCamera, Vector3 } from "three"
 import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 import { createT } from "../../src/create-t.tsx"
 import { Entity } from "../../src/components.tsx"
@@ -80,6 +80,17 @@ describe("plugin prop types", () => {
     // vitest's assertType is tsc-checked (lint:types): errors if `shake` isn't a `number` prop.
     assertType<number | undefined>(({} as MeshProps).shake)
     expect(true).toBe(true)
+  })
+
+  it("a contributed prop overrides a native member of the same name", () => {
+    // `lookAt` is a method on Object3D; the contributed prop must *replace* it so a
+    // Vector3 is assignable. The naive intersection (`method & Vector3`) is satisfiable
+    // by no value, so this assignment would not type-check.
+    const TP = createT({ Mesh }, [plugin([Mesh], () => ({ lookAt: (_target: Vector3) => {} }))])
+    type MeshProps = Parameters<typeof TP.Mesh>[0]
+    const props: MeshProps = { lookAt: new Vector3() }
+    assertType<Vector3 | undefined>(props.lookAt)
+    expect(props).toBeDefined()
   })
 })
 
