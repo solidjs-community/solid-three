@@ -365,6 +365,16 @@ export function useProps<T extends Record<string, any>>(
 ) {
   const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
 
+  // Assign the ref before mounting children, so a child can read this element's ref
+  // in a reactive binding during its own render — matching Solid DOM, which assigns
+  // refs before inserting children (see the "ref timing" test).
+  createRenderEffect(() => {
+    const object = resolve(accessor)
+    if (!object) return
+    if (local.ref instanceof Function) local.ref(object)
+    else local.ref = object
+  })
+
   useSceneGraph(accessor, props)
 
   createRenderEffect(() => {
@@ -383,12 +393,6 @@ export function useProps<T extends Record<string, any>>(
       const childMeta = getMeta(object)
       if (childMeta) childMeta.ctx = context as Context
     }
-
-    // Assign ref
-    createRenderEffect(() => {
-      if (local.ref instanceof Function) local.ref(object)
-      else local.ref = object
-    })
 
     // Apply the props to THREE-instance
     createRenderEffect(() => {
