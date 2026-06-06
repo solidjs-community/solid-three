@@ -16,7 +16,6 @@ export default () => {
         position={position()}
         scale={dragging() ? 1.15 : 1}
         onPointerDown={event => {
-          event.stopPropagation()
           event.setPointerCapture() // grab — moves now follow this mesh
           grabOffset = new THREE.Vector3(...position()).sub(event.intersection.point)
           setDragging(true)

@@ -117,11 +117,9 @@ Grab the cube and drag. It follows the pointer, and keeps following even
 when the pointer races ahead of it or leaves the canvas. On `pointerup`
 the capture releases on its own.
 
-Two details make it feel right. `event.stopPropagation()` keeps the grab
-from also reaching anything behind the cube. And while captured,
-`event.intersection.point` is reprojected onto a plane through the spot
-you grabbed — so reading it gives you a stable world-space point to
-follow, instead of the empty space the ray now passes through.
+One detail makes it feel right: the `event.stopPropagation()` in
+`onPointerDown` keeps the press from also grabbing meshes stacked behind the
+cube — you grab the front one, not the whole column.
 
 So far every trigger has been a one-off — a click, a hover-in, a
 hover-out. The next chapter introduces the third kind: time.
