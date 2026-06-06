@@ -39,6 +39,7 @@ Every handler receives one event argument that combines the original DOM event w
 | `intersections` | `Intersection[]` | events that raycast | All hit intersections, sorted nearest-first. |
 | `intersection` | `Intersection` | events that raycast | Shorthand for `intersections[0]` — the closest hit overall. |
 | `currentIntersection` | `Intersection` | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch. |
+| `element` | `Object3D` | inside an object handler | The node this handler is attached to. As the event bubbles, `element` walks up the ancestor chain while `currentIntersection` stays on the hit object. Absent on canvas-level dispatch. |
 | `stopped` | `boolean` | stoppable events only | Whether `stopPropagation()` has been called. |
 | `stopPropagation` | `() => void` | stoppable events only | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events). |
 
@@ -211,6 +212,47 @@ solid-three's hover handling differs from react-three-fiber in three ways:
 - **Phase order.** solid-three processes all enter events, then all move events, then all leave events (DOM-like). react-three-fiber interleaves them as it traverses.
 - **What can be stopped.** In solid-three, move can be stopped but enter and leave always fire (DOM-like). In react-three-fiber, every hover event can be stopped.
 - **Child to parent.** In solid-three, moving from a child to its parent fires only a leave on the child (DOM-like). In react-three-fiber, the parent receives both a leave and an immediate re-enter.
+
+## Pointer capture
+
+By default a pointer event goes to whatever the ray currently hits. That breaks down for a drag: the moment the pointer slips off the object — or off the canvas entirely — the moves stop arriving, and the gesture dies mid-stroke.
+
+Pointer capture fixes this. Inside an `onPointerDown`, `onPointerMove`, or `onPointerUp` handler, three methods ride on the event:
+
+| Method | Description |
+| --- | --- |
+| `setPointerCapture()` | Capture this pointer to `event.element` (the node the handler is firing on). |
+| `releasePointerCapture()` | Release a capture started with `setPointerCapture()`. |
+| `hasPointerCapture()` | Whether this event's node currently holds the capture. |
+
+Once captured, every subsequent `onPointerMove` and `onPointerUp` for that pointer is delivered **exclusively** to the captured node's chain — still bubbling up to the canvas-level handler, but no longer raycasting against the rest of the scene. Delivery continues even when the pointer is off the object, and (for the DOM pointer source) off the canvas. Hover is frozen for the duration: no enter/leave fires while a capture is held.
+
+Capture is **element-scoped** — you capture the node whose handler is running. Calling `setPointerCapture()` from a canvas-level handler is a no-op, because there is no `element` there.
+
+While the pointer is off the ray, `event.intersection` is reprojected onto a plane through the original grab point, so `event.intersection.point` keeps tracking a sensible world-space position to drag toward.
+
+A capture releases when you call `releasePointerCapture()`, and automatically on `pointerup`/`pointercancel` (DOM source) or the paired end event (XR). It is also released if the captured object leaves the scene mid-drag, so a captured pointer never keeps dispatching to an unmounted node.
+
+```tsx
+let grabbing = false
+
+<T.Mesh
+  onPointerDown={event => {
+    event.stopPropagation()
+    event.setPointerCapture() // grab — moves now follow this mesh
+    grabbing = true
+  }}
+  onPointerMove={event => {
+    if (!grabbing) return
+    // event.intersection.point tracks the drag plane, even off the mesh
+  }}
+  onPointerUp={() => {
+    grabbing = false // capture auto-releases on pointerup
+  }}
+/>
+```
+
+See the [pointer events tour](/tour/04-pointer-events#dragging) for a runnable drag demo.
 
 ## Filtering with `raycastable`
 
