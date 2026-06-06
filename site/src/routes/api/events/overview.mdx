@@ -22,12 +22,10 @@ These fire on the object that was hit, or — when nothing handles them — as a
 
 Run in three phases per pointer move — enter, then move, then leave. See [Hover events](#hover-events).
 
-- `onMouseEnter`, `onMouseMove`, `onMouseLeave`
 - `onPointerEnter`, `onPointerMove`, `onPointerLeave`
 
 ### Press and wheel events
 
-- `onMouseDown`, `onMouseUp`
 - `onPointerDown`, `onPointerUp`
 - `onWheel` — registered as a passive listener
 
@@ -49,7 +47,7 @@ Not every handler receives every field — what you get depends on the event:
 | Handler | Receives |
 | --- | --- |
 | `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation` |
-| `onMouseEnter`, `onMouseLeave`, `onPointerEnter`, `onPointerLeave` | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
+| `onPointerEnter`, `onPointerLeave` | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
 | `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` | only `nativeEvent` — missed events don't raycast |
 
 <details>
@@ -143,13 +141,13 @@ Without the `stopPropagation()` call the order would be front mesh → back mesh
 
 Not every event accepts `stopPropagation()`. The split mirrors the DOM:
 
-**Stoppable** — `onClick`, `onContextMenu`, `onDoubleClick`, `onMouseDown`, `onMouseUp`, `onMouseMove`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onWheel`.
+**Stoppable** — `onClick`, `onContextMenu`, `onDoubleClick`, `onPointerDown`, `onPointerUp`, `onPointerMove`, `onWheel`.
 
 **Non-stoppable** — these always fire for every registered handler, regardless of order:
 
 - `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` — a [missed event](#missed-events) is by definition the "nothing else handled it" signal.
-- `onMouseEnter`, `onPointerEnter` — enter has to reach the newly-hovered subtree.
-- `onMouseLeave`, `onPointerLeave` — leave has to reach the previously-hovered subtree.
+- `onPointerEnter` — enter has to reach the newly-hovered subtree.
+- `onPointerLeave` — leave has to reach the previously-hovered subtree.
 
 ## Missed events
 

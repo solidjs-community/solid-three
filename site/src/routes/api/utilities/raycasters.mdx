@@ -4,76 +4,85 @@ title: Raycasters
 
 # Raycasters
 
-`solid-three` ships custom raycasters that track the pointer for you. They all extend `THREE.Raycaster` and implement the `EventRaycaster` interface, which adds a single method:
+`solid-three` ships custom raycasters that decide how a pointer becomes a ray. They all extend `THREE.Raycaster` and implement `EventRaycaster`, which adds one method:
 
 | Method | Description |
 | --- | --- |
-| `update(event, context)` | Called automatically before intersection testing, to position the raycaster from the current event. |
+| `cast(registry, context)` | Aim the ray for the current pointer, then return its hits against `registry` and its descendants (honoring `raycastable !== false`), nearest-first. |
+
+The pointer system calls `cast()` on every event. How the ray is aimed is the raycaster's own business — from the camera and a cursor position for screen pointers, or from an object's world transform for an XR controller.
+
+Screen-pointer raycasters also implement `ScreenRaycaster`, which adds `setCursor(ndc)`. The pointer system calls it with the cursor in normalized device coordinates before each `cast()`.
 
 <details>
-<summary>Exact type</summary>
+<summary>Exact types</summary>
 
 ```tsx
 interface EventRaycaster extends THREE.Raycaster {
-  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context): void
+  cast(registry: Object3D[], context: Context): Intersection[]
+}
+
+interface ScreenRaycaster extends EventRaycaster {
+  setCursor(ndc: Vector2): void
 }
 ```
 
 </details>
 
-`solid-three`'s [event system](/api/events/overview) calls `update()` before every intersection test — on mouse events (`click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`), pointer events (`pointerdown`, `pointerup`, `pointermove`), and `wheel` — so the raycaster is positioned correctly for accurate hit detection.
-
 ## CursorRaycaster
 
-The default raycaster; tracks the cursor position.
+The default. Tracks the cursor and casts from the active camera.
 
 ```tsx
 import { Canvas, CursorRaycaster } from "solid-three"
 
 const App = () => {
-  const raycaster = new CursorRaycaster()
-  // CursorRaycaster is the default; set it explicitly if you like:
-  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
+  // CursorRaycaster is the default; pass it explicitly only to swap or configure.
+  return <Canvas raycaster={new CursorRaycaster()}>{/* Your scene */}</Canvas>
 }
 ```
 
 ## CenterRaycaster
 
-Always casts from the center of the screen.
+Ignores the cursor and always casts from the centre of the screen — useful for gaze or crosshair interaction.
 
 ```tsx
 import { Canvas, CenterRaycaster } from "solid-three"
 
-const App = () => {
-  const raycaster = new CenterRaycaster()
-  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
-}
+const App = () => <Canvas raycaster={new CenterRaycaster()}>{/* Your scene */}</Canvas>
 ```
 
-## Creating your own raycaster
+## ControllerRaycaster
 
-Extend `THREE.Raycaster` and implement `EventRaycaster`:
+Casts from an `Object3D`'s world transform — origin at its world position, direction along its local −Z. This is the ray strategy for an XR controller; see [`createXR`](/api/hooks/create-xr).
 
 ```tsx
-import { Raycaster, Vector2 } from "three"
-import type { EventRaycaster, Context } from "solid-three"
+import { ControllerRaycaster } from "solid-three"
 
-class CustomRaycaster extends Raycaster implements EventRaycaster {
-  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context) {
-    const pointer = new Vector2()
+const raycaster = new ControllerRaycaster(controllerSpace)
+```
 
-    // Scale movement down, as an example transform
-    pointer.x = ((event.offsetX / context.bounds.width) * 2 - 1) * 0.5
-    pointer.y = (-(event.offsetY / context.bounds.height) * 2 + 1) * 0.5
+## Creating your own
 
-    this.setFromCamera(pointer, context.camera)
+For a screen pointer, the simplest path is to subclass `CursorRaycaster` and reshape the cursor — `cast()` is inherited:
+
+```tsx
+import { Vector2 } from "three"
+import { Canvas, CursorRaycaster } from "solid-three"
+
+// Damp pointer movement to half speed.
+class DampedRaycaster extends CursorRaycaster {
+  setCursor(ndc: Vector2) {
+    super.setCursor(new Vector2(ndc.x * 0.5, ndc.y * 0.5))
   }
 }
 
-const App = () => <Canvas raycaster={new CustomRaycaster()}>{/* Your scene */}</Canvas>
+const App = () => <Canvas raycaster={new DampedRaycaster()}>{/* Your scene */}</Canvas>
 ```
+
+For a non-screen ray — a custom origin and direction — implement `cast()` directly: aim `this.ray` from whatever transform you like, then return `this.intersectObjects(registry, true)`. `ControllerRaycaster` is the reference implementation.
 
 ## See also
 
-- [Events overview](/api/events/overview) — when and why `update()` is called.
+- [Events overview](/api/events/overview) — how and when `cast()` is called.
 - [`useThree`](/api/hooks/use-three) — `raycaster` / `setRaycaster` for swapping the active raycaster at runtime.
