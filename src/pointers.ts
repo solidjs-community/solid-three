@@ -318,12 +318,14 @@ export class Pointer {
       while (node && !event.stopped && !visited.has(node)) {
         missed.delete(node)
         visited.add(node)
+        event.element = node
         ;(getMeta(node)?.props as any)?.[kind]?.(event)
         node = node.parent
       }
     }
     if (!event.stopped) {
       delete event.currentIntersection
+      event.element = undefined
       props[kind]?.(event)
     }
 

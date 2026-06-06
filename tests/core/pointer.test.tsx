@@ -82,6 +82,18 @@ describe("Pointer dispatch", () => {
     expect(click).toHaveBeenCalledTimes(1)
   })
 
+  it("click sets event.element to the bubbling node", () => {
+    const seen: any[] = []
+    const parent = eventful({ onClick: (e: any) => seen.push(e.element) })
+    const child = eventful({ onClick: (e: any) => seen.push(e.element) })
+    ;(child as any).parent = parent
+    const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
+
+    pointer.click("onClick", new MouseEvent("click"))
+    expect(seen[0]).toBe(child) // handler on child sees child
+    expect(seen[1]).toBe(parent) // bubbled handler on parent sees parent
+  })
+
   it("fires onClickMissed (mesh-level + canvas-level) when the click hits nothing", () => {
     const meshMissed = vi.fn()
     const canvasMissed = vi.fn()
