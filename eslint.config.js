@@ -1,9 +1,9 @@
-import { defineConfig, globalIgnores } from "eslint/config";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import noOnlyTests from "eslint-plugin-no-only-tests";
-import eslintComments from "eslint-plugin-eslint-comments";
-import importPlugin from "eslint-plugin-import";
-import tsParser from "@typescript-eslint/parser";
+import { defineConfig, globalIgnores } from "eslint/config"
+import typescriptEslint from "@typescript-eslint/eslint-plugin"
+import noOnlyTests from "eslint-plugin-no-only-tests"
+import eslintComments from "eslint-plugin-eslint-comments"
+import importPlugin from "eslint-plugin-import"
+import tsParser from "@typescript-eslint/parser"
 
 export default defineConfig([
   globalIgnores([
@@ -58,4 +58,4 @@ export default defineConfig([
       "prefer-const": "warn",
     },
   },
-]);
+])
