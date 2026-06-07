@@ -30,12 +30,12 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       # Build the library first so `site/` (which imports `solid-three`
-      # via `link:..`) can resolve types in the Typecheck step.
+      # via `link:..`) can resolve types in the lint:types step.
       - name: Build
         run: pnpm build
 
-      - name: Typecheck
-        run: pnpm lint:types
+      - name: Lint
+        run: pnpm lint
 
       - name: Test
         run: pnpm test --run
