@@ -215,7 +215,6 @@ export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
  *
  * Without augmentation, the default is `WebGLRenderer`.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Register {}
 
 /** Effective renderer type — narrowed by user augmentation, defaults to `WebGLRenderer`. */

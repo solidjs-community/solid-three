@@ -68,7 +68,7 @@ export function createThreeEvent<TEvent extends Event, TExtra extends object = {
 
   if (extra) Object.assign(event, extra)
 
-  return event as Prettify<DispatchEvent<TExtra>>
+  return event
 }
 
 /** The OS-level half of pointer capture, injected per source (DOM canvas vs XR). */
@@ -235,7 +235,7 @@ export class Pointer {
    * plane through it. Used by `setPointerCapture({ object })` called after dispatch.
    */
   private syntheticHit(object: Object3D): Intersection {
-    return { object, point: object.getWorldPosition(new Vector3()), distance: 0 } as Intersection
+    return { object, point: object.getWorldPosition(new Vector3()), distance: 0 }
   }
 
   /** Hover: enter/leave diff + bubbled `onPointerMove`, plus canvas-level. */

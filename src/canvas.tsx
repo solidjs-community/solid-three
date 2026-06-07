@@ -111,7 +111,7 @@ export function Canvas(props: ParentProps<CanvasProps>) {
       // While an XR session owns the frame loop, don't issue a window-driven
       // render — the session drives frames. The post-XR repaint happens on
       // sessionend.
-      if (!context.gl?.xr?.isPresenting) context.render(performance.now())
+      if (!context.gl.xr?.isPresenting) context.render(performance.now())
     })
   })
 

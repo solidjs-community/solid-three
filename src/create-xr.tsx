@@ -127,6 +127,9 @@ export function createXR() {
       throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected")
     }
     const gl = ctx.gl as unknown as XRRenderer
+    // The double-cast asserts xr-capability; this verifies the renderer actually
+    // has an xr manager at runtime (a plain WebGLRenderer/WebGPURenderer may not).
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!gl.xr) {
       throw new Error("S3: the active renderer has no xr manager")
     }

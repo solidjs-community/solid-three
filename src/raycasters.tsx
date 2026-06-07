@@ -47,7 +47,7 @@ function castRegistry(raycaster: Raycaster, registry: Object3D[]): Intersection<
     stack.push(...object.children)
   }
 
-  return raycaster.intersectObjects(Array.from(nodeSet), false) as Intersection<Meta<Object3D>>[]
+  return raycaster.intersectObjects(Array.from(nodeSet), false)
 }
 
 export class CursorRaycaster extends Raycaster implements ScreenRaycaster {

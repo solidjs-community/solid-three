@@ -28,7 +28,7 @@
     "dev:site": "pnpm -C site dev",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:types",
     "lint:circular": "dpdm -T src",
-    "lint:code": "eslint --max-warnings 0 src/**/*.{ts,tsx}",
+    "lint:code": "eslint --max-warnings 0 'src/**/*.{ts,tsx}'",
     "lint:types": "tsc --noEmit",
     "prepublishOnly": "pnpm lint && pnpm build",
     "test": "vitest run",
