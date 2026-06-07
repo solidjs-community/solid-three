@@ -1,14 +1,14 @@
 import { afterEach } from "vitest"
 import { cleanup } from "../src/testing/index.tsx"
-import type { Renderer } from "../src/types.ts"
+import type { SupportedRenderer } from "../src/types.ts"
 
-// Widen ResolvedRenderer to the full `Renderer` union for tests. The
+// Widen ResolvedRenderer to the full `SupportedRenderer` union for tests. The
 // production default is `WebGLRenderer`, but several test suites build mock
 // renderers that only satisfy `RendererLike` and pass them to `<Canvas gl>` —
 // without widening, those mocks fail the WebGLRenderer constraint.
 declare module "../src/types.ts" {
   interface Register {
-    renderer: Renderer
+    renderer: SupportedRenderer
   }
 }
 

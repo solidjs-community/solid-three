@@ -23,7 +23,7 @@ import type {
   Meta,
   Prettify,
   RefWithCleanup,
-  Renderer,
+  SupportedRenderer,
   RendererLike,
 } from "./types.ts"
 import type { Measure } from "./utils/use-measure.ts"
@@ -201,8 +201,8 @@ export function defaultProps<
  * Returns `true` with correct TS type inference if an object has a configurable color space (since r152).
  */
 export const hasColorSpace = <
-  T extends Renderer | Texture | object,
-  P = T extends Renderer ? { outputColorSpace: string } : { colorSpace: string },
+  T extends SupportedRenderer | Texture | object,
+  P = T extends SupportedRenderer ? { outputColorSpace: string } : { colorSpace: string },
 >(
   object: T,
 ): object is T & P => "colorSpace" in object || "outputColorSpace" in object
@@ -262,14 +262,14 @@ export function isWritable(object: object, propertyName: string) {
 
 /**
  * Returns true when `value` is an already-built renderer instance (anything
- * matching {@link Renderer}) rather than a config-props object or a factory.
+ * matching {@link SupportedRenderer}) rather than a config-props object or a factory.
  */
-export function isRenderer(value: unknown): value is Renderer {
+export function isRenderer(value: unknown): value is SupportedRenderer {
   return (
     typeof value === "object" &&
     value !== null &&
-    typeof (value as Renderer).render === "function" &&
-    typeof (value as Renderer).setSize === "function"
+    typeof (value as SupportedRenderer).render === "function" &&
+    typeof (value as SupportedRenderer).setSize === "function"
   )
 }
 
@@ -286,7 +286,7 @@ export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
  * otherwise `undefined`. Used to await async setup (e.g. `WebGPURenderer.init`)
  * before the first render.
  *
- * Why a util: `Renderer = WebGLRenderer | WebGPURenderer | RendererLike`, but
+ * Why a util: `SupportedRenderer = WebGLRenderer | WebGPURenderer | RendererLike`, but
  * `WebGLRenderer` has no `init` method at all — so direct union access errors
  * ("property `init` does not exist on type `WebGLRenderer`"). Narrowing through
  * `RendererLike` (where `init?` is optional) makes the access well-typed and
@@ -299,7 +299,7 @@ export function isWebGLShadowMap(value: unknown): value is WebGLShadowMap {
  * - the renderer's `hasInitialized()` reports `true` (user passed a pre-built,
  *   pre-initialized renderer — matches r3f's #3651 fix)
  */
-export function getPendingInit(renderer: Renderer): (() => Promise<unknown>) | undefined {
+export function getPendingInit(renderer: SupportedRenderer): (() => Promise<unknown>) | undefined {
   const init = (renderer as RendererLike).init
   const hasInitialized = (renderer as RendererLike).hasInitialized
   if (typeof init !== "function") return undefined

@@ -637,11 +637,11 @@ describe("renderer", () => {
   })
 
   it("should set a renderer via gl callback", async () => {
-    class Renderer extends THREE.WebGLRenderer {}
+    class SupportedRenderer extends THREE.WebGLRenderer {}
 
-    const gl = test(() => <T.Group />, { gl: canvas => new Renderer({ canvas }) }).gl
+    const gl = test(() => <T.Group />, { gl: canvas => new SupportedRenderer({ canvas }) }).gl
 
-    expect(gl instanceof Renderer).toBe(true)
+    expect(gl instanceof SupportedRenderer).toBe(true)
   })
 
   /**

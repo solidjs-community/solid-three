@@ -13,6 +13,6 @@ export * from "./raycasters.tsx"
 export * as S3 from "./types.ts"
 // Direct re-exports of types that users commonly need at the top level.
 // `Register` is augmentable from `declare module "solid-three"` (see its
-// JSDoc); `Renderer` and `ResolvedRenderer` show up in advanced typings.
-export type { Plugin, Register, Renderer, ResolvedRenderer } from "./types.ts"
+// JSDoc); `SupportedRenderer` and `ResolvedRenderer` show up in advanced typings.
+export type { Plugin, Register, ResolvedRenderer, SupportedRenderer } from "./types.ts"
 export { autodispose, getMeta, hasMeta, load, meta } from "./utils.ts"

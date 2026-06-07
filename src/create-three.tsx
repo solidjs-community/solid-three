@@ -42,7 +42,7 @@ import type {
   FrameListener,
   FrameListenerCallback,
   Meta,
-  Renderer,
+  SupportedRenderer,
   ResolvedRenderer,
 } from "./types.ts"
 import {
@@ -268,19 +268,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   // post-construction changes the user might be expecting to take effect, but
   // can't (WebGL contexts are immutable once created).
   let initialConstructorArgs: Partial<WebGLRendererParameters> = {}
-  const gl = createMemo<Meta<Renderer>>(previous => {
+  const gl = createMemo<Meta<SupportedRenderer>>(previous => {
     if (previous && ownsCurrentRenderer) {
       const old = previous as unknown as WebGLRenderer
       old.dispose()
       if ("forceContextLoss" in old) old.forceContextLoss()
     }
     const kind = glKind()
-    let _gl: Renderer
+    let _gl: SupportedRenderer
     if (kind === "factory") {
-      _gl = (props.gl as (canvas: HTMLCanvasElement) => Renderer)(canvas)
+      _gl = (props.gl as (canvas: HTMLCanvasElement) => SupportedRenderer)(canvas)
       ownsCurrentRenderer = false
     } else if (kind === "instance") {
-      _gl = props.gl as Renderer
+      _gl = props.gl as SupportedRenderer
       ownsCurrentRenderer = false
     } else {
       // Default branch — construct a WebGLRenderer with the user's flat `gl`
@@ -395,12 +395,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return raycasterStack.push(raycaster)
     },
     get gl() {
-      // Internally gl is typed as Meta<Renderer> (the open union) since the
+      // Internally gl is typed as Meta<SupportedRenderer> (the open union) since the
       // memo can produce any concrete renderer the user chose. Externally it
       // surfaces as Meta<ResolvedRenderer> — the user's declared (or default
       // WebGLRenderer) type. The cast bridges the two; if the user has not
       // augmented Register, their concrete renderer will satisfy WebGLRenderer.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- no-op without Register augmentation (Renderer === ResolvedRenderer), but the bridge is real once the user narrows the renderer type.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- no-op without Register augmentation (SupportedRenderer === ResolvedRenderer), but the bridge is real once the user narrows the renderer type.
       return gl() as Meta<ResolvedRenderer>
     },
   }
