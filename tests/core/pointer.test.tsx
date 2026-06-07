@@ -1,13 +1,19 @@
 import { assertType, describe, expect, it, vi } from "vitest"
 import { type Intersection, Object3D, PerspectiveCamera, Ray, Vector3 } from "three"
+import { EventRegistry } from "../../src/event-registry.ts"
 import { createThreeEvent, Pointer, type PointerRaycaster } from "../../src/pointers.ts"
 import { meta } from "../../src/utils.ts"
 
 function eventful(handlers: Record<string, any>) {
   return meta(new Object3D(), { props: handlers }) as any as Object3D
 }
-function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
-  return { eventRegistry, props } as any
+function registry(objects: Object3D[]) {
+  const eventRegistry = new EventRegistry()
+  for (const object of objects) eventRegistry.register(object)
+  return eventRegistry
+}
+function ctx(objects: Object3D[], props: Record<string, any> = {}) {
+  return { eventRegistry: registry(objects), props } as any
 }
 // Mutable ray state a test tweaks between gestures.
 type RayState = { target?: Object3D; point?: Vector3; normal?: Vector3 }
@@ -314,7 +320,7 @@ describe("Pointer capture lifecycle", () => {
     camera.updateMatrixWorld() // syntheticHit builds a camera-facing plane
     const sink = spySink()
     const pointer = new Pointer(
-      { eventRegistry: [mesh], props: {}, camera } as any,
+      { eventRegistry: registry([mesh]), props: {}, camera } as any,
       fakeRaycaster({ target: mesh }),
       sink,
     )

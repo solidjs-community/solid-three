@@ -32,6 +32,7 @@ import {
 import type { CanvasProps } from "./canvas.tsx"
 import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
+import { EventRegistry } from "./event-registry.ts"
 import { frameContext, threeContext } from "./hooks.ts"
 import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
@@ -367,7 +368,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     },
     canvas,
     clock,
-    eventRegistry: [],
+    eventRegistry: new EventRegistry(),
     get dpr() {
       // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
       // anything — reporting `1` is honest. Users who need the device's

@@ -245,7 +245,7 @@ export class Pointer {
     // object — hover frozen, since `dispatch` never touches `this.hovered`).
     if (this.captured) return this.dispatch("onPointerMove", nativeEvent, undefined, true)
 
-    const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
+    const intersections = this.raycaster.cast(this.context.eventRegistry.objects, this.context)
     const props = this.context.props as Record<string, any>
 
     // Phase #1 — Enter (bubble up; fire onPointerEnter for newly-hovered objects).
@@ -362,7 +362,7 @@ export class Pointer {
       return
     }
 
-    const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
+    const intersections = this.raycaster.cast(this.context.eventRegistry.objects, this.context)
     const event = createThreeEvent(nativeEvent, { intersections }, extra)
     if (capturable) this.attachCapture(event)
     this.propagate(
@@ -375,7 +375,7 @@ export class Pointer {
   /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
   click(kind: "onClick" | "onDoubleClick" | "onContextMenu", nativeEvent: Event) {
     const missedType = `${kind}Missed` as const
-    const registry = this.context.eventRegistry
+    const registry = this.context.eventRegistry.objects
     const props = this.context.props as Record<string, any>
     if (registry.length === 0 && !props[kind] && !props[missedType]) return
 

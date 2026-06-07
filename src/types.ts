@@ -23,6 +23,7 @@ import type {
 import type { WebGPURenderer } from "three/webgpu"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
+import type { EventRegistry } from "./event-registry.ts"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type { Measure } from "./utils/use-measure.ts"
 
@@ -328,8 +329,8 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
-  /** Objects carrying any pointer handler; raycast by the pointer system. */
-  eventRegistry: Object3D[]
+  /** The refcounted registry of objects carrying pointer handlers; raycast by the pointer system. */
+  eventRegistry: EventRegistry
   raycaster: Raycaster | EventRaycaster
   dpr: number
   gl: Meta<ResolvedRenderer>

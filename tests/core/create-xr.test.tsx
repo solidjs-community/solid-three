@@ -1,7 +1,7 @@
 import { createRoot, createSignal } from "solid-js"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { CanvasProps } from "../../src/canvas.tsx"
-import { createXR, type XRContext } from "../../src/create-xr.tsx"
+import { createXR, type XRContext } from "../../src/xr/create-xr.tsx"
 
 // Compile-time only: narrowing connect's param to XRContext must keep it
 // assignable to `<Canvas ref={xr.connect}>` (Context satisfies XRContext).
@@ -264,8 +264,8 @@ describe("createXR — exit & isSupported", () => {
 })
 
 describe("createXR — public export", () => {
-  it("is exported from the package entry", async () => {
-    const entry = await import("../../src/index.ts")
+  it("is exported from the solid-three/xr entry", async () => {
+    const entry = await import("../../src/xr/index.tsx")
     expect(typeof entry.createXR).toBe("function")
   })
 })
