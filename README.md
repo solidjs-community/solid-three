@@ -1225,6 +1225,21 @@ Inside a pointer handler, `setPointerCapture()` routes every later move — and 
 
 The no-arg form captures `currentObject` and must be called synchronously in the handler (`currentObject` is cleared after dispatch). To start a capture later — after an `await` or a timer — pass the object: `setPointerCapture(mesh)`. Capture releases automatically on pointer up / cancel; call `releasePointerCapture()` to end it early.
 
+For reactive visuals — scaling or recoloring a mesh while it's dragged — read the capture state declaratively with `hasPointerCapture(object)` instead of tracking your own `dragging` signal:
+
+```tsx
+import { hasPointerCapture } from "solid-three"
+
+let mesh: THREE.Mesh | undefined
+<T.Mesh
+  ref={mesh}
+  scale={hasPointerCapture(mesh) ? 1.15 : 1}
+  onPointerDown={e => e.setPointerCapture()}
+/>
+```
+
+`hasPointerCapture(object)` is a context-free reactive read — it re-runs only when that object's capture status flips, and a nullish `object` (an unmounted ref) reads `false`. It's distinct from the event's own `event.hasPointerCapture()`, which is the imperative, in-handler check.
+
 ### Event Propagation
 
 solid-three implements a dual propagation system for events:

@@ -262,6 +262,23 @@ let grabbing = false
 
 See the [pointer events tour](/tour/04-pointer-events#dragging) for a runnable drag demo.
 
+### Reacting to capture in your UI
+
+For visuals that should follow a drag — scaling or recoloring the grabbed object — read the capture state declaratively with the top-level `hasPointerCapture(object)` instead of tracking your own `grabbing` flag:
+
+```tsx
+import { hasPointerCapture } from "solid-three"
+
+let mesh: THREE.Mesh | undefined
+<T.Mesh
+  ref={mesh}
+  scale={hasPointerCapture(mesh) ? 1.15 : 1}
+  onPointerDown={event => event.setPointerCapture()}
+/>
+```
+
+`hasPointerCapture(object)` is a context-free reactive read — no `useThree`, callable anywhere — that re-runs only when that object's capture status flips. A nullish `object` (an unmounted ref) reads `false`. It's the reactive counterpart to the event's own `event.hasPointerCapture()`, which is the imperative, in-handler check.
+
 ## Filtering with `raycastable`
 
 To keep an object from being hit while it still receives events that bubble up from its children, set `raycastable={false}`. See [`raycastable`](/api/events/raycastable) for the full prop.
