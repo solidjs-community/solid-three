@@ -41,10 +41,9 @@ export const captureRegistry: PointerCaptureRegistry = {
  * visuals without maintaining your own `dragging` signal:
  *
  * ```tsx
- * // A signal ref, so the read re-subscribes once the object mounts.
- * const [mesh, setMesh] = createSignal<Mesh>()
- * <T.Mesh ref={setMesh}
- *   scale={hasPointerCapture(mesh()) ? 1.15 : 1}
+ * let mesh: Mesh | undefined
+ * <T.Mesh ref={mesh}
+ *   scale={hasPointerCapture(mesh) ? 1.15 : 1}
  *   onPointerDown={event => event.setPointerCapture()}
  * />
  * ```

@@ -6,17 +6,16 @@ const T = createT(THREE)
 
 export default () => {
   const [position, setPosition] = createSignal<[number, number, number]>([0, 0, 0])
-  // A signal ref, so the visuals can ask `hasPointerCapture(mesh())` reactively.
-  const [mesh, setMesh] = createSignal<THREE.Mesh>()
+  let mesh: THREE.Mesh | undefined
   // Offset from the mesh origin to the grabbed point, so it doesn't jump on grab.
   let grabOffset = new THREE.Vector3()
   // Drag state is derived from the capture itself — no signal to keep in sync.
-  const dragging = () => hasPointerCapture(mesh())
+  const dragging = () => hasPointerCapture(mesh)
 
   return (
     <Canvas camera={{ position: [0, 0, 5] }}>
       <T.Mesh
-        ref={setMesh}
+        ref={mesh}
         position={position()}
         scale={dragging() ? 1.15 : 1}
         onPointerDown={event => {

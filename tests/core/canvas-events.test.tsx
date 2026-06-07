@@ -701,33 +701,30 @@ describe("pointer capture", () => {
     expect(onClick).toHaveBeenCalledTimes(1) // a tap, not a drag
   })
 
-  it("hasPointerCapture(object) reactively drives a prop binding (the demo pattern)", async () => {
-    // A signal ref, so the binding re-subscribes once the mesh mounts — refs flow
-    // bottom-up, so a plain `let` ref read by a child/descendant would still be
-    // undefined when that binding first runs.
-    const [mesh, setMesh] = createSignal<THREE.Mesh>()
+  it("hasPointerCapture(object) reactively drives a child prop binding (the demo pattern)", async () => {
+    // A plain `let` ref read by a CHILD binding — the drag demo's exact shape (material
+    // color keyed off the mesh's capture). Works because the renderer assigns the ref
+    // before children mount; the predicate supplies the reactivity.
+    let mesh: THREE.Mesh | undefined
+    let material: THREE.MeshBasicMaterial | undefined
     const { canvas } = test(() => (
-      <T.Mesh
-        ref={setMesh}
-        visible={hasPointerCapture(mesh())}
-        onPointerDown={(e: any) => e.setPointerCapture()}
-      >
+      <T.Mesh ref={mesh} onPointerDown={(e: any) => e.setPointerCapture()}>
         <T.BoxGeometry args={[2, 2]} />
-        <T.MeshBasicMaterial />
+        <T.MeshBasicMaterial ref={material} wireframe={hasPointerCapture(mesh)} />
       </T.Mesh>
     ))
     vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
-    await Promise.resolve() // let the ref land and the binding take its first read
+    await Promise.resolve() // let the refs land and the binding take its first read
 
-    const before = mesh()?.visible
+    const before = material?.wireframe
     fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures → true
     await Promise.resolve()
-    const during = mesh()?.visible
+    const during = material?.wireframe
     fireEvent(canvas, pointerAt("pointerup", HIT_X, HIT_Y))
     // The browser auto-releases on pointerup, firing lostpointercapture → false.
     fireEvent(canvas, new PointerEvent("lostpointercapture", { pointerId: 1, bubbles: true }))
     await Promise.resolve()
-    const after = mesh()?.visible
+    const after = material?.wireframe
 
     expect({ before, during, after }).toEqual({ before: false, during: true, after: false })
   })
