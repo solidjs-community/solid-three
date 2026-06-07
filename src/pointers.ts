@@ -253,7 +253,7 @@ export class Pointer {
     // drag by calling `setPointerCapture()` from here.
     const moveEvent: any = createThreeEvent(nativeEvent, { intersections })
     this.attachCapture(moveEvent)
-    this.bubble(
+    this.propagate(
       moveEvent,
       "onPointerMove",
       intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
@@ -289,7 +289,8 @@ export class Pointer {
   }
 
   /**
-   * Bubble `handler` up each root's parent chain — setting `event.currentIntersection`
+   * Propagate `handler` across the roots (nearest-first — raycast propagation) and up
+   * each root's parent chain (tree propagation) — setting `event.currentIntersection`
    * for the chain and `event.currentObject` for each node it fires on — honoring
    * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
    * `[intersection, root]` pairs the starting node (`root`) with the intersection to
@@ -297,7 +298,7 @@ export class Pointer {
    * captured object, the normal path one pair per hit. A node shared by several hits
    * fires once (the closest hit's chain reaches it first), matching `move`/`click`.
    */
-  private bubble(event: any, handler: string, roots: Array<[Intersection, Object3D]>) {
+  private propagate(event: any, handler: string, roots: Array<[Intersection, Object3D]>) {
     const visited = new Set<Object3D>()
     for (const [intersection, root] of roots) {
       event.currentIntersection = intersection
@@ -318,9 +319,9 @@ export class Pointer {
   }
 
   /**
-   * Bubble a "default"-style gesture to an arbitrary handler name (plugin-extensible:
+   * Dispatch a "default"-style gesture to an arbitrary handler name (plugin-extensible:
    * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
-   * can fire its own names, e.g. `onXRSelect`). Bubbles up the hit chain honoring
+   * can fire its own names, e.g. `onXRSelect`). Propagates along the hit chain honoring
    * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
    * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
    * `event.currentObject` exposes the node a handler is firing on. When this pointer
@@ -337,7 +338,7 @@ export class Pointer {
       const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
       if (extra) Object.assign(event, extra)
       if (capturable) this.attachCapture(event)
-      this.bubble(event, handler, [[intersection, captured.object]])
+      this.propagate(event, handler, [[intersection, captured.object]])
       return
     }
 
@@ -345,7 +346,7 @@ export class Pointer {
     const event: any = createThreeEvent(nativeEvent, { intersections })
     if (extra) Object.assign(event, extra)
     if (capturable) this.attachCapture(event)
-    this.bubble(
+    this.propagate(
       event,
       handler,
       intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
