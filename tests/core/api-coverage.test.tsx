@@ -1,8 +1,9 @@
 import { createSignal } from "solid-js"
 import * as THREE from "three"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, assertType, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   createEntity,
+  createT,
   CursorRaycaster,
   CenterRaycaster,
   getMeta,
@@ -179,5 +180,18 @@ describe("CursorRaycaster / CenterRaycaster", () => {
       expect.objectContaining({ x: 0, y: 0 }),
       context.camera,
     )
+  })
+})
+
+describe("pointer capture types", () => {
+  it("exposes pointer-capture methods on pointer events", () => {
+    const T = createT(THREE)
+    type MeshProps = Parameters<typeof T.Mesh>[0]
+    const onPointerDown: NonNullable<MeshProps["onPointerDown"]> = event => {
+      assertType<() => void>(event.setPointerCapture)
+      assertType<() => void>(event.releasePointerCapture)
+      assertType<() => boolean>(event.hasPointerCapture)
+    }
+    void onPointerDown
   })
 })

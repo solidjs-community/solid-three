@@ -19,6 +19,9 @@ importers:
       '@bigmistqke/solid-whenever':
         specifier: ^0.1.0
         version: 0.1.1(solid-js@1.9.13)
+      '@solid-primitives/map':
+        specifier: ^0.7.3
+        version: 0.7.3(solid-js@1.9.13)
       '@solid-primitives/resize-observer':
         specifier: ^2.0.25
         version: 2.1.5(solid-js@1.9.13)
@@ -1876,6 +1879,11 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
+  '@solid-primitives/map@0.7.3':
+    resolution: {integrity: sha512-2Ach52ANEWYUKFtlrKWljrCtAHJwXnfNEvNfQwA+80nS/Bdw9fSumWQiRJNoDQLN0k5iEggWRBHd6vC/uqYKcA==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
   '@solid-primitives/media@2.3.5':
     resolution: {integrity: sha512-LX9fB5WDaK87FMDtUB1qokBOfT2et9Uobv/zZaKLH9caFSz4+P70MBKEIBHcZQy+9MV5M2XvGYLTbLskjkzMjA==}
     peerDependencies:
@@ -1964,7 +1972,7 @@ packages:
       solid-js: ^1.8.6
 
   '@solidjs/start@https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2152':
-    resolution: {integrity: sha512-h14+vdw26apDAi/l5HEG769B4RJ3NWjj92npNMM8VUpxaQwb1f9BDxjM9XrxwSa04tpZqs+7ZG8/uL+aEsIAwA==, tarball: https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2152}
+    resolution: {tarball: https://pkg.pr.new/solidjs/solid-start/@solidjs/start@2152}
     version: 2.0.0-alpha.3
     engines: {node: '>=22'}
     peerDependencies:
@@ -1981,7 +1989,7 @@ packages:
         optional: true
 
   '@solidjs/vite-plugin-nitro-2@https://pkg.pr.new/solidjs/solid-start/@solidjs/vite-plugin-nitro-2@2152':
-    resolution: {integrity: sha512-EA2P/X3tFngkEq6CE+/VUQP6d812BZx5IK0vaC00+tw+n4voXS11WKkNo/qkxZkkruszV6ulzG4qomJpoIlmcA==, tarball: https://pkg.pr.new/solidjs/solid-start/@solidjs/vite-plugin-nitro-2@2152}
+    resolution: {tarball: https://pkg.pr.new/solidjs/solid-start/@solidjs/vite-plugin-nitro-2@2152}
     version: 0.3.0
     peerDependencies:
       vite: ^7
@@ -7906,6 +7914,11 @@ snapshots:
       solid-js: 1.9.13
 
   '@solid-primitives/map@0.4.13(solid-js@1.9.13)':
+    dependencies:
+      '@solid-primitives/trigger': 1.2.3(solid-js@1.9.13)
+      solid-js: 1.9.13
+
+  '@solid-primitives/map@0.7.3(solid-js@1.9.13)':
     dependencies:
       '@solid-primitives/trigger': 1.2.3(solid-js@1.9.13)
       solid-js: 1.9.13

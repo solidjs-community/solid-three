@@ -10,6 +10,8 @@ import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
 import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
 import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
 import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
+import dragSnippet from "../../snippets/04-drag.tsx?raw"
+import dragUrl from "../../snippets/04-drag.tsx?importChunkUrl"
 
 # Pointer events
 
@@ -96,6 +98,28 @@ plus the `three.js` intersection data — useful any time "click" alone
 isn't enough (drag-to-rotate, paint-on-surface, world-space gizmos).
 The [events API reference](/api/events/overview) has the full
 event-object shape and the complete handler list.
+
+## Dragging
+
+A click fires once. Hover fires as the ray crosses a mesh. A *drag* is
+different: it needs every move to keep reaching the same object — even
+after the pointer slides off it. Left to the default, the moves would
+jump to whatever is under the pointer now, and the gesture would fall
+apart the moment your aim drifts.
+
+`setPointerCapture()` solves it. Call it from `onPointerDown` and that
+pointer is *captured*: every following `onPointerMove` and `onPointerUp`
+goes to this mesh — on the ray or off it — until you let go.
+
+<Demo code={dragSnippet} url={dragUrl} />
+
+Grab the cube and drag. It follows the pointer, and keeps following even
+when the pointer races ahead of it or leaves the canvas. On `pointerup`
+the capture releases on its own.
+
+One detail makes it feel right: the `event.stopPropagation()` in
+`onPointerDown` keeps the press from also grabbing meshes stacked behind the
+cube — you grab the front one, not the whole column.
 
 So far every trigger has been a one-off — a click, a hover-in, a
 hover-out. The next chapter introduces the third kind: time.

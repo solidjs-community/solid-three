@@ -41,6 +41,7 @@
    - [Controlling Raycasting with raycastable](#controlling-raycasting-with-raycastable)
    - [Supported Events](#supported-events)
    - [Event Object](#event-object)
+   - [Pointer Capture](#pointer-capture)
    - [Event Propagation](#event-propagation)
    - [Missed Events](#missed-events)
    - [Hover Events](#hover-events)
@@ -1163,45 +1164,83 @@ const MyTest = () => {
 
 ### Supported Events
 
-- `onClick` - Fired when clicking on an object
-- `onClickMissed` - Fired when a click doesn't hit any objects with onClick handlers
-- `onContextMenu` - Fired when right-clicking on an object
-- `onContextMenuMissed` - Fired when a right-click doesn't hit any objects with onContextMenu handlers
-- `onDoubleClick` - Fired when double-clicking on an object
-- `onDoubleClickMissed` - Fired when a double-click doesn't hit any objects with onDoubleClick handlers
-- `onMouseDown` - Fired when mouse button is pressed
-- `onMouseEnter` - Fired when mouse enters object
-- `onMouseLeave` - Fired when mouse leaves object
-- `onMouseMove` - Fired when mouse moves over object
-- `onMouseUp` - Fired when mouse button is released
-- `onPointerDown` - Fired when pointer is pressed
-- `onPointerEnter` - Fired when pointer enters object
-- `onPointerLeave` - Fired when pointer leaves object
-- `onPointerMove` - Fired when pointer moves
-- `onPointerUp` - Fired when pointer is released
-- `onWheel` - Fired on mouse wheel events
+**Pointer events** — carry the [pointer-capture API](#pointer-capture):
+
+- `onPointerDown` — pointer pressed on an object
+- `onPointerUp` — pointer released
+- `onPointerMove` — pointer moves over an object
+- `onPointerEnter` — pointer enters an object (can't be stopped)
+- `onPointerLeave` — pointer leaves an object (can't be stopped)
+
+**Mouse-semantic events:**
+
+- `onClick` — click on an object
+- `onDoubleClick` — double-click on an object
+- `onContextMenu` — right-click on an object
+- `onWheel` — wheel scroll over an object
+
+**Missed events** — fire when the interaction didn't hit the handler's object or its descendants:
+
+- `onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed`
 
 
 ### Event Object
 
-Event handlers receive an event object with the following properties:
+Every handler receives one event object, created once per dispatch and reused as it bubbles up the chain — like a DOM event, treat it as read-only.
 
-- **nativeEvent**: The original DOM event
-- **stopped**: Whether propagation has been stopped (only for stoppable events)
-- **stopPropagation**: Method to stop event propagation (only for stoppable events)
+| Property | Type | Available on | Description |
+| --- | --- | --- | --- |
+| `nativeEvent` | DOM event | all events | The original DOM `PointerEvent` / `MouseEvent` / `WheelEvent`. |
+| `intersections` | `Intersection[]` | raycasting events | All hits under the pointer, sorted nearest-first. |
+| `intersection` | `Intersection` | raycasting events | Shorthand for `intersections[0]` — the closest hit. |
+| `object` | `Object3D` | raycasting events | The closest hit object (`intersections[0].object`). Stable after dispatch — the 3D analogue of a DOM event's `target`. |
+| `currentObject` | `Object3D` | inside an object handler | The object this handler is firing on; walks up the ancestor chain as the event bubbles, and is cleared after dispatch — the 3D analogue of `currentTarget`. |
+| `currentIntersection` | `Intersection` | inside an object handler | The intersection for `currentObject`. Absent at the canvas level. |
+| `stopped` | `boolean` | stoppable events | Whether `stopPropagation()` has been called. |
+| `stopPropagation` | `() => void` | stoppable events | Stops both raycast and tree propagation. |
+| `setPointerCapture` | `(options?: { object?, normal? }) => void` | pointer events | Capture the pointer (default object: `currentObject`); `normal` sets the drag-plane orientation. See [Pointer Capture](#pointer-capture). |
+| `releasePointerCapture` | `() => void` | pointer events | End a capture early. |
+| `hasPointerCapture` | `(target?: Object3D) => boolean` | pointer events | Whether `target` currently holds the capture. |
 
-<details>
-<summary>Typescript Interface</summary>
+Each `Intersection` is a standard [three.js `Intersection`](https://threejs.org/docs/#api/en/core/Raycaster.intersectObject): `object`, `point` (world-space `Vector3`), `distance`, plus `face`, `uv`, `normal`, and `instanceId` when available.
+
+### Pointer Capture
+
+Inside a pointer handler, `setPointerCapture()` routes every later move — and the release — for that pointer to the captured object, even once the pointer leaves it. This is the basis for drag interactions:
 
 ```tsx
-interface Event<T> {
-  nativeEvent: T
-  stopped?: boolean
-  stopPropagation?: () => void
-}
+<T.Mesh
+  onPointerDown={e => e.setPointerCapture()}
+  onPointerMove={e => {
+    if (e.hasPointerCapture()) {
+      // dragging: e.intersection.point keeps tracking on a drag plane,
+      // even when the pointer moves off the mesh
+    }
+  }}
+>
+  <T.BoxGeometry args={[1, 1, 1]} />
+  <T.MeshBasicMaterial color="orange" />
+</T.Mesh>
 ```
 
-</details>
+The no-arg form captures `currentObject` and must be called synchronously in the handler (`currentObject` is cleared after dispatch). To start a capture later — after an `await` or a timer — name the object: `setPointerCapture({ object: mesh })`. Capture releases automatically on pointer up / cancel; call `releasePointerCapture()` to end it early.
+
+By default the drag plane is the hit surface (tangent), or camera-facing when there's no face — right for sliding along a surface. To constrain the drag instead, pass a world-space `normal` for the plane (built through the grab point): `setPointerCapture({ normal: new THREE.Vector3(0, 1, 0) })` slides on the ground (horizontal), regardless of where on the object you grabbed.
+
+For reactive visuals — scaling or recoloring a mesh while it's dragged — read the capture state declaratively with `hasPointerCapture(object)` instead of tracking your own `dragging` signal:
+
+```tsx
+import { hasPointerCapture } from "solid-three"
+
+let mesh: THREE.Mesh | undefined
+<T.Mesh
+  ref={mesh}
+  scale={hasPointerCapture(mesh) ? 1.15 : 1}
+  onPointerDown={e => e.setPointerCapture()}
+/>
+```
+
+`hasPointerCapture(object)` is a context-free reactive read — it re-runs only when that object's capture status flips, and a nullish `object` (an unmounted ref) reads `false`. It's distinct from the event's own `event.hasPointerCapture()`, which is the imperative, in-handler check.
 
 ### Event Propagation
 
@@ -1265,12 +1304,12 @@ Not all events in solid-three can be stopped with `stopPropagation()`. This desi
 **Non-stoppable events:**
 
 - `onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed` - [Missed Events](#missed-events) always fire for all registered handlers
-- `onMouseEnter`, `onPointerEnter` - Enter events always fire [Hover Events](#hover-events-entermoveleave)
-- `onMouseLeave`, `onPointerLeave` - Leave events always fire [Hover Events](#hover-events-entermoveleave)
+- `onPointerEnter` - Enter events always fire [Hover Events](#hover-events-entermoveleave)
+- `onPointerLeave` - Leave events always fire [Hover Events](#hover-events-entermoveleave)
 
 **Stoppable events:**
 
-- All other events (`onClick`, `onMouseMove`, `onPointerMove`, `onMouseDown`, etc.) can be stopped with `stopPropagation()`
+- All other events (`onClick`, `onPointerMove`, `onPointerDown`, etc.) can be stopped with `stopPropagation()`
 
 ### Missed Events
 
@@ -1356,7 +1395,7 @@ This is useful for:
 
 ### Hover Events (Enter/Move/Leave)
 
-solid-three handles hover events (`onMouseEnter`, `onMouseMove`, `onMouseLeave`, `onPointerEnter`, `onPointerMove`, `onPointerLeave`) with a specific scheduling approach:
+solid-three handles hover events (`onPointerEnter`, `onPointerMove`, `onPointerLeave`) with a specific scheduling approach:
 
 **Event Scheduling:**
 

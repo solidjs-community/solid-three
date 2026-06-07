@@ -38,7 +38,9 @@ Every handler receives one event argument that combines the original DOM event w
 | `nativeEvent` | `MouseEvent \| PointerEvent \| WheelEvent` | always | The original DOM event that triggered the handler. |
 | `intersections` | `Intersection[]` | events that raycast | All hit intersections, sorted nearest-first. |
 | `intersection` | `Intersection` | events that raycast | Shorthand for `intersections[0]` — the closest hit overall. |
+| `object` | `Object3D` | events that raycast | The closest hit object (`intersections[0].object`) — stable after dispatch, the 3D analogue of a DOM event's `target`. |
 | `currentIntersection` | `Intersection` | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch. |
+| `currentObject` | `Object3D` | inside an object handler | The object this handler is firing on; as the event bubbles it walks up the ancestor chain (while `currentIntersection` stays on the hit) and is cleared after dispatch — the 3D analogue of a DOM event's `currentTarget`. |
 | `stopped` | `boolean` | stoppable events only | Whether `stopPropagation()` has been called. |
 | `stopPropagation` | `() => void` | stoppable events only | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events). |
 
@@ -86,6 +88,13 @@ This extra detail is what lets you go beyond "did they click it?". A few of the 
 - `uv` — paint onto a surface where it was touched;
 - `normal` — align a world-space gizmo to the surface;
 - `distance` — react to how far away the hit is.
+
+### Reading the event
+
+The event object is created once per dispatch and **reused** as it bubbles up the chain — the same object is passed to every handler, just like a DOM event. Two things follow from that:
+
+- **Treat it as read-only.** `intersection`, `intersections`, and the rest are shared scene data, not per-handler copies. Mutating them affects the other handlers in the same dispatch (and, while a pointer is captured, persists across moves). Read from the event; don't write to it.
+- **`setPointerCapture()` captures `event.currentObject`** (the object currently firing), which is cleared after dispatch — so the no-arg form must be called synchronously in the handler. To start a capture later (after an `await`, a timer), name the object explicitly: `setPointerCapture({ object: mesh })`. (With no live hit, a deferred capture drags on a camera-facing plane through the object's center.)
 
 ## Reading the full hit stack
 
@@ -211,6 +220,66 @@ solid-three's hover handling differs from react-three-fiber in three ways:
 - **Phase order.** solid-three processes all enter events, then all move events, then all leave events (DOM-like). react-three-fiber interleaves them as it traverses.
 - **What can be stopped.** In solid-three, move can be stopped but enter and leave always fire (DOM-like). In react-three-fiber, every hover event can be stopped.
 - **Child to parent.** In solid-three, moving from a child to its parent fires only a leave on the child (DOM-like). In react-three-fiber, the parent receives both a leave and an immediate re-enter.
+
+## Pointer capture
+
+By default a pointer event goes to whatever the ray currently hits. That breaks down for a drag: the moment the pointer slips off the object — or off the canvas entirely — the moves stop arriving, and the gesture dies mid-stroke.
+
+Pointer capture fixes this. Inside an `onPointerDown`, `onPointerMove`, or `onPointerUp` handler, three methods ride on the event:
+
+| Method | Description |
+| --- | --- |
+| `setPointerCapture(options?)` | Capture the pointer to `options.object` (default: the firing `currentObject`; sync-only). Pass `options.normal` to orient the drag plane. |
+| `releasePointerCapture()` | Release a capture started with `setPointerCapture()`. |
+| `hasPointerCapture()` | Whether this event's node currently holds the capture. |
+
+Once captured, every subsequent `onPointerMove` and `onPointerUp` for that pointer is delivered **exclusively** to the captured node's chain — still bubbling up to the canvas-level handler, but no longer raycasting against the rest of the scene. Delivery continues even when the pointer is off the object, and (for the DOM pointer source) off the canvas. Hover is frozen for the duration: no enter/leave fires while a capture is held.
+
+Capture is **object-scoped** — the no-arg form captures the object whose handler is running, so calling it from a canvas-level handler is a no-op (there's no `currentObject` there). Pass an explicit `target` to capture any object, including later/async.
+
+While the pointer is off the ray, `event.intersection` is reprojected onto a plane through the original grab point, so `event.intersection.point` keeps tracking a sensible world-space position to drag toward.
+
+The drag plane defaults to the hit surface (or camera-facing when there's no face). Pass an `options.normal` to constrain it — e.g. `{ normal: new Vector3(0, 1, 0) }` for ground-plane sliding — and it's built through the grab point so the object doesn't jump.
+
+A capture releases when you call `releasePointerCapture()`, and automatically on `pointerup`/`pointercancel` (DOM source) or the paired end event (XR). It is also released if the captured object leaves the scene mid-drag, so a captured pointer never keeps dispatching to an unmounted node.
+
+```tsx
+let grabbing = false
+
+<T.Mesh
+  onPointerDown={event => {
+    event.stopPropagation()
+    event.setPointerCapture() // grab — moves now follow this mesh
+    grabbing = true
+  }}
+  onPointerMove={event => {
+    if (!grabbing) return
+    // event.intersection.point tracks the drag plane, even off the mesh
+  }}
+  onPointerUp={() => {
+    grabbing = false // capture auto-releases on pointerup
+  }}
+/>
+```
+
+See the [pointer events tour](/tour/04-pointer-events#dragging) for a runnable drag demo.
+
+### Reacting to capture in your UI
+
+For visuals that should follow a drag — scaling or recoloring the grabbed object — read the capture state declaratively with the top-level `hasPointerCapture(object)` instead of tracking your own `grabbing` flag:
+
+```tsx
+import { hasPointerCapture } from "solid-three"
+
+let mesh: THREE.Mesh | undefined
+<T.Mesh
+  ref={mesh}
+  scale={hasPointerCapture(mesh) ? 1.15 : 1}
+  onPointerDown={event => event.setPointerCapture()}
+/>
+```
+
+`hasPointerCapture(object)` is a context-free reactive read — no `useThree`, callable anywhere — that re-runs only when that object's capture status flips. A nullish `object` (an unmounted ref) reads `false`. It's the reactive counterpart to the event's own `event.hasPointerCapture()`, which is the imperative, in-handler check.
 
 ## Filtering with `raycastable`
 

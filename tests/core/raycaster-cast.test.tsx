@@ -64,3 +64,20 @@ describe("EventRaycaster.cast", () => {
     expect(rc.cast([mesh], ctx(camera()))).toHaveLength(0)
   })
 })
+
+describe("aim()", () => {
+  it("positions the ray from the camera + cursor without casting the registry", () => {
+    const raycaster = new CursorRaycaster()
+    const camera = new PerspectiveCamera()
+    camera.position.set(0, 0, 5)
+    camera.updateMatrixWorld()
+    const context = { camera } as any
+
+    raycaster.setCursor(new Vector2(0, 0)) // dead centre
+    raycaster.aim(context)
+
+    // Ray now originates at the camera and points toward -z (into the scene).
+    expect(raycaster.ray.origin.z).toBeCloseTo(5)
+    expect(raycaster.ray.direction.z).toBeLessThan(0)
+  })
+})

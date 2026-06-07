@@ -1,5 +1,5 @@
-import { Vector2 } from "three"
-import { Pointer } from "./pointers.ts"
+import { Vector2, type Object3D } from "three"
+import { Pointer, type PointerCaptureRegistry } from "./pointers.ts"
 import type { ScreenRaycaster } from "./raycasters.tsx"
 import type { Context } from "./types.ts"
 
@@ -19,18 +19,46 @@ type RayEvent = PointerEvent | MouseEvent | WheelEvent
 export class DOMPointerManager {
   private pointers = new Map<number, Pointer>()
   private primary: Pointer
+  /** Pointers that moved while captured this gesture — i.e. dragged. */
+  private dragged = new Set<number>()
+  /** A captured drag just ended; swallow its trailing click/dblclick/contextmenu. */
+  private suppressClick = false
 
   constructor(
     private context: Context,
     private raycaster: ScreenRaycaster,
+    private captureRegistry?: PointerCaptureRegistry,
   ) {
-    this.primary = new Pointer(context, raycaster)
+    this.primary = new Pointer(context, raycaster, undefined, captureRegistry)
+  }
+
+  /**
+   * Release any pointer that currently holds `object` captured — called when the
+   * object leaves the event registry (unmount / last handler removed) so a drag
+   * doesn't keep dispatching to a detached node until the next pointerup. Uses
+   * `release()` so the OS-level canvas capture is dropped too.
+   */
+  releaseCaptured(object: Object3D) {
+    for (const pointer of this.pointers.values()) {
+      if (pointer.hasCaptured(object)) pointer.release()
+    }
   }
 
   private forId(id: number): Pointer {
     let pointer = this.pointers.get(id)
     if (!pointer) {
-      pointer = new Pointer(this.context, this.raycaster)
+      const canvas = this.context.canvas
+      pointer = new Pointer(
+        this.context,
+        this.raycaster,
+        {
+          capture: () => canvas.setPointerCapture(id),
+          release: () => {
+            if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id)
+          },
+        },
+        this.captureRegistry,
+      )
       this.pointers.set(id, pointer)
     }
     return pointer
@@ -48,16 +76,27 @@ export class DOMPointerManager {
 
     const onMove = (event: PointerEvent) => {
       aim(event)
-      this.forId(event.pointerId).move(event)
+      const pointer = this.forId(event.pointerId)
+      // Captured before this move → the pointer moved while captured: a drag.
+      if (pointer.capturing) this.dragged.add(event.pointerId)
+      pointer.move(event)
     }
     const onDown = (event: PointerEvent) => {
       aim(event)
+      // A fresh press starts a new gesture — re-arm clicks.
+      this.suppressClick = false
+      this.dragged.delete(event.pointerId)
       this.forId(event.pointerId).down(event)
     }
     const onUp = (event: PointerEvent) => {
       aim(event)
       this.forId(event.pointerId).up(event)
+      // A drag isn't a click: a gesture that moved while captured swallows the
+      // click/dblclick/contextmenu the browser synthesizes after this pointerup.
+      if (this.dragged.delete(event.pointerId)) this.suppressClick = true
       // A lifted touch no longer exists — leave + drop it so it keeps no state.
+      // No explicit capture release needed: the browser auto-released on pointerup
+      // (firing lostpointercapture), and the dropped Pointer is unreachable anyway.
       if (event.pointerType === "touch") {
         this.pointers.get(event.pointerId)?.leave(event)
         this.pointers.delete(event.pointerId)
@@ -67,17 +106,21 @@ export class DOMPointerManager {
       // Always fire the canvas-level leave (a fresh pointer's leave does that even
       // with nothing hovered), matching the old per-session leave behavior.
       this.forId(event.pointerId).leave(event)
+      this.dragged.delete(event.pointerId) // a cancel ends the gesture without a click
       this.pointers.delete(event.pointerId)
     }
     const onClick = (event: MouseEvent) => {
+      if (this.suppressClick) return // trailing click of a captured drag
       aim(event)
       this.primary.click("onClick", event)
     }
     const onDoubleClick = (event: MouseEvent) => {
+      if (this.suppressClick) return
       aim(event)
       this.primary.click("onDoubleClick", event)
     }
     const onContextMenu = (event: MouseEvent) => {
+      if (this.suppressClick) return
       aim(event)
       this.primary.click("onContextMenu", event)
     }
@@ -85,12 +128,18 @@ export class DOMPointerManager {
       aim(event)
       this.primary.wheel(event)
     }
+    // The browser auto-releases capture on pointerup/cancel (and on explicit
+    // release), firing lostpointercapture — clear our matching capture state.
+    const onLostCapture = (event: PointerEvent) => {
+      this.pointers.get(event.pointerId)?.dropCapture()
+    }
 
     canvas.addEventListener("pointermove", onMove)
     canvas.addEventListener("pointerdown", onDown)
     canvas.addEventListener("pointerup", onUp)
     canvas.addEventListener("pointerleave", onLeaveOrCancel)
     canvas.addEventListener("pointercancel", onLeaveOrCancel)
+    canvas.addEventListener("lostpointercapture", onLostCapture)
     canvas.addEventListener("click", onClick)
     canvas.addEventListener("dblclick", onDoubleClick)
     canvas.addEventListener("contextmenu", onContextMenu)
@@ -102,6 +151,7 @@ export class DOMPointerManager {
       canvas.removeEventListener("pointerup", onUp)
       canvas.removeEventListener("pointerleave", onLeaveOrCancel)
       canvas.removeEventListener("pointercancel", onLeaveOrCancel)
+      canvas.removeEventListener("lostpointercapture", onLostCapture)
       canvas.removeEventListener("click", onClick)
       canvas.removeEventListener("dblclick", onDoubleClick)
       canvas.removeEventListener("contextmenu", onContextMenu)

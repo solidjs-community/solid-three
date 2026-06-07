@@ -378,7 +378,16 @@ export type ThreeEvent<
   },
 > = Intersect<
   [
-    { nativeEvent: TEvent },
+    {
+      nativeEvent: TEvent
+      /**
+       * The object a bubbled handler is currently firing on (the ancestor reached
+       * while walking up the hit chain), or `undefined` for the canvas-level
+       * dispatch — the 3D analogue of a DOM event's `currentTarget`, so it's only
+       * valid during the handler. Set by `Pointer.dispatch`; plugin sources read it.
+       */
+      currentObject?: Object3D
+    },
     When<
       TConfig["stoppable"],
       {
@@ -392,10 +401,42 @@ export type ThreeEvent<
         currentIntersection: Intersection
         intersection: Intersection
         intersections: Intersection[]
+        /** The closest hit object — `intersections[0].object`. The 3D analogue of a DOM event's `target`; stable after dispatch. */
+        object: Object3D
       }
     >,
   ]
 >
+
+export type PointerCapture = {
+  /**
+   * Capture this event's pointer to an object — by default the node the handler is
+   * firing on (`event.currentObject`). Subsequent move/up for this pointer deliver
+   * exclusively to that object's chain (still bubbling to the canvas-level handler)
+   * until released — even off-ray and, for the DOM source, off-canvas. Off-ray,
+   * `event.intersection` is reprojected onto the captured plane so `point` keeps tracking.
+   *
+   * Options:
+   * - `object` — capture this object instead of `event.currentObject`. Required to
+   *   start a capture later (after an `await`/timer), since `currentObject` is cleared
+   *   after dispatch (like a DOM event's `currentTarget`); with no live hit the drag
+   *   plane is camera-facing through the object's centre.
+   * - `normal` — a world-space normal for the drag plane, through the grab point,
+   *   instead of the default (the hit surface's normal, or camera-facing). Use it to
+   *   constrain a drag, e.g. `{ normal: new Vector3(0, 1, 0) }` to slide on the ground.
+   *
+   * With no `object`, call it synchronously in the handler.
+   */
+  setPointerCapture(options?: { object?: Object3D; normal?: ThreeVector3 }): void
+  /**
+   * Release a capture started with `setPointerCapture`. Also released
+   * automatically on pointerup/cancel for the DOM source, and on the paired end
+   * event for XR.
+   */
+  releasePointerCapture(): void
+  /** Whether `object` (default: this event's `currentObject`) currently holds the pointer capture. */
+  hasPointerCapture(object?: Object3D): boolean
+}
 
 type EventHandlersMap = {
   onClick: Prettify<ThreeEvent<MouseEvent>>
@@ -404,9 +445,9 @@ type EventHandlersMap = {
   onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
   onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onPointerUp: Prettify<ThreeEvent<PointerEvent>>
-  onPointerDown: Prettify<ThreeEvent<PointerEvent>>
-  onPointerMove: Prettify<ThreeEvent<PointerEvent>>
+  onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
+  onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
+  onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onWheel: Prettify<ThreeEvent<WheelEvent>>

@@ -1,4 +1,6 @@
+import { onCleanup } from "solid-js"
 import { Object3D } from "three"
+import { captureRegistry } from "./pointer-capture.ts"
 import { DOMPointerManager } from "./pointer-managers.ts"
 import { CursorRaycaster, type ScreenRaycaster } from "./raycasters.tsx"
 import type { Context, EventName, Meta } from "./types.ts"
@@ -32,6 +34,17 @@ export const isEventType = (type: string): type is EventName =>
  * the XR layer through the same registry.
  */
 export function createEvents(context: Context) {
+  // The screen pointer's ray strategy: the configured `raycaster` (default
+  // `CursorRaycaster`) when it's a screen raycaster, else a fresh one.
+  const candidate = context.raycaster
+  const screenRaycaster: ScreenRaycaster =
+    "setCursor" in candidate && "cast" in candidate
+      ? (candidate as ScreenRaycaster)
+      : new CursorRaycaster()
+  const manager = new DOMPointerManager(context, screenRaycaster, captureRegistry)
+  // Remove the canvas listeners when the Canvas owner disposes.
+  onCleanup(manager.connect())
+
   // The single registry the pointer system raycasts; refcounted so an object
   // listening for several event types is listed exactly once.
   const refCounts = new Map<Object3D, number>()
@@ -46,20 +59,19 @@ export function createEvents(context: Context) {
         refCounts.delete(object)
         const index = context.eventRegistry.indexOf(object)
         if (index !== -1) context.eventRegistry.splice(index, 1)
+        // Drop any active capture on a gone object so a drag stops dispatching to a
+        // detached node. But a *reactive* handler (e.g. `onPointerMove={dragging() ?
+        // a : b}`) re-registers in the same tick — cleanup (refcount → 0) then body
+        // (→ 1) — which must NOT tear down a live capture mid-drag. Defer, and
+        // release only if the object is still gone (a real unmount), not re-added.
+        queueMicrotask(() => {
+          if (!refCounts.has(object)) manager.releaseCaptured(object)
+        })
       } else {
         refCounts.set(object, current - 1)
       }
     }
   }
-
-  // The screen pointer's ray strategy: the configured `raycaster` (default
-  // `CursorRaycaster`) when it's a screen raycaster, else a fresh one.
-  const candidate = context.raycaster
-  const screenRaycaster: ScreenRaycaster =
-    "setCursor" in candidate && "cast" in candidate
-      ? (candidate as ScreenRaycaster)
-      : new CursorRaycaster()
-  new DOMPointerManager(context, screenRaycaster).connect()
 
   return {
     /**
