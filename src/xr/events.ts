@@ -1,18 +1,24 @@
 import { onCleanup, runWithOwner } from "solid-js"
-import type { Intersection, Object3D } from "three"
+import type { Object3D } from "three"
 import { captureRegistry } from "../pointer-capture.ts"
 import { Pointer } from "../pointers.ts"
 import { ControllerRaycaster } from "../raycasters.tsx"
 import type { Context, Plugin, ThreeEvent } from "../types.ts"
 import { getMeta } from "../utils.ts"
 
-/** The rich payload XR handlers receive. */
-export type XRThreeEvent = ThreeEvent<XRInputSourceEvent> & {
+/**
+ * The controller source's typed `extra` fields, merged onto the dispatched event.
+ * Declared once and reused for both the dispatch call (`dispatch<XRControllerExtra>`)
+ * and the handler type, so they can't drift.
+ */
+export interface XRControllerExtra {
   controller: Object3D
   inputSource: XRInputSource | undefined
   handedness: XRHandedness | undefined
-  intersection: Intersection
 }
+
+/** The rich payload XR handlers receive — the public event plus {@link XRControllerExtra}. */
+export type XRThreeEvent = ThreeEvent<XRInputSourceEvent> & XRControllerExtra
 
 /** A controller's `selectstart`/`selectend`/`squeezestart`/`squeezeend` event. */
 type ControllerEvent = { type: string; data?: XRInputSource }
@@ -72,7 +78,7 @@ export class XRControllerSource {
             // Start events are capturable (a handler may call `setPointerCapture()`),
             // mirroring `onPointerDown`. XR has no OS `lostpointercapture`, so the
             // source releases the capture on the paired end event.
-            pointer.dispatch(
+            pointer.dispatch<XRControllerExtra>(
               handler,
               new Event(native),
               { controller, inputSource, handedness: inputSource?.handedness },
