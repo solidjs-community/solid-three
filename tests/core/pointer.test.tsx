@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest"
-import { Object3D, PerspectiveCamera, Ray, Vector3 } from "three"
-import { Pointer, type PointerRaycaster } from "../../src/pointers.ts"
+import { assertType, describe, expect, it, vi } from "vitest"
+import { type Intersection, Object3D, PerspectiveCamera, Ray, Vector3 } from "three"
+import { createThreeEvent, Pointer, type PointerRaycaster } from "../../src/pointers.ts"
 import { meta } from "../../src/utils.ts"
 
 function eventful(handlers: Record<string, any>) {
@@ -439,5 +439,18 @@ describe("Pointer capture lifecycle", () => {
 
     pointer.move(new Event("pointermove"))
     expect(pointer.hasCaptured(mesh)).toBe(true)
+  })
+})
+
+describe("createThreeEvent typing", () => {
+  it("merges typed extra and exposes a typed event shape — no any", () => {
+    const event = createThreeEvent(new MouseEvent("click"), { intersections: [] }, { controller: "c" } as const)
+
+    assertType<Event>(event.nativeEvent)
+    assertType<"c">(event.controller) // typed plugin extra, not `any`
+    assertType<Intersection[] | undefined>(event.intersections)
+
+    expect(event.controller).toBe("c")
+    expect(event.nativeEvent.type).toBe("click")
   })
 })

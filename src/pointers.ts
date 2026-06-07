@@ -1,6 +1,27 @@
 import { Plane, Vector3, type Intersection, type Object3D, type Ray } from "three"
-import type { Context, Meta, Prettify, ThreeEvent } from "./types.ts"
+import type { Context, Meta, PointerCapture, Prettify } from "./types.ts"
 import { getMeta } from "./utils.ts"
+
+/**
+ * The dispatcher's writable view of an event while it's built and walked. Every
+ * field is optional because the object is assembled incrementally: stoppable adds
+ * `stopped`/`stopPropagation`; raycasting adds `intersection(s)`/`object`; the tree
+ * walk advances `currentObject`/`currentIntersection`; a capturable event gains the
+ * `PointerCapture` methods; a plugin source merges typed `TExtra`. Handlers receive
+ * the precise public `ThreeEvent` (via their prop types) — this is the internal
+ * shape the `Pointer` writes, so the dispatch path needs no `any`.
+ */
+export type DispatchEvent<TExtra extends object = {}> = {
+  nativeEvent: Event
+  stopped?: boolean
+  stopPropagation?: () => void
+  intersections?: Intersection[]
+  intersection?: Intersection
+  object?: Object3D
+  currentObject?: Object3D
+  currentIntersection?: Intersection
+} & Partial<PointerCapture> &
+  TExtra
 
 /**
  * The slice of an `EventRaycaster` a `Pointer` needs: cast its current ray against
@@ -16,20 +37,28 @@ export type PointerRaycaster = {
   ray: Ray
 }
 
-/** Creates a `ThreeEvent` (intersection excluded) from a native `MouseEvent` | `PointerEvent` | `WheelEvent`. */
-export function createThreeEvent<
-  TEvent extends Event,
-  TConfig extends { stoppable?: boolean; intersections?: Array<Intersection> },
->(nativeEvent: TEvent, { stoppable = true, intersections }: TConfig = {} as TConfig) {
-  const event: Record<string, any> = stoppable
-    ? {
-        nativeEvent,
-        stopped: false,
-        stopPropagation() {
-          event.stopped = true
-        },
-      }
-    : { nativeEvent }
+/**
+ * Build the {@link DispatchEvent} for one dispatch from a native `MouseEvent` |
+ * `PointerEvent` | `WheelEvent`, optionally merging a plugin source's typed `extra`
+ * fields (e.g. the XR controller payload). The per-node `currentObject` /
+ * `currentIntersection` and the capture methods are added later by the `Pointer`.
+ */
+export function createThreeEvent<TEvent extends Event, TExtra extends object = {}>(
+  nativeEvent: TEvent,
+  { stoppable = true, intersections }: { stoppable?: boolean; intersections?: Intersection[] } = {},
+  extra?: TExtra,
+): Prettify<DispatchEvent<TExtra>> {
+  const event: DispatchEvent<TExtra> = (
+    stoppable
+      ? {
+          nativeEvent,
+          stopped: false,
+          stopPropagation() {
+            event.stopped = true
+          },
+        }
+      : { nativeEvent }
+  ) as DispatchEvent<TExtra>
 
   if (intersections) {
     event.intersections = intersections
@@ -37,22 +66,9 @@ export function createThreeEvent<
     event.object = intersections[0]?.object
   }
 
-  return event as Prettify<
-    Omit<
-      ThreeEvent<
-        TEvent,
-        {
-          stoppable: TConfig["stoppable"] extends false
-            ? TConfig["stoppable"] extends true
-              ? true
-              : false
-            : true
-          intersections: TConfig["intersections"] extends Intersection[] ? true : false
-        }
-      >,
-      "currentIntersection"
-    >
-  >
+  if (extra) Object.assign(event, extra)
+
+  return event as Prettify<DispatchEvent<TExtra>>
 }
 
 /** The OS-level half of pointer capture, injected per source (DOM canvas vs XR). */
@@ -194,7 +210,7 @@ export class Pointer {
   }
 
   /** Attach the capture methods to a capturable event (down/up/move). */
-  private attachCapture(event: any) {
+  private attachCapture(event: DispatchEvent) {
     // With no `object`, captures `event.currentObject` (the firing node) — sync-only,
     // since it's cleared after dispatch (like a DOM event's `currentTarget`). Pass an
     // `object` to capture it later: the caller holds the reference, so it works async.
@@ -233,7 +249,7 @@ export class Pointer {
     const props = this.context.props as Record<string, any>
 
     // Phase #1 — Enter (bubble up; fire onPointerEnter for newly-hovered objects).
-    const enterEvent: any = createThreeEvent(nativeEvent, { stoppable: false, intersections })
+    const enterEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
     const entered = new Set<Object3D>()
     for (const intersection of intersections) {
       enterEvent.currentIntersection = intersection
@@ -251,7 +267,7 @@ export class Pointer {
 
     // Phase #2 — Move (bubble up, stoppable). Capturable: a handler may start a
     // drag by calling `setPointerCapture()` from here.
-    const moveEvent: any = createThreeEvent(nativeEvent, { intersections })
+    const moveEvent = createThreeEvent(nativeEvent, { intersections })
     this.attachCapture(moveEvent)
     this.propagate(
       moveEvent,
@@ -298,7 +314,7 @@ export class Pointer {
    * captured object, the normal path one pair per hit. A node shared by several hits
    * fires once (the closest hit's chain reaches it first), matching `move`/`click`.
    */
-  private propagate(event: any, handler: string, roots: Array<[Intersection, Object3D]>) {
+  private propagate(event: DispatchEvent, handler: string, roots: Array<[Intersection, Object3D]>) {
     const visited = new Set<Object3D>()
     for (const [intersection, root] of roots) {
       event.currentIntersection = intersection
@@ -329,22 +345,25 @@ export class Pointer {
    * registry is not raycast) but still bubbles to the canvas-level handler; the
    * intersection is the live ray reprojected onto the captured plane.
    */
-  dispatch(handler: string, nativeEvent: Event, extra?: Record<string, unknown>, capturable = false) {
+  dispatch<TExtra extends object = {}>(
+    handler: string,
+    nativeEvent: Event,
+    extra?: TExtra,
+    capturable = false,
+  ) {
     const captured = this.captured
     if (captured) {
       // Captured: exclusive delivery to the captured object's chain, with the live
       // ray reprojected onto the captured plane.
       const intersection = this.reproject(captured)
-      const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
-      if (extra) Object.assign(event, extra)
+      const event = createThreeEvent(nativeEvent, { intersections: [intersection] }, extra)
       if (capturable) this.attachCapture(event)
       this.propagate(event, handler, [[intersection, captured.object]])
       return
     }
 
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
-    const event: any = createThreeEvent(nativeEvent, { intersections })
-    if (extra) Object.assign(event, extra)
+    const event = createThreeEvent(nativeEvent, { intersections }, extra)
     if (capturable) this.attachCapture(event)
     this.propagate(
       event,
@@ -363,7 +382,7 @@ export class Pointer {
     const missed = new Set<Object3D>(registry)
     const visited = new Set<Object3D>()
     const intersections = this.raycaster.cast(registry, this.context)
-    const event: any = createThreeEvent(nativeEvent, { intersections })
+    const event = createThreeEvent(nativeEvent, { intersections })
 
     // Phase #1 — fire the handler, bubbling down the hit chain.
     for (const intersection of intersections) {
