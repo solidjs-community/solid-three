@@ -1,10 +1,17 @@
 import * as THREE from "three"
 import { assertType, describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/create-t.tsx"
+import { EventRegistry } from "../../src/event-registry.ts"
 import { hasPointerCapture } from "../../src/pointer-capture.ts"
 import { test as renderThree } from "../../src/testing/index.tsx"
 import { XRControllerSource, type XRThreeEvent, xrEvents } from "../../src/xr/events.ts"
 import { meta } from "../../src/utils.ts"
+
+function registryOf(...objects: THREE.Object3D[]) {
+  const registry = new EventRegistry()
+  for (const object of objects) registry.register(object)
+  return registry
+}
 
 function makeFakeXR(getController: (index: number) => THREE.Object3D) {
   const listeners: Record<string, Set<(event: { type: string }) => void>> = {}
@@ -39,7 +46,7 @@ describe("XRControllerSource", () => {
     controller.position.set(0.5, 0.3, 5)
     controller.updateMatrixWorld()
     const xr = makeFakeXR(index => (index === 0 ? controller : new THREE.Object3D()))
-    const context = { gl: { xr }, eventRegistry: [mesh], props: {}, scene: new THREE.Scene() } as any
+    const context = { gl: { xr }, eventRegistry: registryOf(mesh), props: {}, scene: new THREE.Scene() } as any
 
     const disconnect = new XRControllerSource(context, xr as any, 1).connect()
     xr.dispatch("sessionstart")
@@ -77,7 +84,7 @@ describe("XRControllerSource", () => {
     const xr = makeFakeXR(index => (index === 0 ? controller : new THREE.Object3D()))
     const context = {
       gl: { xr },
-      eventRegistry: [mesh],
+      eventRegistry: registryOf(mesh),
       props: {},
       scene: new THREE.Scene(),
       camera: new THREE.PerspectiveCamera(),

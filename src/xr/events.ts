@@ -118,29 +118,6 @@ export class XRControllerSource {
 /** Per-context dedup token for the controller source (one source per `ctx`). */
 const XR_SOURCE = Symbol("xr-controller-source")
 
-/**
- * Reference count per registered element, so an element bearing several XR
- * handlers (or remounting) is added to / removed from `eventRegistry` exactly once.
- */
-const refcounts = new WeakMap<Object3D, number>()
-
-/** Add `element` to the context's `eventRegistry` (refcounted), removing on cleanup. */
-function registerInRegistry(context: Context, element: Object3D) {
-  const count = refcounts.get(element) ?? 0
-  if (count === 0) context.eventRegistry.push(element)
-  refcounts.set(element, count + 1)
-  onCleanup(() => {
-    const current = (refcounts.get(element) ?? 1) - 1
-    if (current <= 0) {
-      refcounts.delete(element)
-      const index = context.eventRegistry.indexOf(element)
-      if (index !== -1) context.eventRegistry.splice(index, 1)
-    } else {
-      refcounts.set(element, current)
-    }
-  })
-}
-
 /** Attach the controller source to a context's renderer for the Canvas's lifetime. */
 function wireSource(context: Context) {
   const xr = (context.gl as { xr?: XRLike }).xr
@@ -175,7 +152,7 @@ export function xrEvents(): Plugin<(element: Object3D) => XRHandlers> {
     const register = () => {
       const ctx = getMeta(element)?.ctx
       if (!ctx) return
-      registerInRegistry(ctx, element)
+      onCleanup(ctx.eventRegistry.register(element))
       const wire = () => ctx.initializePlugin(XR_SOURCE, () => wireSource(ctx))
       if (ctx.owner) runWithOwner(ctx.owner, wire)
       else wire()
