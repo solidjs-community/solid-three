@@ -1198,7 +1198,7 @@ Every handler receives one event object, created once per dispatch and reused as
 | `currentIntersection` | `Intersection` | inside an object handler | The intersection for `currentObject`. Absent at the canvas level. |
 | `stopped` | `boolean` | stoppable events | Whether `stopPropagation()` has been called. |
 | `stopPropagation` | `() => void` | stoppable events | Stops both raycast and tree propagation. |
-| `setPointerCapture` | `(target?: Object3D) => void` | pointer events | Capture the pointer to `target` (default: `currentObject`). See [Pointer Capture](#pointer-capture). |
+| `setPointerCapture` | `(options?: { object?, normal? }) => void` | pointer events | Capture the pointer (default object: `currentObject`); `normal` sets the drag-plane orientation. See [Pointer Capture](#pointer-capture). |
 | `releasePointerCapture` | `() => void` | pointer events | End a capture early. |
 | `hasPointerCapture` | `(target?: Object3D) => boolean` | pointer events | Whether `target` currently holds the capture. |
 
@@ -1223,7 +1223,9 @@ Inside a pointer handler, `setPointerCapture()` routes every later move — and 
 </T.Mesh>
 ```
 
-The no-arg form captures `currentObject` and must be called synchronously in the handler (`currentObject` is cleared after dispatch). To start a capture later — after an `await` or a timer — pass the object: `setPointerCapture(mesh)`. Capture releases automatically on pointer up / cancel; call `releasePointerCapture()` to end it early.
+The no-arg form captures `currentObject` and must be called synchronously in the handler (`currentObject` is cleared after dispatch). To start a capture later — after an `await` or a timer — name the object: `setPointerCapture({ object: mesh })`. Capture releases automatically on pointer up / cancel; call `releasePointerCapture()` to end it early.
+
+By default the drag plane is the hit surface (tangent), or camera-facing when there's no face — right for sliding along a surface. To constrain the drag instead, pass a world-space `normal` for the plane (built through the grab point): `setPointerCapture({ normal: new THREE.Vector3(0, 1, 0) })` slides on the ground (horizontal), regardless of where on the object you grabbed.
 
 For reactive visuals — scaling or recoloring a mesh while it's dragged — read the capture state declaratively with `hasPointerCapture(object)` instead of tracking your own `dragging` signal:
 

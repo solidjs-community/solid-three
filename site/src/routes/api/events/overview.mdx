@@ -94,7 +94,7 @@ This extra detail is what lets you go beyond "did they click it?". A few of the 
 The event object is created once per dispatch and **reused** as it bubbles up the chain — the same object is passed to every handler, just like a DOM event. Two things follow from that:
 
 - **Treat it as read-only.** `intersection`, `intersections`, and the rest are shared scene data, not per-handler copies. Mutating them affects the other handlers in the same dispatch (and, while a pointer is captured, persists across moves). Read from the event; don't write to it.
-- **`setPointerCapture()` captures `event.currentObject`** (the object currently firing), which is cleared after dispatch — so the no-arg form must be called synchronously in the handler. To start a capture later (after an `await`, a timer), pass the object explicitly: `setPointerCapture(mesh)`. (With no live hit, a deferred capture drags on a camera-facing plane through the object's center.)
+- **`setPointerCapture()` captures `event.currentObject`** (the object currently firing), which is cleared after dispatch — so the no-arg form must be called synchronously in the handler. To start a capture later (after an `await`, a timer), name the object explicitly: `setPointerCapture({ object: mesh })`. (With no live hit, a deferred capture drags on a camera-facing plane through the object's center.)
 
 ## Reading the full hit stack
 
@@ -229,7 +229,7 @@ Pointer capture fixes this. Inside an `onPointerDown`, `onPointerMove`, or `onPo
 
 | Method | Description |
 | --- | --- |
-| `setPointerCapture(target?)` | Capture the pointer to `target`, or — with no argument — `event.currentObject` (the firing object; sync-only). |
+| `setPointerCapture(options?)` | Capture the pointer to `options.object` (default: the firing `currentObject`; sync-only). Pass `options.normal` to orient the drag plane. |
 | `releasePointerCapture()` | Release a capture started with `setPointerCapture()`. |
 | `hasPointerCapture()` | Whether this event's node currently holds the capture. |
 
@@ -238,6 +238,8 @@ Once captured, every subsequent `onPointerMove` and `onPointerUp` for that point
 Capture is **object-scoped** — the no-arg form captures the object whose handler is running, so calling it from a canvas-level handler is a no-op (there's no `currentObject` there). Pass an explicit `target` to capture any object, including later/async.
 
 While the pointer is off the ray, `event.intersection` is reprojected onto a plane through the original grab point, so `event.intersection.point` keeps tracking a sensible world-space position to drag toward.
+
+The drag plane defaults to the hit surface (or camera-facing when there's no face). Pass an `options.normal` to constrain it — e.g. `{ normal: new Vector3(0, 1, 0) }` for ground-plane sliding — and it's built through the grab point so the object doesn't jump.
 
 A capture releases when you call `releasePointerCapture()`, and automatically on `pointerup`/`pointercancel` (DOM source) or the paired end event (XR). It is also released if the captured object leaves the scene mid-drag, so a captured pointer never keeps dispatching to an unmounted node.
 
