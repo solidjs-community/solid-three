@@ -1,5 +1,6 @@
 import { onCleanup, runWithOwner } from "solid-js"
 import type { Intersection, Object3D } from "three"
+import { captureRegistry } from "../pointer-capture.ts"
 import { Pointer } from "../pointers.ts"
 import { ControllerRaycaster } from "../raycasters.tsx"
 import type { Context, Plugin, ThreeEvent } from "../types.ts"
@@ -10,7 +11,6 @@ export type XRThreeEvent = ThreeEvent<XRInputSourceEvent> & {
   controller: Object3D
   inputSource: XRInputSource | undefined
   handedness: XRHandedness | undefined
-  element: Object3D | undefined
   intersection: Intersection
 }
 
@@ -29,10 +29,10 @@ type XRLike = {
 }
 
 const PAIRS = [
-  ["selectstart", "onXRSelectStart"],
-  ["selectend", "onXRSelectEnd"],
-  ["squeezestart", "onXRSqueezeStart"],
-  ["squeezeend", "onXRSqueezeEnd"],
+  ["selectstart", "onXRSelectStart", "start"],
+  ["selectend", "onXRSelectEnd", "end"],
+  ["squeezestart", "onXRSqueezeStart", "start"],
+  ["squeezeend", "onXRSqueezeEnd", "end"],
 ] as const
 
 /**
@@ -41,8 +41,11 @@ const PAIRS = [
  * the ray AND which dispatches select/squeeze events) gets a `Pointer` + a
  * `ControllerRaycaster`; the four start/end events dispatch the matching handler,
  * enriched with `{ controller, inputSource, handedness }`. Bubbling + canvas-level
- * come from `Pointer.dispatch`. `sessionend` (or `connect`'s disconnect) tears the
- * controllers down. Replaces the controller wiring previously baked into core.
+ * come from `Pointer.dispatch`. Start events are capturable — a handler may call
+ * `setPointerCapture()` to grab the hit object for the gesture; the paired end event
+ * then delivers to that captured object (reprojected) and releases it. `sessionend`
+ * (or `connect`'s disconnect) tears the controllers down. Replaces the controller
+ * wiring previously baked into core.
  */
 export class XRControllerSource {
   constructor(
@@ -57,15 +60,25 @@ export class XRControllerSource {
     const wire = () => {
       for (let index = 0; index < this.count; index++) {
         const controller = this.xr.getController(index)
-        const pointer = new Pointer(this.context, new ControllerRaycaster(controller))
-        const listeners = PAIRS.map(([native, handler]) => {
+        const pointer = new Pointer(
+          this.context,
+          new ControllerRaycaster(controller),
+          undefined,
+          captureRegistry,
+        )
+        const listeners = PAIRS.map(([native, handler, phase]) => {
           const listener = (event: ControllerEvent) => {
             const inputSource = event.data
-            pointer.dispatch(handler, new Event(native), {
-              controller,
-              inputSource,
-              handedness: inputSource?.handedness,
-            })
+            // Start events are capturable (a handler may call `setPointerCapture()`),
+            // mirroring `onPointerDown`. XR has no OS `lostpointercapture`, so the
+            // source releases the capture on the paired end event.
+            pointer.dispatch(
+              handler,
+              new Event(native),
+              { controller, inputSource, handedness: inputSource?.handedness },
+              phase === "start",
+            )
+            if (phase === "end") pointer.release()
           }
           return [native, listener] as const
         })

@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import { assertType, describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/create-t.tsx"
+import { hasPointerCapture } from "../../src/pointer-capture.ts"
 import { test as renderThree } from "../../src/testing/index.tsx"
 import { XRControllerSource, type XRThreeEvent, xrEvents } from "../../src/xr/events.ts"
 import { meta } from "../../src/utils.ts"
@@ -47,7 +48,7 @@ describe("XRControllerSource", () => {
     expect(start).toHaveBeenCalledTimes(1)
     expect(payload!.controller).toBe(controller)
     expect(payload!.handedness).toBe("left")
-    expect(payload!.element).toBe(mesh)
+    expect(payload!.currentObject).toBe(mesh)
     expect(payload!.intersection.object).toBe(mesh)
 
     controller.dispatchEvent({ type: "squeezeend", data: { handedness: "left" } } as any)
@@ -56,6 +57,45 @@ describe("XRControllerSource", () => {
     xr.dispatch("sessionend")
     controller.dispatchEvent({ type: "squeezestart", data: { handedness: "left" } } as any)
     expect(start).toHaveBeenCalledTimes(1) // torn down
+
+    disconnect()
+  })
+
+  it("a captured select delivers selectend to the grabbed mesh off-ray, then releases", () => {
+    const end = vi.fn()
+    const mesh = meta(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial()), {
+      props: {
+        onXRSelectStart: (event: any) => event.setPointerCapture(), // grab the hit
+        onXRSelectEnd: end,
+      },
+    }) as unknown as THREE.Object3D
+    mesh.updateMatrixWorld()
+
+    const controller = new THREE.Object3D()
+    controller.position.set(0.5, 0.3, 5) // aimed at the plane (−z)
+    controller.updateMatrixWorld()
+    const xr = makeFakeXR(index => (index === 0 ? controller : new THREE.Object3D()))
+    const context = {
+      gl: { xr },
+      eventRegistry: [mesh],
+      props: {},
+      scene: new THREE.Scene(),
+      camera: new THREE.PerspectiveCamera(),
+    } as any
+
+    const disconnect = new XRControllerSource(context, xr as any, 1).connect()
+    xr.dispatch("sessionstart")
+
+    controller.dispatchEvent({ type: "selectstart", data: { handedness: "right" } } as any) // captures
+    expect(hasPointerCapture(mesh)).toBe(true)
+
+    // Aim the controller away from the mesh — the live ray no longer hits it.
+    controller.position.set(100, 100, 5)
+    controller.updateMatrixWorld()
+
+    controller.dispatchEvent({ type: "selectend", data: { handedness: "right" } } as any)
+    expect(end).toHaveBeenCalledTimes(1) // still delivered to the captured mesh
+    expect(hasPointerCapture(mesh)).toBe(false) // released on end (no OS sink in XR)
 
     disconnect()
   })
