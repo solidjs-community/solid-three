@@ -60,7 +60,7 @@ describe("useLoader inside Suspense", () => {
       return (
         <T.Mesh>
           <T.BoxGeometry />
-          <T.MeshBasicMaterial map={texture() as unknown as THREE.Texture | null} />
+          <T.MeshBasicMaterial map={texture()} />
         </T.Mesh>
       )
     }
@@ -114,7 +114,7 @@ describe("useLoader inside Suspense", () => {
       return (
         <T.Mesh name="content">
           <T.BoxGeometry />
-          <T.MeshBasicMaterial map={texture() as unknown as THREE.Texture | null} />
+          <T.MeshBasicMaterial map={texture()} />
         </T.Mesh>
       )
     }

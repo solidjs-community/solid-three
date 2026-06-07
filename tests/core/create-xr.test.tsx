@@ -13,7 +13,7 @@ void _connectIsAssignableToCanvasRef
 // three's EventDispatcher dispatches plain `{ type }` objects (not DOM Events),
 // and exposes add/removeEventListener — mirror that, not DOM EventTarget.
 function makeFakeXR() {
-  const listeners: Record<string, Set<(e: { type: string }) => void>> = {}
+  const listeners: Record<string, Set<(e: { type: string }) => void> | undefined> = {}
   return {
     enabled: false,
     isPresenting: false,
@@ -66,7 +66,7 @@ function setFakeNavigatorXR(requestSession = vi.fn(async () => makeFakeSession()
 }
 
 afterEach(() => {
-  Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, "xr")
+  Reflect.deleteProperty(navigator, "xr")
 })
 
 /* ------------------------------- tests --------------------------------- */

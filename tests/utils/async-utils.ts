@@ -40,7 +40,7 @@ export const asyncUtils = (addResolver: (callback: () => void) => void): AsyncUt
     };
 
     const waitForResult = async () => {
-      while (true) {
+      for (;;) {
         await Promise.race(
           [
             new Promise<void>(resolve => addResolver(resolve)),
@@ -79,7 +79,7 @@ export const asyncUtils = (addResolver: (callback: () => void) => void): AsyncUt
     const safeCallback = () => {
       try {
         return callback();
-      } catch (error: unknown) {
+      } catch {
         return false;
       }
     };

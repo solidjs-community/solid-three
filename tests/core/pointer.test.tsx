@@ -202,7 +202,7 @@ describe("Pointer capture lifecycle", () => {
   it("capture(null) is a no-op", () => {
     const sink = spySink()
     const pointer = new Pointer(ctx([]), fakeRaycaster({}), sink)
-    pointer.capture(null as any, {} as any)
+    pointer.capture(null, {} as any)
     expect(sink.capture).not.toHaveBeenCalled()
   })
 
@@ -285,7 +285,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerMove: move,
       onPointerLeave: leave,
     })
-    const state: RayState = { target: mesh as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: mesh, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
 
     pointer.move(new Event("pointermove")) // hover onto the mesh
@@ -338,7 +338,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerUp: capturedUp,
     })
     const other = eventful({ onPointerUp: otherUp })
-    const state: RayState = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown")) // captures `captured`
@@ -352,7 +352,7 @@ describe("Pointer capture lifecycle", () => {
   it("bubbles a captured up to the canvas-level handler unless stopped", () => {
     const canvasUp = vi.fn()
     const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
-    const state: RayState = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([captured], { onPointerUp: canvasUp }), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
@@ -369,7 +369,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerUp: (e: any) => (seenPoint = e.intersection.point.clone()),
     })
     // Plane: z = 0, normal +z, coplanar point (0,0,0).
-    const state: RayState = { target: captured as Object3D, point: new Vector3(0, 0, 0), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(0, 0, 0), normal: new Vector3(0, 0, 1) }
     const raycaster = fakeRaycaster(state)
     const pointer = new Pointer(ctx([captured]), raycaster)
 
@@ -390,7 +390,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerUp: (e: any) => e.releasePointerCapture(),
     })
     const other = eventful({ onPointerUp: otherUp })
-    const state: RayState = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
@@ -408,7 +408,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerMove: capturedMove,
     })
     const other = eventful({ onPointerEnter: otherEnter, onPointerMove: vi.fn() })
-    const state: RayState = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
@@ -422,7 +422,7 @@ describe("Pointer capture lifecycle", () => {
   it("while captured, canvas-level onPointerMove still fires unless stopped", () => {
     const canvasMove = vi.fn()
     const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
-    const state: RayState = { target: captured as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([captured], { onPointerMove: canvasMove }), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
@@ -434,7 +434,7 @@ describe("Pointer capture lifecycle", () => {
 
   it("can start a capture from onPointerMove", () => {
     const mesh = eventful({ onPointerMove: (e: any) => e.setPointerCapture() })
-    const state: RayState = { target: mesh as Object3D, point: new Vector3(), normal: new Vector3(0, 0, 1) }
+    const state: RayState = { target: mesh, point: new Vector3(), normal: new Vector3(0, 0, 1) }
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
 
     pointer.move(new Event("pointermove"))

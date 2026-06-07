@@ -173,7 +173,7 @@ describe("useLoader", () => {
 
     test(() => <Component />)
 
-    await waitFor(() => resource?.()?.diffuse !== undefined && resource?.()?.normal !== undefined)
+    await waitFor(() => resource?.()?.diffuse !== undefined && resource()?.normal !== undefined)
 
     expect(resource?.()?.diffuse).toBeInstanceOf(MockResource)
     expect(resource?.()?.normal).toBeInstanceOf(MockResource)

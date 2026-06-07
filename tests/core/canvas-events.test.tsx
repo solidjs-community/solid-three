@@ -30,14 +30,6 @@ function missEvent(type: string) {
   return makeEvent(type, MISS_X, MISS_Y)
 }
 
-/** A plain 2×2 mesh at origin with no event handlers. */
-const BasicMesh = () => (
-  <T.Mesh>
-    <T.BoxGeometry args={[2, 2]} />
-    <T.MeshBasicMaterial />
-  </T.Mesh>
-)
-
 /** A 2×2 mesh at origin whose onClick stops propagation. */
 const StoppingMesh = (props: { eventType: string; handler?: (e: any) => void }) => {
   const handlerProp = { [props.eventType]: (e: any) => { e.stopPropagation(); props.handler?.(e) } }

@@ -1,7 +1,7 @@
 import { fireEvent } from "@solidjs/testing-library"
-import { Show, createSignal } from "solid-js"
+import { createSignal } from "solid-js"
 import * as THREE from "three"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 

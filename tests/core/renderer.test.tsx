@@ -327,7 +327,7 @@ describe("renderer", () => {
       )).scene
 
       expect(attachedMesh).toBeDefined()
-      expect(attachedMesh?.type).toBe("Object3D")
+      expect(attachedMesh.type).toBe("Object3D")
       // attaching is *instead of* being a regular child
       expect(scene.children[0].children.length).toBe(0)
 
@@ -540,13 +540,13 @@ describe("renderer", () => {
   // });
 
   it("should set PCFSoftShadowMap as the default shadow map", async () => {
-    let state = test(() => <T.Group />, { shadows: true })
+    const state = test(() => <T.Group />, { shadows: true })
     const gl = state.gl as unknown as THREE.WebGLRenderer
     expect(gl.shadowMap.type).toBe(THREE.PCFSoftShadowMap)
   })
 
   it("should set tonemapping to ACESFilmicToneMapping and outputColorSpace to SRGBColorSpace if linear is false", async () => {
-    let state = test(() => <T.Group />, { linear: false })
+    const state = test(() => <T.Group />, { linear: false })
     const gl = state.gl as unknown as THREE.WebGLRenderer
 
     expect(gl.toneMapping).toBe(THREE.ACESFilmicToneMapping)
@@ -723,7 +723,7 @@ describe("renderer", () => {
 
   it("should apply color-management props to a renderer that exposes them", async () => {
     const fake = Object.assign(makeFakeRenderer(), {
-      outputColorSpace: "" as string,
+      outputColorSpace: "",
       toneMapping: 0,
     })
     test(() => <T.Group />, { gl: fake, linear: false, flat: false })
@@ -1104,9 +1104,9 @@ describe("renderer", () => {
   // });
 
   it("should safely handle updates to the object prop", async () => {
-    let ref: THREE.Object3D = null!
-    let child: THREE.Object3D = null!
-    let attachedChild: THREE.Object3D = null!
+    let ref!: THREE.Object3D
+    let child!: THREE.Object3D
+    let attachedChild!: THREE.Object3D
 
     const Test = (props: ComponentProps<typeof Entity>) => (
       <Entity {...props} ref={ref}>
@@ -1130,20 +1130,20 @@ describe("renderer", () => {
 
     expect(ref).toBe(object1)
 
-    expect(ref!.children).toStrictEqual([child1, child])
-    expect(ref!.userData.attach).toBe(attachedChild)
+    expect(ref.children).toStrictEqual([child1, child])
+    expect(ref.userData.attach).toBe(attachedChild)
 
     // Update
     setObject(object2)
     expect(ref).toBe(object2)
-    expect(ref!.children).toStrictEqual([child2, child])
-    expect(ref!.userData.attach).toBe(attachedChild)
+    expect(ref.children).toStrictEqual([child2, child])
+    expect(ref.userData.attach).toBe(attachedChild)
 
     // Revert
     setObject(object1)
     expect(ref).toBe(object1)
-    expect(ref!.children).toStrictEqual([child1, child])
-    expect(ref!.userData.attach).toBe(attachedChild)
+    expect(ref.children).toStrictEqual([child1, child])
+    expect(ref.userData.attach).toBe(attachedChild)
   })
 
   it("yields the window render loop while an XR session is presenting, resumes after", async () => {

@@ -34,7 +34,7 @@ describe("hooks", () => {
     const frameCalls: number[] = []
 
     const Component = () => {
-      let ref: THREE.Mesh = null!
+      let ref!: THREE.Mesh
 
       useFrame((_, delta) => {
         frameCalls.push(delta)

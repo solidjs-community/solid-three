@@ -10,7 +10,7 @@ const T = createT(THREE)
 
 describe("web Canvas", () => {
   it("should correctly mount", async () => {
-    let renderer = render(() => (
+    const renderer = render(() => (
       <TestCanvas>
         <T.Group />
       </TestCanvas>
@@ -32,7 +32,7 @@ describe("web Canvas", () => {
   })
 
   it("should correctly unmount", async () => {
-    let renderer = render(() => (
+    const renderer = render(() => (
       <TestCanvas>
         <T.Group />
       </TestCanvas>

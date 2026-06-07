@@ -1,6 +1,6 @@
 import { Show, createSignal } from "solid-js"
 import * as THREE from "three"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { Entity, createT } from "../../src/index.ts"
 import { autodispose } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
@@ -51,7 +51,7 @@ describe("Entity disposal", () => {
         <Entity
           from={DisposableGeometry}
           ref={g => {
-            geometry = g as DisposableGeometry
+            geometry = g
           }}
         />
       </Show>

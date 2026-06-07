@@ -47,7 +47,7 @@ describe("plugin prop routing", () => {
     const TP = createT({ Mesh }, [plugin([Mesh], () => ({ shake }))])
     const three = renderThree(() => <TP.Mesh shake={0.1} />)
     expect(shake).toHaveBeenCalledWith(0.1)
-    expect("shake" in three.scene.children[0]!).toBe(false)
+    expect("shake" in three.scene.children[0]).toBe(false)
     three.unmount()
   })
 })
@@ -59,7 +59,7 @@ describe("<Entity plugins>", () => {
       <Entity from={Mesh} plugins={[plugin([Mesh], () => ({ shake }))]} shake={0.2} />
     ))
     expect(shake).toHaveBeenCalledWith(0.2)
-    expect("shake" in three.scene.children[0]!).toBe(false)
+    expect("shake" in three.scene.children[0]).toBe(false)
     three.unmount()
   })
 
@@ -75,8 +75,8 @@ describe("<Entity plugins>", () => {
 
 describe("plugin prop types", () => {
   it("a contributed method's first-param type becomes the element prop type", () => {
-    const TP = createT({ Mesh }, [plugin([Mesh], () => ({ shake: (_intensity: number) => {} }))])
-    type MeshProps = Parameters<typeof TP.Mesh>[0]
+    const _TP = createT({ Mesh }, [plugin([Mesh], () => ({ shake: (_intensity: number) => {} }))])
+    type MeshProps = Parameters<typeof _TP.Mesh>[0]
     // vitest's assertType is tsc-checked (lint:types): errors if `shake` isn't a `number` prop.
     assertType<number | undefined>(({} as MeshProps).shake)
     expect(true).toBe(true)
@@ -86,8 +86,8 @@ describe("plugin prop types", () => {
     // `lookAt` is a method on Object3D; the contributed prop must *replace* it so a
     // Vector3 is assignable. The naive intersection (`method & Vector3`) is satisfiable
     // by no value, so this assignment would not type-check.
-    const TP = createT({ Mesh }, [plugin([Mesh], () => ({ lookAt: (_target: Vector3) => {} }))])
-    type MeshProps = Parameters<typeof TP.Mesh>[0]
+    const _TP = createT({ Mesh }, [plugin([Mesh], () => ({ lookAt: (_target: Vector3) => {} }))])
+    type MeshProps = Parameters<typeof _TP.Mesh>[0]
     const props: MeshProps = { lookAt: new Vector3() }
     assertType<Vector3 | undefined>(props.lookAt)
     expect(props).toBeDefined()
@@ -100,7 +100,7 @@ describe("meta.ctx + initializePlugin", () => {
     const token = Symbol("test")
     const p = plugin(el => ({
       onPing() {
-        const ctx = getMeta(el)!.ctx!
+        const ctx = getMeta(el).ctx!
         ctx.initializePlugin(token, setupOnce)
       },
     }))
@@ -112,7 +112,7 @@ describe("meta.ctx + initializePlugin", () => {
       </>
     ))
     expect(setupOnce).toHaveBeenCalledTimes(1) // once per ctx across both meshes
-    expect(getMeta(three.scene.children[0]!)?.ctx?.scene).toBe(three.scene)
+    expect(getMeta(three.scene.children[0])?.ctx?.scene).toBe(three.scene)
     three.unmount()
   })
 })

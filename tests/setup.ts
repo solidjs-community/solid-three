@@ -17,6 +17,8 @@ const _warn = console.warn.bind(console)
 console.warn = (...args: any[]) => {
   _warn(...args)
   if (typeof args[0] === "string" && args[0].includes("Signal was written")) {
+    // console.trace is the whole point here: surface where the owned-scope write happened.
+    // eslint-disable-next-line no-console
     console.trace("↑ stack trace for above warning")
   }
 }

@@ -107,15 +107,15 @@ describe("load (standalone)", () => {
   it("resolves a single URL via the loader", async () => {
     const result = await load(new MockLoader(), "tex.png")
     expect(result).toBeInstanceOf(MockResource)
-    expect((result as MockResource).url).toBe("tex.png")
+    expect(result.url).toBe("tex.png")
   })
 
   it("resolves a record of URLs to a record of results", async () => {
     const result = await load(new MockLoader(), { a: "a.png", b: "b.png" })
     expect(result.a).toBeInstanceOf(MockResource)
     expect(result.b).toBeInstanceOf(MockResource)
-    expect((result.a as MockResource).url).toBe("a.png")
-    expect((result.b as MockResource).url).toBe("b.png")
+    expect(result.a.url).toBe("a.png")
+    expect(result.b.url).toBe("b.png")
   })
 })
 
@@ -138,7 +138,7 @@ describe("Resource", () => {
     test(() => (
       <Resource loader={MockLoader} url="render-fn.png">
         {resource => {
-          observedUrl = (resource() as MockResource).url
+          observedUrl = resource().url
           return null
         }}
       </Resource>
@@ -185,8 +185,8 @@ describe("CursorRaycaster / CenterRaycaster", () => {
 
 describe("pointer capture types", () => {
   it("exposes pointer-capture methods on pointer events", () => {
-    const T = createT(THREE)
-    type MeshProps = Parameters<typeof T.Mesh>[0]
+    const _T = createT(THREE)
+    type MeshProps = Parameters<typeof _T.Mesh>[0]
     const onPointerDown: NonNullable<MeshProps["onPointerDown"]> = event => {
       assertType<() => void>(event.setPointerCapture)
       assertType<() => void>(event.releasePointerCapture)

@@ -46,7 +46,7 @@ export default defineConfig([
       ],
       "@typescript-eslint/no-useless-empty-export": "warn",
       "eslint-comments/no-unused-disable": "warn",
-      "import/extensions": ["error", "always"],
+      "import/extensions": ["error", "always", { ignorePackages: true }],
       "no-console": [
         "error",
         {
