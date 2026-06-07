@@ -87,6 +87,29 @@ describe("useLoader", () => {
     expect(first?.()).toBe(second?.())
   })
 
+  it("does not cache when useLoader.cache is disabled (undefined)", async () => {
+    useLoader.cache = undefined
+
+    let first: (() => MockResource | undefined) | undefined
+    let second: (() => MockResource | undefined) | undefined
+
+    function Component() {
+      first = useLoader(MockLoader, "texture.png") as () => MockResource | undefined
+      second = useLoader(MockLoader, "texture.png") as () => MockResource | undefined
+      return null
+    }
+
+    test(() => <Component />)
+
+    await waitFor(() => first?.() !== undefined && second?.() !== undefined)
+
+    // Still resolves (no throw on the missing registry)...
+    expect(first?.()).toBeInstanceOf(MockResource)
+    expect(second?.()).toBeInstanceOf(MockResource)
+    // ...but the same URL is no longer deduped to a single shared instance.
+    expect(first?.()).not.toBe(second?.())
+  })
+
   it("returns distinct instances for different URLs", async () => {
     let first: (() => MockResource | undefined) | undefined
     let second: (() => MockResource | undefined) | undefined

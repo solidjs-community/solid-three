@@ -7,7 +7,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js"
-import type { Context } from "./types.ts"
+import type { Context, RendererLike } from "./types.ts"
 
 /**
  * The in-scene XR state distributed by `createXR().Provider` and read by
@@ -65,6 +65,12 @@ type XRRenderer = {
   }
 }
 
+function isXRRenderer(gl: unknown): gl is XRRenderer {
+  if (typeof gl !== "object" || gl === null) return false
+  const { xr } = gl as { xr?: { addEventListener?: unknown } }
+  return !!xr && typeof xr.addEventListener === "function"
+}
+
 /**
  * Consumer-owned WebXR entry primitive. Call it in a component body (it owns a
  * reactive effect), then connect it to the renderer with
@@ -90,10 +96,13 @@ export function createXR() {
   // onCleanup detaches the previous manager's listeners. Clearing context()
   // (via connect's disconnect) cascades through here to tear everything down.
   createRenderEffect(() => {
-    const ctx = context()
-    const gl = ctx ? (ctx.gl as unknown as XRRenderer) : undefined
-    const xr = gl?.xr
-    if (!gl || !xr || typeof xr.addEventListener !== "function") return
+    const gl: RendererLike | undefined = context()?.gl
+
+    if (!isXRRenderer(gl)) {
+      return
+    }
+
+    const xr = gl.xr
     const onStart = () => setPresenting(true)
     const onEnd = () => {
       setPresenting(false)
@@ -103,6 +112,7 @@ export function createXR() {
     }
     xr.addEventListener("sessionstart", onStart)
     xr.addEventListener("sessionend", onEnd)
+
     onCleanup(() => {
       xr.removeEventListener("sessionstart", onStart)
       xr.removeEventListener("sessionend", onEnd)
@@ -126,11 +136,8 @@ export function createXR() {
     if (!ctx) {
       throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected")
     }
-    const gl = ctx.gl as unknown as XRRenderer
-    // The double-cast asserts xr-capability; this verifies the renderer actually
-    // has an xr manager at runtime (a plain WebGLRenderer/WebGPURenderer may not).
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!gl.xr) {
+    const gl = ctx.gl
+    if (!isXRRenderer(gl)) {
       throw new Error("S3: the active renderer has no xr manager")
     }
 

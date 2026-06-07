@@ -175,7 +175,7 @@ export interface RendererLike {
   /** Optional shadow map (WebGL/WebGPU vary). */
   shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
   /** Async initializer — awaited once before the first render (WebGPURenderer). */
-  init?(): Promise<void>
+  init?(): Promise<void | this>
   /** Returns true if `init()` has already completed. WebGPURenderer exposes this. */
   hasInitialized?(): boolean
 }

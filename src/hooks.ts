@@ -239,9 +239,6 @@ export function useLoader<
     url: TInput,
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (config.cache === true) {
-      // `useLoader.cache` is typed from its default assignment, but callers can
-      // null it out to disable caching globally (see the JSDoc on its assignment).
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!useLoader.cache) {
         return load(loader(), url)
       }
@@ -316,4 +313,4 @@ export function useLoader<
  *
  * ```
  */
-useLoader.cache = new LoaderCache()
+useLoader.cache = new LoaderCache() as LoaderRegistry | undefined
