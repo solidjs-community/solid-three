@@ -1,0 +1,1 @@
+import{P as e,p as t}from"./web-Ca0kQsEY.js";function n(n,r){return t(()=>e(n,{}),r)}export{n as mount};

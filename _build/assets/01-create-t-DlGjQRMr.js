@@ -1,0 +1,1 @@
+import{P as e}from"./web-Ca0kQsEY.js";import{a as t,f as n,t as r}from"./index.dev-BkAHP_iq.js";var i=t(n),a=()=>e(r,{camera:{position:[0,0,3]},get children(){return e(i.Mesh,{get children(){return[e(i.BoxGeometry,{}),e(i.MeshNormalMaterial,{})]}})}});export{a as default};

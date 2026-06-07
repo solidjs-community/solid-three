@@ -1,1 +1,0 @@
-import{P as e,p as t}from"./web-CuRbvrvW.js";function n(n,r){return t(()=>e(n,{}),r)}export{n as mount};
