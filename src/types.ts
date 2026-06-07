@@ -410,27 +410,32 @@ export type ThreeEvent<
 
 export type PointerCapture = {
   /**
-   * Capture this event's pointer to `target`, or — with no argument — to the node
-   * the handler is firing on (`event.currentObject`). Subsequent move/up for this pointer
-   * deliver exclusively to that object's chain (still bubbling to the canvas-level
-   * handler) until released — even off-ray and, for the DOM source, off-canvas.
-   * Off-ray, `event.intersection` is reprojected onto the captured plane so `point`
-   * keeps tracking.
+   * Capture this event's pointer to an object — by default the node the handler is
+   * firing on (`event.currentObject`). Subsequent move/up for this pointer deliver
+   * exclusively to that object's chain (still bubbling to the canvas-level handler)
+   * until released — even off-ray and, for the DOM source, off-canvas. Off-ray,
+   * `event.intersection` is reprojected onto the captured plane so `point` keeps tracking.
    *
-   * The no-arg form must be called synchronously in the handler (`event.currentObject` is
-   * cleared after dispatch, like a DOM event's `currentTarget`). Pass `target` to
-   * start a capture later (after an `await`/timer); with no live hit it drags on a
-   * camera-facing plane through the target's centre.
+   * Options:
+   * - `object` — capture this object instead of `event.currentObject`. Required to
+   *   start a capture later (after an `await`/timer), since `currentObject` is cleared
+   *   after dispatch (like a DOM event's `currentTarget`); with no live hit the drag
+   *   plane is camera-facing through the object's centre.
+   * - `normal` — a world-space normal for the drag plane, through the grab point,
+   *   instead of the default (the hit surface's normal, or camera-facing). Use it to
+   *   constrain a drag, e.g. `{ normal: new Vector3(0, 1, 0) }` to slide on the ground.
+   *
+   * With no `object`, call it synchronously in the handler.
    */
-  setPointerCapture(target?: Object3D): void
+  setPointerCapture(options?: { object?: Object3D; normal?: ThreeVector3 }): void
   /**
    * Release a capture started with `setPointerCapture`. Also released
    * automatically on pointerup/cancel for the DOM source, and on the paired end
    * event for XR.
    */
   releasePointerCapture(): void
-  /** Whether `target` (default: this event's node) currently holds the pointer capture. */
-  hasPointerCapture(target?: Object3D): boolean
+  /** Whether `object` (default: this event's `currentObject`) currently holds the pointer capture. */
+  hasPointerCapture(object?: Object3D): boolean
 }
 
 type EventHandlersMap = {

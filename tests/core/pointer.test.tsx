@@ -254,6 +254,29 @@ describe("Pointer capture lifecycle", () => {
     expect(point?.y).toBeCloseTo(1)
   })
 
+  it("uses an explicit `normal` for the drag plane instead of the hit face", () => {
+    // Override the plane normal to world +X (an x=0 plane). The hit face normal (+Z)
+    // alone would give a z=0 plane — parallel to the ray, so it'd fall back to the
+    // grab point (y === 0). Landing at y === 1 proves the override won.
+    let point: Vector3 | undefined
+    const mesh = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
+    const raycaster: PointerRaycaster = {
+      cast: () => [],
+      intersectObject: () => [],
+      aim: () => {},
+      ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
+    }
+    const pointer = new Pointer(ctx([mesh]), raycaster)
+    pointer.capture(
+      mesh,
+      { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any,
+      new Vector3(1, 0, 0), // explicit drag-plane normal → x=0 plane
+    )
+    pointer.move(new Event("pointermove")) // captured → reproject onto the plane
+
+    expect(point?.y).toBeCloseTo(1)
+  })
+
   it("does not fire onPointerLeave while captured; leave resumes after release", () => {
     const move = vi.fn()
     const leave = vi.fn()
@@ -277,13 +300,13 @@ describe("Pointer capture lifecycle", () => {
     expect(leave).toHaveBeenCalledTimes(1)
   })
 
-  it("setPointerCapture(target) captures after dispatch (async); the no-arg form doesn't", () => {
-    let captureWithTarget: (() => void) | undefined
+  it("setPointerCapture({ object }) captures after dispatch (async); the no-arg form doesn't", () => {
+    let captureWithObject: (() => void) | undefined
     let captureNoArg: (() => void) | undefined
     const mesh = eventful({
       onPointerDown: (e: any) => {
         // Stash the calls instead of capturing now — run them after dispatch.
-        captureWithTarget = () => e.setPointerCapture(mesh)
+        captureWithObject = () => e.setPointerCapture({ object: mesh })
         captureNoArg = () => e.setPointerCapture()
       },
     })
@@ -302,7 +325,7 @@ describe("Pointer capture lifecycle", () => {
     captureNoArg!() // post-dispatch: event.currentObject is cleared → no-op
     expect(pointer.hasCaptured(mesh)).toBe(false)
 
-    captureWithTarget!() // explicit target survives → captures
+    captureWithObject!() // explicit object survives → captures
     expect(pointer.hasCaptured(mesh)).toBe(true)
     expect(sink.capture).toHaveBeenCalledTimes(1)
   })

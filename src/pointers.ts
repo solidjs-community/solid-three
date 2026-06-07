@@ -73,11 +73,11 @@ export interface PointerCaptureRegistry {
 /** A held pointer capture. */
 interface Captured {
   /**
-   * The captured target — the node whose handler called `setPointerCapture`
+   * The captured object — the node whose handler called `setPointerCapture`
    * (`event.currentObject`). Captured move/up deliver exclusively to its chain; may be
    * an ancestor of the hit leaf.
    */
-  element: Object3D
+  object: Object3D
   /** The drag plane the live ray reprojects onto each move. */
   plane: Plane
   /**
@@ -113,7 +113,7 @@ export class Pointer {
 
   /** Whether this pointer currently holds `object` captured. */
   hasCaptured(object: Object3D): boolean {
-    return this.captured?.element === object
+    return this.captured?.object === object
   }
 
   /** Whether this pointer currently holds any capture. */
@@ -122,27 +122,33 @@ export class Pointer {
   }
 
   /**
-   * Capture this pointer to `element` (the node whose handler called
-   * `setPointerCapture`): build the drag plane from the hit point and world-space
-   * normal (camera-facing if the hit has no face), then engage the OS sink.
-   * Subsequent move/up reproject the live ray onto this plane and deliver
-   * exclusively to `element`'s chain until released. A nullish `element` (the
+   * Capture this pointer to `object` (the node whose handler called
+   * `setPointerCapture`): build the drag plane through the hit point and engage the
+   * OS sink. Subsequent move/up reproject the live ray onto this plane and deliver
+   * exclusively to `object`'s chain until released. A nullish `object` (the
    * canvas-level dispatch has no `event.currentObject`) is a no-op.
    *
-   * The face normal is expressed in the hit leaf's local space, so it's oriented
-   * with `intersection.object`'s world matrix — which differs from `element` when
-   * a handler on an ancestor captures.
+   * The plane normal is, in order: `normalOverride` (a caller-supplied world-space
+   * normal, to constrain the drag — e.g. `+Y` for ground sliding); else the hit
+   * face's normal (oriented by `intersection.object`'s world matrix, which differs
+   * from `object` when an ancestor captures); else camera-facing.
    */
-  capture(element: Object3D | null | undefined, intersection: Intersection) {
-    if (!element) return
+  capture(
+    object: Object3D | null | undefined,
+    intersection: Intersection,
+    normalOverride?: Vector3,
+  ) {
+    if (!object) return
     const normal = new Vector3()
-    if (intersection.face) {
+    if (normalOverride) {
+      normal.copy(normalOverride).normalize()
+    } else if (intersection.face) {
       normal.copy(intersection.face.normal).transformDirection(intersection.object.matrixWorld)
     } else {
       this.context.camera.getWorldDirection(normal).negate()
     }
     const plane = new Plane().setFromNormalAndCoplanarPoint(normal, intersection.point)
-    this.captured = { element, plane, intersection }
+    this.captured = { object, plane, intersection }
     // Engage the OS sink only after state is set. If it throws — e.g. the pointer
     // isn't in an active-buttons state (a hover move with no button down) — roll
     // back so capture never outlives a failed sink, and swallow the platform error
@@ -155,13 +161,13 @@ export class Pointer {
     }
     // Record only a capture that actually took, so the reactive mirror never
     // reports a rolled-back one.
-    this.captureRegistry?.add(element)
+    this.captureRegistry?.add(object)
   }
 
   /** Release a held capture and notify the OS sink. Idempotent. */
   release() {
     if (!this.captured) return
-    this.captureRegistry?.delete(this.captured.element)
+    this.captureRegistry?.delete(this.captured.object)
     this.captured = null
     this.sink?.release()
   }
@@ -169,7 +175,7 @@ export class Pointer {
   /** Clear capture state only, without notifying the sink (the OS already released). */
   dropCapture() {
     if (!this.captured) return
-    this.captureRegistry?.delete(this.captured.element)
+    this.captureRegistry?.delete(this.captured.object)
     this.captured = null
   }
 
@@ -189,28 +195,28 @@ export class Pointer {
 
   /** Attach the capture methods to a capturable event (down/up/move). */
   private attachCapture(event: any) {
-    // No-arg captures `event.currentObject` (the firing node) — sync-only, since it's
-    // cleared after dispatch (like a DOM event's `currentTarget`). Pass a `target`
-    // to capture it later: the caller holds the reference, so it works async.
-    event.setPointerCapture = (target?: Object3D) => {
-      const element = target ?? event.currentObject
-      if (!element) return
+    // With no `object`, captures `event.currentObject` (the firing node) — sync-only,
+    // since it's cleared after dispatch (like a DOM event's `currentTarget`). Pass an
+    // `object` to capture it later: the caller holds the reference, so it works async.
+    event.setPointerCapture = (options?: { object?: Object3D; normal?: Vector3 }) => {
+      const object = options?.object ?? event.currentObject
+      if (!object) return
       // Sync: the live hit. Async (event already past dispatch, `currentIntersection`
-      // gone): synthesize a contact at the target's centre.
-      const intersection = event.currentIntersection ?? this.syntheticHit(element)
-      this.capture(element, intersection)
+      // gone): synthesize a contact at the object's centre.
+      const intersection = event.currentIntersection ?? this.syntheticHit(object)
+      this.capture(object, intersection, options?.normal)
     }
     event.releasePointerCapture = () => this.release()
-    event.hasPointerCapture = (target?: Object3D) => {
-      const element = target ?? event.currentObject
-      return element != null && this.hasCaptured(element)
+    event.hasPointerCapture = (object?: Object3D) => {
+      object ??= event.currentObject
+      return object != null && this.hasCaptured(object)
     }
   }
 
   /**
    * A contact for an explicit/deferred capture with no live ray hit: the object's
    * world-space centre, no face — so {@link capture} builds a camera-facing drag
-   * plane through it. Used by `setPointerCapture(target)` called after dispatch.
+   * plane through it. Used by `setPointerCapture({ object })` called after dispatch.
    */
   private syntheticHit(object: Object3D): Intersection {
     return { object, point: object.getWorldPosition(new Vector3()), distance: 0 } as Intersection
@@ -331,7 +337,7 @@ export class Pointer {
       const event: any = createThreeEvent(nativeEvent, { intersections: [intersection] })
       if (extra) Object.assign(event, extra)
       if (capturable) this.attachCapture(event)
-      this.bubble(event, handler, [[intersection, captured.element]])
+      this.bubble(event, handler, [[intersection, captured.object]])
       return
     }
 
