@@ -107,8 +107,12 @@ describe("Pointer dispatch", () => {
 
   it("dispatch sets event.currentObject to the bubbling node and merges extra fields", () => {
     const seen: any[] = []
-    const parent = eventful({ onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }) })
-    const child = eventful({ onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }) })
+    const parent = eventful({
+      onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }),
+    })
+    const child = eventful({
+      onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }),
+    })
     ;(child as any).parent = parent
     const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
 
@@ -130,8 +134,18 @@ describe("Pointer dispatch", () => {
     // Both children are hit along the ray; their chains share `group`.
     const raycaster = {
       cast: () => [
-        { object: childA, distance: 1, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
-        { object: childB, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+        {
+          object: childA,
+          distance: 1,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
+        {
+          object: childB,
+          distance: 2,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
       ],
       intersectObject: () => [],
       aim: () => {},
@@ -153,7 +167,12 @@ describe("Pointer dispatch", () => {
     // Two stacked hits along the ray; the closer one stops propagation.
     const raycaster = {
       cast: () => [
-        { object: front, distance: 1, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
+        {
+          object: front,
+          distance: 1,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
         { object: back, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
       ],
       intersectObject: () => [],
@@ -179,7 +198,11 @@ describe("Pointer capture lifecycle", () => {
     const sink = spySink()
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
 
-    pointer.capture(mesh, { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    pointer.capture(mesh, {
+      object: mesh,
+      point: new Vector3(),
+      face: { normal: new Vector3(0, 0, 1) },
+    } as any)
     expect(sink.capture).toHaveBeenCalledTimes(1)
     expect(pointer.hasCaptured(mesh)).toBe(true)
 
@@ -193,7 +216,11 @@ describe("Pointer capture lifecycle", () => {
     const sink = spySink()
     const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
 
-    pointer.capture(mesh, { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any)
+    pointer.capture(mesh, {
+      object: mesh,
+      point: new Vector3(),
+      face: { normal: new Vector3(0, 0, 1) },
+    } as any)
     pointer.dropCapture()
     expect(pointer.hasCaptured(mesh)).toBe(false)
     expect(sink.release).not.toHaveBeenCalled()
@@ -369,7 +396,11 @@ describe("Pointer capture lifecycle", () => {
       onPointerUp: (e: any) => (seenPoint = e.intersection.point.clone()),
     })
     // Plane: z = 0, normal +z, coplanar point (0,0,0).
-    const state: RayState = { target: captured, point: new Vector3(0, 0, 0), normal: new Vector3(0, 0, 1) }
+    const state: RayState = {
+      target: captured,
+      point: new Vector3(0, 0, 0),
+      normal: new Vector3(0, 0, 1),
+    }
     const raycaster = fakeRaycaster(state)
     const pointer = new Pointer(ctx([captured]), raycaster)
 
@@ -423,7 +454,10 @@ describe("Pointer capture lifecycle", () => {
     const canvasMove = vi.fn()
     const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
     const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([captured], { onPointerMove: canvasMove }), fakeRaycaster(state))
+    const pointer = new Pointer(
+      ctx([captured], { onPointerMove: canvasMove }),
+      fakeRaycaster(state),
+    )
 
     pointer.down(new Event("pointerdown"))
     state.target = undefined
@@ -444,7 +478,9 @@ describe("Pointer capture lifecycle", () => {
 
 describe("createThreeEvent typing", () => {
   it("merges typed extra and exposes a typed event shape — no any", () => {
-    const event = createThreeEvent(new MouseEvent("click"), { intersections: [] }, { controller: "c" } as const)
+    const event = createThreeEvent(new MouseEvent("click"), { intersections: [] }, {
+      controller: "c",
+    } as const)
 
     assertType<Event>(event.nativeEvent)
     assertType<"c">(event.controller) // typed plugin extra, not `any`

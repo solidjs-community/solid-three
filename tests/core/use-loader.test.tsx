@@ -154,8 +154,12 @@ describe("useLoader", () => {
     let second: (() => MockResource | undefined) | undefined
 
     function Component() {
-      first = useLoader(MockLoader, "texture.png", { cache: false }) as () => MockResource | undefined
-      second = useLoader(MockLoader, "texture.png", { cache: false }) as () => MockResource | undefined
+      first = useLoader(MockLoader, "texture.png", { cache: false }) as () =>
+        | MockResource
+        | undefined
+      second = useLoader(MockLoader, "texture.png", { cache: false }) as () =>
+        | MockResource
+        | undefined
       return null
     }
 
@@ -173,7 +177,9 @@ describe("useLoader", () => {
     let resource: (() => MockResource | undefined) | undefined
 
     function Component() {
-      resource = useLoader(MockLoader, "texture.png", { onLoad: handleLoad }) as () => MockResource | undefined
+      resource = useLoader(MockLoader, "texture.png", { onLoad: handleLoad }) as () =>
+        | MockResource
+        | undefined
       return null
     }
 
@@ -190,7 +196,8 @@ describe("useLoader", () => {
 
     function Component() {
       resource = useLoader(MockLoader, { diffuse: "diffuse.png", normal: "normal.png" }) as () =>
-        Record<string, MockResource> | undefined
+        | Record<string, MockResource>
+        | undefined
       return null
     }
 

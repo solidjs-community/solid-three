@@ -6,9 +6,9 @@ import {
   createResource,
   createRoot,
   getOwner,
-  untrack,
   mergeProps,
   onCleanup,
+  untrack,
 } from "solid-js"
 import {
   ACESFilmicToneMapping,
@@ -220,14 +220,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     }
     // Config-object branch: don't read props.camera in the memo body — the
     // contents don't affect construction (they're applied via useProps later).
-    return meta(
-      orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(),
-      {
-        get props() {
-          return props.camera || {}
-        },
+    return meta(orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(), {
+      get props() {
+        return props.camera || {}
       },
-    )
+    })
   })
   const cameraStack = new Stack<CameraKind>("camera")
 

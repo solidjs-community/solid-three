@@ -256,7 +256,8 @@ export class Pointer {
       let current: Object3D | null = intersection.object
       while (current && !entered.has(current)) {
         entered.add(current)
-        if (!this.hovered.has(current)) (getMeta(current)?.props as any)?.onPointerEnter?.(enterEvent)
+        if (!this.hovered.has(current))
+          (getMeta(current)?.props as any)?.onPointerEnter?.(enterEvent)
         current = current.parent
       }
     }
@@ -272,7 +273,10 @@ export class Pointer {
     this.propagate(
       moveEvent,
       "onPointerMove",
-      intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
+      intersections.map((intersection): [Intersection, Object3D] => [
+        intersection,
+        intersection.object,
+      ]),
     )
 
     // Phase #3 — Leave (objects hovered last time but not now).
@@ -368,7 +372,10 @@ export class Pointer {
     this.propagate(
       event,
       handler,
-      intersections.map((intersection): [Intersection, Object3D] => [intersection, intersection.object]),
+      intersections.map((intersection): [Intersection, Object3D] => [
+        intersection,
+        intersection.object,
+      ]),
     )
   }
 

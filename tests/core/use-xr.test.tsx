@@ -61,7 +61,11 @@ function renderUseXR(ctx = makeFakeContext()) {
       api = useXR()
       return null
     }
-    void (<xr.Provider><Probe /></xr.Provider>)
+    void (
+      <xr.Provider>
+        <Probe />
+      </xr.Provider>
+    )
     return d
   })
   return {

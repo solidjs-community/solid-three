@@ -216,9 +216,9 @@ export function useLoader<
     input: TInput,
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (isRecord(input)) {
-      return awaitMapObject(input, async value => getOrInsert(registry, loader, value)) as PromiseMaybe<
-        LoadOutput<TLoader, TInput>
-      >
+      return awaitMapObject(input, async value =>
+        getOrInsert(registry, loader, value),
+      ) as PromiseMaybe<LoadOutput<TLoader, TInput>>
     } else {
       const _input = input as LoaderUrl<TLoader>
 

@@ -289,7 +289,8 @@ describe("renderer", () => {
           <Show when={visible()}>
             <T.Mesh
               attach={(parent, self) => (
-                (parent as any).customAttach(self), () => (parent as any).detach(self)
+                (parent as any).customAttach(self),
+                () => (parent as any).detach(self)
               )}
             />
           </Show>
@@ -321,7 +322,12 @@ describe("renderer", () => {
       const scene = test(() => (
         <T.HasObject3dMethods>
           <Show when={visible()}>
-            <T.Mesh attach={parent => ((attachedMesh = parent as THREE.Object3D), () => (detachedMesh = parent as THREE.Object3D))} />
+            <T.Mesh
+              attach={parent => (
+                (attachedMesh = parent as THREE.Object3D),
+                () => (detachedMesh = parent as THREE.Object3D)
+              )}
+            />
           </Show>
         </T.HasObject3dMethods>
       )).scene

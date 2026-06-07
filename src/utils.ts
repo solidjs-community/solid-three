@@ -448,8 +448,8 @@ export type LoadInput<TLoader extends Loader<any, any>> =
 export type LoadOutput<TLoader extends Loader<any, any>, TUrl> = TUrl extends readonly any[]
   ? LoaderData<TLoader>
   : TUrl extends Record<string, any>
-  ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
-  : LoaderData<TLoader>
+    ? { [TKey in keyof TUrl]: LoaderData<TLoader> }
+    : LoaderData<TLoader>
 
 export function load<const TLoader extends Loader<any, any>>(
   loader: TLoader,

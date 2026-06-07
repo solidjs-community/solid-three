@@ -1,6 +1,6 @@
 import { afterEach } from "vitest"
-import type { Renderer } from "../src/types.ts"
 import { cleanup } from "../src/testing/index.tsx"
+import type { Renderer } from "../src/types.ts"
 
 // Widen ResolvedRenderer to the full `Renderer` union for tests. The
 // production default is `WebGLRenderer`, but several test suites build mock
