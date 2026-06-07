@@ -443,7 +443,7 @@ function binarySearch(array, target) {
 }
 
 // ../src/pointers.ts
-function createThreeEvent(nativeEvent, { stoppable = true, intersections } = {}) {
+function createThreeEvent(nativeEvent, { stoppable = true, intersections } = {}, extra) {
   const event = stoppable ? {
     nativeEvent,
     stopped: false,
@@ -456,6 +456,7 @@ function createThreeEvent(nativeEvent, { stoppable = true, intersections } = {})
     event.intersection = intersections[0];
     event.object = intersections[0]?.object;
   }
+  if (extra) Object.assign(event, extra);
   return event;
 }
 var Pointer = class {
@@ -652,15 +653,13 @@ var Pointer = class {
     const captured = this.captured;
     if (captured) {
       const intersection = this.reproject(captured);
-      const event2 = createThreeEvent(nativeEvent, { intersections: [intersection] });
-      if (extra) Object.assign(event2, extra);
+      const event2 = createThreeEvent(nativeEvent, { intersections: [intersection] }, extra);
       if (capturable) this.attachCapture(event2);
       this.propagate(event2, handler, [[intersection, captured.object]]);
       return;
     }
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context);
-    const event = createThreeEvent(nativeEvent, { intersections });
-    if (extra) Object.assign(event, extra);
+    const event = createThreeEvent(nativeEvent, { intersections }, extra);
     if (capturable) this.attachCapture(event);
     this.propagate(
       event,
