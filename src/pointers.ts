@@ -107,11 +107,6 @@ interface Captured {
  * and calls these gesture methods; the `Pointer` raycasts the context's single
  * `eventRegistry` and bubbles to the `onPointer*` / `onClick` / … handlers,
  * tracking its own hover state so multiple pointers stay independent.
- *
- * Dispatch logic is ported verbatim from the previous per-kind registries
- * (`createHoverEventRegistry` / `createMissableEventRegistry` /
- * `createDefaultEventRegistry`); the only changes are per-pointer instance state
- * and the single `onPointer*` family (the redundant `onMouse*` family is gone).
  */
 export class Pointer {
   private hovered = new Set<Object3D>()
@@ -365,8 +360,10 @@ export class Pointer {
    * Dispatch a "default"-style gesture to an arbitrary handler name (plugin-extensible:
    * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
    * can fire its own names, e.g. `onXRSelect`). Propagates along the hit chain honoring
-   * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
-   * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
+   * `stopPropagation`, then, for the non-captured path, fires the canvas handler if an
+   * object-level handler ran (otherwise the canvas-level `onVoid<Kind>`); the captured
+   * path always fires the canvas-level handler. `extra` is merged onto the event (plugin
+   * sources use it for rich fields, e.g. the XR controller payload), and
    * `event.currentObject` exposes the node a handler is firing on. When this pointer
    * holds a capture, delivery is exclusive to the captured object's chain (the
    * registry is not raycast) but still bubbles to the canvas-level handler; the
@@ -404,7 +401,7 @@ export class Pointer {
     this.finishVoidable(event, handler, firedOnObject)
   }
 
-  /** Missable gesture: bubbled onClick/onDoubleClick/onContextMenu + canvas-level onVoid<Kind>. */
+  /** Void-family gesture: bubbled onClick/onDoubleClick/onContextMenu + canvas-level onVoid<Kind>. */
   click(kind: "onClick" | "onDoubleClick" | "onContextMenu", nativeEvent: Event) {
     const props = this.context.props as Record<string, any>
     const registry = this.context.eventRegistry

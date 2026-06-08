@@ -393,13 +393,16 @@ describe("canvas default events", () => {
 
     it("fires when pointerdown propagates through a mesh that does not stop it", () => {
       const handlePointerDown = vi.fn()
+      const onVoidPointerDown = vi.fn()
       const { canvas } = test(() => <ListeningMesh eventType="onPointerDown" />, {
         onPointerDown: handlePointerDown,
+        onVoidPointerDown,
       })
 
       fireEvent(canvas, hitEvent("pointerdown"))
 
       expect(handlePointerDown).toHaveBeenCalledTimes(1)
+      expect(onVoidPointerDown).not.toHaveBeenCalled()
     })
 
     it("does not fire when a mesh stops propagation", () => {
@@ -431,13 +434,16 @@ describe("canvas default events", () => {
 
     it("fires when pointerup propagates through a mesh that does not stop it", () => {
       const handlePointerUp = vi.fn()
+      const onVoidPointerUp = vi.fn()
       const { canvas } = test(() => <ListeningMesh eventType="onPointerUp" />, {
         onPointerUp: handlePointerUp,
+        onVoidPointerUp,
       })
 
       fireEvent(canvas, hitEvent("pointerup"))
 
       expect(handlePointerUp).toHaveBeenCalledTimes(1)
+      expect(onVoidPointerUp).not.toHaveBeenCalled()
     })
 
     it("does not fire when a mesh stops propagation", () => {
@@ -472,7 +478,11 @@ describe("canvas default events", () => {
 
     it("fires when wheel event propagates through a mesh that does not stop it", () => {
       const handleWheel = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onWheel" />, { onWheel: handleWheel })
+      const onVoidWheel = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onWheel" />, {
+        onWheel: handleWheel,
+        onVoidWheel,
+      })
 
       fireEvent(
         canvas,
@@ -480,6 +490,7 @@ describe("canvas default events", () => {
       )
 
       expect(handleWheel).toHaveBeenCalledTimes(1)
+      expect(onVoidWheel).not.toHaveBeenCalled()
     })
 
     it("does not fire when a mesh stops propagation", () => {
