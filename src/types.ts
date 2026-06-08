@@ -439,11 +439,8 @@ export type PointerCapture = {
 
 type EventHandlersMap = {
   onClick: Prettify<ThreeEvent<MouseEvent>>
-  onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
@@ -464,6 +461,20 @@ export type CanvasEventHandlers = {
 
 /** The names of all `EventHandlers` */
 export type EventName = keyof EventHandlersMap
+
+type VoidEventHandlersMap = {
+  onVoidClick: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
+  onVoidDoubleClick: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
+  onVoidContextMenu: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
+  onVoidWheel: Prettify<ThreeEvent<WheelEvent, { stoppable: false; intersections: false }>>
+  onVoidPointerDown: Prettify<ThreeEvent<PointerEvent, { stoppable: false; intersections: false }>>
+  onVoidPointerUp: Prettify<ThreeEvent<PointerEvent, { stoppable: false; intersections: false }>>
+}
+
+/** Canvas-level handlers fired when a gesture hits no interactive object (the void). */
+export type VoidEventHandlers = {
+  [TKey in keyof VoidEventHandlersMap]: (event: VoidEventHandlersMap[TKey]) => void
+}
 
 /**********************************************************************************/
 /*                                                                                */

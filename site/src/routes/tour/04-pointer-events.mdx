@@ -6,8 +6,10 @@ import clickSnippet from "../../snippets/04-click.tsx?raw"
 import clickUrl from "../../snippets/04-click.tsx?importChunkUrl"
 import hoverSnippet from "../../snippets/04-hover.tsx?raw"
 import hoverUrl from "../../snippets/04-hover.tsx?importChunkUrl"
-import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
-import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
+import voidClickSnippet from "../../snippets/04-void-click.tsx?raw"
+import voidClickUrl from "../../snippets/04-void-click.tsx?importChunkUrl"
+import voidWheelSnippet from "../../snippets/04-void-wheel.tsx?raw"
+import voidWheelUrl from "../../snippets/04-void-wheel.tsx?importChunkUrl"
 import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
 import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
 import dragSnippet from "../../snippets/04-drag.tsx?raw"
@@ -41,22 +43,32 @@ to react to hover.
 Move the pointer over the cube — it grows. Leave — it shrinks. The signal
 flips; `scale` reads it; one property assignment runs.
 
-## Clicking nothing
+## Void events
 
-Sometimes the interesting event is when the user clicks but _doesn't_ hit any
-mesh — to deselect the current selection, dismiss a tooltip, that sort of
-thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
+Sometimes the event you want is a click that hits no mesh — to deselect the
+current thing, or dismiss a tooltip. Picture a backdrop behind the whole
+scene: a click that misses every mesh reaches the backdrop, and `onVoidClick`
+on the [`<Canvas>`](/api/components/canvas) is the backdrop's `onClick`.
 
-<Demo code={clickMissedSnippet} url={clickMissedUrl} />
+<Demo code={voidClickSnippet} url={voidClickUrl} />
 
-Click the cube to select it; click anywhere else in the canvas to deselect.
-The two handlers cover the full "did you hit something?" question between
-them.
+Click the cube to select it; click anywhere else and the click reaches the
+backdrop, which deselects. Every click is one or the other — a mesh, or the
+backdrop.
+
+The backdrop catches more than clicks — every gesture that can miss has one.
+Here it's the wheel:
+
+<Demo code={voidWheelSnippet} url={voidWheelUrl} />
+
+Wheel over the cube and `onWheel` resizes it; wheel over the empty backdrop
+and `onVoidWheel` zooms the camera.
 
 That covers the everyday cases. There's a
 [longer list of pointer events](/api/events/overview)
 (`onPointerMove`, `onPointerDown`, `onPointerUp`, `onWheel`, ...) — all
-following the same convention.
+following the same convention, and the ones that can miss have a void twin
+too (`onVoidPointerDown`, `onVoidWheel`, ...).
 
 ## Stopping events
 

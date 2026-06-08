@@ -94,8 +94,12 @@ _Avoid_: target / currentTarget for the 3D sense — those stay DOM-only, on `na
 **Intersection** (intersections):
 A raycast hit — three.js `Intersection` (`object`, `point`, `distance`, `face`, `uv`, `normal`). `event.intersections` is nearest-first; `event.intersection` is the nearest.
 
-**Missed event**:
-`onClickMissed` / `onDoubleClickMissed` / `onContextMenuMissed` — fires on a registered **object** when the interaction did _not_ hit it or its descendants.
+**Void event**:
+A canvas-level handler — `onVoidClick`, `onVoidDoubleClick`, `onVoidContextMenu`, `onVoidWheel`, `onVoidPointerDown`, `onVoidPointerUp` — fired when a gesture runs no object-level handler for it, reaching the **backdrop** instead. Exclusive with the canvas-level positive handler (a click runs `onClick` or `onVoidClick`, never both); judged per gesture (a hover-only object doesn't suppress `onVoidClick`).
+_Avoid_: missed (the inverted, per-object framing it replaces).
+
+**Backdrop**:
+The conceptual surface behind every object — a gesture no object handles "reaches the backdrop", where its **void event** fires. Not a real mesh; the name for the "no object handler ran" branch of dispatch.
 
 **raycast propagation**:
 The first dispatch phase — the handler fires on each hit **object** nearest-first along the ray.

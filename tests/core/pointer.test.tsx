@@ -13,8 +13,7 @@ function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
 type RayState = { target?: Object3D; point?: Vector3; normal?: Vector3 }
 
 // Fake raycaster: `cast` hits whatever `state.target` is (with a point+face so
-// capture() can build a plane); phase-2 re-cast finds nothing; `aim` is a no-op
-// (tests position `ray` directly).
+// capture() can build a plane); `aim` is a no-op (tests position `ray` directly).
 function fakeRaycaster(state: RayState): PointerRaycaster {
   return {
     cast: () =>
@@ -28,7 +27,6 @@ function fakeRaycaster(state: RayState): PointerRaycaster {
             } as any,
           ]
         : [],
-    intersectObject: () => [],
     aim: () => {},
     ray: new Ray(),
   }
@@ -94,15 +92,26 @@ describe("Pointer dispatch", () => {
     expect(seen[1]).toBe(parent) // bubbled handler on parent sees parent
   })
 
-  it("fires onClickMissed (mesh-level + canvas-level) when the click hits nothing", () => {
-    const meshMissed = vi.fn()
-    const canvasMissed = vi.fn()
-    const mesh = eventful({ onClickMissed: meshMissed })
-    const pointer = new Pointer(ctx([mesh], { onClickMissed: canvasMissed }), fakeRaycaster({}))
+  it("fires onVoidClick on the canvas when the click hits nothing", () => {
+    const canvasVoid = vi.fn()
+    const pointer = new Pointer(ctx([], { onVoidClick: canvasVoid }), fakeRaycaster({}))
 
     pointer.click("onClick", new MouseEvent("click"))
-    expect(meshMissed).toHaveBeenCalledTimes(1)
-    expect(canvasMissed).toHaveBeenCalledTimes(1)
+    expect(canvasVoid).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not fire onVoidClick when the click hits a mesh with onClick", () => {
+    const objectClick = vi.fn()
+    const canvasVoid = vi.fn()
+    const mesh = eventful({ onClick: objectClick })
+    const pointer = new Pointer(
+      ctx([mesh], { onVoidClick: canvasVoid }),
+      fakeRaycaster({ target: mesh }),
+    )
+
+    pointer.click("onClick", new MouseEvent("click"))
+    expect(objectClick).toHaveBeenCalledTimes(1)
+    expect(canvasVoid).not.toHaveBeenCalled()
   })
 
   it("dispatch sets event.currentObject to the bubbling node and merges extra fields", () => {
@@ -147,7 +156,6 @@ describe("Pointer dispatch", () => {
           face: { normal: new Vector3(0, 0, 1) },
         },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -175,7 +183,6 @@ describe("Pointer dispatch", () => {
         },
         { object: back, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -184,6 +191,57 @@ describe("Pointer dispatch", () => {
     pointer.move(new Event("pointermove"))
     expect(frontMove).toHaveBeenCalledTimes(1)
     expect(backMove).not.toHaveBeenCalled() // stop halts the deeper hit too
+  })
+
+  it("firedOnObject — far object with onClick is not a void even when the near object lacks it", () => {
+    // Near object has no onClick; far object does. Any hit-chain carrying the handler
+    // means firedOnObject=true → onVoidClick must NOT fire.
+    const farClick = vi.fn()
+    const onVoidClick = vi.fn()
+    const nearObject = eventful({}) // no onClick — handler-less but in the registry
+    const farObject = eventful({ onClick: farClick })
+    const raycaster = {
+      cast: () => [
+        {
+          object: nearObject,
+          distance: 1,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
+        {
+          object: farObject,
+          distance: 2,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
+      ],
+      aim: () => {},
+      ray: new Ray(),
+    } as any as PointerRaycaster
+    const pointer = new Pointer(ctx([nearObject, farObject], { onVoidClick }), raycaster)
+
+    pointer.click("onClick", new MouseEvent("click"))
+
+    expect(farClick).toHaveBeenCalledTimes(1)
+    expect(onVoidClick).not.toHaveBeenCalled()
+  })
+
+  it("void-event payload: object/intersection/currentObject are undefined and stopPropagation is absent", () => {
+    const nativeEvent = new MouseEvent("click")
+    let capturedVoidEvent: any
+    const onVoidClick = vi.fn((event: any) => {
+      capturedVoidEvent = event
+    })
+    const pointer = new Pointer(ctx([], { onVoidClick }), fakeRaycaster({}))
+
+    pointer.click("onClick", nativeEvent)
+
+    expect(onVoidClick).toHaveBeenCalledTimes(1)
+    expect(capturedVoidEvent.object).toBeUndefined()
+    expect(capturedVoidEvent.intersection).toBeUndefined()
+    expect(capturedVoidEvent.currentObject).toBeUndefined()
+    expect(capturedVoidEvent.stopPropagation).toBeUndefined()
+    expect(capturedVoidEvent.nativeEvent).toBe(nativeEvent)
   })
 })
 
@@ -264,7 +322,6 @@ describe("Pointer capture lifecycle", () => {
     hitLeaf.updateMatrixWorld()
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
@@ -289,7 +346,6 @@ describe("Pointer capture lifecycle", () => {
     const mesh = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }

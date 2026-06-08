@@ -26,119 +26,6 @@ describe("events", () => {
     expect(handlePointerDown).toHaveBeenCalled()
   })
 
-  // TODO:  implement onPointerMissed-api
-  // NOTE:  unsure if/how we should implement onPointerMissed
-  //        the heuristics are unclear imo
-
-  // it("can handle onPointerMissed", async () => {
-  //   const handleClick = vi.fn();
-  //   const handleMissed = vi.fn();
-
-  //   const { canvas } = test(() => (
-  //     <T.Mesh onPointerMissed={handleMissed} onClick={handleClick}>
-  //       <T.BoxGeometry args={[2, 2]} />
-  //       <T.MeshBasicMaterial />
-  //     </T.Mesh>
-  //   ));
-
-  //   const evt = new MouseEvent("click");
-  //   Object.defineProperty(evt, "offsetX", { get: () => 0 });
-  //   Object.defineProperty(evt, "offsetY", { get: () => 0 });
-
-  //   fireEvent(canvas, evt);
-
-  //   expect(handleClick).not.toHaveBeenCalled();
-  //   expect(handleMissed).toHaveBeenCalledWith(evt);
-  // });
-
-  // TODO:  implement onPointerMissed-api
-
-  // it("should not fire onPointerMissed when same element is clicked", async () => {
-  //   const handleClick = vi.fn();
-  //   const handleMissed = vi.fn();
-
-  //   const { canvas } = test(() => (
-  //     <T.Mesh onPointerMissed={handleMissed} onClick={handleClick}>
-  //       <T.BoxGeometry args={[2, 2]} />
-  //       <T.MeshBasicMaterial />
-  //     </T.Mesh>
-  //   ));
-
-  //   const down = new Event("pointerdown");
-  //   Object.defineProperty(down, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(down, "offsetY", { get: () => 480 });
-
-  //   fireEvent(canvas, down);
-
-  //   const up = new Event("pointerup");
-  //   Object.defineProperty(up, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(up, "offsetY", { get: () => 480 });
-
-  //   const evt = new MouseEvent("click");
-  //   Object.defineProperty(evt, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(evt, "offsetY", { get: () => 480 });
-
-  //   fireEvent(canvas, evt);
-
-  //   expect(handleClick).toHaveBeenCalled();
-  //   expect(handleMissed).not.toHaveBeenCalled();
-  // });
-
-  // TODO:  implement onPointerMissed-api
-
-  // it("should not fire onPointerMissed on parent when child element is clicked", async () => {
-  //   const handleClick = vi.fn();
-  //   const handleMissed = vi.fn();
-
-  //   const { canvas } = test(() => (
-  //     <T.Group onPointerMissed={handleMissed}>
-  //       <T.Mesh onClick={handleClick}>
-  //         <T.BoxGeometry args={[2, 2]} />
-  //         <T.MeshBasicMaterial />
-  //       </T.Mesh>
-  //     </T.Group>
-  //   ));
-
-  //   const down = new Event("pointerdown");
-  //   Object.defineProperty(down, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(down, "offsetY", { get: () => 480 });
-
-  //   fireEvent(canvas, down);
-
-  //   const up = new Event("pointerup");
-  //   Object.defineProperty(up, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(up, "offsetY", { get: () => 480 });
-
-  //   const evt = new MouseEvent("click");
-  //   Object.defineProperty(evt, "offsetX", { get: () => 577 });
-  //   Object.defineProperty(evt, "offsetY", { get: () => 480 });
-
-  //   fireEvent(canvas, evt);
-
-  //   expect(handleClick).toHaveBeenCalled();
-  //   expect(handleMissed).not.toHaveBeenCalled();
-  // });
-
-  // TODO:  implement onPointerMissed-api
-
-  // it("can handle onPointerMissed on Canvas", async () => {
-  //   const handleMissed = vi.fn();
-
-  //   const { canvas } = test(() => (
-  //     <T.Mesh>
-  //       <T.BoxGeometry args={[2, 2]} />
-  //       <T.MeshBasicMaterial />
-  //     </T.Mesh>
-  //   ));
-
-  //   const evt = new MouseEvent("click");
-  //   Object.defineProperty(evt, "offsetX", { get: () => 0 });
-  //   Object.defineProperty(evt, "offsetY", { get: () => 0 });
-
-  //   fireEvent(canvas, evt);
-  //   expect(handleMissed).toHaveBeenCalledWith(evt);
-  // });
-
   it("can handle onPointerMove", async () => {
     const handlePointerMove = vi.fn()
     const handlePointerEnter = vi.fn()
@@ -227,7 +114,7 @@ describe("events", () => {
 
 /**********************************************************************************/
 /*                                                                                */
-/*                           Mesh-level onClickMissed                             */
+/*                           Bubbling past a stopping mesh                        */
 /*                                                                                */
 /**********************************************************************************/
 
@@ -241,77 +128,23 @@ function makeClickAt(clientX: number, clientY: number) {
   return new MouseEvent("click", { clientX, clientY, bubbles: true })
 }
 
-describe("mesh onClickMissed", () => {
-  it("fires when a click misses the mesh", async () => {
-    const handleClickMissed = vi.fn()
+/** A 2×2 mesh at origin whose handler stops propagation. */
+const StoppingMesh = (props: { eventType: string }) => {
+  const handlerProp = { [props.eventType]: (e: any) => e.stopPropagation() }
+  return (
+    <T.Mesh {...handlerProp}>
+      <T.BoxGeometry args={[2, 2]} />
+      <T.MeshBasicMaterial />
+    </T.Mesh>
+  )
+}
 
-    const { canvas } = await test(() => (
-      <T.Mesh onClickMissed={handleClickMissed}>
-        <T.BoxGeometry args={[2, 2]} />
-        <T.MeshBasicMaterial />
-      </T.Mesh>
-    ))
-
+describe("click bubbling", () => {
+  it("a click that misses a stopping mesh fires the canvas onVoidClick instead", () => {
+    const onVoidClick = vi.fn()
+    const { canvas } = test(() => <StoppingMesh eventType="onClick" />, { onVoidClick })
     fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
-
-    expect(handleClickMissed).toHaveBeenCalledTimes(1)
-  })
-
-  it("does not fire when the mesh itself is clicked", async () => {
-    const handleClickMissed = vi.fn()
-
-    const { canvas } = await test(() => (
-      <T.Mesh onClickMissed={handleClickMissed}>
-        <T.BoxGeometry args={[2, 2]} />
-        <T.MeshBasicMaterial />
-      </T.Mesh>
-    ))
-
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-
-    expect(handleClickMissed).not.toHaveBeenCalled()
-  })
-
-  it("does not fire when a different mesh in the scene is clicked", async () => {
-    const handleClickMissed = vi.fn()
-
-    // Mesh A: off-center (far right), has onClickMissed
-    // Mesh B: at origin (center of screen), gets clicked
-    const { canvas } = await test(() => (
-      <>
-        <T.Mesh onClickMissed={handleClickMissed} position-x={100}>
-          <T.BoxGeometry args={[2, 2]} />
-          <T.MeshBasicMaterial />
-        </T.Mesh>
-        <T.Mesh>
-          <T.BoxGeometry args={[2, 2]} />
-          <T.MeshBasicMaterial />
-        </T.Mesh>
-      </>
-    ))
-
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-
-    expect(handleClickMissed).not.toHaveBeenCalled()
-  })
-
-  it("does not fire on a parent when its child is clicked", async () => {
-    const handleParentClickMissed = vi.fn()
-    const handleChildClick = vi.fn()
-
-    const { canvas } = await test(() => (
-      <T.Group onClickMissed={handleParentClickMissed}>
-        <T.Mesh onClick={handleChildClick}>
-          <T.BoxGeometry args={[2, 2]} />
-          <T.MeshBasicMaterial />
-        </T.Mesh>
-      </T.Group>
-    ))
-
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-
-    expect(handleChildClick).toHaveBeenCalledTimes(1)
-    expect(handleParentClickMissed).not.toHaveBeenCalled()
+    expect(onVoidClick).toHaveBeenCalledTimes(1)
   })
 })
 

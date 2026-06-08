@@ -6,17 +6,17 @@ title: Events overview
 
 `solid-three` has its own pointer-event system, inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
 
-You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
+You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Void events](#void-events)).
 
 ## Supported events
 
-### Click events (missable)
+### Click events
 
-These fire on the object that was hit, or — when nothing handles them — as a paired `*Missed` event:
+These fire on the object that was hit:
 
-- `onClick` / `onClickMissed`
-- `onContextMenu` / `onContextMenuMissed` — right-click
-- `onDoubleClick` / `onDoubleClickMissed`
+- `onClick`
+- `onContextMenu` — right-click
+- `onDoubleClick`
 
 ### Hover events
 
@@ -46,11 +46,11 @@ Every handler receives one event argument that combines the original DOM event w
 
 Not every handler receives every field — what you get depends on the event:
 
-| Handler                                                                                        | Receives                                                                               |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation`                                |
-| `onPointerEnter`, `onPointerLeave`                                                             | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
-| `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed`                                  | only `nativeEvent` — missed events don't raycast                                       |
+| Handler                                                                                                        | Receives                                                                               |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel`                 | `nativeEvent`, the intersections, and `stopPropagation`                                |
+| `onPointerEnter`, `onPointerLeave`                                                                             | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
+| `onVoidClick`, `onVoidContextMenu`, `onVoidDoubleClick`, `onVoidWheel`, `onVoidPointerDown`, `onVoidPointerUp` | only `nativeEvent` — void events don't raycast                                         |
 
 <details>
 <summary>Exact type</summary>
@@ -154,54 +154,34 @@ Not every event accepts `stopPropagation()`. The split mirrors the DOM:
 
 **Non-stoppable** — these always fire for every registered handler, regardless of order:
 
-- `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` — a [missed event](#missed-events) is by definition the "nothing else handled it" signal.
 - `onPointerEnter` — enter has to reach the newly-hovered subtree.
 - `onPointerLeave` — leave has to reach the previously-hovered subtree.
 
-## Missed events
+## Void events
 
-A `*Missed` variant fires on a handler-bearing object when the click, double-click, or context-menu did **not** reach it. Two cases:
+Not every gesture is aimed at an object — a click to deselect, a right-click for a background menu, a drag to orbit the camera. A void event fires for each.
 
-1. **Clicked outside** — the ray missed the object and all its descendants.
-2. **Blocked by `stopPropagation()`** — another object handled the event first and stopped it.
+A backdrop sits behind the scene, and `onVoidClick` is its `onClick`. A click runs the `onClick` of each object along its path — the ones it intersects and their ancestors — reaching the backdrop only when none of them has one.
 
-```tsx
-<T.Mesh onClickMissed={() => console.log("Missed — clicked outside this mesh")}>
-  <T.BoxGeometry args={[1, 1, 1]} />
-  <T.MeshBasicMaterial color="blue" />
-</T.Mesh>
-```
+There's a `<Canvas>` handler like it for each of these gestures:
+
+`onVoidClick` · `onVoidDoubleClick` · `onVoidContextMenu` · `onVoidWheel` · `onVoidPointerDown` · `onVoidPointerUp`
+
+A click that runs an `onClick` bubbles it up to the canvas-level `onClick`; a click that runs none reaches `onVoidClick`. The two never fire for the same click.
 
 ```tsx
-<T.Group onClickMissed={() => console.log("Group missed — child stopped propagation")}>
-  <T.Mesh
-    onClick={event => {
-      event.stopPropagation()
-      console.log("Child clicked")
-    }}
-  >
-    <T.BoxGeometry args={[1, 1, 1]} />
-    <T.MeshBasicMaterial color="red" />
-  </T.Mesh>
-</T.Group>
-```
-
-Common uses: deselecting on a background click, blocking interaction with objects behind a UI layer, or telling a parent container that a child intercepted the event.
-
-### Missed events on `<Canvas>`
-
-The same handlers work on [`<Canvas/>`](/api/components/canvas), where they fire when **no object handler at all** consumed the ray:
-
-```tsx
-<Canvas onClickMissed={() => deselect()}>
-  <T.Mesh onClick={() => select()}>
+<Canvas
+  onClick={() => console.log("ran an onClick")}
+  onVoidClick={() => console.log("reached the backdrop")}
+>
+  <T.Mesh onClick={() => console.log("the box's onClick")}>
     <T.BoxGeometry />
-    <T.MeshBasicMaterial />
+    <T.MeshStandardMaterial />
   </T.Mesh>
 </Canvas>
 ```
 
-Use this for canvas-wide "click on empty space" logic without attaching a sentinel mesh.
+Each gesture has its own backdrop. A mesh with `onPointerMove` but no `onClick` takes part in pointer-moves but not clicks: a click on it runs no `onClick`, so it reaches the click-backdrop and fires `onVoidClick`.
 
 ## Hover events
 
@@ -289,4 +269,4 @@ To keep an object from being hit while it still receives events that bubble up f
 
 - [Pointer events](/tour/04-pointer-events) — the tutorial chapter, with a worked walk-through.
 - [`raycastable`](/api/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
-- [`<Canvas/>`](/api/components/canvas) — where canvas-level handlers and `onClickMissed` fire.
+- [`<Canvas/>`](/api/components/canvas) — where canvas-level handlers and `onVoidClick` fire.
