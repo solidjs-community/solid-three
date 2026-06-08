@@ -13,8 +13,7 @@ function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
 type RayState = { target?: Object3D; point?: Vector3; normal?: Vector3 }
 
 // Fake raycaster: `cast` hits whatever `state.target` is (with a point+face so
-// capture() can build a plane); phase-2 re-cast finds nothing; `aim` is a no-op
-// (tests position `ray` directly).
+// capture() can build a plane); `aim` is a no-op (tests position `ray` directly).
 function fakeRaycaster(state: RayState): PointerRaycaster {
   return {
     cast: () =>
@@ -28,7 +27,6 @@ function fakeRaycaster(state: RayState): PointerRaycaster {
             } as any,
           ]
         : [],
-    intersectObject: () => [],
     aim: () => {},
     ray: new Ray(),
   }
@@ -94,15 +92,16 @@ describe("Pointer dispatch", () => {
     expect(seen[1]).toBe(parent) // bubbled handler on parent sees parent
   })
 
-  it("fires onClickMissed (mesh-level + canvas-level) when the click hits nothing", () => {
-    const meshMissed = vi.fn()
-    const canvasMissed = vi.fn()
-    const mesh = eventful({ onClickMissed: meshMissed })
-    const pointer = new Pointer(ctx([mesh], { onClickMissed: canvasMissed }), fakeRaycaster({}))
+  it("fires canvas onClick with event.object undefined when the click hits nothing", () => {
+    const seen: any[] = []
+    const mesh = eventful({ onClick: vi.fn() })
+    const pointer = new Pointer(
+      ctx([mesh], { onClick: (e: any) => seen.push(e.object) }),
+      fakeRaycaster({}),
+    )
 
     pointer.click("onClick", new MouseEvent("click"))
-    expect(meshMissed).toHaveBeenCalledTimes(1)
-    expect(canvasMissed).toHaveBeenCalledTimes(1)
+    expect(seen).toEqual([undefined])
   })
 
   it("dispatch sets event.currentObject to the bubbling node and merges extra fields", () => {
@@ -147,7 +146,6 @@ describe("Pointer dispatch", () => {
           face: { normal: new Vector3(0, 0, 1) },
         },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -175,7 +173,6 @@ describe("Pointer dispatch", () => {
         },
         { object: back, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -264,7 +261,6 @@ describe("Pointer capture lifecycle", () => {
     hitLeaf.updateMatrixWorld()
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
@@ -289,7 +285,6 @@ describe("Pointer capture lifecycle", () => {
     const mesh = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }

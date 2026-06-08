@@ -85,7 +85,7 @@ A `Context` method that runs a plugin's one-time, per-`Context` setup once (e.g.
 ### Events
 
 **`event.object`**:
-The closest hit — `event.intersections[0].object`. Stable for the whole dispatch; the 3D analogue of a DOM event's `target`.
+The closest hit — `event.intersections[0]?.object`, or `undefined` on a **void**. Stable for the whole dispatch; the 3D analogue of a DOM event's `target`.
 
 **`event.currentObject`**:
 The **object** whose handler is firing as the event bubbles the hit chain; cleared after dispatch. The 3D analogue of `currentTarget`.
@@ -94,8 +94,9 @@ _Avoid_: target / currentTarget for the 3D sense — those stay DOM-only, on `na
 **Intersection** (intersections):
 A raycast hit — three.js `Intersection` (`object`, `point`, `distance`, `face`, `uv`, `normal`). `event.intersections` is nearest-first; `event.intersection` is the nearest.
 
-**Missed event**:
-`onClickMissed` / `onDoubleClickMissed` / `onContextMenuMissed` — fires on a registered **object** when the interaction did _not_ hit it or its descendants.
+**Void**:
+A gesture that hit no **object** — the ray missed everything. There's no dedicated handler: every gesture's canvas-level handler fires (unless `stopPropagation` halted it), with `event.object` `undefined` on a void and the hit **object** otherwise. The 3D counterpart to a DOM click landing on the page background. Read it as `if (!event.object)`.
+_Avoid_: missed / `*Missed` (the removed per-object inversion).
 
 **raycast propagation**:
 The first dispatch phase — the handler fires on each hit **object** nearest-first along the ray.
@@ -161,7 +162,7 @@ WebXR (VR/AR) session management (`createXR` / `useXR`). _In flux_: being extern
 - An **Object** joins its parent's scene graph (`.add()`); a non-object **Element** binds via **attach**
 - A **Canvas** owns one **Context**, which owns one **renderer**
 - A **Plugin** matches **elements** via its **selector** and contributes **plugin props**; a plugin prop **overrides** the native prop of the same name
-- A dispatch runs **raycast propagation** then **tree propagation**; `stopPropagation()` halts both. `event.object` is `event.intersections[0].object`
+- A dispatch runs **raycast propagation** then **tree propagation**, then the canvas-level handler; `stopPropagation()` halts all of it. `event.object` is `event.intersections[0]?.object` — `undefined` on a **void**
 - A **pointer source** drives one or more **Pointers**; each **Pointer** raycasts the **eventRegistry** with a **raycaster**, then dispatches via **raycast propagation** and **tree propagation**
 - The active **camera** and **raycaster** are stack-based: setting one (via `Canvas` props or `useThree`) pushes an override that pops on cleanup, restoring the previous
 

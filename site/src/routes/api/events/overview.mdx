@@ -6,17 +6,17 @@ title: Events overview
 
 `solid-three` has its own pointer-event system, inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
 
-You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
+You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Clicking empty space](#clicking-empty-space)).
 
 ## Supported events
 
-### Click events (missable)
+### Click events
 
-These fire on the object that was hit, or — when nothing handles them — as a paired `*Missed` event:
+These fire on the object that was hit, then on the [`<Canvas/>`](/api/components/canvas) — where `event.object` is `undefined` if the click hit nothing (see [Clicking empty space](#clicking-empty-space)):
 
-- `onClick` / `onClickMissed`
-- `onContextMenu` / `onContextMenuMissed` — right-click
-- `onDoubleClick` / `onDoubleClickMissed`
+- `onClick`
+- `onContextMenu` — right-click
+- `onDoubleClick`
 
 ### Hover events
 
@@ -38,7 +38,7 @@ Every handler receives one event argument that combines the original DOM event w
 | `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                   | The original DOM event that triggered the handler.                                                                                                                                                                         |
 | `intersections`       | `Intersection[]`                           | events that raycast      | All hit intersections, sorted nearest-first.                                                                                                                                                                               |
 | `intersection`        | `Intersection`                             | events that raycast      | Shorthand for `intersections[0]` — the closest hit overall.                                                                                                                                                                |
-| `object`              | `Object3D`                                 | events that raycast      | The closest hit object (`intersections[0].object`) — stable after dispatch, the 3D analogue of a DOM event's `target`.                                                                                                     |
+| `object`              | `Object3D \| undefined`                    | events that raycast      | The closest hit object (`intersections[0]?.object`), or `undefined` when the ray hit nothing — stable after dispatch, the 3D analogue of a DOM event's `target`.                                                           |
 | `currentIntersection` | `Intersection`                             | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch.                                                                                                                                        |
 | `currentObject`       | `Object3D`                                 | inside an object handler | The object this handler is firing on; as the event bubbles it walks up the ancestor chain (while `currentIntersection` stays on the hit) and is cleared after dispatch — the 3D analogue of a DOM event's `currentTarget`. |
 | `stopped`             | `boolean`                                  | stoppable events only    | Whether `stopPropagation()` has been called.                                                                                                                                                                               |
@@ -50,7 +50,6 @@ Not every handler receives every field — what you get depends on the event:
 | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation`                                |
 | `onPointerEnter`, `onPointerLeave`                                                             | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
-| `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed`                                  | only `nativeEvent` — missed events don't raycast                                       |
 
 <details>
 <summary>Exact type</summary>
@@ -154,46 +153,19 @@ Not every event accepts `stopPropagation()`. The split mirrors the DOM:
 
 **Non-stoppable** — these always fire for every registered handler, regardless of order:
 
-- `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` — a [missed event](#missed-events) is by definition the "nothing else handled it" signal.
 - `onPointerEnter` — enter has to reach the newly-hovered subtree.
 - `onPointerLeave` — leave has to reach the previously-hovered subtree.
 
-## Missed events
+## Clicking empty space
 
-A `*Missed` variant fires on a handler-bearing object when the click, double-click, or context-menu did **not** reach it. Two cases:
-
-1. **Clicked outside** — the ray missed the object and all its descendants.
-2. **Blocked by `stopPropagation()`** — another object handled the event first and stopped it.
+Every gesture handler also works on the [`<Canvas/>`](/api/components/canvas) itself, and there `event.object` is the object the ray hit — or `undefined` when it hit nothing. One canvas handler covers both: read `event.object` to tell a real hit from a click on empty space. There's no separate "missed" handler.
 
 ```tsx
-<T.Mesh onClickMissed={() => console.log("Missed — clicked outside this mesh")}>
-  <T.BoxGeometry args={[1, 1, 1]} />
-  <T.MeshBasicMaterial color="blue" />
-</T.Mesh>
-```
-
-```tsx
-<T.Group onClickMissed={() => console.log("Group missed — child stopped propagation")}>
-  <T.Mesh
-    onClick={event => {
-      event.stopPropagation()
-      console.log("Child clicked")
-    }}
-  >
-    <T.BoxGeometry args={[1, 1, 1]} />
-    <T.MeshBasicMaterial color="red" />
-  </T.Mesh>
-</T.Group>
-```
-
-Common uses: deselecting on a background click, blocking interaction with objects behind a UI layer, or telling a parent container that a child intercepted the event.
-
-### Missed events on `<Canvas>`
-
-The same handlers work on [`<Canvas/>`](/api/components/canvas), where they fire when **no object handler at all** consumed the ray:
-
-```tsx
-<Canvas onClickMissed={() => deselect()}>
+<Canvas
+  onClick={event => {
+    if (!event.object) deselect()
+  }}
+>
   <T.Mesh onClick={() => select()}>
     <T.BoxGeometry />
     <T.MeshBasicMaterial />
@@ -201,7 +173,11 @@ The same handlers work on [`<Canvas/>`](/api/components/canvas), where they fire
 </Canvas>
 ```
 
-Use this for canvas-wide "click on empty space" logic without attaching a sentinel mesh.
+The mesh's `onClick` fires as the click bubbles; the canvas's runs last and deselects only when `event.object` is empty — the canvas-wide "click on empty space" pattern, with no sentinel mesh.
+
+Every discrete gesture behaves this way: `onPointerDown`, `onPointerUp`, `onPointerMove`, `onWheel`, and the click family all reach the canvas with `event.object` either set or `undefined`. `onPointerEnter` and `onPointerLeave` are the exception — they track the canvas boundary, not a per-event hit, so there's no hit-or-empty distinction to read there.
+
+A handler that calls `stopPropagation()` ends the dispatch before it reaches the canvas, so a consumed event arrives as neither a hit nor an empty click.
 
 ## Hover events
 
@@ -289,4 +265,4 @@ To keep an object from being hit while it still receives events that bubble up f
 
 - [Pointer events](/tour/04-pointer-events) — the tutorial chapter, with a worked walk-through.
 - [`raycastable`](/api/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
-- [`<Canvas/>`](/api/components/canvas) — where canvas-level handlers and `onClickMissed` fire.
+- [`<Canvas/>`](/api/components/canvas) — where canvas-level handlers fire, with `event.object` empty on a void.
