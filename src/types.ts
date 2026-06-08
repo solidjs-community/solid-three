@@ -439,11 +439,8 @@ export type PointerCapture = {
 
 type EventHandlersMap = {
   onClick: Prettify<ThreeEvent<MouseEvent>>
-  onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
@@ -456,10 +453,19 @@ export type EventHandlers = {
   [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
 }
 
+/**
+ * A canvas-level event: no per-object `currentIntersection`, and `object` is
+ * widened to `Object3D | undefined` — a canvas handler also fires when the ray
+ * hit nothing, so `if (!event.object)` is the empty-space check. (Object-level
+ * handlers keep `object: Object3D`, since they only fire on a hit.)
+ */
+type CanvasEvent<TEvent> = Prettify<
+  Omit<TEvent, "currentIntersection" | "object"> &
+    (TEvent extends { object: Object3D } ? { object: Object3D | undefined } : unknown)
+>
+
 export type CanvasEventHandlers = {
-  [TKey in keyof EventHandlersMap]: (
-    event: Prettify<Omit<EventHandlersMap[TKey], "currentIntersection">>,
-  ) => void
+  [TKey in keyof EventHandlersMap]: (event: CanvasEvent<EventHandlersMap[TKey]>) => void
 }
 
 /** The names of all `EventHandlers` */

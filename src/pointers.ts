@@ -25,14 +25,12 @@ export type DispatchEvent<TExtra extends object = {}> = {
 
 /**
  * The slice of an `EventRaycaster` a `Pointer` needs: cast its current ray against
- * a registry, (for the click-missed phase) re-cast a single object, and — for
- * pointer capture — `aim` the live `ray` without casting (to reproject onto the
- * captured object's plane). The real `EventRaycaster` (which extends three's
- * `Raycaster`) satisfies this structurally.
+ * a registry, and — for pointer capture — `aim` the live `ray` without casting (to
+ * reproject onto the captured object's plane). The real `EventRaycaster` (which
+ * extends three's `Raycaster`) satisfies this structurally.
  */
 export type PointerRaycaster = {
   cast(registry: Object3D[], context: Context): Intersection<Meta<Object3D>>[]
-  intersectObject(object: Object3D, recursive?: boolean): Intersection[]
   aim(context: Context): void
   ray: Ray
 }
@@ -379,52 +377,26 @@ export class Pointer {
     )
   }
 
-  /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
+  /**
+   * Bubbled `onClick`/`onDoubleClick`/`onContextMenu`, then the canvas-level
+   * handler — the same {@link propagate} path as `onPointerDown`/`onWheel`/etc.
+   * The canvas always hears the gesture (unless a handler stopped it);
+   * `event.object` is `undefined` when the ray hit nothing — the void.
+   */
   click(kind: "onClick" | "onDoubleClick" | "onContextMenu", nativeEvent: Event) {
-    const missedType = `${kind}Missed` as const
     const registry = this.context.eventRegistry
     const props = this.context.props as Record<string, any>
-    if (registry.length === 0 && !props[kind] && !props[missedType]) return
+    if (registry.length === 0 && !props[kind]) return
 
-    const missed = new Set<Object3D>(registry)
-    const visited = new Set<Object3D>()
     const intersections = this.raycaster.cast(registry, this.context)
     const event = createThreeEvent(nativeEvent, { intersections })
-
-    // Phase #1 — fire the handler, bubbling down the hit chain.
-    for (const intersection of intersections) {
-      event.currentIntersection = intersection
-      let node: Object3D | null = intersection.object
-      while (node && !event.stopped && !visited.has(node)) {
-        missed.delete(node)
-        visited.add(node)
-        event.currentObject = node
-        ;(getMeta(node)?.props as any)?.[kind]?.(event)
-        node = node.parent
-      }
-    }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.currentObject = undefined
-      props[kind]?.(event)
-    }
-
-    // Phase #2 — re-raycast remaining objects to mark any genuinely under the ray as hit.
-    for (const remaining of missed) {
-      const hits = this.raycaster.intersectObject(remaining, true)
-      for (const { object } of hits) {
-        let node: Object3D | null = object
-        while (node && !visited.has(node)) {
-          missed.delete(node)
-          visited.add(node)
-          node = node.parent
-        }
-      }
-    }
-
-    // Phase #3 — fire `-Missed` on the truly-missed objects, and canvas-level on a total miss.
-    const missedEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    for (const object of missed) (getMeta(object)?.props as any)?.[missedType]?.(missedEvent)
-    if (intersections.length === 0) props[missedType]?.(missedEvent)
+    this.propagate(
+      event,
+      kind,
+      intersections.map((intersection): [Intersection, Object3D] => [
+        intersection,
+        intersection.object,
+      ]),
+    )
   }
 }

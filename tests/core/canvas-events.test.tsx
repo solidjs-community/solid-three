@@ -106,52 +106,38 @@ describe("canvas missable events", () => {
   })
 
   //
-  // onClickMissed
+  // onClick — void via event.object
   //
-  describe("onClickMissed", () => {
-    it("fires when click misses all registered meshes", () => {
-      const handleClickMissed = vi.fn()
+  describe("onClick — void via event.object", () => {
+    it("fires with event.object undefined when the click misses all meshes", () => {
+      let object: unknown = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onClickMissed: handleClickMissed,
+        onClick: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, missEvent("click"))
 
-      expect(handleClickMissed).toHaveBeenCalledTimes(1)
+      expect(object).toBeUndefined()
     })
 
-    it("fires when canvas is clicked with no meshes in the scene", () => {
-      const handleClickMissed = vi.fn()
-      const { canvas } = test(() => null, { onClickMissed: handleClickMissed })
+    it("fires with event.object undefined when no meshes are in the scene", () => {
+      let object: unknown = "unset"
+      const { canvas } = test(() => null, { onClick: (event: any) => (object = event.object) })
 
       fireEvent(canvas, hitEvent("click"))
 
-      expect(handleClickMissed).toHaveBeenCalledTimes(1)
+      expect(object).toBeUndefined()
     })
 
-    it("does not fire when click hits a registered mesh", () => {
-      const handleClickMissed = vi.fn()
+    it("fires with event.object set to the hit mesh when the click hits one", () => {
+      let object: any = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onClickMissed: handleClickMissed,
+        onClick: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, hitEvent("click"))
 
-      expect(handleClickMissed).not.toHaveBeenCalled()
-    })
-
-    it("does not fire when onClick is also registered and click hits a mesh", () => {
-      const handleClick = vi.fn()
-      const handleClickMissed = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onClick: handleClick,
-        onClickMissed: handleClickMissed,
-      })
-
-      fireEvent(canvas, hitEvent("click"))
-
-      expect(handleClick).toHaveBeenCalledTimes(1)
-      expect(handleClickMissed).not.toHaveBeenCalled()
+      expect(object?.isMesh).toBe(true)
     })
   })
 
@@ -203,38 +189,29 @@ describe("canvas missable events", () => {
   })
 
   //
-  // onDoubleClickMissed
+  // onDoubleClick — void via event.object
   //
-  describe("onDoubleClickMissed", () => {
-    it("fires when double-click misses all registered meshes", () => {
-      const handleMissed = vi.fn()
+  describe("onDoubleClick — void via event.object", () => {
+    it("fires with event.object undefined when the double-click misses all meshes", () => {
+      let object: unknown = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
-        onDoubleClickMissed: handleMissed,
+        onDoubleClick: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, missEvent("dblclick"))
 
-      expect(handleMissed).toHaveBeenCalledTimes(1)
+      expect(object).toBeUndefined()
     })
 
-    it("fires when canvas is double-clicked with no meshes in the scene", () => {
-      const handleMissed = vi.fn()
-      const { canvas } = test(() => null, { onDoubleClickMissed: handleMissed })
-
-      fireEvent(canvas, hitEvent("dblclick"))
-
-      expect(handleMissed).toHaveBeenCalledTimes(1)
-    })
-
-    it("does not fire when double-click hits a registered mesh", () => {
-      const handleMissed = vi.fn()
+    it("fires with event.object set to the hit mesh when the double-click hits one", () => {
+      let object: any = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
-        onDoubleClickMissed: handleMissed,
+        onDoubleClick: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, hitEvent("dblclick"))
 
-      expect(handleMissed).not.toHaveBeenCalled()
+      expect(object?.isMesh).toBe(true)
     })
   })
 
@@ -286,38 +263,29 @@ describe("canvas missable events", () => {
   })
 
   //
-  // onContextMenuMissed
+  // onContextMenu — void via event.object
   //
-  describe("onContextMenuMissed", () => {
-    it("fires when contextmenu misses all registered meshes", () => {
-      const handleMissed = vi.fn()
+  describe("onContextMenu — void via event.object", () => {
+    it("fires with event.object undefined when the contextmenu misses all meshes", () => {
+      let object: unknown = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
-        onContextMenuMissed: handleMissed,
+        onContextMenu: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, missEvent("contextmenu"))
 
-      expect(handleMissed).toHaveBeenCalledTimes(1)
+      expect(object).toBeUndefined()
     })
 
-    it("fires when canvas receives contextmenu with no meshes in the scene", () => {
-      const handleMissed = vi.fn()
-      const { canvas } = test(() => null, { onContextMenuMissed: handleMissed })
-
-      fireEvent(canvas, hitEvent("contextmenu"))
-
-      expect(handleMissed).toHaveBeenCalledTimes(1)
-    })
-
-    it("does not fire when contextmenu hits a registered mesh", () => {
-      const handleMissed = vi.fn()
+    it("fires with event.object set to the hit mesh when the contextmenu hits one", () => {
+      let object: any = "unset"
       const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
-        onContextMenuMissed: handleMissed,
+        onContextMenu: (event: any) => (object = event.object),
       })
 
       fireEvent(canvas, hitEvent("contextmenu"))
 
-      expect(handleMissed).not.toHaveBeenCalled()
+      expect(object?.isMesh).toBe(true)
     })
   })
 })
