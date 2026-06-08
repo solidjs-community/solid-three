@@ -51,6 +51,72 @@ tests `new Pointer(...)` with a fake raycaster — no `Canvas`, no owner. The
 (`createThreeEvent` is the lone lowercase "value factory": it returns a plain,
 spreadable event object, not a reactive primitive.)
 
+## Git Workflow
+
+The history on `main` is meant to be read by humans. We keep it that way by
+letting branches be messy and merges be clean.
+
+### Branch for every change
+
+Never commit directly to `main` or to any shared `solidjs-community` branch.
+Create a feature branch (`feat/xr-decoupling`, `fix/resize-render`) and open a
+PR from it.
+
+### Your branch is yours; shared branches are not
+
+Commit as often as you like on your own branch — exploration, WIP, and
+AI-assisted commits are all fine. Force-push your own PR branch freely to clean
+it up (rebase, amend, reorder). **Never** force-push `main` or a shared branch.
+
+The noise stays on the branch; it never has to reach `main` (see merge
+strategy). So commit in whatever rhythm keeps you productive.
+
+### One PR, one logical change
+
+A PR should be one feature or one fix. If you're tempted to write "and" in the
+title, it's probably two PRs. Smaller PRs squash into cleaner history and are
+easier to review and revert.
+
+### Merge strategy
+
+- **Squash — the default.** Use it whenever the branch's commits are scratch
+  work (the AI-per-prompt case). The whole branch collapses to one commit on
+  `main`. The granular history isn't lost — GitHub keeps it on the PR page even
+  after the branch is deleted.
+- **Rebase — the exception.** Use it only when the branch's *own* commits are
+  already clean and each is a meaningful, self-contained unit you want to keep
+  on `main` (e.g. a multi-phase feature split into `core →` then `consumer`
+  commits). This puts them on `main` linearly.
+- **Never merge-commit.** Merge bubbles are the noise we're avoiding.
+
+### The PR title and body are the changelog
+
+Because we squash, **the PR title becomes the commit subject on `main` and the
+PR description becomes the commit body.** They are the permanent, human-readable
+record of the change — write them as such, not as a throwaway note.
+
+- **Title — a [Conventional Commit](https://www.conventionalcommits.org):**
+  `type(scope): summary`, where `type` is one of `feat`, `fix`, `docs`,
+  `refactor`, `test`, `perf`, `chore`. This is what shows up in `git log main`,
+  so it doubles as the changeset entry.
+- **Body — what changed and why.** Enough that a reader six months out
+  understands the change without the diff. Note breaking changes explicitly.
+
+```
+# ❌ Bad PR title (becomes a useless commit on main)
+updates
+
+# ✅ Good PR title
+feat(xr): decouple the WebXR loop from core; add createXR
+```
+
+### Fixed points
+
+We don't cut prerelease tags. Instead, every push publishes a preview package
+via [pkg.pr.new](https://pkg.pr.new), each pinned to a commit SHA — so any
+build you're running maps back to an exact commit. A clean, squashed `main` plus
+per-commit previews give reliable points to compare against.
+
 ## Tooling
 
 ### Package Management
