@@ -104,11 +104,16 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleClick = vi.fn()
-      const { canvas } = test(() => <StoppingMesh eventType="onClick" />, { onClick: handleClick })
+      const onVoidClick = vi.fn()
+      const { canvas } = test(() => <StoppingMesh eventType="onClick" />, {
+        onClick: handleClick,
+        onVoidClick,
+      })
 
       fireEvent(canvas, hitEvent("click"))
 
       expect(handleClick).not.toHaveBeenCalled()
+      expect(onVoidClick).not.toHaveBeenCalled()
     })
   })
 
@@ -234,13 +239,16 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleDoubleClick = vi.fn()
+      const onVoidDoubleClick = vi.fn()
       const { canvas } = test(() => <StoppingMesh eventType="onDoubleClick" />, {
         onDoubleClick: handleDoubleClick,
+        onVoidDoubleClick,
       })
 
       fireEvent(canvas, hitEvent("dblclick"))
 
       expect(handleDoubleClick).not.toHaveBeenCalled()
+      expect(onVoidDoubleClick).not.toHaveBeenCalled()
     })
   })
 
@@ -322,13 +330,16 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleContextMenu = vi.fn()
+      const onVoidContextMenu = vi.fn()
       const { canvas } = test(() => <StoppingMesh eventType="onContextMenu" />, {
         onContextMenu: handleContextMenu,
+        onVoidContextMenu,
       })
 
       fireEvent(canvas, hitEvent("contextmenu"))
 
       expect(handleContextMenu).not.toHaveBeenCalled()
+      expect(onVoidContextMenu).not.toHaveBeenCalled()
     })
   })
 
@@ -407,13 +418,16 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handlePointerDown = vi.fn()
+      const onVoidPointerDown = vi.fn()
       const { canvas } = test(() => <StoppingMesh eventType="onPointerDown" />, {
         onPointerDown: handlePointerDown,
+        onVoidPointerDown,
       })
 
       fireEvent(canvas, hitEvent("pointerdown"))
 
       expect(handlePointerDown).not.toHaveBeenCalled()
+      expect(onVoidPointerDown).not.toHaveBeenCalled()
     })
   })
 
@@ -448,13 +462,16 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handlePointerUp = vi.fn()
+      const onVoidPointerUp = vi.fn()
       const { canvas } = test(() => <StoppingMesh eventType="onPointerUp" />, {
         onPointerUp: handlePointerUp,
+        onVoidPointerUp,
       })
 
       fireEvent(canvas, hitEvent("pointerup"))
 
       expect(handlePointerUp).not.toHaveBeenCalled()
+      expect(onVoidPointerUp).not.toHaveBeenCalled()
     })
   })
 
@@ -495,7 +512,11 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleWheel = vi.fn()
-      const { canvas } = test(() => <StoppingMesh eventType="onWheel" />, { onWheel: handleWheel })
+      const onVoidWheel = vi.fn()
+      const { canvas } = test(() => <StoppingMesh eventType="onWheel" />, {
+        onWheel: handleWheel,
+        onVoidWheel,
+      })
 
       fireEvent(
         canvas,
@@ -503,6 +524,7 @@ describe("canvas default events", () => {
       )
 
       expect(handleWheel).not.toHaveBeenCalled()
+      expect(onVoidWheel).not.toHaveBeenCalled()
     })
   })
 
@@ -542,6 +564,127 @@ describe("canvas default events", () => {
       fireEvent(canvas, missEvent("pointerup"))
 
       expect(onVoidPointerUp).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  //
+  // onVoid* — gesture-scoped parity (hover-only mesh is transparent to the void family)
+  //
+  describe("onVoid* — gesture-scoped (hover-only object is transparent)", () => {
+    it("onVoidClick fires when click hits a hover-only mesh; canvas onClick does NOT", () => {
+      const onClick = vi.fn()
+      const onVoidClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onClick,
+        onVoidClick,
+      })
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(onVoidClick).toHaveBeenCalledTimes(1)
+      expect(onClick).not.toHaveBeenCalled()
+    })
+
+    it("onVoidDoubleClick fires when double-click hits a hover-only mesh; canvas onDoubleClick does NOT", () => {
+      const onDoubleClick = vi.fn()
+      const onVoidDoubleClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onDoubleClick,
+        onVoidDoubleClick,
+      })
+
+      fireEvent(canvas, hitEvent("dblclick"))
+
+      expect(onVoidDoubleClick).toHaveBeenCalledTimes(1)
+      expect(onDoubleClick).not.toHaveBeenCalled()
+    })
+
+    it("onVoidContextMenu fires when contextmenu hits a hover-only mesh; canvas onContextMenu does NOT", () => {
+      const onContextMenu = vi.fn()
+      const onVoidContextMenu = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onContextMenu,
+        onVoidContextMenu,
+      })
+
+      fireEvent(canvas, hitEvent("contextmenu"))
+
+      expect(onVoidContextMenu).toHaveBeenCalledTimes(1)
+      expect(onContextMenu).not.toHaveBeenCalled()
+    })
+
+    it("onVoidWheel fires when wheel hits a hover-only mesh; canvas onWheel does NOT", () => {
+      const onWheel = vi.fn()
+      const onVoidWheel = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onWheel,
+        onVoidWheel,
+      })
+
+      fireEvent(
+        canvas,
+        new WheelEvent("wheel", { deltaY: 100, clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
+
+      expect(onVoidWheel).toHaveBeenCalledTimes(1)
+      expect(onWheel).not.toHaveBeenCalled()
+    })
+
+    it("onVoidPointerDown fires when pointerdown hits a hover-only mesh; canvas onPointerDown does NOT", () => {
+      const onPointerDown = vi.fn()
+      const onVoidPointerDown = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onPointerDown,
+        onVoidPointerDown,
+      })
+
+      fireEvent(
+        canvas,
+        new PointerEvent("pointerdown", { clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
+
+      expect(onVoidPointerDown).toHaveBeenCalledTimes(1)
+      expect(onPointerDown).not.toHaveBeenCalled()
+    })
+
+    it("onVoidPointerUp fires when pointerup hits a hover-only mesh; canvas onPointerUp does NOT", () => {
+      const onPointerUp = vi.fn()
+      const onVoidPointerUp = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onPointerUp,
+        onVoidPointerUp,
+      })
+
+      fireEvent(
+        canvas,
+        new PointerEvent("pointerup", { clientX: HIT_X, clientY: HIT_Y, bubbles: true }),
+      )
+
+      expect(onVoidPointerUp).toHaveBeenCalledTimes(1)
+      expect(onPointerUp).not.toHaveBeenCalled()
+    })
+  })
+
+  //
+  // chain-aware: ancestor carries the handler — not a void
+  //
+  describe("onVoid* — chain-aware (ancestor handler via bubbling)", () => {
+    it("a group's onClick fires via bubbling from a hover-only child; onVoidClick does NOT", () => {
+      const groupClick = vi.fn()
+      const onVoidClick = vi.fn()
+      const { canvas } = test(
+        () => (
+          <T.Group onClick={groupClick}>
+            <ListeningMesh eventType="onPointerMove" />
+          </T.Group>
+        ),
+        { onVoidClick },
+      )
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(groupClick).toHaveBeenCalledTimes(1)
+      expect(onVoidClick).not.toHaveBeenCalled()
     })
   })
 })

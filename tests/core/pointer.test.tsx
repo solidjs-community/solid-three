@@ -192,6 +192,57 @@ describe("Pointer dispatch", () => {
     expect(frontMove).toHaveBeenCalledTimes(1)
     expect(backMove).not.toHaveBeenCalled() // stop halts the deeper hit too
   })
+
+  it("firedOnObject — far object with onClick is not a void even when the near object lacks it", () => {
+    // Near object has no onClick; far object does. Any hit-chain carrying the handler
+    // means firedOnObject=true → onVoidClick must NOT fire.
+    const farClick = vi.fn()
+    const onVoidClick = vi.fn()
+    const nearObject = eventful({}) // no onClick — handler-less but in the registry
+    const farObject = eventful({ onClick: farClick })
+    const raycaster = {
+      cast: () => [
+        {
+          object: nearObject,
+          distance: 1,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
+        {
+          object: farObject,
+          distance: 2,
+          point: new Vector3(),
+          face: { normal: new Vector3(0, 0, 1) },
+        },
+      ],
+      aim: () => {},
+      ray: new Ray(),
+    } as any as PointerRaycaster
+    const pointer = new Pointer(ctx([nearObject, farObject], { onVoidClick }), raycaster)
+
+    pointer.click("onClick", new MouseEvent("click"))
+
+    expect(farClick).toHaveBeenCalledTimes(1)
+    expect(onVoidClick).not.toHaveBeenCalled()
+  })
+
+  it("void-event payload: object/intersection/currentObject are undefined and stopPropagation is absent", () => {
+    const nativeEvent = new MouseEvent("click")
+    let capturedVoidEvent: any
+    const onVoidClick = vi.fn((event: any) => {
+      capturedVoidEvent = event
+    })
+    const pointer = new Pointer(ctx([], { onVoidClick }), fakeRaycaster({}))
+
+    pointer.click("onClick", nativeEvent)
+
+    expect(onVoidClick).toHaveBeenCalledTimes(1)
+    expect(capturedVoidEvent.object).toBeUndefined()
+    expect(capturedVoidEvent.intersection).toBeUndefined()
+    expect(capturedVoidEvent.currentObject).toBeUndefined()
+    expect(capturedVoidEvent.stopPropagation).toBeUndefined()
+    expect(capturedVoidEvent.nativeEvent).toBe(nativeEvent)
+  })
 })
 
 // A minimal capture sink that records calls.
