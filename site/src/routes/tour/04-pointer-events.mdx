@@ -6,8 +6,8 @@ import clickSnippet from "../../snippets/04-click.tsx?raw"
 import clickUrl from "../../snippets/04-click.tsx?importChunkUrl"
 import hoverSnippet from "../../snippets/04-hover.tsx?raw"
 import hoverUrl from "../../snippets/04-hover.tsx?importChunkUrl"
-import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
-import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
+import voidClickSnippet from "../../snippets/04-void-click.tsx?raw"
+import voidClickUrl from "../../snippets/04-void-click.tsx?importChunkUrl"
 import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
 import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
 import dragSnippet from "../../snippets/04-drag.tsx?raw"
@@ -45,13 +45,15 @@ flips; `scale` reads it; one property assignment runs.
 
 Sometimes the interesting event is when the user clicks but _doesn't_ hit any
 mesh — to deselect the current selection, dismiss a tooltip, that sort of
-thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
+thing. Put an `onClick` on the [`<Canvas>`](/api/components/canvas) itself: it
+hears every click once the scene has had its turn, and `event.object` is the
+mesh that was hit — or `undefined` when the click landed on empty space.
 
-<Demo code={clickMissedSnippet} url={clickMissedUrl} />
+<Demo code={voidClickSnippet} url={voidClickUrl} />
 
 Click the cube to select it; click anywhere else in the canvas to deselect.
-The two handlers cover the full "did you hit something?" question between
-them.
+The cube's own `onClick` selects; the canvas `onClick` checks `event.object`
+and deselects only when it's empty.
 
 That covers the everyday cases. There's a
 [longer list of pointer events](/api/events/overview)
