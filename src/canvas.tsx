@@ -23,8 +23,9 @@ import type {
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps
-  extends ParentProps<Partial<CanvasEventHandlers> & Partial<VoidEventHandlers>> {
+export interface CanvasProps extends ParentProps<
+  Partial<CanvasEventHandlers> & Partial<VoidEventHandlers>
+> {
   ref?: RefWithCleanup<Context>
   class?: string
   /** Configuration for the camera used in the scene. */

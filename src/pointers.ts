@@ -25,14 +25,12 @@ export type DispatchEvent<TExtra extends object = {}> = {
 
 /**
  * The slice of an `EventRaycaster` a `Pointer` needs: cast its current ray against
- * a registry, (for the click-missed phase) re-cast a single object, and — for
- * pointer capture — `aim` the live `ray` without casting (to reproject onto the
- * captured object's plane). The real `EventRaycaster` (which extends three's
- * `Raycaster`) satisfies this structurally.
+ * a registry, and — for pointer capture — `aim` the live `ray` without casting (to
+ * reproject onto the captured object's plane). The real `EventRaycaster` (which
+ * extends three's `Raycaster`) satisfies this structurally.
  */
 export type PointerRaycaster = {
   cast(registry: Object3D[], context: Context): Intersection<Meta<Object3D>>[]
-  intersectObject(object: Object3D, recursive?: boolean): Intersection[]
   aim(context: Context): void
   ray: Ray
 }

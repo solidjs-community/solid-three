@@ -13,8 +13,7 @@ function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
 type RayState = { target?: Object3D; point?: Vector3; normal?: Vector3 }
 
 // Fake raycaster: `cast` hits whatever `state.target` is (with a point+face so
-// capture() can build a plane); phase-2 re-cast finds nothing; `aim` is a no-op
-// (tests position `ray` directly).
+// capture() can build a plane); `aim` is a no-op (tests position `ray` directly).
 function fakeRaycaster(state: RayState): PointerRaycaster {
   return {
     cast: () =>
@@ -28,7 +27,6 @@ function fakeRaycaster(state: RayState): PointerRaycaster {
             } as any,
           ]
         : [],
-    intersectObject: () => [],
     aim: () => {},
     ray: new Ray(),
   }
@@ -158,7 +156,6 @@ describe("Pointer dispatch", () => {
           face: { normal: new Vector3(0, 0, 1) },
         },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -186,7 +183,6 @@ describe("Pointer dispatch", () => {
         },
         { object: back, distance: 2, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } },
       ],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
@@ -275,7 +271,6 @@ describe("Pointer capture lifecycle", () => {
     hitLeaf.updateMatrixWorld()
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
@@ -300,7 +295,6 @@ describe("Pointer capture lifecycle", () => {
     const mesh = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
