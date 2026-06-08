@@ -59,11 +59,11 @@ const ListeningMesh = (props: { eventType: string; handler?: (e: any) => void })
 
 /**********************************************************************************/
 /*                                                                                */
-/*                             Missable Events                                    */
+/*                             Click-Family Events                                */
 /*                                                                                */
 /**********************************************************************************/
 
-describe("canvas missable events", () => {
+describe("canvas click-family events", () => {
   //
   // onClick
   //
@@ -114,86 +114,6 @@ describe("canvas missable events", () => {
 
       expect(handleClick).not.toHaveBeenCalled()
       expect(onVoidClick).not.toHaveBeenCalled()
-    })
-  })
-
-  //
-  // onVoidClick
-  //
-  describe("onVoidClick", () => {
-    it("fires when click misses all registered meshes", () => {
-      const handleVoidClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onVoidClick: handleVoidClick,
-      })
-
-      fireEvent(canvas, missEvent("click"))
-
-      expect(handleVoidClick).toHaveBeenCalledTimes(1)
-    })
-
-    it("fires when canvas is clicked with no meshes in the scene", () => {
-      const handleVoidClick = vi.fn()
-      const { canvas } = test(() => null, { onVoidClick: handleVoidClick })
-
-      fireEvent(canvas, hitEvent("click"))
-
-      expect(handleVoidClick).toHaveBeenCalledTimes(1)
-    })
-
-    it("does not fire when click hits a registered mesh", () => {
-      const handleVoidClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onVoidClick: handleVoidClick,
-      })
-
-      fireEvent(canvas, hitEvent("click"))
-
-      expect(handleVoidClick).not.toHaveBeenCalled()
-    })
-
-    it("does not fire when onClick is also registered and click hits a mesh", () => {
-      const handleClick = vi.fn()
-      const handleVoidClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
-        onClick: handleClick,
-        onVoidClick: handleVoidClick,
-      })
-
-      fireEvent(canvas, hitEvent("click"))
-
-      expect(handleClick).toHaveBeenCalledTimes(1)
-      expect(handleVoidClick).not.toHaveBeenCalled()
-    })
-  })
-
-  //
-  // onVoidClick (gesture-scoped)
-  //
-  describe("onVoidClick (gesture-scoped)", () => {
-    it("fires when the click lands on a hover-only mesh (no onClick)", () => {
-      const onVoidClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, { onVoidClick })
-      fireEvent(canvas, hitEvent("click"))
-      expect(onVoidClick).toHaveBeenCalledTimes(1)
-    })
-
-    it("does NOT fire when the click hits a mesh with onClick; canvas onClick fires instead", () => {
-      const onVoidClick = vi.fn()
-      const onClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onVoidClick, onClick })
-      fireEvent(canvas, hitEvent("click"))
-      expect(onClick).toHaveBeenCalledTimes(1)
-      expect(onVoidClick).not.toHaveBeenCalled()
-    })
-
-    it("fires on empty space; canvas onClick does NOT (exclusive)", () => {
-      const onVoidClick = vi.fn()
-      const onClick = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onVoidClick, onClick })
-      fireEvent(canvas, missEvent("click"))
-      expect(onVoidClick).toHaveBeenCalledTimes(1)
-      expect(onClick).not.toHaveBeenCalled()
     })
   })
 
@@ -253,42 +173,6 @@ describe("canvas missable events", () => {
   })
 
   //
-  // onVoidDoubleClick
-  //
-  describe("onVoidDoubleClick", () => {
-    it("fires when double-click misses all registered meshes", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
-        onVoidDoubleClick: handleVoid,
-      })
-
-      fireEvent(canvas, missEvent("dblclick"))
-
-      expect(handleVoid).toHaveBeenCalledTimes(1)
-    })
-
-    it("fires when canvas is double-clicked with no meshes in the scene", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => null, { onVoidDoubleClick: handleVoid })
-
-      fireEvent(canvas, hitEvent("dblclick"))
-
-      expect(handleVoid).toHaveBeenCalledTimes(1)
-    })
-
-    it("does not fire when double-click hits a registered mesh", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
-        onVoidDoubleClick: handleVoid,
-      })
-
-      fireEvent(canvas, hitEvent("dblclick"))
-
-      expect(handleVoid).not.toHaveBeenCalled()
-    })
-  })
-
-  //
   // onContextMenu
   //
   describe("onContextMenu", () => {
@@ -340,42 +224,6 @@ describe("canvas missable events", () => {
 
       expect(handleContextMenu).not.toHaveBeenCalled()
       expect(onVoidContextMenu).not.toHaveBeenCalled()
-    })
-  })
-
-  //
-  // onVoidContextMenu
-  //
-  describe("onVoidContextMenu", () => {
-    it("fires when contextmenu misses all registered meshes", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
-        onVoidContextMenu: handleVoid,
-      })
-
-      fireEvent(canvas, missEvent("contextmenu"))
-
-      expect(handleVoid).toHaveBeenCalledTimes(1)
-    })
-
-    it("fires when canvas receives contextmenu with no meshes in the scene", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => null, { onVoidContextMenu: handleVoid })
-
-      fireEvent(canvas, hitEvent("contextmenu"))
-
-      expect(handleVoid).toHaveBeenCalledTimes(1)
-    })
-
-    it("does not fire when contextmenu hits a registered mesh", () => {
-      const handleVoid = vi.fn()
-      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
-        onVoidContextMenu: handleVoid,
-      })
-
-      fireEvent(canvas, hitEvent("contextmenu"))
-
-      expect(handleVoid).not.toHaveBeenCalled()
     })
   })
 })
@@ -525,6 +373,166 @@ describe("canvas default events", () => {
 
       expect(handleWheel).not.toHaveBeenCalled()
       expect(onVoidWheel).not.toHaveBeenCalled()
+    })
+  })
+})
+
+/**********************************************************************************/
+/*                                                                                */
+/*                               Void Events                                      */
+/*                                                                                */
+/**********************************************************************************/
+
+describe("void events", () => {
+  //
+  // onVoidClick
+  //
+  describe("onVoidClick", () => {
+    it("fires when click misses all registered meshes", () => {
+      const handleVoidClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onVoidClick: handleVoidClick,
+      })
+
+      fireEvent(canvas, missEvent("click"))
+
+      expect(handleVoidClick).toHaveBeenCalledTimes(1)
+    })
+
+    it("fires when canvas is clicked with no meshes in the scene", () => {
+      const handleVoidClick = vi.fn()
+      const { canvas } = test(() => null, { onVoidClick: handleVoidClick })
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(handleVoidClick).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not fire when click hits a registered mesh", () => {
+      const handleVoidClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onVoidClick: handleVoidClick,
+      })
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(handleVoidClick).not.toHaveBeenCalled()
+    })
+
+    it("does not fire when onClick is also registered and click hits a mesh", () => {
+      const handleClick = vi.fn()
+      const handleVoidClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onClick: handleClick,
+        onVoidClick: handleVoidClick,
+      })
+
+      fireEvent(canvas, hitEvent("click"))
+
+      expect(handleClick).toHaveBeenCalledTimes(1)
+      expect(handleVoidClick).not.toHaveBeenCalled()
+    })
+  })
+
+  //
+  // onVoidClick (gesture-scoped)
+  //
+  describe("onVoidClick (gesture-scoped)", () => {
+    it("fires when the click lands on a hover-only mesh (no onClick)", () => {
+      const onVoidClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, { onVoidClick })
+      fireEvent(canvas, hitEvent("click"))
+      expect(onVoidClick).toHaveBeenCalledTimes(1)
+    })
+
+    it("does NOT fire when the click hits a mesh with onClick; canvas onClick fires instead", () => {
+      const onVoidClick = vi.fn()
+      const onClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onVoidClick, onClick })
+      fireEvent(canvas, hitEvent("click"))
+      expect(onClick).toHaveBeenCalledTimes(1)
+      expect(onVoidClick).not.toHaveBeenCalled()
+    })
+
+    it("fires on empty space; canvas onClick does NOT (exclusive)", () => {
+      const onVoidClick = vi.fn()
+      const onClick = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onVoidClick, onClick })
+      fireEvent(canvas, missEvent("click"))
+      expect(onVoidClick).toHaveBeenCalledTimes(1)
+      expect(onClick).not.toHaveBeenCalled()
+    })
+  })
+
+  //
+  // onVoidDoubleClick
+  //
+  describe("onVoidDoubleClick", () => {
+    it("fires when double-click misses all registered meshes", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onVoidDoubleClick: handleVoid,
+      })
+
+      fireEvent(canvas, missEvent("dblclick"))
+
+      expect(handleVoid).toHaveBeenCalledTimes(1)
+    })
+
+    it("fires when canvas is double-clicked with no meshes in the scene", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => null, { onVoidDoubleClick: handleVoid })
+
+      fireEvent(canvas, hitEvent("dblclick"))
+
+      expect(handleVoid).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not fire when double-click hits a registered mesh", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onVoidDoubleClick: handleVoid,
+      })
+
+      fireEvent(canvas, hitEvent("dblclick"))
+
+      expect(handleVoid).not.toHaveBeenCalled()
+    })
+  })
+
+  //
+  // onVoidContextMenu
+  //
+  describe("onVoidContextMenu", () => {
+    it("fires when contextmenu misses all registered meshes", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onVoidContextMenu: handleVoid,
+      })
+
+      fireEvent(canvas, missEvent("contextmenu"))
+
+      expect(handleVoid).toHaveBeenCalledTimes(1)
+    })
+
+    it("fires when canvas receives contextmenu with no meshes in the scene", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => null, { onVoidContextMenu: handleVoid })
+
+      fireEvent(canvas, hitEvent("contextmenu"))
+
+      expect(handleVoid).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not fire when contextmenu hits a registered mesh", () => {
+      const handleVoid = vi.fn()
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onVoidContextMenu: handleVoid,
+      })
+
+      fireEvent(canvas, hitEvent("contextmenu"))
+
+      expect(handleVoid).not.toHaveBeenCalled()
     })
   })
 
