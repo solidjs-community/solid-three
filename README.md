@@ -43,7 +43,7 @@
    - [Event Object](#event-object)
    - [Pointer Capture](#pointer-capture)
    - [Event Propagation](#event-propagation)
-   - [Missed Events](#missed-events)
+   - [Void Events](#void-events)
    - [Hover Events](#hover-events)
 7. [Performance Optimization](#performance-optimization)
 8. [Contributing](#contributing)
@@ -119,7 +119,7 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 - **style**: Custom CSS styles for the canvas container.
 - **class**: CSS class names for the canvas container.
 - **ref**: Receives the scene's [`Context`](#usethree) once the renderer is created, so code outside `<Canvas>` can reach it. A callback ref may return a cleanup that runs when the Canvas unmounts — [`createXR`](#createxr) uses this.
-- **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onClickMissed`, etc.)
+- **Event handlers**: All event handlers are supported on the Canvas component, allowing you to handle events that bubble through the entire scene (e.g., `onClick`, `onPointerMove`, `onVoidClick`, etc.)
 
 <details>
 <summary>Typescript Interface</summary>
@@ -163,7 +163,7 @@ interface CanvasProps {
   frameloop="always"
   style={{ background: "black" }}
   onClick={e => console.log("Canvas clicked")}
-  onClickMissed={e => console.log("Clicked empty space")}
+  onVoidClick={() => console.log("Clicked the backdrop")}
   onPointerMove={e => console.log("Pointer moved on canvas")}
 >
   {/* Your 3D scene */}
@@ -1179,9 +1179,9 @@ const MyTest = () => {
 - `onContextMenu` — right-click on an object
 - `onWheel` — wheel scroll over an object
 
-**Missed events** — fire when the interaction didn't hit the handler's object or its descendants:
+**Void events** — fire on `<Canvas>` when the gesture reaches the backdrop (no object handler ran):
 
-- `onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed`
+- `onVoidClick`, `onVoidDoubleClick`, `onVoidContextMenu`, `onVoidWheel`, `onVoidPointerDown`, `onVoidPointerUp`
 
 
 ### Event Object
@@ -1303,7 +1303,6 @@ Not all events in solid-three can be stopped with `stopPropagation()`. This desi
 
 **Non-stoppable events:**
 
-- `onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed` - [Missed Events](#missed-events) always fire for all registered handlers
 - `onPointerEnter` - Enter events always fire [Hover Events](#hover-events-entermoveleave)
 - `onPointerLeave` - Leave events always fire [Hover Events](#hover-events-entermoveleave)
 
@@ -1311,87 +1310,31 @@ Not all events in solid-three can be stopped with `stopPropagation()`. This desi
 
 - All other events (`onClick`, `onPointerMove`, `onPointerDown`, etc.) can be stopped with `stopPropagation()`
 
-### Missed Events
+### Void Events
 
-The "missed" events (`onClickMissed`, `onDoubleClickMissed`, `onContextMenuMissed`) fire when an object has registered a missed event handler and the click/interaction didn't hit the object or any of its descendants.
+Not every gesture is aimed at an object — a click to deselect, a right-click for a background menu, a drag to orbit the camera. A void event fires for each.
 
-**When missed events fire:**
+A backdrop sits behind the scene, and `onVoidClick` is its `onClick`. A click runs the `onClick` of each object along its path — the ones it intersects and their ancestors — reaching the backdrop only when none of them has one.
 
-1. **Click outside object**: The click didn't intersect with the object or any of its descendants
-2. **Blocked by stopPropagation**: Another object called `stopPropagation()` preventing the event from reaching this object
+There's a `<Canvas>` handler like it for each of these gestures:
 
-**Clicking outside the mesh**
+`onVoidClick` · `onVoidDoubleClick` · `onVoidContextMenu` · `onVoidWheel` · `onVoidPointerDown` · `onVoidPointerUp`
 
-```tsx
-const ClickOutside = () => {
-  return (
-    <Canvas>
-      <T.Mesh onClickMissed={() => console.log("Missed - clicked outside this mesh")}>
-        <T.BoxGeometry args={[1, 1, 1]} />
-        <T.MeshBasicMaterial color="blue" />
-      </T.Mesh>
-    </Canvas>
-  )
-}
-```
-
-
-**Blocked by stopPropagation**
+A click that runs an `onClick` bubbles it up to the canvas-level `onClick`; a click that runs none reaches `onVoidClick`. The two never fire for the same click.
 
 ```tsx
-const TreePropagation = () => {
-  return (
-    <Canvas>
-      <T.Group onClickMissed={() => console.log("Group missed - child stopped propagation")}>
-        <T.Mesh
-          onClick={e => {
-            e.stopPropagation()
-            console.log("Child clicked")
-          }}
-        >
-          <T.BoxGeometry args={[1, 1, 1]} />
-          <T.MeshBasicMaterial color="red" />
-        </T.Mesh>
-      </T.Group>
-    </Canvas>
-  )
-}
+<Canvas
+  onClick={() => console.log("ran an onClick")}
+  onVoidClick={() => console.log("reached the backdrop")}
+>
+  <T.Mesh onClick={() => console.log("the box's onClick")}>
+    <T.BoxGeometry />
+    <T.MeshStandardMaterial />
+  </T.Mesh>
+</Canvas>
 ```
 
-```tsx
-const RayPropagation = () => {
-  return (
-    <Canvas camera={{ position: [0, 0, 5] }}>
-      <T.Mesh
-        name="front mesh"
-        position={[0, 0, 2]}
-        onClick={e => {
-          e.stopPropagation()
-          console.log("Front mesh clicked")
-        }}
-      >
-        <T.BoxGeometry args={[1, 1, 1]} />
-        <T.MeshBasicMaterial color="yellow" />
-      </T.Mesh>
-      <T.Mesh
-        name="back mesh"
-        position={[0, 0, 0]}
-        onClickMissed={() => console.log("Back mesh missed - front mesh blocked it")}
-      >
-        <T.BoxGeometry args={[1, 1, 1]} />
-        <T.MeshBasicMaterial color="green" />
-      </T.Mesh>
-    </Canvas>
-  )
-}
-```
-
-
-This is useful for:
-
-- Deselecting objects when clicking outside them
-- Creating UI layers where front objects can block interactions with objects behind
-- Handling complex interaction patterns where parent containers need to know when their children intercepted events
+Each gesture has its own backdrop. A mesh with `onPointerMove` but no `onClick` takes part in pointer-moves but not clicks: a click on it runs no `onClick`, so it reaches the click-backdrop and fires `onVoidClick`.
 
 ### Hover Events (Enter/Move/Leave)
 
