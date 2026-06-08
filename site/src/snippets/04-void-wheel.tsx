@@ -12,9 +12,12 @@ export default () => {
   return (
     <Canvas
       camera={{ position: [0, 0, distance()] }}
-      onVoidWheel={event => setDistance(d => clamp(d + event.deltaY * 0.005, 3, 9))}
+      onVoidWheel={event => setDistance(d => clamp(d + event.nativeEvent.deltaY * 0.005, 3, 9))}
     >
-      <T.Mesh scale={size()} onWheel={event => setSize(s => clamp(s - event.deltaY * 0.001, 0.5, 2))}>
+      <T.Mesh
+        scale={size()}
+        onWheel={event => setSize(s => clamp(s - event.nativeEvent.deltaY * 0.001, 0.5, 2))}
+      >
         <T.BoxGeometry />
         <T.MeshStandardMaterial color="cornflowerblue" />
       </T.Mesh>

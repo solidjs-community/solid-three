@@ -46,11 +46,11 @@ Every handler receives one event argument that combines the original DOM event w
 
 Not every handler receives every field — what you get depends on the event:
 
-| Handler | Receives |
-| --- | --- |
-| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation` |
-| `onPointerEnter`, `onPointerLeave` | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
-| `onVoidClick`, `onVoidContextMenu`, `onVoidDoubleClick`, `onVoidWheel`, `onVoidPointerDown`, `onVoidPointerUp` | only `nativeEvent` — void events don't raycast |
+| Handler                                                                                                        | Receives                                                                               |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel`                 | `nativeEvent`, the intersections, and `stopPropagation`                                |
+| `onPointerEnter`, `onPointerLeave`                                                                             | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
+| `onVoidClick`, `onVoidContextMenu`, `onVoidDoubleClick`, `onVoidWheel`, `onVoidPointerDown`, `onVoidPointerUp` | only `nativeEvent` — void events don't raycast                                         |
 
 <details>
 <summary>Exact type</summary>
