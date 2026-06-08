@@ -84,7 +84,7 @@ import { OrthographicCamera as OrthographicCamera3 } from "three";
 
 // ../src/create-three.tsx
 import { createComponent as _$createComponent } from "solid-js/web";
-import { children as children2, createEffect as createEffect4, createMemo as createMemo4, createRenderEffect as createRenderEffect4, createResource as createResource2, createRoot, getOwner as getOwner4, untrack as untrack4, mergeProps as mergeProps4, onCleanup as onCleanup10 } from "solid-js";
+import { children as children2, createEffect as createEffect4, createMemo as createMemo4, createRenderEffect as createRenderEffect4, createResource as createResource2, createRoot, getOwner as getOwner4, mergeProps as mergeProps4, onCleanup as onCleanup10, untrack as untrack4 } from "solid-js";
 import { ACESFilmicToneMapping, BasicShadowMap, Camera as Camera2, Clock, LinearSRGBColorSpace, NoToneMapping, OrthographicCamera as OrthographicCamera2, PCFShadowMap, PCFSoftShadowMap, PerspectiveCamera, Raycaster as Raycaster2, Scene, SRGBColorSpace, Vector3 as Vector34, VSMShadowMap, WebGLRenderer } from "three";
 
 // ../src/create-events.ts
@@ -279,10 +279,7 @@ function meta(instance, augmentation = { props: {} }) {
     return instance;
   }
   const _instance = instance;
-  _instance[$S3C] = mergeProps(
-    { children: /* @__PURE__ */ new Set(), parent: void 0 },
-    augmentation
-  );
+  _instance[$S3C] = mergeProps({ children: /* @__PURE__ */ new Set(), parent: void 0 }, augmentation);
   return _instance;
 }
 function getMeta(value) {
@@ -331,7 +328,7 @@ function isRenderer(value) {
   return typeof value === "object" && value !== null && typeof value.render === "function" && typeof value.setSize === "function";
 }
 function isWebGLShadowMap(value) {
-  return !!value && "needsUpdate" in value;
+  return typeof value === "object" && value !== null && "needsUpdate" in value;
 }
 function getPendingInit(renderer) {
   const init = renderer.init;
@@ -569,7 +566,8 @@ var Pointer = class {
       let current = intersection.object;
       while (current && !entered.has(current)) {
         entered.add(current);
-        if (!this.hovered.has(current)) getMeta(current)?.props?.onPointerEnter?.(enterEvent);
+        if (!this.hovered.has(current))
+          getMeta(current)?.props?.onPointerEnter?.(enterEvent);
         current = current.parent;
       }
     }
@@ -582,7 +580,10 @@ var Pointer = class {
     this.propagate(
       moveEvent,
       "onPointerMove",
-      intersections.map((intersection) => [intersection, intersection.object])
+      intersections.map((intersection) => [
+        intersection,
+        intersection.object
+      ])
     );
     const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections });
     const previous = this.hovered;
@@ -664,7 +665,10 @@ var Pointer = class {
     this.propagate(
       event,
       handler,
-      intersections.map((intersection) => [intersection, intersection.object])
+      intersections.map((intersection) => [
+        intersection,
+        intersection.object
+      ])
     );
   }
   /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
@@ -1348,7 +1352,10 @@ function useLoader(constructor, url, options) {
   });
   function getOrInsert(registry, loader2, input) {
     if (isRecord(input)) {
-      return awaitMapObject(input, async (value) => getOrInsert(registry, loader2, value));
+      return awaitMapObject(
+        input,
+        async (value) => getOrInsert(registry, loader2, value)
+      );
     } else {
       const _input = input;
       const cachedPromise = registry.get(loader2, _input, false);
@@ -1409,12 +1416,7 @@ import {
   splitProps,
   untrack as untrack3
 } from "solid-js";
-import {
-  Color,
-  RGBAFormat,
-  Texture as Texture2,
-  UnsignedByteType
-} from "three";
+import { Color, RGBAFormat, Texture as Texture2, UnsignedByteType } from "three";
 
 // ../src/plugin.ts
 var plugin = (selectorOrMethods, methods) => {
@@ -1931,9 +1933,9 @@ function createThree(canvas, props) {
     }
   }
   let pendingRenderRequest;
-  const isPresenting = () => !!context.gl?.xr?.isPresenting;
+  const isPresenting = () => !!context.gl.xr?.isPresenting;
   function render(timestamp, frame) {
-    if (!context.gl || rendererReady.state !== "ready") {
+    if (rendererReady.state !== "ready") {
       return;
     }
     if (props.frameloop === "never") {
@@ -2011,7 +2013,7 @@ function createThree(canvas, props) {
   const gl = createMemo4((previous) => {
     if (previous && ownsCurrentRenderer) {
       const old = previous;
-      old.dispose?.();
+      old.dispose();
       if ("forceContextLoss" in old) old.forceContextLoss();
     }
     const kind = glKind();
@@ -2141,7 +2143,7 @@ function createThree(canvas, props) {
             soft: PCFSoftShadowMap,
             variance: VSMShadowMap
           };
-          shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap;
+          shadowMap.type = types[props.shadows];
         } else if (typeof props.shadows === "object") {
           Object.assign(shadowMap, props.shadows);
         }
@@ -2265,7 +2267,7 @@ function Canvas(props) {
         context.camera.aspect = width / height;
       }
       context.camera.updateProjectionMatrix();
-      if (!context.gl?.xr?.isPresenting) context.render(performance.now());
+      if (!context.gl.xr?.isPresenting) context.render(performance.now());
     });
   });
   return (() => {
@@ -2399,15 +2401,23 @@ function useXR() {
   }
   return state;
 }
+function isXRRenderer(gl) {
+  if (typeof gl !== "object" || gl === null) return false;
+  const {
+    xr
+  } = gl;
+  return !!xr && typeof xr.addEventListener === "function";
+}
 function createXR() {
   const [context, setContext] = createSignal5();
   const [presenting, setPresenting] = createSignal5(false);
   const [session, setSession] = createSignal5();
   createRenderEffect5(() => {
-    const ctx = context();
-    const gl = ctx ? ctx.gl : void 0;
-    const xr = gl?.xr;
-    if (!gl || !xr || typeof xr.addEventListener !== "function") return;
+    const gl = context()?.gl;
+    if (!isXRRenderer(gl)) {
+      return;
+    }
+    const xr = gl.xr;
     const onStart = () => setPresenting(true);
     const onEnd = () => {
       setPresenting(false);
@@ -2438,7 +2448,7 @@ function createXR() {
       throw new Error("S3: createXR().enter() called before <Canvas ref={xr.connect}> connected");
     }
     const gl = ctx.gl;
-    if (!gl.xr) {
+    if (!isXRRenderer(gl)) {
       throw new Error("S3: the active renderer has no xr manager");
     }
     const xrSession = typeof arg === "string" ? await requestSession(arg, init) : arg;
