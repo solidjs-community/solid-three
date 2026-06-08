@@ -94,15 +94,26 @@ describe("Pointer dispatch", () => {
     expect(seen[1]).toBe(parent) // bubbled handler on parent sees parent
   })
 
-  it("fires onClickMissed (mesh-level + canvas-level) when the click hits nothing", () => {
-    const meshMissed = vi.fn()
-    const canvasMissed = vi.fn()
-    const mesh = eventful({ onClickMissed: meshMissed })
-    const pointer = new Pointer(ctx([mesh], { onClickMissed: canvasMissed }), fakeRaycaster({}))
+  it("fires onVoidClick on the canvas when the click hits nothing", () => {
+    const canvasVoid = vi.fn()
+    const pointer = new Pointer(ctx([], { onVoidClick: canvasVoid }), fakeRaycaster({}))
 
     pointer.click("onClick", new MouseEvent("click"))
-    expect(meshMissed).toHaveBeenCalledTimes(1)
-    expect(canvasMissed).toHaveBeenCalledTimes(1)
+    expect(canvasVoid).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not fire onVoidClick when the click hits a mesh with onClick", () => {
+    const objectClick = vi.fn()
+    const canvasVoid = vi.fn()
+    const mesh = eventful({ onClick: objectClick })
+    const pointer = new Pointer(
+      ctx([mesh], { onVoidClick: canvasVoid }),
+      fakeRaycaster({ target: mesh }),
+    )
+
+    pointer.click("onClick", new MouseEvent("click"))
+    expect(objectClick).toHaveBeenCalledTimes(1)
+    expect(canvasVoid).not.toHaveBeenCalled()
   })
 
   it("dispatch sets event.currentObject to the bubbling node and merges extra fields", () => {
