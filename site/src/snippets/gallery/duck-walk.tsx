@@ -107,11 +107,17 @@ function Duck(props: {
       {/* Body: two teardrops, parent flipped on x like the original */}
       <T.Group rotation={[Math.PI, 0, 0]}>
         <T.Mesh position={[-0.05, 0.16, 0]} scale={BODY_SCALE}>
-          <T.ExtrudeGeometry args={[teardropShape, bodyExtrudeOptions]} ref={geometry => geometry.center()} />
+          <T.ExtrudeGeometry
+            args={[teardropShape, bodyExtrudeOptions]}
+            ref={geometry => geometry.center()}
+          />
           <T.MeshPhongMaterial color={SOLID_BLUE} />
         </T.Mesh>
         <T.Mesh position={[0.05, -0.16, 0]} rotation={[0, 0, Math.PI]} scale={BODY_SCALE}>
-          <T.ExtrudeGeometry args={[teardropShape, bodyExtrudeOptions]} ref={geometry => geometry.center()} />
+          <T.ExtrudeGeometry
+            args={[teardropShape, bodyExtrudeOptions]}
+            ref={geometry => geometry.center()}
+          />
           <T.MeshPhongMaterial color={SOLID_BLUE_LIGHT} />
         </T.Mesh>
       </T.Group>

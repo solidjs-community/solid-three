@@ -6,7 +6,7 @@ title: Entity
 
 `Entity` is a JSX wrapper around any `three.js` class. Where [`<T.Mesh/>`](/api/components/t) is shorthand for "make me a `Mesh`", `<Entity from={Mesh}/>` says the same thing without pre-building a [`T`](/api/components/t) namespace — useful in libraries, or when the class is only known at runtime.
 
-Conceptually it mirrors Solid's [`<Dynamic>`](https://docs.solidjs.com/reference/components/dynamic): a component that takes *what to render* as a prop rather than baking it into the tag.
+Conceptually it mirrors Solid's [`<Dynamic>`](https://docs.solidjs.com/reference/components/dynamic): a component that takes _what to render_ as a prop rather than baking it into the tag.
 
 Pass a constructor:
 
@@ -26,11 +26,11 @@ const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial({ color: "
 
 ## Props
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `from` | `Constructor \| Instance` | A three.js constructor (class), or an existing instance. |
-| `args` | `ConstructorParameters` | Arguments for the constructor, when `from` is a class. |
-| other props | — | Any prop the three.js object supports. |
+| Prop        | Type                      | Description                                              |
+| ----------- | ------------------------- | -------------------------------------------------------- |
+| `from`      | `Constructor \| Instance` | A three.js constructor (class), or an existing instance. |
+| `args`      | `ConstructorParameters`   | Arguments for the constructor, when `from` is a class.   |
+| other props | —                         | Any prop the three.js object supports.                   |
 
 Every prop other than `from` and `args` is applied via [`useProps`](/api/hooks/use-props) — array conversion, dashed-path nesting (`shadow-mapSize-width={1024}`), `Color` string parsing, `attach` slotting, event-listener registration, and `needsUpdate` flagging. See [`useProps`](/api/hooks/use-props) for the full conversion table and `attach` / `args` / `ref` semantics.
 
@@ -65,7 +65,7 @@ const MeshComponent = createEntity(Mesh)
 
 ## Manual disposal of instance-entities
 
-When you pass an *instance* to `<Entity from={...}/>`, you own its disposal — three.js keeps the resource in memory until you release it. Wrap the instance in [`autodispose`](/api/utilities/autodispose) to free it when the component unmounts.
+When you pass an _instance_ to `<Entity from={...}/>`, you own its disposal — three.js keeps the resource in memory until you release it. Wrap the instance in [`autodispose`](/api/utilities/autodispose) to free it when the component unmounts.
 
 **Wrong** — `box` and `sphere` are never disposed, so they leak:
 

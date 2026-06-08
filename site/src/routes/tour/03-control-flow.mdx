@@ -26,7 +26,7 @@ The conditional. Mount and unmount children based on a signal.
 
 <Demo code={showSnippet} url={showUrl} />
 
-When the signal flips, `<Show>` *mounts* and *unmounts* its children —
+When the signal flips, `<Show>` _mounts_ and _unmounts_ its children —
 not just hides them. The cube's `BoxGeometry` and `MeshNormalMaterial`
 are constructed when it appears and disposed when it disappears (more
 on disposal later).
@@ -59,7 +59,7 @@ no remount.
 ## `<Index>`
 
 `<For>`'s positional cousin. Where `<For>` tracks items by identity,
-`<Index>` tracks *positions* — the item at slot 0 is always the same
+`<Index>` tracks _positions_ — the item at slot 0 is always the same
 component, even if the value changes. Good for fixed-shape lists like
 a row of slots.
 
@@ -85,5 +85,5 @@ colour.
 ## What about clicking the cube itself?
 
 So far the triggers have been DOM buttons. But what if you wanted to
-click the cube — the actual `<T.Mesh>` — and have *that* be the
+click the cube — the actual `<T.Mesh>` — and have _that_ be the
 trigger? Same `onClick`, different target. That's the next chapter.

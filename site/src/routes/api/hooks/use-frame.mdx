@@ -19,10 +19,10 @@ Register a callback and get back a cleanup that unregisters it.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `callback` | `(context: Context, delta: number, frame?: XRFrame) => void` | Runs each frame. `context` is the [three.js context](/api/hooks/use-three), `delta` is seconds since the last frame, and `frame` is the `XRFrame` during WebXR sessions. |
-| `options` *(optional)* | `{ priority?: number; stage?: "before" \| "after" }` | `priority` orders callbacks — lower runs first (default `0`). `stage` runs the callback `"before"` (default) or `"after"` the render. |
+| Parameter              | Type                                                         | Description                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `callback`             | `(context: Context, delta: number, frame?: XRFrame) => void` | Runs each frame. `context` is the [three.js context](/api/hooks/use-three), `delta` is seconds since the last frame, and `frame` is the `XRFrame` during WebXR sessions. |
+| `options` _(optional)_ | `{ priority?: number; stage?: "before" \| "after" }`         | `priority` orders callbacks — lower runs first (default `0`). `stage` runs the callback `"before"` (default) or `"after"` the render.                                    |
 
 ## Returns
 

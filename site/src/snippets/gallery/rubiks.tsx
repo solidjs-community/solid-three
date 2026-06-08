@@ -58,11 +58,7 @@ function initialCubies(): CubieState[] {
 }
 
 // Rotate a 3-vector 90° around an axis in `dir` direction (right-handed).
-function rotateVec(
-  v: [number, number, number],
-  axis: Axis,
-  dir: Dir,
-): [number, number, number] {
+function rotateVec(v: [number, number, number], axis: Axis, dir: Dir): [number, number, number] {
   const [x, y, z] = v
   if (axis === "x") return [x, -dir * z, dir * y]
   if (axis === "y") return [dir * z, y, -dir * x]
@@ -84,10 +80,7 @@ function quatMul(
   ]
 }
 
-function quatFromAxisAngle(
-  axis: Axis,
-  angle: number,
-): [number, number, number, number] {
+function quatFromAxisAngle(axis: Axis, angle: number): [number, number, number, number] {
   const s = Math.sin(angle / 2)
   const c = Math.cos(angle / 2)
   if (axis === "x") return [s, 0, 0, c]
@@ -109,7 +102,7 @@ function applyMove(state: CubieState[], move: Move): CubieState[] {
 }
 
 function invertMove(move: Move): Move {
-  return { ...move, dir: (-move.dir) as Dir }
+  return { ...move, dir: -move.dir as Dir }
 }
 
 function generateScramble(count: number, rng: () => number = Math.random): Move[] {
@@ -180,12 +173,7 @@ function makeGlyphTexture(glyph: string): THREE.CanvasTexture {
 // For each face, map cubie coordinates to UV offsets within the
 // face's 3x3 sticker grid. UV origin is bottom-left; offset selects
 // the sticker tile, with `repeat = 1/3` already applied by the caller.
-function uvOffset(
-  face: FaceSpec,
-  x: number,
-  y: number,
-  z: number,
-): { u: number; v: number } {
+function uvOffset(face: FaceSpec, x: number, y: number, z: number): { u: number; v: number } {
   const tile = (coord: number) => (coord + 1) / 3
   if (face.axis === "x") {
     const u = face.layer === 1 ? tile(-z) : tile(z)
@@ -348,11 +336,7 @@ function SceneController(props: {
   let sliceGroup: THREE.Group | undefined
   let lastScramble: Move[] = []
 
-  function startTurn(
-    move: Move,
-    queue: Move[],
-    nextPhase: "scrambled-hold" | "solved-hold",
-  ) {
+  function startTurn(move: Move, queue: Move[], nextPhase: "scrambled-hold" | "solved-hold") {
     const axisIndex = move.axis === "x" ? 0 : move.axis === "y" ? 1 : 2
     const group = new THREE.Group()
     three.scene.add(group)

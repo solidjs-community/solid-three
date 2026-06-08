@@ -29,7 +29,9 @@ export default () => {
           "border-radius": "6px",
         }}
       >
-        <div>App body has run: {setupRuns} time{setupRuns === 1 ? "" : "s"}</div>
+        <div>
+          App body has run: {setupRuns} time{setupRuns === 1 ? "" : "s"}
+        </div>
         <button
           onClick={() => setHot(value => !value)}
           style={{

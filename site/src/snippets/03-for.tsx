@@ -54,10 +54,7 @@ export default () => {
       <Canvas camera={{ position: [0, 0, 6] }}>
         <For each={cubes()}>
           {(color, index) => (
-            <T.Mesh
-              position={[(index() - (cubes().length - 1) / 2) * 1.2, 0, 0]}
-              scale={0.7}
-            >
+            <T.Mesh position={[(index() - (cubes().length - 1) / 2) * 1.2, 0, 0]} scale={0.7}>
               <T.BoxGeometry />
               <T.MeshStandardMaterial color={color} />
             </T.Mesh>

@@ -22,11 +22,11 @@ Hand it a target object (or an accessor that returns one) and the props to apply
 
 ## Parameters
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `accessor` | `T \| undefined \| Accessor<T \| undefined>` | The target `three.js` object, an accessor that returns it, or `undefined`. Application waits until the value is non-`undefined`. |
-| `props` | `object` | The props to apply — including `ref`, `args`, `attach`, `children`, and any `three.js` properties. |
-| `context` *(optional)* | `Pick<Context, "requestRender" \| "gl" \| "props">` | The context slice `useProps` reads from. Defaults to [`useThree()`](/api/hooks/use-three). Pass it explicitly when calling outside a [`<Canvas>`](/api/components/canvas) — in tests, or a custom renderer host. |
+| Parameter              | Type                                                | Description                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accessor`             | `T \| undefined \| Accessor<T \| undefined>`        | The target `three.js` object, an accessor that returns it, or `undefined`. Application waits until the value is non-`undefined`.                                                                                 |
+| `props`                | `object`                                            | The props to apply — including `ref`, `args`, `attach`, `children`, and any `three.js` properties.                                                                                                               |
+| `context` _(optional)_ | `Pick<Context, "requestRender" \| "gl" \| "props">` | The context slice `useProps` reads from. Defaults to [`useThree()`](/api/hooks/use-three). Pass it explicitly when calling outside a [`<Canvas>`](/api/components/canvas) — in tests, or a custom renderer host. |
 
 ## Usage
 
@@ -71,28 +71,28 @@ The one exception is [`args`](#args), which rebuilds the object instead of mutat
 
 Each prop is matched against the cases below, in order; the first that fits wins. The point is that you pass the most natural value and `solid-three` translates it into the call three expects.
 
-| You pass | Example | What happens |
-| --- | --- | --- |
-| `undefined` | `color={undefined}` | Skipped — `undefined` never overwrites the current value. |
-| A CSS color string or hex number | `color="red"`, `color={0xff8800}` | `target.color.set(value)`. |
-| An array | `position={[1, 0, 0]}` | `target.position.fromArray(value)` (or `.set(...value)` when the field has no `fromArray`). |
-| A single number, on a field with `setScalar` | `scale={2}` | `target.scale.setScalar(2)` — the same value on every axis. |
-| An instance matching the field's type | `quaternion={new Quaternion()}` | Copied in place with `.copy(value)`. |
-| An event handler | `onClick={…}` | Registered on the [event system](/api/events/overview) (`Object3D` instances only). |
-| Anything else | `visible={false}`, `castShadow` | Assigned directly: `target[key] = value`. |
+| You pass                                     | Example                           | What happens                                                                                |
+| -------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------- |
+| `undefined`                                  | `color={undefined}`               | Skipped — `undefined` never overwrites the current value.                                   |
+| A CSS color string or hex number             | `color="red"`, `color={0xff8800}` | `target.color.set(value)`.                                                                  |
+| An array                                     | `position={[1, 0, 0]}`            | `target.position.fromArray(value)` (or `.set(...value)` when the field has no `fromArray`). |
+| A single number, on a field with `setScalar` | `scale={2}`                       | `target.scale.setScalar(2)` — the same value on every axis.                                 |
+| An instance matching the field's type        | `quaternion={new Quaternion()}`   | Copied in place with `.copy(value)`.                                                        |
+| An event handler                             | `onClick={…}`                     | Registered on the [event system](/api/events/overview) (`Object3D` instances only).         |
+| Anything else                                | `visible={false}`, `castShadow`   | Assigned directly: `target[key] = value`.                                                   |
 
 In practice, one element mixes several of these:
 
 ```tsx
 <T.Mesh
-  position={[1, 0, 0]}            // array  → Vector3.set(1, 0, 0)
-  scale={2}                       // number → scale.setScalar(2)
-  rotation={[Math.PI / 4, 0, 0]}  // array  → Euler.set(x, y, z)
+  position={[1, 0, 0]} // array  → Vector3.set(1, 0, 0)
+  scale={2} // number → scale.setScalar(2)
+  rotation={[Math.PI / 4, 0, 0]} // array  → Euler.set(x, y, z)
 >
   <T.MeshStandardMaterial
-    color="cornflowerblue"        // string → Color.set("cornflowerblue")
-    emissive={[1, 0.4, 0.2]}      // array  → Color.set(1, 0.4, 0.2)
-    specular={0xff8800}           // hex    → Color.set(0xff8800)
+    color="cornflowerblue" // string → Color.set("cornflowerblue")
+    emissive={[1, 0.4, 0.2]} // array  → Color.set(1, 0.4, 0.2)
+    specular={0xff8800} // hex    → Color.set(0xff8800)
   />
 </T.Mesh>
 ```
@@ -116,7 +116,7 @@ When both a parent and a child of the same path are present — `position={[0, 0
 
 ## `args`
 
-`args` is spread into the object's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it decides how the object is *built*. Changing it therefore **rebuilds the object**: the old one is disposed and a new one mounts in its place. This is what you want for constructor-only parameters like geometry dimensions.
+`args` is spread into the object's constructor: `new BoxGeometry(...args)`. It is not a runtime property — it decides how the object is _built_. Changing it therefore **rebuilds the object**: the old one is disposed and a new one mounts in its place. This is what you want for constructor-only parameters like geometry dimensions.
 
 ```tsx
 const [size, setSize] = createSignal(1)
@@ -134,12 +134,12 @@ For anything with a runtime setter, use a normal prop — it mutates in place in
 
 By default `solid-three` decides where a child belongs:
 
-| Child type | Attaches to |
-| --- | --- |
-| `Material` | `parent.material` |
-| `BufferGeometry` | `parent.geometry` |
-| `Fog` | `parent.scene.fog` |
-| `Object3D` | `parent.children` |
+| Child type       | Attaches to        |
+| ---------------- | ------------------ |
+| `Material`       | `parent.material`  |
+| `BufferGeometry` | `parent.geometry`  |
+| `Fog`            | `parent.scene.fog` |
+| `Object3D`       | `parent.children`  |
 
 Set `attach` explicitly when the default isn't what you want — for example, routing textures into a material's map slots:
 

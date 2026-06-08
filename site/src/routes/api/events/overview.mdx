@@ -33,24 +33,24 @@ Run in three phases per pointer move — enter, then move, then leave. See [Hove
 
 Every handler receives one event argument that combines the original DOM event with the raycast result.
 
-| Property | Type | When present | Description |
-| --- | --- | --- | --- |
-| `nativeEvent` | `MouseEvent \| PointerEvent \| WheelEvent` | always | The original DOM event that triggered the handler. |
-| `intersections` | `Intersection[]` | events that raycast | All hit intersections, sorted nearest-first. |
-| `intersection` | `Intersection` | events that raycast | Shorthand for `intersections[0]` — the closest hit overall. |
-| `object` | `Object3D` | events that raycast | The closest hit object (`intersections[0].object`) — stable after dispatch, the 3D analogue of a DOM event's `target`. |
-| `currentIntersection` | `Intersection` | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch. |
-| `currentObject` | `Object3D` | inside an object handler | The object this handler is firing on; as the event bubbles it walks up the ancestor chain (while `currentIntersection` stays on the hit) and is cleared after dispatch — the 3D analogue of a DOM event's `currentTarget`. |
-| `stopped` | `boolean` | stoppable events only | Whether `stopPropagation()` has been called. |
-| `stopPropagation` | `() => void` | stoppable events only | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events). |
+| Property              | Type                                       | When present             | Description                                                                                                                                                                                                                |
+| --------------------- | ------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `nativeEvent`         | `MouseEvent \| PointerEvent \| WheelEvent` | always                   | The original DOM event that triggered the handler.                                                                                                                                                                         |
+| `intersections`       | `Intersection[]`                           | events that raycast      | All hit intersections, sorted nearest-first.                                                                                                                                                                               |
+| `intersection`        | `Intersection`                             | events that raycast      | Shorthand for `intersections[0]` — the closest hit overall.                                                                                                                                                                |
+| `object`              | `Object3D`                                 | events that raycast      | The closest hit object (`intersections[0].object`) — stable after dispatch, the 3D analogue of a DOM event's `target`.                                                                                                     |
+| `currentIntersection` | `Intersection`                             | inside an object handler | The intersection for the current handler's object. Absent on canvas-level dispatch.                                                                                                                                        |
+| `currentObject`       | `Object3D`                                 | inside an object handler | The object this handler is firing on; as the event bubbles it walks up the ancestor chain (while `currentIntersection` stays on the hit) and is cleared after dispatch — the 3D analogue of a DOM event's `currentTarget`. |
+| `stopped`             | `boolean`                                  | stoppable events only    | Whether `stopPropagation()` has been called.                                                                                                                                                                               |
+| `stopPropagation`     | `() => void`                               | stoppable events only    | Stops both raycast and tree propagation. See [Stoppable vs non-stoppable](#stoppable-vs-non-stoppable-events).                                                                                                             |
 
 Not every handler receives every field — what you get depends on the event:
 
-| Handler | Receives |
-| --- | --- |
-| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation` |
-| `onPointerEnter`, `onPointerLeave` | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
-| `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed` | only `nativeEvent` — missed events don't raycast |
+| Handler                                                                                        | Receives                                                                               |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `onClick`, `onContextMenu`, `onDoubleClick`, the `*Move` / `*Down` / `*Up` handlers, `onWheel` | `nativeEvent`, the intersections, and `stopPropagation`                                |
+| `onPointerEnter`, `onPointerLeave`                                                             | `nativeEvent` and the intersections, but no `stopPropagation` — these can't be stopped |
+| `onClickMissed`, `onContextMenuMissed`, `onDoubleClickMissed`                                  | only `nativeEvent` — missed events don't raycast                                       |
 
 <details>
 <summary>Exact type</summary>
@@ -227,11 +227,11 @@ By default a pointer event goes to whatever the ray currently hits. That breaks 
 
 Pointer capture fixes this. Inside an `onPointerDown`, `onPointerMove`, or `onPointerUp` handler, three methods ride on the event:
 
-| Method | Description |
-| --- | --- |
+| Method                        | Description                                                                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `setPointerCapture(options?)` | Capture the pointer to `options.object` (default: the firing `currentObject`; sync-only). Pass `options.normal` to orient the drag plane. |
-| `releasePointerCapture()` | Release a capture started with `setPointerCapture()`. |
-| `hasPointerCapture()` | Whether this event's node currently holds the capture. |
+| `releasePointerCapture()`     | Release a capture started with `setPointerCapture()`.                                                                                     |
+| `hasPointerCapture()`         | Whether this event's node currently holds the capture.                                                                                    |
 
 Once captured, every subsequent `onPointerMove` and `onPointerUp` for that pointer is delivered **exclusively** to the captured node's chain — still bubbling up to the canvas-level handler, but no longer raycasting against the rest of the scene. Delivery continues even when the pointer is off the object, and (for the DOM pointer source) off the canvas. Hover is frozen for the duration: no enter/leave fires while a capture is held.
 
@@ -272,7 +272,7 @@ For visuals that should follow a drag — scaling or recoloring the grabbed obje
 import { hasPointerCapture } from "solid-three"
 
 let mesh: THREE.Mesh | undefined
-<T.Mesh
+;<T.Mesh
   ref={mesh}
   scale={hasPointerCapture(mesh) ? 1.15 : 1}
   onPointerDown={event => event.setPointerCapture()}

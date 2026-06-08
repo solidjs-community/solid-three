@@ -25,7 +25,6 @@ export const demos: Demo[] = Object.keys(modules)
     if (!id) throw new Error(`gallery: unexpected path ${path}`)
     const loadSource = sources[path]
     const url = urls[path] ?? ""
-    if (!loadSource) throw new Error(`gallery: missing raw source for ${path}`)
     return { id, load: modules[path], loadSource, url }
   })
 

@@ -34,34 +34,34 @@ Everything importable from `solid-three`, and where each is documented.
 
 **Components**
 
-| Export | What it is |
-| --- | --- |
-| [`Canvas`, `CanvasProps`](/api/components/canvas) | Root component that mounts the renderer |
-| [`Entity`, `createEntity`](/api/components/entity) | Wrap any `three.js` class as a component |
-| [`createT`](/api/components/t) | Build a pre-typed `T.*` component namespace |
-| [`Portal`](/api/components/portal) | Render a subtree under a different object |
-| [`Resource`](/api/components/resource) | Suspense-aware async object loading |
+| Export                                             | What it is                                  |
+| -------------------------------------------------- | ------------------------------------------- |
+| [`Canvas`, `CanvasProps`](/api/components/canvas)  | Root component that mounts the renderer     |
+| [`Entity`, `createEntity`](/api/components/entity) | Wrap any `three.js` class as a component    |
+| [`createT`](/api/components/t)                     | Build a pre-typed `T.*` component namespace |
+| [`Portal`](/api/components/portal)                 | Render a subtree under a different object   |
+| [`Resource`](/api/components/resource)             | Suspense-aware async object loading         |
 
 **Hooks**
 
-| Export | What it is |
-| --- | --- |
-| [`useThree`](/api/hooks/use-three) | Read the renderer context |
-| [`useFrame`](/api/hooks/use-frame) | Run a callback on every frame |
-| [`useLoader`, `load`](/api/hooks/use-loader) | Load assets through cached loaders |
-| [`useProps`](/api/hooks/use-props) | Apply `solid-three` props to an object |
+| Export                                       | What it is                             |
+| -------------------------------------------- | -------------------------------------- |
+| [`useThree`](/api/hooks/use-three)           | Read the renderer context              |
+| [`useFrame`](/api/hooks/use-frame)           | Run a callback on every frame          |
+| [`useLoader`, `load`](/api/hooks/use-loader) | Load assets through cached loaders     |
+| [`useProps`](/api/hooks/use-props)           | Apply `solid-three` props to an object |
 
 **Utilities**
 
-| Export | What it is |
-| --- | --- |
-| [`EventRaycaster`, `CursorRaycaster`, `CenterRaycaster`](/api/utilities/raycasters) | Pointer-event raycasting strategies |
-| [`autodispose`](/api/utilities/autodispose) | Tie an object's lifetime to its component |
-| [`meta`, `getMeta`, `hasMeta`, `$S3C`](/api/utilities/metadata) | Read and write per-object metadata |
+| Export                                                                              | What it is                                |
+| ----------------------------------------------------------------------------------- | ----------------------------------------- |
+| [`EventRaycaster`, `CursorRaycaster`, `CenterRaycaster`](/api/utilities/raycasters) | Pointer-event raycasting strategies       |
+| [`autodispose`](/api/utilities/autodispose)                                         | Tie an object's lifetime to its component |
+| [`meta`, `getMeta`, `hasMeta`, `$S3C`](/api/utilities/metadata)                     | Read and write per-object metadata        |
 
 **Types**
 
-| Export | What it is |
-| --- | --- |
-| `S3` | Namespace of every public type (above) |
+| Export                                     | What it is                                    |
+| ------------------------------------------ | --------------------------------------------- |
+| `S3`                                       | Namespace of every public type (above)        |
 | `Register`, `Renderer`, `ResolvedRenderer` | Renderer typings, re-exported for convenience |

@@ -28,13 +28,13 @@ reads `hot()` re-runs, and all it does is hand a new value to
 `material.color.set(...)`. The mesh stays mounted, the canvas keeps the
 same renderer, nothing else moves.
 
-That's the through-line. The rest of this chapter is just *what props
-you can pass*.
+That's the through-line. The rest of this chapter is just _what props
+you can pass_.
 
 ## Transforms
 
 A `three.js` scene is a tree. Every object has a parent and a (possibly
-empty) list of children — in `solid-three`, that tree *is* your JSX.
+empty) list of children — in `solid-three`, that tree _is_ your JSX.
 Nest one element inside another and you've made a parent-child
 relationship in the scene.
 
@@ -63,7 +63,7 @@ The rotation applies to the group's frame, so both cubes tilt together
 from the camera.
 
 Rotate the group instead of the cubes any time you want the
-*arrangement* to move, not just the individual shapes. Almost every
+_arrangement_ to move, not just the individual shapes. Almost every
 scene you'll build is some tree of groups holding meshes.
 
 ## Constructor arguments: `args`

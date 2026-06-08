@@ -18,7 +18,12 @@ function MovingCube(props: { meshRef: (mesh: THREE.Mesh) => void }) {
     { priority: 0 },
   )
   return (
-    <T.Mesh ref={node => { mesh = node; props.meshRef(node) }}>
+    <T.Mesh
+      ref={node => {
+        mesh = node
+        props.meshRef(node)
+      }}
+    >
       <T.BoxGeometry args={[0.5, 0.5, 0.5]} />
       <T.MeshNormalMaterial />
     </T.Mesh>

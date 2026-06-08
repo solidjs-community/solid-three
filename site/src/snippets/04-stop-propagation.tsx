@@ -10,10 +10,7 @@ export default () => {
 
   return (
     <Canvas camera={{ position: [0, 0, 4] }}>
-      <T.Mesh
-        position={[0, 0, -1]}
-        onClick={() => setBack(value => !value)}
-      >
+      <T.Mesh position={[0, 0, -1]} onClick={() => setBack(value => !value)}>
         <T.BoxGeometry />
         <T.MeshStandardMaterial color={back() ? "tomato" : "#888"} />
       </T.Mesh>
