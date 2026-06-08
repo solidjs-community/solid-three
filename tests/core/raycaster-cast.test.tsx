@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest"
-import {
-  BoxGeometry,
-  Mesh,
-  MeshBasicMaterial,
-  Object3D,
-  PerspectiveCamera,
-  Vector2,
-} from "three"
+import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector2 } from "three"
 import { CenterRaycaster, ControllerRaycaster, CursorRaycaster } from "../../src/raycasters.tsx"
 import { meta } from "../../src/utils.ts"
 

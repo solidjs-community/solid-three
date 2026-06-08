@@ -9,13 +9,49 @@ const WIDTH = 10
 const HEIGHT = 20
 
 const TETROMINOES = {
-  I: { color: "cyan",   shape: [[1, 1, 1, 1]] },
-  O: { color: "yellow", shape: [[1, 1], [1, 1]] },
-  T: { color: "purple", shape: [[0, 1, 0], [1, 1, 1]] },
-  S: { color: "green",  shape: [[0, 1, 1], [1, 1, 0]] },
-  Z: { color: "red",    shape: [[1, 1, 0], [0, 1, 1]] },
-  J: { color: "blue",   shape: [[1, 0, 0], [1, 1, 1]] },
-  L: { color: "orange", shape: [[0, 0, 1], [1, 1, 1]] },
+  I: { color: "cyan", shape: [[1, 1, 1, 1]] },
+  O: {
+    color: "yellow",
+    shape: [
+      [1, 1],
+      [1, 1],
+    ],
+  },
+  T: {
+    color: "purple",
+    shape: [
+      [0, 1, 0],
+      [1, 1, 1],
+    ],
+  },
+  S: {
+    color: "green",
+    shape: [
+      [0, 1, 1],
+      [1, 1, 0],
+    ],
+  },
+  Z: {
+    color: "red",
+    shape: [
+      [1, 1, 0],
+      [0, 1, 1],
+    ],
+  },
+  J: {
+    color: "blue",
+    shape: [
+      [1, 0, 0],
+      [1, 1, 1],
+    ],
+  },
+  L: {
+    color: "orange",
+    shape: [
+      [0, 0, 1],
+      [1, 1, 1],
+    ],
+  },
 } as const
 
 type TetrominoType = keyof typeof TETROMINOES
@@ -30,9 +66,7 @@ type Piece = {
 }
 
 function emptyBoard(): Cell[][] {
-  return Array.from({ length: HEIGHT }, () =>
-    Array.from({ length: WIDTH }, () => undefined),
-  )
+  return Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => undefined))
 }
 
 function cellWorldPosition(x: number, y: number): [number, number, number] {
@@ -87,14 +121,8 @@ export default function App() {
   }
 
   return (
-    <div
-      onClick={cycleType}
-      style={{ width: "100%", height: "100%", cursor: "pointer" }}
-    >
-      <Canvas
-        orthographic
-        camera={{ position: [0, 0, 20], zoom: 60 }}
-      >
+    <div onClick={cycleType} style={{ width: "100%", height: "100%", cursor: "pointer" }}>
+      <Canvas orthographic camera={{ position: [0, 0, 20], zoom: 60 }}>
         <T.AmbientLight intensity={0.6} />
         <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />
         <Index each={board}>

@@ -87,6 +87,29 @@ describe("useLoader", () => {
     expect(first?.()).toBe(second?.())
   })
 
+  it("does not cache when useLoader.cache is disabled (undefined)", async () => {
+    useLoader.cache = undefined
+
+    let first: (() => MockResource | undefined) | undefined
+    let second: (() => MockResource | undefined) | undefined
+
+    function Component() {
+      first = useLoader(MockLoader, "texture.png") as () => MockResource | undefined
+      second = useLoader(MockLoader, "texture.png") as () => MockResource | undefined
+      return null
+    }
+
+    test(() => <Component />)
+
+    await waitFor(() => first?.() !== undefined && second?.() !== undefined)
+
+    // Still resolves (no throw on the missing registry)...
+    expect(first?.()).toBeInstanceOf(MockResource)
+    expect(second?.()).toBeInstanceOf(MockResource)
+    // ...but the same URL is no longer deduped to a single shared instance.
+    expect(first?.()).not.toBe(second?.())
+  })
+
   it("returns distinct instances for different URLs", async () => {
     let first: (() => MockResource | undefined) | undefined
     let second: (() => MockResource | undefined) | undefined
@@ -131,8 +154,12 @@ describe("useLoader", () => {
     let second: (() => MockResource | undefined) | undefined
 
     function Component() {
-      first = useLoader(MockLoader, "texture.png", { cache: false }) as () => MockResource | undefined
-      second = useLoader(MockLoader, "texture.png", { cache: false }) as () => MockResource | undefined
+      first = useLoader(MockLoader, "texture.png", { cache: false }) as () =>
+        | MockResource
+        | undefined
+      second = useLoader(MockLoader, "texture.png", { cache: false }) as () =>
+        | MockResource
+        | undefined
       return null
     }
 
@@ -150,7 +177,9 @@ describe("useLoader", () => {
     let resource: (() => MockResource | undefined) | undefined
 
     function Component() {
-      resource = useLoader(MockLoader, "texture.png", { onLoad: handleLoad }) as () => MockResource | undefined
+      resource = useLoader(MockLoader, "texture.png", { onLoad: handleLoad }) as () =>
+        | MockResource
+        | undefined
       return null
     }
 
@@ -167,13 +196,14 @@ describe("useLoader", () => {
 
     function Component() {
       resource = useLoader(MockLoader, { diffuse: "diffuse.png", normal: "normal.png" }) as () =>
-        Record<string, MockResource> | undefined
+        | Record<string, MockResource>
+        | undefined
       return null
     }
 
     test(() => <Component />)
 
-    await waitFor(() => resource?.()?.diffuse !== undefined && resource?.()?.normal !== undefined)
+    await waitFor(() => resource?.()?.diffuse !== undefined && resource()?.normal !== undefined)
 
     expect(resource?.()?.diffuse).toBeInstanceOf(MockResource)
     expect(resource?.()?.normal).toBeInstanceOf(MockResource)

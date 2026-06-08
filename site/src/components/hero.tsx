@@ -1,8 +1,8 @@
 import { clientOnly } from "@solidjs/start"
 import { createResource, createSignal, onCleanup, onMount, Show, startTransition } from "solid-js"
-import { pickRandomDemo, type Demo } from "../snippets/gallery"
+import { pickRandomDemo, type Demo } from "../snippets/gallery/index.ts"
 
-const LazyDemo = clientOnly(() => import("./demo"))
+const LazyDemo = clientOnly(() => import("./demo.tsx"))
 
 function PickDemo(props: { onPick: (demo: Demo) => void }) {
   props.onPick(pickRandomDemo())

@@ -18,7 +18,7 @@ describe("useXR", () => {
 // three's EventDispatcher dispatches plain `{ type }` objects and exposes
 // add/removeEventListener — mirror that, not DOM EventTarget.
 function makeFakeXR() {
-  const listeners: Record<string, Set<(e: { type: string }) => void>> = {}
+  const listeners: Record<string, Set<(e: { type: string }) => void> | undefined> = {}
   return {
     enabled: false,
     isPresenting: false,
@@ -61,7 +61,11 @@ function renderUseXR(ctx = makeFakeContext()) {
       api = useXR()
       return null
     }
-    void (<xr.Provider><Probe /></xr.Provider>)
+    void (
+      <xr.Provider>
+        <Probe />
+      </xr.Provider>
+    )
     return d
   })
   return {
@@ -75,7 +79,7 @@ function renderUseXR(ctx = makeFakeContext()) {
 }
 
 afterEach(() => {
-  Reflect.deleteProperty(navigator as unknown as Record<string, unknown>, "xr")
+  Reflect.deleteProperty(navigator, "xr")
 })
 
 describe("createXR().Provider + useXR", () => {

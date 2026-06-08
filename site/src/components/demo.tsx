@@ -310,12 +310,12 @@ function DemoClient(props: DemoProps) {
   // Mode-B compiler: only fires once `hasEdited` flips true.
   const [compiler] = createResource(
     () => (hasEdited() ? true : undefined),
-    async () => {
+    async (): Promise<Compiler> => {
       const [babelTransformFn, tsModule] = await Promise.all([
         loadBabelTransform(),
         loadTypeScript(),
       ])
-      return { babelTransform: babelTransformFn, tsModule } as Compiler
+      return { babelTransform: babelTransformFn, tsModule }
     },
   )
 
@@ -368,7 +368,6 @@ function DemoClient(props: DemoProps) {
   const iframeSrc = createMemo(() => {
     return hasEdited() ? (replBootstrapUrl() ?? "about:blank") : initialBootstrapUrl()
   })
-
 
   let iframeRef: HTMLIFrameElement | undefined
   function postTheme(): void {

@@ -21,7 +21,10 @@ plugin(element => ({ ping: () => {} }))
 plugin([Mesh], mesh => ({ shake: (intensity: number) => {} }))
 
 // 3. Type-guard — elements that pass the guard.
-plugin((element): element is Mesh => element instanceof Mesh, mesh => ({ setColor: (hex: string) => {} }))
+plugin(
+  (element): element is Mesh => element instanceof Mesh,
+  mesh => ({ setColor: (hex: string) => {} }),
+)
 ```
 
 The factory receives the matched element and returns an object of methods. A non-matching element contributes nothing. A method's **first parameter type becomes the prop's type** — `shake: (intensity: number) => …` makes `shake` a `number` prop.
@@ -63,7 +66,11 @@ import { Mesh } from "three"
 import { Entity, plugin } from "solid-three"
 
 const App = () => (
-  <Entity from={Mesh} plugins={[plugin([Mesh], mesh => ({ shake: (i: number) => {} }))]} shake={0.2} />
+  <Entity
+    from={Mesh}
+    plugins={[plugin([Mesh], mesh => ({ shake: (i: number) => {} }))]}
+    shake={0.2}
+  />
 )
 ```
 

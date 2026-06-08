@@ -193,7 +193,7 @@ export function useLoader<
   const loader = createMemo(() => {
     const _constructor = resolve(constructor)
 
-    let loader = LOADER_CACHE.get(_constructor) as TLoader
+    let loader = LOADER_CACHE.get(_constructor) as TLoader | undefined
 
     if (!loader) {
       LOADER_CACHE.set(_constructor, (loader = new _constructor()))
@@ -216,9 +216,9 @@ export function useLoader<
     input: TInput,
   ): PromiseMaybe<LoadOutput<TLoader, TInput>> {
     if (isRecord(input)) {
-      return awaitMapObject(input, async value => getOrInsert(registry, loader, value)) as PromiseMaybe<
-        LoadOutput<TLoader, TInput>
-      >
+      return awaitMapObject(input, async value =>
+        getOrInsert(registry, loader, value),
+      ) as PromiseMaybe<LoadOutput<TLoader, TInput>>
     } else {
       const _input = input as LoaderUrl<TLoader>
 
@@ -313,4 +313,4 @@ export function useLoader<
  *
  * ```
  */
-useLoader.cache = new LoaderCache()
+useLoader.cache = new LoaderCache() as LoaderRegistry | undefined

@@ -51,7 +51,15 @@ describe("multi-pointer", () => {
     expect(enter).toHaveBeenCalledTimes(2)
 
     // Pointer 1 leaves the canvas → exactly one leave (pointer 1's); pointer 2 unaffected.
-    fireEvent(canvas, new PointerEvent("pointerleave", { clientX: HIT_X, clientY: HIT_Y, pointerId: 1, bubbles: true }))
+    fireEvent(
+      canvas,
+      new PointerEvent("pointerleave", {
+        clientX: HIT_X,
+        clientY: HIT_Y,
+        pointerId: 1,
+        bubbles: true,
+      }),
+    )
     expect(leave).toHaveBeenCalledTimes(1)
   })
 })

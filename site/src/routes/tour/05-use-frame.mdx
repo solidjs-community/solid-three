@@ -56,7 +56,7 @@ first within the same stage.
 <Demo code={useFrameOptions} url={useFrameOptionsUrl} />
 
 The cube updates its position first (priority 0); the camera then reads
-that *new* position and follows it (priority 1). Swap the priorities and
+that _new_ position and follows it (priority 1). Swap the priorities and
 the camera will lag the cube by one frame.
 
 `useFrame` also accepts a `stage` option for running callbacks before
@@ -64,5 +64,5 @@ or after the render pass, plus a couple of other knobs you'll rarely
 touch — see [`useFrame` in the API reference](/api/hooks/use-frame).
 
 The scenes so far have been hand-built — cubes, lights, geometry from
-constructors. The next chapter brings in *outside* data: textures,
+constructors. The next chapter brings in _outside_ data: textures,
 models, anything you load from a URL.

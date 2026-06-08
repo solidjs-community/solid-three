@@ -6,8 +6,8 @@ title: Raycasters
 
 `solid-three` ships custom raycasters that decide how a pointer becomes a ray. They all extend `THREE.Raycaster` and implement `EventRaycaster`, which adds one method:
 
-| Method | Description |
-| --- | --- |
+| Method                    | Description                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cast(registry, context)` | Aim the ray for the current pointer, then return its hits against `registry` and its descendants (honoring `raycastable !== false`), nearest-first. |
 
 The pointer system calls `cast()` on every event. How the ray is aimed is the raycaster's own business — from the camera and a cursor position for screen pointers, or from an object's world transform for an XR controller.

@@ -7,7 +7,7 @@
  */
 import { defaultThemeComponents } from "@kobalte/solidbase/default-theme/default-components.js"
 
-import SidebarTabs from "./SidebarTabs"
+import SidebarTabs from "./SidebarTabs.tsx"
 
 defaultThemeComponents.ProjectSelector = SidebarTabs
 

@@ -17,7 +17,10 @@ class TreeNode<T> implements TreeBase<T> {
   count = 0
   data?: T
 
-  constructor(public key: string, public parent: TreeNode<T> | TreeRegistry<T>) {}
+  constructor(
+    public key: string,
+    public parent: TreeNode<T> | TreeRegistry<T>,
+  ) {}
 
   delete() {
     this.parent.children.delete(this.key)

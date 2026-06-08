@@ -43,7 +43,7 @@ flips; `scale` reads it; one property assignment runs.
 
 ## Clicking nothing
 
-Sometimes the interesting event is when the user clicks but *doesn't* hit any
+Sometimes the interesting event is when the user clicks but _doesn't_ hit any
 mesh — to deselect the current selection, dismiss a tooltip, that sort of
 thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
 
@@ -101,14 +101,14 @@ event-object shape and the complete handler list.
 
 ## Dragging
 
-A click fires once. Hover fires as the ray crosses a mesh. A *drag* is
+A click fires once. Hover fires as the ray crosses a mesh. A _drag_ is
 different: it needs every move to keep reaching the same object — even
 after the pointer slides off it. Left to the default, the moves would
 jump to whatever is under the pointer now, and the gesture would fall
 apart the moment your aim drifts.
 
 `setPointerCapture()` solves it. Call it from `onPointerDown` and that
-pointer is *captured*: every following `onPointerMove` and `onPointerUp`
+pointer is _captured_: every following `onPointerMove` and `onPointerUp`
 goes to this mesh — on the ray or off it — until you let go.
 
 <Demo code={dragSnippet} url={dragUrl} />

@@ -23,11 +23,7 @@ export default defineConfig({
       // suites blow past mid-run. Slower per render but unbounded contexts.
       provider: playwright({
         launchOptions: {
-          args: [
-            "--use-gl=swiftshader",
-            "--enable-unsafe-swiftshader",
-            "--enable-features=Vulkan",
-          ],
+          args: ["--use-gl=swiftshader", "--enable-unsafe-swiftshader", "--enable-features=Vulkan"],
         },
       }),
       headless: true,

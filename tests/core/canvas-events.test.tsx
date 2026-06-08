@@ -30,17 +30,14 @@ function missEvent(type: string) {
   return makeEvent(type, MISS_X, MISS_Y)
 }
 
-/** A plain 2×2 mesh at origin with no event handlers. */
-const BasicMesh = () => (
-  <T.Mesh>
-    <T.BoxGeometry args={[2, 2]} />
-    <T.MeshBasicMaterial />
-  </T.Mesh>
-)
-
 /** A 2×2 mesh at origin whose onClick stops propagation. */
 const StoppingMesh = (props: { eventType: string; handler?: (e: any) => void }) => {
-  const handlerProp = { [props.eventType]: (e: any) => { e.stopPropagation(); props.handler?.(e) } }
+  const handlerProp = {
+    [props.eventType]: (e: any) => {
+      e.stopPropagation()
+      props.handler?.(e)
+    },
+  }
   return (
     <T.Mesh {...handlerProp}>
       <T.BoxGeometry args={[2, 2]} />
@@ -82,10 +79,7 @@ describe("canvas missable events", () => {
 
     it("fires when click propagates through a mesh that does not stop it", () => {
       const handleClick = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onClick" />,
-        { onClick: handleClick },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onClick: handleClick })
 
       fireEvent(canvas, hitEvent("click"))
 
@@ -94,10 +88,7 @@ describe("canvas missable events", () => {
 
     it("fires when click misses all meshes", () => {
       const handleClick = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onClick" />,
-        { onClick: handleClick },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, { onClick: handleClick })
 
       fireEvent(canvas, missEvent("click"))
 
@@ -106,10 +97,7 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleClick = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onClick" />,
-        { onClick: handleClick },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onClick" />, { onClick: handleClick })
 
       fireEvent(canvas, hitEvent("click"))
 
@@ -123,10 +111,9 @@ describe("canvas missable events", () => {
   describe("onClickMissed", () => {
     it("fires when click misses all registered meshes", () => {
       const handleClickMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onClick" />,
-        { onClickMissed: handleClickMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onClickMissed: handleClickMissed,
+      })
 
       fireEvent(canvas, missEvent("click"))
 
@@ -144,10 +131,9 @@ describe("canvas missable events", () => {
 
     it("does not fire when click hits a registered mesh", () => {
       const handleClickMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onClick" />,
-        { onClickMissed: handleClickMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onClickMissed: handleClickMissed,
+      })
 
       fireEvent(canvas, hitEvent("click"))
 
@@ -157,10 +143,10 @@ describe("canvas missable events", () => {
     it("does not fire when onClick is also registered and click hits a mesh", () => {
       const handleClick = vi.fn()
       const handleClickMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onClick" />,
-        { onClick: handleClick, onClickMissed: handleClickMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        onClick: handleClick,
+        onClickMissed: handleClickMissed,
+      })
 
       fireEvent(canvas, hitEvent("click"))
 
@@ -184,10 +170,9 @@ describe("canvas missable events", () => {
 
     it("fires when double-click propagates through a mesh that does not stop it", () => {
       const handleDoubleClick = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onDoubleClick" />,
-        { onDoubleClick: handleDoubleClick },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onDoubleClick: handleDoubleClick,
+      })
 
       fireEvent(canvas, hitEvent("dblclick"))
 
@@ -196,10 +181,9 @@ describe("canvas missable events", () => {
 
     it("fires when double-click misses all meshes", () => {
       const handleDoubleClick = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onDoubleClick" />,
-        { onDoubleClick: handleDoubleClick },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onDoubleClick: handleDoubleClick,
+      })
 
       fireEvent(canvas, missEvent("dblclick"))
 
@@ -208,10 +192,9 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleDoubleClick = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onDoubleClick" />,
-        { onDoubleClick: handleDoubleClick },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onDoubleClick" />, {
+        onDoubleClick: handleDoubleClick,
+      })
 
       fireEvent(canvas, hitEvent("dblclick"))
 
@@ -225,10 +208,9 @@ describe("canvas missable events", () => {
   describe("onDoubleClickMissed", () => {
     it("fires when double-click misses all registered meshes", () => {
       const handleMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onDoubleClick" />,
-        { onDoubleClickMissed: handleMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onDoubleClickMissed: handleMissed,
+      })
 
       fireEvent(canvas, missEvent("dblclick"))
 
@@ -246,10 +228,9 @@ describe("canvas missable events", () => {
 
     it("does not fire when double-click hits a registered mesh", () => {
       const handleMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onDoubleClick" />,
-        { onDoubleClickMissed: handleMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onDoubleClick" />, {
+        onDoubleClickMissed: handleMissed,
+      })
 
       fireEvent(canvas, hitEvent("dblclick"))
 
@@ -272,10 +253,9 @@ describe("canvas missable events", () => {
 
     it("fires when contextmenu propagates through a mesh that does not stop it", () => {
       const handleContextMenu = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onContextMenu" />,
-        { onContextMenu: handleContextMenu },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onContextMenu: handleContextMenu,
+      })
 
       fireEvent(canvas, hitEvent("contextmenu"))
 
@@ -284,10 +264,9 @@ describe("canvas missable events", () => {
 
     it("fires when contextmenu misses all meshes", () => {
       const handleContextMenu = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onContextMenu" />,
-        { onContextMenu: handleContextMenu },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onContextMenu: handleContextMenu,
+      })
 
       fireEvent(canvas, missEvent("contextmenu"))
 
@@ -296,10 +275,9 @@ describe("canvas missable events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleContextMenu = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onContextMenu" />,
-        { onContextMenu: handleContextMenu },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onContextMenu" />, {
+        onContextMenu: handleContextMenu,
+      })
 
       fireEvent(canvas, hitEvent("contextmenu"))
 
@@ -313,10 +291,9 @@ describe("canvas missable events", () => {
   describe("onContextMenuMissed", () => {
     it("fires when contextmenu misses all registered meshes", () => {
       const handleMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onContextMenu" />,
-        { onContextMenuMissed: handleMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onContextMenuMissed: handleMissed,
+      })
 
       fireEvent(canvas, missEvent("contextmenu"))
 
@@ -334,10 +311,9 @@ describe("canvas missable events", () => {
 
     it("does not fire when contextmenu hits a registered mesh", () => {
       const handleMissed = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onContextMenu" />,
-        { onContextMenuMissed: handleMissed },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onContextMenu" />, {
+        onContextMenuMissed: handleMissed,
+      })
 
       fireEvent(canvas, hitEvent("contextmenu"))
 
@@ -368,10 +344,9 @@ describe("canvas default events", () => {
 
     it("fires when pointerdown propagates through a mesh that does not stop it", () => {
       const handlePointerDown = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onPointerDown" />,
-        { onPointerDown: handlePointerDown },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerDown" />, {
+        onPointerDown: handlePointerDown,
+      })
 
       fireEvent(canvas, hitEvent("pointerdown"))
 
@@ -380,10 +355,9 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handlePointerDown = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onPointerDown" />,
-        { onPointerDown: handlePointerDown },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onPointerDown" />, {
+        onPointerDown: handlePointerDown,
+      })
 
       fireEvent(canvas, hitEvent("pointerdown"))
 
@@ -406,10 +380,9 @@ describe("canvas default events", () => {
 
     it("fires when pointerup propagates through a mesh that does not stop it", () => {
       const handlePointerUp = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onPointerUp" />,
-        { onPointerUp: handlePointerUp },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerUp" />, {
+        onPointerUp: handlePointerUp,
+      })
 
       fireEvent(canvas, hitEvent("pointerup"))
 
@@ -418,10 +391,9 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handlePointerUp = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onPointerUp" />,
-        { onPointerUp: handlePointerUp },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onPointerUp" />, {
+        onPointerUp: handlePointerUp,
+      })
 
       fireEvent(canvas, hitEvent("pointerup"))
 
@@ -447,10 +419,7 @@ describe("canvas default events", () => {
 
     it("fires when wheel event propagates through a mesh that does not stop it", () => {
       const handleWheel = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onWheel" />,
-        { onWheel: handleWheel },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onWheel" />, { onWheel: handleWheel })
 
       fireEvent(
         canvas,
@@ -462,10 +431,7 @@ describe("canvas default events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handleWheel = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onWheel" />,
-        { onWheel: handleWheel },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onWheel" />, { onWheel: handleWheel })
 
       fireEvent(
         canvas,
@@ -544,10 +510,9 @@ describe("canvas hover events", () => {
 
     it("fires when pointer move propagates through a mesh that does not stop it", () => {
       const handlePointerMove = vi.fn()
-      const { canvas } = test(
-        () => <ListeningMesh eventType="onPointerMove" />,
-        { onPointerMove: handlePointerMove },
-      )
+      const { canvas } = test(() => <ListeningMesh eventType="onPointerMove" />, {
+        onPointerMove: handlePointerMove,
+      })
 
       fireEvent(canvas, hitEvent("pointermove"))
 
@@ -556,17 +521,15 @@ describe("canvas hover events", () => {
 
     it("does not fire when a mesh stops propagation", () => {
       const handlePointerMove = vi.fn()
-      const { canvas } = test(
-        () => <StoppingMesh eventType="onPointerMove" />,
-        { onPointerMove: handlePointerMove },
-      )
+      const { canvas } = test(() => <StoppingMesh eventType="onPointerMove" />, {
+        onPointerMove: handlePointerMove,
+      })
 
       fireEvent(canvas, hitEvent("pointermove"))
 
       expect(handlePointerMove).not.toHaveBeenCalled()
     })
   })
-
 })
 
 /**********************************************************************************/
@@ -646,9 +609,7 @@ describe("pointer capture", () => {
     // The mesh's ONLY listener is a reactive onPointerMove (reads `flip()`, so flipping
     // re-registers it: refcount 1 → 0 → 1 in one tick). It captures itself on first move.
     const { canvas } = test(() => (
-      <T.Mesh
-        onPointerMove={(flip(), (e: any) => (e.setPointerCapture(), onMove(e)))}
-      >
+      <T.Mesh onPointerMove={(flip(), (e: any) => (e.setPointerCapture(), onMove(e)))}>
         <T.BoxGeometry args={[2, 2]} />
         <T.MeshBasicMaterial />
       </T.Mesh>
@@ -670,7 +631,10 @@ describe("pointer capture", () => {
 
   /** Captures on pointerdown and reports clicks. */
   const Draggable = (props: { onClick?: (e: any) => void }) => (
-    <T.Mesh onPointerDown={(e: any) => e.setPointerCapture()} onClick={(e: any) => props.onClick?.(e)}>
+    <T.Mesh
+      onPointerDown={(e: any) => e.setPointerCapture()}
+      onClick={(e: any) => props.onClick?.(e)}
+    >
       <T.BoxGeometry args={[2, 2]} />
       <T.MeshBasicMaterial />
     </T.Mesh>

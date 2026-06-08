@@ -149,7 +149,7 @@ export type LoaderUrl<T extends Loader<any, any>> = T extends Loader<any, infer 
 /**
  * Minimal structural interface for renderers (`SVGRenderer`, `CSS2DRenderer`,
  * user-built). Concrete three renderers (`WebGLRenderer`, `WebGPURenderer`)
- * structurally satisfy this too, but the {@link Renderer} union prefers their
+ * structurally satisfy this too, but the {@link SupportedRenderer} union prefers their
  * exact types so the WebGL-specific `WebXRManager` / `WebGLShadowMap` surface
  * is reachable in user code.
  */
@@ -175,7 +175,7 @@ export interface RendererLike {
   /** Optional shadow map (WebGL/WebGPU vary). */
   shadowMap?: WebGLRenderer["shadowMap"] | WebGPURenderer["shadowMap"]
   /** Async initializer — awaited once before the first render (WebGPURenderer). */
-  init?(): Promise<void>
+  init?(): Promise<void | this>
   /** Returns true if `init()` has already completed. WebGPURenderer exposes this. */
   hasInitialized?(): boolean
 }
@@ -186,7 +186,7 @@ export interface RendererLike {
  * Inspired by r3f's `Renderer` interface in store.ts, extended with the two
  * concrete classes so the common cases keep exact types.
  */
-export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
+export type SupportedRenderer = WebGLRenderer | WebGPURenderer | RendererLike
 
 /**
  * Module-augmentation point. Defaults to `WebGLRenderer` — the common case.
@@ -210,12 +210,11 @@ export type Renderer = WebGLRenderer | WebGPURenderer | RendererLike
  * needed) and accidentally passing a `WebGLRenderer` to `<Canvas gl>`
  * becomes a type error.
  *
- * To widen back to the open {@link Renderer} union (e.g. for a library that
- * needs to support any renderer), declare `renderer: Renderer`.
+ * To widen back to the open {@link SupportedRenderer} union (e.g. for a library that
+ * needs to support any renderer), declare `renderer: SupportedRenderer`.
  *
  * Without augmentation, the default is `WebGLRenderer`.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface Register {}
 
 /** Effective renderer type — narrowed by user augmentation, defaults to `WebGLRenderer`. */

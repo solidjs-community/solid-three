@@ -1,12 +1,5 @@
 import * as THREE from "three"
-import {
-  Index,
-  Show,
-  batch,
-  createSignal,
-  onCleanup,
-  onMount,
-} from "solid-js"
+import { Index, Show, batch, createSignal, onCleanup, onMount } from "solid-js"
 import { createStore, produce } from "solid-js/store"
 import { Portal } from "solid-js/web"
 import { Canvas, createT } from "solid-three"
@@ -19,13 +12,49 @@ const TICK_MS = 500
 const LINE_SCORES = [0, 100, 300, 500, 800] as const
 
 const TETROMINOES = {
-  I: { color: "cyan",   shape: [[1, 1, 1, 1]] },
-  O: { color: "yellow", shape: [[1, 1], [1, 1]] },
-  T: { color: "purple", shape: [[0, 1, 0], [1, 1, 1]] },
-  S: { color: "green",  shape: [[0, 1, 1], [1, 1, 0]] },
-  Z: { color: "red",    shape: [[1, 1, 0], [0, 1, 1]] },
-  J: { color: "blue",   shape: [[1, 0, 0], [1, 1, 1]] },
-  L: { color: "orange", shape: [[0, 0, 1], [1, 1, 1]] },
+  I: { color: "cyan", shape: [[1, 1, 1, 1]] },
+  O: {
+    color: "yellow",
+    shape: [
+      [1, 1],
+      [1, 1],
+    ],
+  },
+  T: {
+    color: "purple",
+    shape: [
+      [0, 1, 0],
+      [1, 1, 1],
+    ],
+  },
+  S: {
+    color: "green",
+    shape: [
+      [0, 1, 1],
+      [1, 1, 0],
+    ],
+  },
+  Z: {
+    color: "red",
+    shape: [
+      [1, 1, 0],
+      [0, 1, 1],
+    ],
+  },
+  J: {
+    color: "blue",
+    shape: [
+      [1, 0, 0],
+      [1, 1, 1],
+    ],
+  },
+  L: {
+    color: "orange",
+    shape: [
+      [0, 0, 1],
+      [1, 1, 1],
+    ],
+  },
 } as const
 
 type TetrominoType = keyof typeof TETROMINOES
@@ -57,9 +86,7 @@ function randomPiece(): Piece {
 function rotateClockwise(shape: number[][]): number[][] {
   const rows = shape.length
   const cols = shape[0].length
-  const out: number[][] = Array.from({ length: cols }, () =>
-    Array.from({ length: rows }, () => 0),
-  )
+  const out: number[][] = Array.from({ length: cols }, () => Array.from({ length: rows }, () => 0))
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       out[x][rows - 1 - y] = shape[y][x]
@@ -292,10 +319,7 @@ export default function App() {
           </Show>
         </div>
       </Portal>
-      <Canvas
-        orthographic
-        camera={{ position: [0, 0, 20], zoom: 14 }}
-      >
+      <Canvas orthographic camera={{ position: [0, 0, 20], zoom: 14 }}>
         <T.AmbientLight intensity={0.6} />
         <T.DirectionalLight position={[5, 10, 5]} intensity={0.8} />
         <Walls />

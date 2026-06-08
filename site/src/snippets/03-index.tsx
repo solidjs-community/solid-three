@@ -10,9 +10,7 @@ export default () => {
   const [colors, setColors] = createSignal(["cornflowerblue", "tomato", "mediumseagreen"])
 
   function shuffle() {
-    setColors(current =>
-      current.map(() => palette[Math.floor(Math.random() * palette.length)]),
-    )
+    setColors(current => current.map(() => palette[Math.floor(Math.random() * palette.length)]))
   }
 
   return (

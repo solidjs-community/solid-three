@@ -4,7 +4,7 @@ import { Canvas, createT, useFrame, useThree } from "solid-three"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
-import { Font, FontLoader } from "three/examples/jsm/loaders/FontLoader.js"
+import { Font } from "three/examples/jsm/loaders/FontLoader.js"
 import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 
 // Served from public/. A relative URL resolves against the document base —

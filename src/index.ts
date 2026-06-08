@@ -7,12 +7,12 @@ export type { XRContext, XRState } from "./create-xr.tsx"
 export { useFrame, useLoader, useThree } from "./hooks.ts"
 export { plugin } from "./plugin.ts"
 export { hasPointerCapture } from "./pointer-capture.ts"
-export { Pointer, createThreeEvent, type PointerRaycaster } from "./pointers.ts"
+export { createThreeEvent, Pointer, type PointerRaycaster } from "./pointers.ts"
 export { useProps } from "./props.ts"
 export * from "./raycasters.tsx"
 export * as S3 from "./types.ts"
 // Direct re-exports of types that users commonly need at the top level.
 // `Register` is augmentable from `declare module "solid-three"` (see its
-// JSDoc); `Renderer` and `ResolvedRenderer` show up in advanced typings.
-export type { Plugin, Register, Renderer, ResolvedRenderer } from "./types.ts"
+// JSDoc); `SupportedRenderer` and `ResolvedRenderer` show up in advanced typings.
+export type { Plugin, Register, ResolvedRenderer, SupportedRenderer } from "./types.ts"
 export { autodispose, getMeta, hasMeta, load, meta } from "./utils.ts"

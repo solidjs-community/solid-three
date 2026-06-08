@@ -8,11 +8,11 @@ title: Portal
 
 ## Props
 
-| Prop | Type | Default | Description |
-| --- | --- | --- | --- |
-| `element` | `Object3D \| Meta<Object3D>` | the root scene | The object to render the children into. |
-| `children` | `JSX.Element` | — | What to render in the portal. |
-| `onUpdate` | `(element) => void` | — | Runs when the portal mounts or re-attaches, with the resolved `element`. |
+| Prop       | Type                         | Default        | Description                                                              |
+| ---------- | ---------------------------- | -------------- | ------------------------------------------------------------------------ |
+| `element`  | `Object3D \| Meta<Object3D>` | the root scene | The object to render the children into.                                  |
+| `children` | `JSX.Element`                | —              | What to render in the portal.                                            |
+| `onUpdate` | `(element) => void`          | —              | Runs when the portal mounts or re-attaches, with the resolved `element`. |
 
 <details>
 <summary>Exact type</summary>
@@ -37,7 +37,7 @@ type PortalProps<T extends Object3D> = ParentProps<{
 
 ## Default destination: the scene root
 
-With no `element`, `Portal` attaches its children to `context.scene` — the root of the canvas's main scene. This is the escape hatch for "render *as if* this child were top-level", ignoring any transform on the JSX parent.
+With no `element`, `Portal` attaches its children to `context.scene` — the root of the canvas's main scene. This is the escape hatch for "render _as if_ this child were top-level", ignoring any transform on the JSX parent.
 
 ```tsx
 <T.Group position={[10, 0, 0]}>
@@ -101,7 +101,7 @@ The off-screen scene can have its own lights, animations, even pointer events �
 
 ## Ownership and lifecycle
 
-- `Portal` doesn't break ownership. Children stay in the JSX tree for reactivity, refs, and lifecycle — only the *render destination* changes.
+- `Portal` doesn't break ownership. Children stay in the JSX tree for reactivity, refs, and lifecycle — only the _render destination_ changes.
 - The `element` you pass keeps its identity for as long as the portal is mounted, and `Portal` never disposes it. If you constructed the scene or group yourself, you manage its lifetime.
 
 ## See also

@@ -6,9 +6,9 @@ import {
   createResource,
   createRoot,
   getOwner,
-  untrack,
   mergeProps,
   onCleanup,
+  untrack,
 } from "solid-js"
 import {
   ACESFilmicToneMapping,
@@ -42,7 +42,7 @@ import type {
   FrameListener,
   FrameListenerCallback,
   Meta,
-  Renderer,
+  SupportedRenderer,
   ResolvedRenderer,
 } from "./types.ts"
 import {
@@ -135,13 +135,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   // True while an XR session owns the frame loop. Window-initiated renders
   // (`loop`, `requestRender`, and the resize repaint in canvas.tsx) must yield
   // to it; `render` itself stays unguarded because the session calls it.
-  const isPresenting = () => !!context.gl?.xr?.isPresenting
+  const isPresenting = () => !!context.gl.xr?.isPresenting
 
   function render(timestamp: number, frame?: XRFrame) {
     // `WebGPURenderer.init()` must complete before the first render; the
     // render loop spins harmlessly until the resource flips to "ready".
     // WebGL renderers report ready synchronously on creation.
-    if (!context.gl || rendererReady.state !== "ready") {
+    if (rendererReady.state !== "ready") {
       return
     }
     if (props.frameloop === "never") {
@@ -220,14 +220,11 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     }
     // Config-object branch: don't read props.camera in the memo body — the
     // contents don't affect construction (they're applied via useProps later).
-    return meta(
-      orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(),
-      {
-        get props() {
-          return props.camera || {}
-        },
+    return meta(orthographicFlag() ? new OrthographicCamera() : new PerspectiveCamera(), {
+      get props() {
+        return props.camera || {}
       },
-    )
+    })
   })
   const cameraStack = new Stack<CameraKind>("camera")
 
@@ -271,19 +268,19 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   // post-construction changes the user might be expecting to take effect, but
   // can't (WebGL contexts are immutable once created).
   let initialConstructorArgs: Partial<WebGLRendererParameters> = {}
-  const gl = createMemo<Meta<Renderer>>(previous => {
+  const gl = createMemo<Meta<SupportedRenderer>>(previous => {
     if (previous && ownsCurrentRenderer) {
       const old = previous as unknown as WebGLRenderer
-      old.dispose?.()
+      old.dispose()
       if ("forceContextLoss" in old) old.forceContextLoss()
     }
     const kind = glKind()
-    let _gl: Renderer
+    let _gl: SupportedRenderer
     if (kind === "factory") {
-      _gl = (props.gl as (canvas: HTMLCanvasElement) => Renderer)(canvas)
+      _gl = (props.gl as (canvas: HTMLCanvasElement) => SupportedRenderer)(canvas)
       ownsCurrentRenderer = false
     } else if (kind === "instance") {
-      _gl = props.gl as Renderer
+      _gl = props.gl as SupportedRenderer
       ownsCurrentRenderer = false
     } else {
       // Default branch — construct a WebGLRenderer with the user's flat `gl`
@@ -293,7 +290,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       // instance props via the `useProps` call below. `alpha: true` is our
       // default; the user's value (if any) wins. `canvas` is last so the
       // user can't override it.
-      const flat = untrack(() => (props.gl as Partial<WebGLRendererParameters>) ?? {})
+      const flat = untrack(() => (props.gl as Partial<WebGLRendererParameters> | undefined) ?? {})
       const constructorArgs: Partial<WebGLRendererParameters> = {}
       for (const key of WEBGL_CONSTRUCTOR_KEYS) {
         if (key in flat) constructorArgs[key] = flat[key] as never
@@ -398,11 +395,12 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return raycasterStack.push(raycaster)
     },
     get gl() {
-      // Internally gl is typed as Meta<Renderer> (the open union) since the
+      // Internally gl is typed as Meta<SupportedRenderer> (the open union) since the
       // memo can produce any concrete renderer the user chose. Externally it
       // surfaces as Meta<ResolvedRenderer> — the user's declared (or default
       // WebGLRenderer) type. The cast bridges the two; if the user has not
       // augmented Register, their concrete renderer will satisfy WebGLRenderer.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- no-op without Register augmentation (SupportedRenderer === ResolvedRenderer), but the bridge is real once the user narrows the renderer type.
       return gl() as Meta<ResolvedRenderer>
     },
   }
@@ -465,7 +463,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
             soft: PCFSoftShadowMap,
             variance: VSMShadowMap,
           }
-          shadowMap.type = types[props.shadows] ?? PCFSoftShadowMap
+          shadowMap.type = types[props.shadows]
         } else if (typeof props.shadows === "object") {
           Object.assign(shadowMap, props.shadows)
         }
@@ -515,7 +513,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       let warnedCtorKeys = false
       createEffect(() => {
         if (warnedCtorKeys) return
-        const flat = (props.gl as Partial<WebGLRendererParameters>) ?? {}
+        const flat = (props.gl as Partial<WebGLRendererParameters> | undefined) ?? {}
         for (const key of WEBGL_CONSTRUCTOR_KEYS) {
           if (key in flat && flat[key] !== initialConstructorArgs[key]) {
             console.warn(

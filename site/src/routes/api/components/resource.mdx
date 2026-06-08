@@ -8,16 +8,16 @@ title: Resource
 
 ## Props
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `loader` | `Constructor<Loader>` | The three.js loader class — `TextureLoader`, `GLTFLoader`, … |
-| `url` | `string \| string[] \| Record<string, string>` | What to load, matching what the loader expects. |
-| `children` | `(resource) => JSX.Element` | Optional render function, receiving the loaded resource. |
-| `base` | `string` | Base URL for resolving relative paths (forwarded to [`useLoader`](/api/hooks/use-loader)). |
-| `cache` | `boolean \| LoaderRegistry` | `true` (default global cache), `false` (disable), or a custom registry. See [Caching](/api/hooks/use-loader#caching). |
-| `onBeforeLoad` | `(loader) => void` | Runs with the loader before loading — e.g. to configure decoders. |
-| `onLoad` | `(resource) => void` | Runs with the resolved resource after loading. |
-| other props | — | Forwarded to the loaded resource — including `attach`. |
+| Prop           | Type                                           | Description                                                                                                           |
+| -------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `loader`       | `Constructor<Loader>`                          | The three.js loader class — `TextureLoader`, `GLTFLoader`, …                                                          |
+| `url`          | `string \| string[] \| Record<string, string>` | What to load, matching what the loader expects.                                                                       |
+| `children`     | `(resource) => JSX.Element`                    | Optional render function, receiving the loaded resource.                                                              |
+| `base`         | `string`                                       | Base URL for resolving relative paths (forwarded to [`useLoader`](/api/hooks/use-loader)).                            |
+| `cache`        | `boolean \| LoaderRegistry`                    | `true` (default global cache), `false` (disable), or a custom registry. See [Caching](/api/hooks/use-loader#caching). |
+| `onBeforeLoad` | `(loader) => void`                             | Runs with the loader before loading — e.g. to configure decoders.                                                     |
+| `onLoad`       | `(resource) => void`                           | Runs with the resolved resource after loading.                                                                        |
+| other props    | —                                              | Forwarded to the loaded resource — including `attach`.                                                                |
 
 ## Examples
 

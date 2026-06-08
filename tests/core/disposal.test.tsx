@@ -1,6 +1,6 @@
 import { Show, createSignal } from "solid-js"
 import * as THREE from "three"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { Entity, createT } from "../../src/index.ts"
 import { autodispose } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
@@ -18,7 +18,6 @@ describe("autodispose", () => {
 
     unmount()
 
-
     expect(disposable.dispose).toHaveBeenCalledTimes(1)
   })
 
@@ -31,7 +30,6 @@ describe("autodispose", () => {
         return null
       })
       unmount()
-  
     }).not.toThrow()
   })
 })
@@ -51,7 +49,7 @@ describe("Entity disposal", () => {
         <Entity
           from={DisposableGeometry}
           ref={g => {
-            geometry = g as DisposableGeometry
+            geometry = g
           }}
         />
       </Show>
@@ -61,7 +59,6 @@ describe("Entity disposal", () => {
     expect(geometry.dispose).not.toHaveBeenCalled()
 
     setVisible(false)
-
 
     expect(geometry.dispose).toHaveBeenCalledTimes(1)
   })
@@ -79,7 +76,6 @@ describe("Entity disposal", () => {
     ))
 
     setVisible(false)
-
 
     expect(geometry.dispose).not.toHaveBeenCalled()
   })
@@ -108,7 +104,6 @@ describe("T component disposal", () => {
 
     setVisible(false)
 
-
     expect(geometry.dispose).toHaveBeenCalledTimes(1)
   })
 
@@ -132,7 +127,6 @@ describe("T component disposal", () => {
     material.dispose = vi.fn(material.dispose.bind(material))
 
     setVisible(false)
-
 
     expect(material.dispose).toHaveBeenCalledTimes(1)
   })

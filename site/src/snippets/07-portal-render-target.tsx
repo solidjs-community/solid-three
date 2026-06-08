@@ -54,10 +54,7 @@ function TexturedCube() {
 
 export default function App() {
   return (
-    <Canvas
-      camera={{ position: [0, 0, 3] }}
-      scene={{ background: new THREE.Color("#101218") }}
-    >
+    <Canvas camera={{ position: [0, 0, 3] }} scene={{ background: new THREE.Color("#101218") }}>
       {/* Portal sends the knot into the off-screen scene instead of the
           canvas's main scene. */}
       <Portal element={offscreenScene}>

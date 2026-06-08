@@ -7,14 +7,14 @@ import lookAtUrl from "../../snippets/09-look-at.tsx?importChunkUrl"
 
 # Plugins
 
-Every prop you've set so far has been just that — a *property*. `position`,
+Every prop you've set so far has been just that — a _property_. `position`,
 `color`, `intensity`: solid-three takes the value and assigns it to the
 three.js object. That covers most of what a scene needs, but not all of it.
 
-Some of the things you'd reach for aren't properties — they're *methods*.
+Some of the things you'd reach for aren't properties — they're _methods_.
 three's `Object3D` has a `lookAt(target)` method that turns an object to
 face a point in space. You'd love to write `<T.Mesh lookAt={somePoint} />`
-and have it just work. But it won't: props get *assigned*, so solid-three
+and have it just work. But it won't: props get _assigned_, so solid-three
 would overwrite `mesh.lookAt` with your point and the method would be gone.
 Props set properties; they don't call methods.
 

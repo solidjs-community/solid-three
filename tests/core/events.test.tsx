@@ -1,7 +1,7 @@
 import { fireEvent } from "@solidjs/testing-library"
-import { Show, createSignal } from "solid-js"
+import { createSignal } from "solid-js"
 import * as THREE from "three"
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
@@ -18,7 +18,10 @@ describe("events", () => {
       </T.Mesh>
     ))
 
-    fireEvent(canvas, new PointerEvent("pointerdown", { clientX: 640, clientY: 400, pointerId: 1, bubbles: true }))
+    fireEvent(
+      canvas,
+      new PointerEvent("pointerdown", { clientX: 640, clientY: 400, pointerId: 1, bubbles: true }),
+    )
 
     expect(handlePointerDown).toHaveBeenCalled()
   })
@@ -160,10 +163,7 @@ describe("events", () => {
     expect(handlePointerMove).toHaveBeenCalled()
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    fireEvent(
-      canvas,
-      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
-    )
+    fireEvent(canvas, new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }))
 
     expect(handlePointerOut).toHaveBeenCalled()
   })
@@ -193,10 +193,7 @@ describe("events", () => {
 
     expect(handlePointerEnter).toHaveBeenCalled()
 
-    fireEvent(
-      canvas,
-      new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }),
-    )
+    fireEvent(canvas, new PointerEvent("pointermove", { clientX: 0, clientY: 0, bubbles: true }))
 
     expect(handlePointerLeave).toHaveBeenCalled()
   })
@@ -226,7 +223,6 @@ describe("events", () => {
     expect(handleClickFront).toHaveBeenCalled()
     expect(handleClickRear).not.toHaveBeenCalled()
   })
-
 })
 
 /**********************************************************************************/
@@ -258,7 +254,6 @@ describe("mesh onClickMissed", () => {
 
     fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
 
-
     expect(handleClickMissed).toHaveBeenCalledTimes(1)
   })
 
@@ -273,7 +268,6 @@ describe("mesh onClickMissed", () => {
     ))
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
-
 
     expect(handleClickMissed).not.toHaveBeenCalled()
   })
@@ -316,7 +310,6 @@ describe("mesh onClickMissed", () => {
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 
-
     expect(handleChildClick).toHaveBeenCalledTimes(1)
     expect(handleParentClickMissed).not.toHaveBeenCalled()
   })
@@ -348,7 +341,6 @@ describe("event handler reactivity", () => {
     // Add the handler reactively
     setOnClick(() => handleClick)
 
-
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 
     expect(handleClick).toHaveBeenCalledTimes(1)
@@ -372,7 +364,6 @@ describe("event handler reactivity", () => {
 
     // Remove handler reactively
     setOnClick(undefined)
-
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 

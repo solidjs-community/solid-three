@@ -20,29 +20,26 @@ Pass a loader class and what to load; you get back a Solid `Resource`. Call it t
 
 ## Parameters
 
-| Parameter | Type | Description |
-| --- | --- | --- |
-| `constructor` | `Constructor<TLoader>` (or an accessor) | The loader class — `TextureLoader`, `GLTFLoader`, … |
-| `url` | `string \| string[] \| Record<string, string>` (or an accessor) | What to load. A record or array loads several at once and preserves its keys. An accessor reloads when its value changes. |
-| `options` *(optional)* | `UseLoaderOptions<TLoader, TInput>` | See [Options](#options). |
+| Parameter              | Type                                                            | Description                                                                                                               |
+| ---------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `constructor`          | `Constructor<TLoader>` (or an accessor)                         | The loader class — `TextureLoader`, `GLTFLoader`, …                                                                       |
+| `url`                  | `string \| string[] \| Record<string, string>` (or an accessor) | What to load. A record or array loads several at once and preserves its keys. An accessor reloads when its value changes. |
+| `options` _(optional)_ | `UseLoaderOptions<TLoader, TInput>`                             | See [Options](#options).                                                                                                  |
 
 ## Options
 
-| Option | Type | Description |
-| --- | --- | --- |
-| `base` | `string` | Base URL for resolving relative paths. |
-| `cache` | `boolean \| LoaderRegistry` | How this call caches. See [Caching](#caching). |
+| Option         | Type                        | Description                                                 |
+| -------------- | --------------------------- | ----------------------------------------------------------- |
+| `base`         | `string`                    | Base URL for resolving relative paths.                      |
+| `cache`        | `boolean \| LoaderRegistry` | How this call caches. See [Caching](#caching).              |
 | `onBeforeLoad` | `(loader: TLoader) => void` | Runs before loading starts — e.g. to set loader properties. |
-| `onLoad` | `(resource) => void` | Runs after the resource loads successfully. |
+| `onLoad`       | `(resource) => void`        | Runs after the resource loads successfully.                 |
 
 <details>
 <summary>Exact type</summary>
 
 ```tsx
-interface UseLoaderOptions<
-  TLoader extends Loader<any, any>,
-  TInput extends LoadInput<TLoader>,
-> {
+interface UseLoaderOptions<TLoader extends Loader<any, any>, TInput extends LoadInput<TLoader>> {
   base?: string
   cache?: boolean | LoaderRegistry
   onBeforeLoad?(loader: TLoader): void
@@ -56,11 +53,11 @@ interface UseLoaderOptions<
 
 By default every resource is stored in a shared global cache, so loading the same URL twice returns the same resource. Control it per call with the `cache` option, or swap the global cache out entirely:
 
-| You want | Do this |
-| --- | --- |
-| The default global cache | omit `cache`, or pass `cache: true` |
-| A custom cache for this call | `cache: myRegistry` — a [`LoaderRegistry`](#custom-cache) |
-| No caching for this call | `cache: false` |
+| You want                               | Do this                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| The default global cache               | omit `cache`, or pass `cache: true`                                            |
+| A custom cache for this call           | `cache: myRegistry` — a [`LoaderRegistry`](#custom-cache)                      |
+| No caching for this call               | `cache: false`                                                                 |
 | To replace the global cache everywhere | set `useLoader.cache = myRegistry`, or `undefined` to disable caching globally |
 
 ## Examples

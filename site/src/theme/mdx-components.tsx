@@ -13,4 +13,4 @@ import { clientOnly } from "@solidjs/start"
 
 import "./style.css"
 
-export const Demo = clientOnly(() => import("../components/demo"))
+export const Demo = clientOnly(() => import("../components/demo.tsx"))
