@@ -278,6 +278,7 @@ export class Pointer {
         intersection.object,
       ]),
     )
+    this.canvasLevel(moveEvent, "onPointerMove")
 
     // Phase #3 — Leave (objects hovered last time but not now).
     const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
@@ -308,34 +309,58 @@ export class Pointer {
     this.dispatch("onWheel", nativeEvent)
   }
 
+  /** Non-voidable canvas-level (hover, captured drags): fire on `!stopped`, no void fallback. */
+  private canvasLevel(event: DispatchEvent, handler: string) {
+    if (!event.stopped) (this.context.props as Record<string, any>)[handler]?.(event)
+  }
+
+  /** Voidable tail (exclusive): an object-level handler ran → the canvas handler; none ran → canvas `onVoid<Kind>`. */
+  private finishVoidable(event: DispatchEvent, handler: string, firedOnObject: boolean) {
+    if (event.stopped) return
+    const props = this.context.props as Record<string, any>
+    if (firedOnObject) {
+      props[handler]?.(event)
+    } else {
+      const voidEvent = createThreeEvent(event.nativeEvent, { stoppable: false })
+      props[`onVoid${handler.slice(2)}`]?.(voidEvent)
+    }
+  }
+
   /**
    * Propagate `handler` across the roots (nearest-first — raycast propagation) and up
    * each root's parent chain (tree propagation) — setting `event.currentIntersection`
    * for the chain and `event.currentObject` for each node it fires on — honoring
-   * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
-   * `[intersection, root]` pairs the starting node (`root`) with the intersection to
-   * expose while walking it: the captured path passes a single pair rooted at the
-   * captured object, the normal path one pair per hit. A node shared by several hits
-   * fires once (the closest hit's chain reaches it first), matching `move`/`click`.
+   * `stopPropagation`. Each `[intersection, root]` pairs the starting node (`root`) with
+   * the intersection to expose while walking it: the captured path passes a single pair
+   * rooted at the captured object, the normal path one pair per hit. A node shared by
+   * several hits fires once (the closest hit's chain reaches it first), matching
+   * `move`/`click`. Returns whether any object-level handler fired.
    */
-  private propagate(event: DispatchEvent, handler: string, roots: Array<[Intersection, Object3D]>) {
+  private propagate(
+    event: DispatchEvent,
+    handler: string,
+    roots: Array<[Intersection, Object3D]>,
+  ): boolean {
     const visited = new Set<Object3D>()
+    let firedOnObject = false
     for (const [intersection, root] of roots) {
       event.currentIntersection = intersection
       let node: Object3D | null = root
       while (node && !event.stopped && !visited.has(node)) {
         visited.add(node)
         event.currentObject = node
-        ;(getMeta(node)?.props as any)?.[handler]?.(event)
+        const handle = (getMeta(node)?.props as any)?.[handler]
+        if (handle) {
+          firedOnObject = true
+          handle(event)
+        }
         node = node.parent
       }
       if (event.stopped) break
     }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.currentObject = undefined
-      ;(this.context.props as Record<string, any>)[handler]?.(event)
-    }
+    delete event.currentIntersection
+    event.currentObject = undefined
+    return firedOnObject
   }
 
   /**
@@ -363,13 +388,14 @@ export class Pointer {
       const event = createThreeEvent(nativeEvent, { intersections: [intersection] }, extra)
       if (capturable) this.attachCapture(event)
       this.propagate(event, handler, [[intersection, captured.object]])
+      this.canvasLevel(event, handler)
       return
     }
 
     const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
     const event = createThreeEvent(nativeEvent, { intersections }, extra)
     if (capturable) this.attachCapture(event)
-    this.propagate(
+    const firedOnObject = this.propagate(
       event,
       handler,
       intersections.map((intersection): [Intersection, Object3D] => [
@@ -377,54 +403,24 @@ export class Pointer {
         intersection.object,
       ]),
     )
+    this.finishVoidable(event, handler, firedOnObject)
   }
 
-  /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
+  /** Missable gesture: bubbled onClick/onDoubleClick/onContextMenu + canvas-level onVoid<Kind>. */
   click(kind: "onClick" | "onDoubleClick" | "onContextMenu", nativeEvent: Event) {
-    const missedType = `${kind}Missed` as const
-    const registry = this.context.eventRegistry
     const props = this.context.props as Record<string, any>
-    if (registry.length === 0 && !props[kind] && !props[missedType]) return
-
-    const missed = new Set<Object3D>(registry)
-    const visited = new Set<Object3D>()
+    const registry = this.context.eventRegistry
+    if (registry.length === 0 && !props[kind] && !props[`onVoid${kind.slice(2)}`]) return
     const intersections = this.raycaster.cast(registry, this.context)
     const event = createThreeEvent(nativeEvent, { intersections })
-
-    // Phase #1 — fire the handler, bubbling down the hit chain.
-    for (const intersection of intersections) {
-      event.currentIntersection = intersection
-      let node: Object3D | null = intersection.object
-      while (node && !event.stopped && !visited.has(node)) {
-        missed.delete(node)
-        visited.add(node)
-        event.currentObject = node
-        ;(getMeta(node)?.props as any)?.[kind]?.(event)
-        node = node.parent
-      }
-    }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.currentObject = undefined
-      props[kind]?.(event)
-    }
-
-    // Phase #2 — re-raycast remaining objects to mark any genuinely under the ray as hit.
-    for (const remaining of missed) {
-      const hits = this.raycaster.intersectObject(remaining, true)
-      for (const { object } of hits) {
-        let node: Object3D | null = object
-        while (node && !visited.has(node)) {
-          missed.delete(node)
-          visited.add(node)
-          node = node.parent
-        }
-      }
-    }
-
-    // Phase #3 — fire `-Missed` on the truly-missed objects, and canvas-level on a total miss.
-    const missedEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    for (const object of missed) (getMeta(object)?.props as any)?.[missedType]?.(missedEvent)
-    if (intersections.length === 0) props[missedType]?.(missedEvent)
+    const firedOnObject = this.propagate(
+      event,
+      kind,
+      intersections.map((intersection): [Intersection, Object3D] => [
+        intersection,
+        intersection.object,
+      ]),
+    )
+    this.finishVoidable(event, kind, firedOnObject)
   }
 }
