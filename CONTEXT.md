@@ -94,14 +94,14 @@ _Avoid_: target / currentTarget for the 3D sense — those stay DOM-only, on `na
 **Intersection** (intersections):
 A raycast hit — three.js `Intersection` (`object`, `point`, `distance`, `face`, `uv`, `normal`). `event.intersections` is nearest-first; `event.intersection` is the nearest.
 
-**Missed event**:
-`onClickMissed` / `onDoubleClickMissed` / `onContextMenuMissed` — fires on a registered **object** when the interaction did _not_ hit it or its descendants.
+**`onPointerMissed`**:
+The miss handler. On an **object**, the per-object "not-me" — fires when a click lands somewhere other than that object or its descendants (a different object, or empty space). On the **Canvas**, narrower — fires only on a total miss (empty space), the void/deselect signal. Non-stoppable; the missed set is the registry minus the hit-closure (hits + their ancestors), so `stopPropagation` never widens it.
 
 **raycast propagation**:
 The first dispatch phase — the handler fires on each hit **object** nearest-first along the ray.
 
 **tree propagation**:
-The second dispatch phase — after an object's handler runs, the event _bubbles_ up its ancestors, finally to the **Canvas**. `stopPropagation()` halts both phases.
+The second dispatch phase — after an object's handler runs, the event _bubbles_ up its ancestors. `stopPropagation()` halts both phases.
 
 ### Pointer system & raycasting
 
