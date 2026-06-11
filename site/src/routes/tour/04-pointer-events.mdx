@@ -6,8 +6,8 @@ import clickSnippet from "../../snippets/04-click.tsx?raw"
 import clickUrl from "../../snippets/04-click.tsx?importChunkUrl"
 import hoverSnippet from "../../snippets/04-hover.tsx?raw"
 import hoverUrl from "../../snippets/04-hover.tsx?importChunkUrl"
-import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
-import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
+import pointerMissedSnippet from "../../snippets/04-pointer-missed.tsx?raw"
+import pointerMissedUrl from "../../snippets/04-pointer-missed.tsx?importChunkUrl"
 import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
 import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
 import dragSnippet from "../../snippets/04-drag.tsx?raw"
@@ -45,9 +45,9 @@ flips; `scale` reads it; one property assignment runs.
 
 Sometimes the interesting event is when the user clicks but _doesn't_ hit any
 mesh — to deselect the current selection, dismiss a tooltip, that sort of
-thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
+thing. [`<Canvas>`](/api/components/canvas) exposes `onPointerMissed` for exactly that case:
 
-<Demo code={clickMissedSnippet} url={clickMissedUrl} />
+<Demo code={pointerMissedSnippet} url={pointerMissedUrl} />
 
 Click the cube to select it; click anywhere else in the canvas to deselect.
 The two handlers cover the full "did you hit something?" question between

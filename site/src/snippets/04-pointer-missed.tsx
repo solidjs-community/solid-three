@@ -8,7 +8,7 @@ export default () => {
   const [selected, setSelected] = createSignal(false)
 
   return (
-    <Canvas camera={{ position: [0, 0, 3] }} onClickMissed={() => setSelected(false)}>
+    <Canvas camera={{ position: [0, 0, 3] }} onPointerMissed={() => setSelected(false)}>
       <T.Mesh onClick={() => setSelected(true)}>
         <T.BoxGeometry />
         <T.MeshStandardMaterial color={selected() ? "tomato" : "cornflowerblue"} />
