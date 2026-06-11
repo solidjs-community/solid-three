@@ -227,7 +227,7 @@ describe("events", () => {
 
 /**********************************************************************************/
 /*                                                                                */
-/*                           Mesh-level onClickMissed                             */
+/*                           Mesh-level onPointerMissed                           */
 /*                                                                                */
 /**********************************************************************************/
 
@@ -241,12 +241,12 @@ function makeClickAt(clientX: number, clientY: number) {
   return new MouseEvent("click", { clientX, clientY, bubbles: true })
 }
 
-describe("mesh onClickMissed", () => {
+describe("mesh onPointerMissed", () => {
   it("fires when a click misses the mesh", async () => {
-    const handleClickMissed = vi.fn()
+    const handleMissed = vi.fn()
 
     const { canvas } = await test(() => (
-      <T.Mesh onClickMissed={handleClickMissed}>
+      <T.Mesh onPointerMissed={handleMissed}>
         <T.BoxGeometry args={[2, 2]} />
         <T.MeshBasicMaterial />
       </T.Mesh>
@@ -254,14 +254,14 @@ describe("mesh onClickMissed", () => {
 
     fireEvent(canvas, makeClickAt(MISS_X, MISS_Y))
 
-    expect(handleClickMissed).toHaveBeenCalledTimes(1)
+    expect(handleMissed).toHaveBeenCalledTimes(1)
   })
 
   it("does not fire when the mesh itself is clicked", async () => {
-    const handleClickMissed = vi.fn()
+    const handleMissed = vi.fn()
 
     const { canvas } = await test(() => (
-      <T.Mesh onClickMissed={handleClickMissed}>
+      <T.Mesh onPointerMissed={handleMissed}>
         <T.BoxGeometry args={[2, 2]} />
         <T.MeshBasicMaterial />
       </T.Mesh>
@@ -269,38 +269,39 @@ describe("mesh onClickMissed", () => {
 
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 
-    expect(handleClickMissed).not.toHaveBeenCalled()
+    expect(handleMissed).not.toHaveBeenCalled()
   })
 
-  it("does not fire when a different mesh in the scene is clicked", async () => {
-    const handleClickMissed = vi.fn()
+  it("fires when a different mesh in the scene is clicked", async () => {
+    const handleMissed = vi.fn()
 
-    // Mesh A: off-center (far right), has onClickMissed
-    // Mesh B: at origin (center of screen), gets clicked
-    const { canvas } = await test(() => (
+    // Mesh A: off-center (far right), has onPointerMissed.
+    // Mesh B: at origin (center of screen), registered and gets clicked.
+    const { canvas, waitTillNextFrame } = await test(() => (
       <>
-        <T.Mesh onClickMissed={handleClickMissed} position-x={100}>
+        <T.Mesh onPointerMissed={handleMissed} position-x={100}>
           <T.BoxGeometry args={[2, 2]} />
           <T.MeshBasicMaterial />
         </T.Mesh>
-        <T.Mesh>
+        <T.Mesh onClick={() => {}}>
           <T.BoxGeometry args={[2, 2]} />
           <T.MeshBasicMaterial />
         </T.Mesh>
       </>
     ))
+    await waitTillNextFrame() // A's position only reaches the raycaster after a frame
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y)) // hits B; A is off to the side
 
-    expect(handleClickMissed).not.toHaveBeenCalled()
+    expect(handleMissed).toHaveBeenCalledTimes(1) // A wasn't hit → it hears that B was
   })
 
   it("does not fire on a parent when its child is clicked", async () => {
-    const handleParentClickMissed = vi.fn()
+    const handleParentMissed = vi.fn()
     const handleChildClick = vi.fn()
 
     const { canvas } = await test(() => (
-      <T.Group onClickMissed={handleParentClickMissed}>
+      <T.Group onPointerMissed={handleParentMissed}>
         <T.Mesh onClick={handleChildClick}>
           <T.BoxGeometry args={[2, 2]} />
           <T.MeshBasicMaterial />
@@ -311,7 +312,7 @@ describe("mesh onClickMissed", () => {
     fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
 
     expect(handleChildClick).toHaveBeenCalledTimes(1)
-    expect(handleParentClickMissed).not.toHaveBeenCalled()
+    expect(handleParentMissed).not.toHaveBeenCalled()
   })
 })
 

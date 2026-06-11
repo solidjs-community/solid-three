@@ -15,10 +15,6 @@ import { test } from "../../src/testing/index.tsx"
  * any test that relies on an object's *position* must `await waitTillNextFrame()`
  * first — otherwise every mesh hit-tests as if at the origin. Tests that use
  * only an origin mesh (or an empty scene) don't need it.
- *
- * A test marked `it.fails` documents a behaviour the system is meant to have but
- * currently doesn't — it stays green while broken and turns red the day it's
- * fixed, prompting the `.fails` removal.
  */
 
 const T = createT(THREE)
@@ -61,31 +57,24 @@ function StackBox(props: { z: number; prop: string; handler: (e: any) => void })
 /**
  * A mesh with *any* pointer handler is hit-tested for *every* gesture. So a
  * click lands on a mesh whose only handler is `onWheel` (or `onPointerMove`):
- * it counts as a hit, the canvas-level `*Missed` does not fire, and the
- * canvas-level handler does.
+ * it counts as a hit, so the click is not a void and the canvas-level
+ * `onPointerMissed` does not fire.
  */
 describe("a mesh whose only handler is a different event still counts as a hit", () => {
-  const missable = [
-    { gesture: "click", missed: "onClickMissed", canvas: "onClick" },
-    { gesture: "dblclick", missed: "onDoubleClickMissed", canvas: "onDoubleClick" },
-    { gesture: "contextmenu", missed: "onContextMenuMissed", canvas: "onContextMenu" },
-  ] as const
+  const gestures = ["click", "dblclick", "contextmenu"] as const
   const unrelated = ["onWheel", "onPointerMove"] as const
 
-  for (const g of missable) {
+  for (const gesture of gestures) {
     for (const u of unrelated) {
-      it(`clicking a ${u}-only mesh does not fire ${g.missed}, and canvas ${g.canvas} fires`, () => {
+      it(`clicking a ${u}-only mesh does not fire onPointerMissed (union: it is a hit)`, () => {
         const missed = vi.fn()
-        const canvasHit = vi.fn()
         const { canvas } = test(() => <SoleHandlerBox eventType={u} />, {
-          [g.missed]: missed,
-          [g.canvas]: canvasHit,
+          onPointerMissed: missed,
         })
 
-        fire(canvas, g.gesture)
+        fire(canvas, gesture)
 
-        expect(missed).not.toHaveBeenCalled() // the mesh is a hit, so the click is not a miss
-        expect(canvasHit).toHaveBeenCalledTimes(1) // ...and the hit reaches the canvas handler
+        expect(missed).not.toHaveBeenCalled() // the mesh is a hit, so the click is not a void
       })
     }
   }
@@ -93,29 +82,22 @@ describe("a mesh whose only handler is a different event still counts as a hit",
 
 /**********************************************************************************/
 /*                                                                                */
-/*       Clicking one object notifies the others via their onClickMissed          */
+/*       Clicking one object notifies the others via their onPointerMissed          */
 /*                                                                                */
 /**********************************************************************************/
 
-/**
- * `onClickMissed` on an object fires when the click lands on a *different*
- * object — so an object can react to "something else was clicked" (the
- * decentralized deselect pattern). Needs a real position for the second mesh,
- * hence the frame wait. This is a real feature today; the void-fork branches
- * drop per-object miss, so this turns red there — the removal made visible.
- */
-describe("clicking one object fires another object's onClickMissed", () => {
-  it("clicking A fires B's onClickMissed; A's own does not fire", async () => {
+describe("clicking one object fires another object's onPointerMissed (r3f not-me)", () => {
+  it("clicking A fires B's onPointerMissed; A's own does not", async () => {
     const aClick = vi.fn()
     const aMissed = vi.fn()
     const bMissed = vi.fn()
     const { canvas, waitTillNextFrame } = test(() => (
       <>
-        <T.Mesh onClick={aClick} onClickMissed={aMissed}>
+        <T.Mesh onClick={aClick} onPointerMissed={aMissed}>
           <T.BoxGeometry args={[2, 2]} />
           <T.MeshBasicMaterial />
         </T.Mesh>
-        <T.Mesh position-x={100} onClick={() => {}} onClickMissed={bMissed}>
+        <T.Mesh position-x={100} onClick={() => {}} onPointerMissed={bMissed}>
           <T.BoxGeometry args={[2, 2]} />
           <T.MeshBasicMaterial />
         </T.Mesh>
@@ -128,6 +110,29 @@ describe("clicking one object fires another object's onClickMissed", () => {
     expect(aClick).toHaveBeenCalledTimes(1)
     expect(bMissed).toHaveBeenCalledTimes(1) // B wasn't hit → it hears that something else was
     expect(aMissed).not.toHaveBeenCalled() // A was the hit
+  })
+
+  it("a total miss fires onPointerMissed on every registered object", async () => {
+    const aMissed = vi.fn()
+    const bMissed = vi.fn()
+    const { canvas, waitTillNextFrame } = test(() => (
+      <>
+        <T.Mesh onClick={() => {}} onPointerMissed={aMissed}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+        <T.Mesh position-x={100} onClick={() => {}} onPointerMissed={bMissed}>
+          <T.BoxGeometry args={[2, 2]} />
+          <T.MeshBasicMaterial />
+        </T.Mesh>
+      </>
+    ))
+    await waitTillNextFrame()
+
+    fireEvent(canvas, new MouseEvent("click", { clientX: 0, clientY: 0, bubbles: true })) // empty space
+
+    expect(aMissed).toHaveBeenCalledTimes(1)
+    expect(bMissed).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -193,16 +198,16 @@ describe("an object behind the front one still receives the gesture; stopPropaga
 /**********************************************************************************/
 
 /**
- * When a child stops propagation, the event never bubbles up to its parent
- * group — so the group is treated as "missed" even though the click landed
- * inside it. A click within a group is not a miss of the group; assert the
- * intended behaviour and mark it `it.fails` until that holds.
+ * A click inside a group is a hit, not a miss of the group — even when the child
+ * stops propagation so the event never bubbles up to the group. The miss is gated
+ * solely on a total miss (nothing hit), so a stopped bubble can't reclassify an
+ * ancestor as missed (this is what dissolved "Surprise B").
  */
-it.fails("a group's onClickMissed should not fire when its own child is clicked", async () => {
+it("a group's onPointerMissed does not fire when its own child is clicked", async () => {
   const childClick = vi.fn()
   const groupMissed = vi.fn()
   const { canvas, waitTillNextFrame } = test(() => (
-    <T.Group onClickMissed={groupMissed}>
+    <T.Group onPointerMissed={groupMissed}>
       <T.Mesh onClick={(e: any) => (childClick(e), e.stopPropagation())}>
         <T.BoxGeometry args={[2, 2]} />
         <T.MeshBasicMaterial />
@@ -214,7 +219,7 @@ it.fails("a group's onClickMissed should not fire when its own child is clicked"
   fire(canvas, "click")
 
   expect(childClick).toHaveBeenCalledTimes(1)
-  expect(groupMissed).not.toHaveBeenCalled() // intended; currently fires (the child stopped the bubble)
+  expect(groupMissed).not.toHaveBeenCalled() // a click inside the group is a hit, not a miss
 })
 
 /**********************************************************************************/
@@ -257,30 +262,13 @@ describe("raycastable={false} skips the mesh and the ray passes through to what 
 /**********************************************************************************/
 
 describe("clicking empty space is a void", () => {
-  it.fails("a void should not fire both onClick and onClickMissed", () => {
-    let click = 0
+  it("a void fires onPointerMissed and nothing else", () => {
     let missed = 0
-    const { canvas } = test(() => null, {
-      onClick: () => click++,
-      onClickMissed: () => missed++,
-    })
+    const { canvas } = test(() => null, { onPointerMissed: () => missed++ })
 
     fire(canvas, "click")
 
-    // A void is one event; it should deliver a single canvas signal, not both a
-    // positive (onClick) and a negative (onClickMissed). Today it fires both —
-    // assert the intended single-signal and mark it `fails` until a void delivers
-    // one or the other. (Both void-fork branches resolve this, in different ways.)
-    expect(click + missed).toBeLessThan(2)
-  })
-
-  it("the canvas onClick on a void receives an event whose object is undefined", () => {
-    let object: unknown = "unset"
-    const { canvas } = test(() => null, { onClick: (e: any) => (object = e.object) })
-
-    fire(canvas, "click")
-
-    expect(object).toBeUndefined()
+    expect(missed).toBe(1)
   })
 })
 
@@ -299,54 +287,57 @@ const MISS_Y = 0
 const pointerAt = (type: string, x: number, y: number) =>
   new PointerEvent(type, { clientX: x, clientY: y, pointerId: 1, bubbles: true })
 
-/** A 2×2 box at origin that captures on pointerdown. */
-function Capturing(props: { onMove?: (e: any) => void; onUp?: (e: any) => void }) {
+/** A 2×2 box at origin that captures on pointerdown, wrapped so an ancestor can observe. */
+function CapturingInGroup(props: {
+  groupMove?: (e: any) => void
+  groupUp?: (e: any) => void
+  meshStopsUp?: boolean
+}) {
   return (
-    <T.Mesh
-      onPointerDown={(e: any) => e.setPointerCapture()}
-      onPointerMove={(e: any) => props.onMove?.(e)}
-      onPointerUp={(e: any) => props.onUp?.(e)}
-    >
-      <T.BoxGeometry args={[2, 2]} />
-      <T.MeshBasicMaterial />
-    </T.Mesh>
+    <T.Group onPointerMove={props.groupMove} onPointerUp={props.groupUp}>
+      <T.Mesh
+        onPointerDown={(e: any) => e.setPointerCapture()}
+        onPointerUp={props.meshStopsUp ? (e: any) => e.stopPropagation() : undefined}
+      >
+        <T.BoxGeometry args={[2, 2]} />
+        <T.MeshBasicMaterial />
+      </T.Mesh>
+    </T.Group>
   )
 }
 
-describe("a captured pointer's up/move still reach the canvas-level handler unless stopped", () => {
-  it("a captured up reaches the canvas onPointerUp", () => {
-    const canvasUp = vi.fn()
-    const { canvas } = test(() => <Capturing />, { onPointerUp: canvasUp })
+describe("a captured pointer's up/move still bubble to an ancestor handler unless stopped", () => {
+  it("a captured up reaches a root-group onPointerUp", () => {
+    const groupUp = vi.fn()
+    const { canvas } = test(() => <CapturingInGroup groupUp={groupUp} />)
     vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
 
-    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures
+    fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y)) // captures the mesh
     fireEvent(canvas, pointerAt("pointerup", MISS_X, MISS_Y)) // ray off the mesh
 
-    expect(canvasUp).toHaveBeenCalledTimes(1)
+    expect(groupUp).toHaveBeenCalledTimes(1) // bubbled up the captured object's ancestor chain
   })
 
-  it("a captured move reaches the canvas onPointerMove", () => {
-    const canvasMove = vi.fn()
-    const { canvas } = test(() => <Capturing />, { onPointerMove: canvasMove })
+  it("a captured move reaches a root-group onPointerMove", () => {
+    const groupMove = vi.fn()
+    const { canvas } = test(() => <CapturingInGroup groupMove={groupMove} />)
     vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
 
     fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y))
     fireEvent(canvas, pointerAt("pointermove", MISS_X, MISS_Y))
 
-    expect(canvasMove).toHaveBeenCalledTimes(1)
+    expect(groupMove).toHaveBeenCalledTimes(1)
   })
 
-  it("a captured object that stops propagation withholds the canvas onPointerUp", () => {
-    const canvasUp = vi.fn()
-    const { canvas } = test(() => <Capturing onUp={(e: any) => e.stopPropagation()} />, {
-      onPointerUp: canvasUp,
-    })
+  it("a captured mesh that stops propagation withholds the group onPointerUp", () => {
+    const groupUp = vi.fn()
+    const { canvas } = test(() => <CapturingInGroup groupUp={groupUp} meshStopsUp />)
     vi.spyOn(canvas, "setPointerCapture").mockImplementation(() => {})
 
     fireEvent(canvas, pointerAt("pointerdown", HIT_X, HIT_Y))
     fireEvent(canvas, pointerAt("pointerup", MISS_X, MISS_Y))
 
-    expect(canvasUp).not.toHaveBeenCalled()
+    expect(groupUp).not.toHaveBeenCalled()
   })
 })
 

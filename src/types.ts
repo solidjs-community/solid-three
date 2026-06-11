@@ -439,27 +439,27 @@ export type PointerCapture = {
 
 type EventHandlersMap = {
   onClick: Prettify<ThreeEvent<MouseEvent>>
-  onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
   onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
   onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
   onWheel: Prettify<ThreeEvent<WheelEvent>>
+  // The miss. Object-level fires on every registered object the click did not land on;
+  // canvas-level fires only on a total miss. Non-stoppable, no intersection payload.
+  onPointerMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
 }
 
 export type EventHandlers = {
   [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
 }
 
+// The canvas exposes only the miss now — every other pointer handler is object-level
+// (r3f has no canvas-level 3D handler except onPointerMissed).
 export type CanvasEventHandlers = {
-  [TKey in keyof EventHandlersMap]: (
-    event: Prettify<Omit<EventHandlersMap[TKey], "currentIntersection">>,
-  ) => void
+  onPointerMissed: (event: EventHandlersMap["onPointerMissed"]) => void
 }
 
 /** The names of all `EventHandlers` */

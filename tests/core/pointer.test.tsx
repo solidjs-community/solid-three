@@ -28,7 +28,6 @@ function fakeRaycaster(state: RayState): PointerRaycaster {
             } as any,
           ]
         : [],
-    intersectObject: () => [],
     aim: () => {},
     ray: new Ray(),
   }
@@ -94,13 +93,14 @@ describe("Pointer dispatch", () => {
     expect(seen[1]).toBe(parent) // bubbled handler on parent sees parent
   })
 
-  it("fires onClickMissed (mesh-level + canvas-level) when the click hits nothing", () => {
+  it("fires onPointerMissed (mesh-level + canvas-level) when the click hits nothing", () => {
     const meshMissed = vi.fn()
     const canvasMissed = vi.fn()
-    const mesh = eventful({ onClickMissed: meshMissed })
-    const pointer = new Pointer(ctx([mesh], { onClickMissed: canvasMissed }), fakeRaycaster({}))
+    const mesh = eventful({ onPointerMissed: meshMissed })
+    const pointer = new Pointer(ctx([mesh], { onPointerMissed: canvasMissed }), fakeRaycaster({}))
 
     pointer.click("onClick", new MouseEvent("click"))
+
     expect(meshMissed).toHaveBeenCalledTimes(1)
     expect(canvasMissed).toHaveBeenCalledTimes(1)
   })
@@ -264,7 +264,6 @@ describe("Pointer capture lifecycle", () => {
     hitLeaf.updateMatrixWorld()
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
@@ -289,7 +288,6 @@ describe("Pointer capture lifecycle", () => {
     const mesh = eventful({ onPointerMove: (e: any) => (point = e.intersection.point) })
     const raycaster: PointerRaycaster = {
       cast: () => [],
-      intersectObject: () => [],
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
@@ -376,19 +374,6 @@ describe("Pointer capture lifecycle", () => {
     expect(otherUp).not.toHaveBeenCalled()
   })
 
-  it("bubbles a captured up to the canvas-level handler unless stopped", () => {
-    const canvasUp = vi.fn()
-    const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
-    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([captured], { onPointerUp: canvasUp }), fakeRaycaster(state))
-
-    pointer.down(new Event("pointerdown"))
-    state.target = undefined
-    pointer.up(new Event("pointerup"))
-
-    expect(canvasUp).toHaveBeenCalledTimes(1) // canvas-level still fires during capture
-  })
-
   it("reprojects the live ray onto the captured plane for a fresh point", () => {
     let seenPoint: Vector3 | undefined
     const captured = eventful({
@@ -448,22 +433,6 @@ describe("Pointer capture lifecycle", () => {
 
     expect(capturedMove).toHaveBeenCalledTimes(1)
     expect(otherEnter).not.toHaveBeenCalled() // frozen hover — other objects stay quiet
-  })
-
-  it("while captured, canvas-level onPointerMove still fires unless stopped", () => {
-    const canvasMove = vi.fn()
-    const captured = eventful({ onPointerDown: (e: any) => e.setPointerCapture() })
-    const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(
-      ctx([captured], { onPointerMove: canvasMove }),
-      fakeRaycaster(state),
-    )
-
-    pointer.down(new Event("pointerdown"))
-    state.target = undefined
-    pointer.move(new Event("pointermove"))
-
-    expect(canvasMove).toHaveBeenCalledTimes(1)
   })
 
   it("can start a capture from onPointerMove", () => {
