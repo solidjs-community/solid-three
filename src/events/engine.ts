@@ -1,5 +1,6 @@
-import { onCleanup } from "solid-js"
-import type { Object3D } from "three"
+import { createRenderEffect, onCleanup } from "solid-js"
+import { Raycaster, type Object3D } from "three"
+import { useProps } from "../props.ts"
 import type { Context } from "../types.ts"
 import { captureRegistry } from "./pointer-capture.ts"
 import { DOMPointerManager } from "./pointer-managers.ts"
@@ -97,9 +98,26 @@ export function installEngine(context: Context, raycaster?: ScreenRaycaster) {
   // The screen pointer's ray strategy: the engine's configured raycaster, else the
   // canvas's own when that is a screen raycaster, else a fresh `CursorRaycaster`.
   const candidate: unknown = raycaster ?? context.raycaster
-  const screenRaycaster: ScreenRaycaster = isScreenRaycaster(candidate)
+  const isCandidateScreenRaycaster = isScreenRaycaster(candidate)
+  const screenRaycaster: ScreenRaycaster = isCandidateScreenRaycaster
     ? candidate
     : new CursorRaycaster()
+  // The engine had to fall back to its own raycaster — core's `raycaster()` memo isn't
+  // shaped like a screen raycaster (it's a plain `THREE.Raycaster`, since the engine
+  // that WOULD make it one lives here, not in core). So the canvas's `raycaster`
+  // CONFIG has to be applied here too, onto the raycaster that actually casts, or a
+  // `<Canvas raycaster={{ far, near, ... }}>` silently stops affecting picking. Mirrors
+  // core's own gate in `create-three.tsx`: skip when there is no config object, or when
+  // the user passed a raycaster INSTANCE (an instance's own values already won, and —
+  // per `isCandidateScreenRaycaster` above — a screen-raycaster instance is used
+  // directly instead of reaching this branch at all).
+  if (!isCandidateScreenRaycaster) {
+    createRenderEffect(() => {
+      const configuredRaycaster = context.props.raycaster
+      if (!configuredRaycaster || configuredRaycaster instanceof Raycaster) return
+      useProps(screenRaycaster, configuredRaycaster, context)
+    })
+  }
   const engine = new PointerEventsEngine(context, screenRaycaster)
   engines.set(context, engine)
   onCleanup(engine.connect())
