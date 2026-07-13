@@ -242,11 +242,29 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
   : never
 
 /**
- * A composable extension: a function `(element) => methods`. A contributed
- * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
+ * Optional statics an engine-style plugin attaches to its function. `plugin()` does not
+ * add them; the engine does, via `Object.assign`.
+ */
+export interface PluginStatics {
+  /**
+   * Stable per-engine identity — a MODULE-LEVEL symbol, never the plugin instance.
+   * Two instances of the same engine share one installation per context. Using the
+   * instance here double-installs and double-dispatches.
+   */
+  token?: symbol
+  /** One-time per-context setup, run through `Context.initializePlugin` under the canvas owner. */
+  install?: (context: Context) => void
+  /** Canvas-level contributed props: prop name -> method receiving the prop value. */
+  canvas?: (context: Context) => Record<string, (value: any) => void>
+}
+
+/**
+ * A composable extension: a function `(element) => methods`, optionally carrying
+ * {@link PluginStatics}. A contributed method's first-param type becomes the element's
+ * prop type (see {@link PluginPropsOf}).
  * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
  */
-export type Plugin<TFn = (element: any) => any> = TFn
+export type Plugin<TFn = (element: any) => any> = TFn & PluginStatics
 
 /** The three `plugin()` creation forms: global, class-filtered, type-guard. */
 export interface PluginFn {
@@ -309,6 +327,15 @@ export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIn
       string,
       any
     >
+      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      : {}
+  }[number]
+>
+
+/** Resolves the canvas-level contributed props across `TPlugins`. */
+export type CanvasPropsOf<TPlugins extends readonly Plugin[]> = UnionToIntersection<
+  {
+    [K in keyof TPlugins]: TPlugins[K] extends { canvas: (context: any) => infer Methods }
       ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
       : {}
   }[number]

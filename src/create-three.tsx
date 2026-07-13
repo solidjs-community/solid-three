@@ -8,6 +8,7 @@ import {
   getOwner,
   mergeProps,
   onCleanup,
+  runWithOwner,
   untrack,
 } from "solid-js"
 import {
@@ -361,7 +362,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     initializePlugin(token: unknown, fn: () => void) {
       if (initializedPlugins.has(token)) return
       initializedPlugins.add(token)
-      fn()
+      // `this.owner` (not a fresh `getOwner()`) — `initializePlugin` is invoked from
+      // inside a per-element render effect, so an ambient `getOwner()` call here would
+      // resolve to that element's own reactive scope and tie the plugin's cleanup to
+      // whichever element happens to trigger the (deduped) install first, defeating the
+      // point of this change. `this.owner` is the Canvas's owner, captured once above.
+      if (this.owner) runWithOwner(this.owner, fn)
+      else fn()
     },
     canvas,
     clock,
