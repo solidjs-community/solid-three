@@ -192,4 +192,24 @@ describe("hooks", () => {
       },
     })
   })
+
+  it("exposes addFrameListener on the context so plugins can drive the loop", async () => {
+    const ticks = vi.fn()
+    let dispose: (() => void) | undefined
+
+    const Component = () => {
+      const context = useThree()
+      dispose = context.addFrameListener(() => ticks())
+      return null
+    }
+
+    test(() => <Component />)
+
+    await waitFor(() => expect(ticks.mock.calls.length).toBeGreaterThan(0))
+    const before = ticks.mock.calls.length
+    dispose?.()
+    const after = ticks.mock.calls.length
+    await waitFor(() => expect(ticks.mock.calls.length).toBe(after))
+    expect(after).toBeGreaterThanOrEqual(before)
+  })
 })

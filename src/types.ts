@@ -324,6 +324,11 @@ export interface Context {
    * XR plugin wiring its controller source on the first `onXRSelect` registration.
    */
   initializePlugin(token: unknown, fn: () => void): void
+  /**
+   * Subscribe to the frame loop. The engine-facing half of `useFrame`: a plugin has
+   * no Solid context, so the loop must be reachable from `Context` itself.
+   */
+  addFrameListener: FrameListener
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind

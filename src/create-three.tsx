@@ -357,6 +357,7 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return measure.bounds()
     },
     owner: getOwner(),
+    addFrameListener,
     initializePlugin(token: unknown, fn: () => void) {
       if (initializedPlugins.has(token)) return
       initializedPlugins.add(token)
