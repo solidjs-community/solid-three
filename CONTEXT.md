@@ -47,8 +47,9 @@ _Avoid_: sub-property, hyphen notation
 The root component. Sets up the **renderer**, scene, camera, and raycaster, and provides the **Context** to descendants.
 
 **Context**:
-The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `raycaster`, `clock`, `eventRegistry`, `viewport`, `bounds`, and the render loop. Returned by `useThree`.
+The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `raycaster`, `clock`, `viewport`, `bounds`, `initializePlugin`, `addFrameListener`, and the render loop. Returned by `useThree`.
 _Avoid_: confusing it with the Solid context (`threeContext`) that distributes it — they're distinct.
+_Note_: the **eventRegistry** is not here. It belongs to an **event engine**, one per Context — core holds no event state.
 
 **Renderer**:
 The three.js renderer instance (`WebGLRenderer` or `WebGPURenderer`). Named `gl` in code — the `Context.gl` field and the `Canvas` `gl` prop (which also accepts renderer params or a factory). An R3F inheritance, and a misnomer once `WebGPURenderer` is in play.
@@ -114,8 +115,11 @@ A **pointer source**'s implementation — owns the source's listeners and routes
 **Pointer**:
 The per-pointer state machine (one per `pointerId`, plus a primary) that raycasts the **eventRegistry** and dispatches/bubbles to handlers, tracking its own hover and capture state.
 
+**event engine**:
+A plugin that owns a pointer paradigm end to end — its own **eventRegistry**, **raycaster**, dispatch and propagation rules. Core ships none; `pointerEvents()` (`solid-three/events`) is the reference one. Engines are peers: each owns its own registry, so two engines on one **Canvas** partition by which namespace minted the **object**. Handler props are contributed by the engine, so without one installed, `onClick` is not a prop at all.
+
 **eventRegistry**:
-The set of **objects** carrying event handlers; what the pointer system raycasts.
+The set of **objects** carrying event handlers; what an **event engine** raycasts. Belongs to the engine, one per **Context** — not to core.
 
 **raycaster**:
 Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform.

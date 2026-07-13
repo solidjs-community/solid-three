@@ -10,6 +10,8 @@ The `raycastable` prop controls whether an `Object3D` can be hit by raycasting.
 | ------------- | --------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
 | `raycastable` | `boolean` | `true`  | When `false`, the object isn't hit by rays directly, but still receives events that bubble up from its descendants. |
 
+`raycastable` is a core prop — it exists whether or not a pointer-event engine is installed, since it controls what any engine's raycast sees. The example below assumes `pointerEvents()` has already been installed on `T` (see [Events overview](/api/events/overview)); without it, `onClick` would not compile.
+
 ```tsx
 <T.Mesh name="parent" raycastable={false} onClick={() => console.log("Child clicked!")}>
   <T.Mesh name="child" />

@@ -4,9 +4,32 @@ title: Events overview
 
 # Event handling
 
-`solid-three` has its own pointer-event system, inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber). Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
+`solid-three`'s core ships no pointer-event system. Events come from `pointerEvents`, a plugin in `solid-three/events` inspired by [`react-three-fiber`](https://github.com/pmndrs/react-three-fiber), and everything on this page — `onClick`, hover, dragging, `onPointerMissed` — exists only once you install it.
 
-You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same handler names also work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)).
+That is deliberate. Plugins contribute _typed_ props, so a scene that forgets the engine fails to compile on its first `onClick` instead of rendering a handler that silently never fires.
+
+Events are dispatched by raycasting against the scene, then propagate twice: along the ray (through every object the ray hit) and up the scene graph (from the hit object to its ancestors).
+
+You attach handlers as props on any [`<T.*>`](/api/components/t) or [`<Entity/>`](/api/components/entity) component. The same names work on [`<Canvas/>`](/api/components/canvas), where they fire after tree propagation finishes — handy for catching clicks that land on empty space (see [Missed events](#missed-events)). A canvas only accepts them if the engine is installed on it too.
+
+## Installing the engine
+
+For object-level handlers — `onClick`, `onPointerEnter`/`onPointerLeave`, dragging — install the engine into the namespace:
+
+```tsx
+import { createT } from "solid-three"
+import { pointerEvents } from "solid-three/events"
+
+const T = createT(THREE, [pointerEvents()])
+```
+
+For the canvas-level `onPointerMissed` — the "clicked empty space" signal — reach for `createT.withCanvas`, which hands back a `Canvas` with the engine already listed on it:
+
+```tsx
+import { pointerEvents } from "solid-three/events"
+
+const { T, Canvas } = createT.withCanvas(THREE, [pointerEvents()])
+```
 
 ## Supported events
 
@@ -120,6 +143,8 @@ Each dispatch runs two propagation passes:
 2. **Up the scene graph (tree)** — after an object's handler runs, the event bubbles up its ancestors. `stopPropagation()` stops this too.
 
 ```tsx
+const T = createT(THREE, [pointerEvents()])
+
 const EventPropagation = () => (
   <Canvas>
     <T.Group onClick={() => console.log("3. Group clicked (tree propagation)")}>
@@ -165,6 +190,8 @@ Not every event accepts `stopPropagation()`. The split mirrors the DOM:
 `onPointerMissed` is the "not-me" signal. On an object it fires when a click, double-click, or context-menu lands somewhere _other_ than that object — a different object, or empty space. It does **not** fire when the object itself, or one of its descendants, is hit (clicking inside an object counts as hitting it). It can't be stopped and carries no object payload. This matches react-three-fiber.
 
 ```tsx
+const T = createT(THREE, [pointerEvents()])
+
 // A selectable mesh: clicking it selects; clicking anything else clears it.
 <T.Mesh onClick={() => select()} onPointerMissed={() => deselect()}>
   <T.BoxGeometry args={[1, 1, 1]} />
@@ -172,9 +199,11 @@ Not every event accepts `stopPropagation()`. The split mirrors the DOM:
 </T.Mesh>
 ```
 
-On the [`<Canvas/>`](/api/components/canvas), `onPointerMissed` is narrower: it fires only when the click hit **nothing at all** — the canvas-wide "clicked empty space" / deselect signal.
+On the [`<Canvas/>`](/api/components/canvas), `onPointerMissed` is narrower: it fires only when the click hit **nothing at all** — the canvas-wide "clicked empty space" / deselect signal. The engine has to be listed on that canvas for the prop to exist at all — `createT.withCanvas` builds both together:
 
 ```tsx
+const { T, Canvas } = createT.withCanvas(THREE, [pointerEvents()])
+
 <Canvas onPointerMissed={() => deselectAll()}>
   <T.Mesh onClick={() => select()}>
     <T.BoxGeometry />
@@ -251,7 +280,7 @@ See the [pointer events tour](/tour/04-pointer-events#dragging) for a runnable d
 For visuals that should follow a drag — scaling or recoloring the grabbed object — read the capture state declaratively with the top-level `hasPointerCapture(object)` instead of tracking your own `grabbing` flag:
 
 ```tsx
-import { hasPointerCapture } from "solid-three"
+import { hasPointerCapture } from "solid-three/events"
 
 let mesh: THREE.Mesh | undefined
 ;<T.Mesh
