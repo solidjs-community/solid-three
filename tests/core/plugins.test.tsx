@@ -42,6 +42,31 @@ describe("resolvePluginMethods", () => {
     expect(Object.keys(merged).sort()).toEqual(["ping", "shake"])
     expect(resolvePluginMethods(new Mesh(), [])).toEqual({})
   })
+
+  it("warns in dev when two plugins contribute the same element prop, and last-wins still holds", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const first = plugin([Mesh], () => ({ onPing: () => "first" }))
+    const second = plugin([Mesh], () => ({ onPing: () => "second" }))
+
+    const merged = resolvePluginMethods(new Mesh(), [first, second])
+
+    expect(merged.onPing(undefined)).toBe("second")
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("onPing"))
+    warn.mockRestore()
+  })
+
+  it("does not warn when two plugins contribute different element props", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const first = plugin([Mesh], () => ({ onPing: () => "ping" }))
+    const second = plugin([Mesh], () => ({ onPong: () => "pong" }))
+
+    const merged = resolvePluginMethods(new Mesh(), [first, second])
+
+    expect(merged.onPing(undefined)).toBe("ping")
+    expect(merged.onPong(undefined)).toBe("pong")
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
 })
 
 describe("plugin prop routing", () => {
