@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest"
 import { pointerEvents } from "../../src/events/index.ts"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
+import { clickCanvasCentre, makeClickAt } from "../utils/pointer-utils.ts"
 
 const T = createT(THREE, [pointerEvents()])
 
@@ -232,15 +233,10 @@ describe("events", () => {
 /*                                                                                */
 /**********************************************************************************/
 
-const HIT_X = 640
-const HIT_Y = 400
+// HIT_X/HIT_Y match CANVAS_CENTRE_X/CANVAS_CENTRE_Y from tests/utils/pointer-utils.ts —
+// where a 2×2 BoxGeometry centred at the origin sits, camera at z=5.
 const MISS_X = 0
 const MISS_Y = 0
-
-function makeClickAt(clientX: number, clientY: number) {
-  // Canvas is at (0, 0) in document.body, so offsetX/Y === clientX/Y.
-  return new MouseEvent("click", { clientX, clientY, bubbles: true })
-}
 
 describe("mesh onPointerMissed", () => {
   it("fires when a click misses the mesh", async () => {
@@ -268,7 +264,7 @@ describe("mesh onPointerMissed", () => {
       </T.Mesh>
     ))
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleMissed).not.toHaveBeenCalled()
   })
@@ -292,7 +288,7 @@ describe("mesh onPointerMissed", () => {
     ))
     await waitTillNextFrame() // A's position only reaches the raycaster after a frame
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y)) // hits B; A is off to the side
+    clickCanvasCentre(canvas) // hits B; A is off to the side
 
     expect(handleMissed).toHaveBeenCalledTimes(1) // A wasn't hit → it hears that B was
   })
@@ -310,7 +306,7 @@ describe("mesh onPointerMissed", () => {
       </T.Group>
     ))
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleChildClick).toHaveBeenCalledTimes(1)
     expect(handleParentMissed).not.toHaveBeenCalled()
@@ -336,14 +332,14 @@ describe("event handler reactivity", () => {
     ))
 
     // No handler yet — click should not fire
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleClick).not.toHaveBeenCalled()
 
     // Add the handler reactively
     setOnClick(() => handleClick)
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleClick).toHaveBeenCalledTimes(1)
   })
@@ -360,14 +356,14 @@ describe("event handler reactivity", () => {
     ))
 
     // Handler active — click fires
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleClick).toHaveBeenCalledTimes(1)
 
     // Remove handler reactively
     setOnClick(undefined)
 
-    fireEvent(canvas, makeClickAt(HIT_X, HIT_Y))
+    clickCanvasCentre(canvas)
 
     expect(handleClick).toHaveBeenCalledTimes(1) // no new call
   })
