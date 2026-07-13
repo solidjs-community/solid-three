@@ -40,5 +40,13 @@ jobs:
       - name: Test
         run: pnpm test --run
 
+      # The packaging guard, and the only suite that can see a defect which exists solely
+      # in the BUILT bundles — e.g. a duplicated copy of core, which makes pointer events
+      # silently never fire for consumers while every other suite (all of which import
+      # `src/`, one module graph) stays green. `test:published` rebuilds first, so it can
+      # never run against a stale `dist/`.
+      - name: Test published package
+        run: pnpm test:published
+
       - name: Publish preview
         run: pnpx pkg-pr-new publish --compact --template ./demo
