@@ -65,7 +65,7 @@
         }
       },
       "import": {
-        "types": "./dist/events/index.d.ts",
+        "types": "./dist/events.d.ts",
         "default": "./dist/events.js"
       }
     },
@@ -89,7 +89,7 @@
   "typesVersions": {
     "*": {
       "events": [
-        "./dist/events/index.d.ts"
+        "./dist/events.d.ts"
       ],
       "testing": [
         "./dist/testing/index.d.ts"

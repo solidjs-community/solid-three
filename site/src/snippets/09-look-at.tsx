@@ -1,5 +1,6 @@
 import { createSignal, For } from "solid-js"
 import { Canvas, createT, plugin } from "solid-three"
+import { pointerEvents } from "solid-three/events"
 import * as THREE from "three"
 
 // A plugin: every Object3D gains a `lookAt` prop that calls three's `lookAt()`.
@@ -7,7 +8,7 @@ const lookAt = plugin([THREE.Object3D], object => ({
   lookAt: (target: THREE.Vector3) => object.lookAt(target),
 }))
 
-const T = createT(THREE, [lookAt])
+const T = createT(THREE, [lookAt, pointerEvents()])
 
 // One cone geometry, rotated so its tip points along +Z — a Mesh's lookAt()
 // aims +Z at the target (cameras/lights aim -Z; meshes are the opposite).

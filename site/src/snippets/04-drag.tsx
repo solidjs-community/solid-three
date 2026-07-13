@@ -1,8 +1,9 @@
 import * as THREE from "three"
 import { createSignal } from "solid-js"
-import { Canvas, createT, hasPointerCapture } from "solid-three"
+import { Canvas, createT } from "solid-three"
+import { hasPointerCapture, pointerEvents } from "solid-three/events"
 
-const T = createT(THREE)
+const T = createT(THREE, [pointerEvents()])
 
 export default () => {
   const [position, setPosition] = createSignal<[number, number, number]>([0, 0, 0])
