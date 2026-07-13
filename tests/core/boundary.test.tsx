@@ -2,14 +2,15 @@ import { render } from "@solidjs/testing-library"
 import { onCleanup } from "solid-js"
 import { Object3D, Raycaster, Vector2 } from "three"
 import * as THREE from "three"
-import { describe, expect, it, vi } from "vitest"
+import { assertType, describe, expect, it, vi } from "vitest"
 import { Canvas } from "../../src/canvas.tsx"
 import { createT } from "../../src/create-t.tsx"
 import { pointerEvents } from "../../src/events/index.ts"
+import type { EventHandlers } from "../../src/events/types.ts"
 import { useThree } from "../../src/hooks.ts"
 import { plugin } from "../../src/plugin.ts"
 import { test as renderThree } from "../../src/testing/index.tsx"
-import type { Context } from "../../src/types.ts"
+import type { Context, Plugin } from "../../src/types.ts"
 import { clickCanvasCentre } from "../utils/pointer-utils.ts"
 
 /**
@@ -62,6 +63,28 @@ function fakeEngine(
       },
       canvas: (_context: Context) => ({
         onFakeMissed: (value: unknown) => received(value),
+      }),
+    },
+  )
+}
+
+/**
+ * A SECOND engine whose contributed surface is spelled differently from `fakeEngine`'s:
+ * canvas prop `onOtherMissed`, element prop `onOtherClick`. The distinct spelling is the
+ * whole point — two `fakeEngine(...)` instances have identical structural types, so an
+ * override with one typechecks against a `Canvas` whose `plugins` prop is pinned to the
+ * bound tuple even when overriding is not actually supported. Only an engine of a
+ * genuinely different type discriminates.
+ */
+function otherEngine(name: string, received: (value: unknown) => void) {
+  return Object.assign(
+    plugin([Object3D], () => ({
+      onOtherClick: (_handler: unknown) => {},
+    })),
+    {
+      token: Symbol(name),
+      canvas: (_context: Context) => ({
+        onOtherMissed: (value: unknown) => received(value),
       }),
     },
   )
@@ -124,24 +147,59 @@ describe("createT.withCanvas", () => {
     expect(received).toHaveBeenCalledWith(handler)
   })
 
-  it("still lets an explicit plugins prop override the pre-bound default", async () => {
-    const defaultReceived = vi.fn()
+  // Overriding with a DIFFERENT engine, not a second instance of the bound one: the
+  // `plugins` prop has to be typed by what the caller passes, not pinned to the bound
+  // tuple, or `onOtherMissed` below is an unknown prop (TS2322) — which is exactly the
+  // shape of the bug an override test written with two `fakeEngine(...)`s cannot see.
+  it("lets an explicit plugins prop replace the pre-bound default with a different engine", async () => {
+    const boundReceived = vi.fn()
     const overrideReceived = vi.fn()
-    const defaultEngine = fakeEngine("default", defaultReceived)
-    const overrideEngine = fakeEngine("override", overrideReceived)
+    const boundEngine = fakeEngine("bound", boundReceived)
+    const override = otherEngine("override", overrideReceived)
     const handler = () => {}
 
-    const { T, Canvas: BoundCanvas } = createT.withCanvas(THREE, [defaultEngine])
+    const { T, Canvas: BoundCanvas } = createT.withCanvas(THREE, [boundEngine])
 
     render(() => (
-      <BoundCanvas plugins={[overrideEngine]} onFakeMissed={handler}>
+      <BoundCanvas plugins={[override]} onOtherMissed={handler}>
         <T.Mesh />
       </BoundCanvas>
     ))
     await Promise.resolve()
 
+    // The override's engine gets the prop it declared…
     expect(overrideReceived).toHaveBeenCalledWith(handler)
-    expect(defaultReceived).not.toHaveBeenCalled()
+    // …and the bound default is not installed at all: were it installed, its own
+    // contributed canvas prop would have been fed its (absent) value at mount.
+    expect(boundReceived).not.toHaveBeenCalled()
+  })
+
+  it("lets an explicit plugins prop extend the pre-bound default with another engine", async () => {
+    const boundReceived = vi.fn()
+    const extraReceived = vi.fn()
+    const boundEngine = fakeEngine("bound", boundReceived)
+    const extra = otherEngine("extra", extraReceived)
+    const fakeHandler = () => {}
+    const otherHandler = () => {}
+
+    const { T, Canvas: BoundCanvas } = createT.withCanvas(THREE, [boundEngine])
+
+    // Both engines' canvas props on one canvas — and no `@ts-expect-error` anywhere:
+    // the extended tuple must genuinely typecheck, contributing the union of both
+    // engines' canvas props.
+    render(() => (
+      <BoundCanvas
+        plugins={[boundEngine, extra]}
+        onFakeMissed={fakeHandler}
+        onOtherMissed={otherHandler}
+      >
+        <T.Mesh />
+      </BoundCanvas>
+    ))
+    await Promise.resolve()
+
+    expect(boundReceived).toHaveBeenCalledWith(fakeHandler)
+    expect(extraReceived).toHaveBeenCalledWith(otherHandler)
   })
 })
 
@@ -221,6 +279,64 @@ describe("no engine, no events", () => {
       <T.Mesh onClick={() => {}} />
     ))
     three.unmount()
+  })
+})
+
+/**
+ * The sibling of the no-plugins hole above. A mapped type over an INDEX SIGNATURE
+ * degrades into an index signature, so a plugin whose contributed methods are typed
+ * `Record<string, (value: any) => void>` — which is exactly what `PluginStatics` declares
+ * for `canvas`, and therefore what an engine author annotating against the contract ends
+ * up with — would make every element/canvas prop typecheck and then silently drop.
+ * `pointerEvents()` escapes it only by spelling its `canvas` static out concretely.
+ * The two type-level tests below pin that a loose plugin contributes NOTHING rather than
+ * EVERYTHING: an unknown prop stays a compile error, which is the failure mode the whole
+ * event boundary exists to produce.
+ */
+const looseElementPlugin: Plugin<(element: Object3D) => Record<string, (value: any) => void>> =
+  plugin([Object3D], () => ({ onLoosePing: () => {} }))
+
+const looseCanvasPlugin = Object.assign(
+  plugin([Object3D], () => ({ onLooseClick: (_handler: unknown) => {} })),
+  {
+    token: Symbol("loose-canvas"),
+    // Annotated with `PluginStatics.canvas`'s own declared return type — the realistic
+    // way a third-party engine author reaches this shape.
+    canvas: (_context: Context): Record<string, (value: any) => void> => ({
+      onLooseMissed: () => {},
+    }),
+  },
+)
+
+describe("loosely-typed plugins contribute nothing, not everything", () => {
+  it("does not accept an arbitrary element prop from an index-signature-typed plugin (type-level)", () => {
+    const T = createT(THREE, [looseElementPlugin])
+    const three = renderThree(() => (
+      // @ts-expect-error a plugin typed with an index signature must not make every prop legal.
+      <T.Mesh anythingAtAll={123} />
+    ))
+    three.unmount()
+  })
+
+  it("does not accept an arbitrary canvas prop from an index-signature-typed plugin (type-level)", async () => {
+    render(() => (
+      // @ts-expect-error same hole, canvas-level channel.
+      <Canvas plugins={[looseCanvasPlugin]} anythingAtAll={123}>
+        {null}
+      </Canvas>
+    ))
+    await Promise.resolve()
+    expect(true).toBe(true)
+  })
+
+  it("still infers a concrete plugin's contributed props from a hoisted array (type-level)", () => {
+    // The guard must not be a blunt one: a `const` array hoisted into a variable has a
+    // `number` `length` but still-literal element types, and its props must keep inferring.
+    const plugins = [pointerEvents()]
+    const _T = createT(THREE, plugins)
+    type MeshProps = Parameters<typeof _T.Mesh>[0]
+    assertType<EventHandlers["onClick"] | undefined>(({} as MeshProps).onClick)
+    expect(true).toBe(true)
   })
 })
 

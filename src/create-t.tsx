@@ -73,12 +73,24 @@ export function createEntity<TConstructor>(
  */
 createT.withCanvas = function withCanvas<
   const TCatalogue extends Record<string, unknown>,
-  const TPlugins extends readonly Plugin[],
->(catalogue: TCatalogue, plugins: TPlugins) {
+  const TBoundPlugins extends readonly Plugin[],
+>(catalogue: TCatalogue, plugins: TBoundPlugins) {
   const T = createT(catalogue, plugins)
-  const BoundCanvas = (
+  /**
+   * Generic over its OWN plugin tuple, defaulting to the bound one. That default is what
+   * makes the `plugins` prop genuinely optional AND genuinely overridable: with no
+   * `plugins` prop there is no inference site, so `TPlugins` falls back to `TBoundPlugins`
+   * and the bound engines' contributed canvas props are in scope; with one, `TPlugins` is
+   * inferred from the prop, so a DIFFERENT engine (narrowing) or a LONGER tuple
+   * (extending, `[bound, other]`) types the canvas by what was actually passed. Pinning
+   * the props to `TBoundPlugins` instead would accept only tuples of the bound plugins'
+   * own types, which is neither.
+   */
+  function BoundCanvas<const TPlugins extends readonly Plugin[] = TBoundPlugins>(
     props: ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>,
-  ) => {
+  ) {
+    // `mergeProps` lets a later source's *defined* value win, so an explicit `plugins`
+    // prop replaces the bound default and an absent one falls through to it.
     const merged = mergeProps({ plugins }, props)
     return Canvas(merged as ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>)
   }

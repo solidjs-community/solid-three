@@ -287,6 +287,23 @@ export interface PluginFn {
  */
 type IsAny<T> = 0 extends 1 & T ? true : false
 
+/**
+ * `true` iff `Methods` is keyed by an INDEX SIGNATURE rather than by known keys — i.e. it
+ * names no prop in particular. The sibling of {@link IsAny}, and it guards the same hole
+ * from the other side: mapping over `Record<string, (value: any) => void>` produces
+ * `{ [x: string]: any }`, which accepts EVERY prop and silently drops it, since the plugin
+ * only ever acts on the keys it really contributes.
+ *
+ * That loose type is not hypothetical: it is what {@link PluginStatics} itself declares for
+ * `canvas`, so an engine author who annotates against the published contract lands on it.
+ * (`pointerEvents()` avoids it by spelling its `canvas` static out concretely — see
+ * `PointerEventsPlugin`.) Yielding `{}` here means a loose plugin contributes NOTHING
+ * rather than EVERYTHING, so an unknown prop stays the compile error this boundary exists
+ * to produce. `any` also lands here (`keyof any` is `string | number | symbol`), which
+ * makes this a superset of {@link IsAny} for the mapped-type sites.
+ */
+type IsLoose<Methods> = string extends keyof Methods ? true : false
+
 type PluginReturn<TKind, TPlugin> =
   TPlugin extends Plugin<infer TFn>
     ? TFn extends { (element: infer TElement): infer TReturnType }
@@ -357,7 +374,9 @@ export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIn
       string,
       any
     >
-      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      ? IsLoose<Methods> extends true
+        ? {}
+        : { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
       : {}
   }[number]
 >
@@ -366,7 +385,9 @@ export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIn
 export type CanvasPropsOf<TPlugins extends readonly Plugin[]> = UnionToIntersection<
   {
     [K in keyof TPlugins]: TPlugins[K] extends { canvas: (context: any) => infer Methods }
-      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      ? IsLoose<Methods> extends true
+        ? {}
+        : { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
       : {}
   }[number]
 >
