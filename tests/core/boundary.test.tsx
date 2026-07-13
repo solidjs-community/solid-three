@@ -1,10 +1,12 @@
 import { render } from "@solidjs/testing-library"
-import { Object3D } from "three"
+import { Object3D, Raycaster } from "three"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
 import { Canvas } from "../../src/canvas.tsx"
 import { createT } from "../../src/create-t.tsx"
+import { useThree } from "../../src/hooks.ts"
 import { plugin } from "../../src/plugin.ts"
+import { test as renderThree } from "../../src/testing/index.tsx"
 import type { Context } from "../../src/types.ts"
 
 /** A minimal fake engine: records the canvas-level prop it was handed. */
@@ -96,5 +98,44 @@ describe("createT.withCanvas", () => {
 
     expect(overrideReceived).toHaveBeenCalledWith(handler)
     expect(defaultReceived).not.toHaveBeenCalled()
+  })
+})
+
+describe("core's raycaster", () => {
+  it("keeps a plain raycaster in core, reachable from useThree, with no engine installed", async () => {
+    let seen: unknown
+    await renderThree(() => {
+      seen = useThree().raycaster
+      return null
+    })
+    expect(seen).toBeInstanceOf(Raycaster)
+    // A plain `Raycaster` has no event-strategy methods — those belong to the
+    // engine's `EventRaycaster`/`ScreenRaycaster` subclasses. Asserting only
+    // `toBeInstanceOf(Raycaster)` would pass even if core still defaulted to
+    // an engine raycaster (every engine raycaster IS a Raycaster), so this
+    // also checks core did not smuggle one in.
+    expect(seen && "cast" in (seen as object)).toBe(false)
+    expect(seen && "setCursor" in (seen as object)).toBe(false)
+  })
+
+  it("core has no event registry", async () => {
+    let context: Context | undefined
+    await renderThree(() => {
+      context = useThree()
+      return null
+    })
+    expect(context && "eventRegistry" in context).toBe(false)
+  })
+
+  it("never calls the raycaster's picking methods across a rendered frame, with no engine installed", async () => {
+    const three = renderThree(() => null)
+    const intersectObjects = vi.spyOn(three.raycaster, "intersectObjects")
+    const setFromCamera = vi.spyOn(three.raycaster, "setFromCamera")
+
+    await three.waitTillNextFrame()
+
+    expect(intersectObjects).not.toHaveBeenCalled()
+    expect(setFromCamera).not.toHaveBeenCalled()
+    three.unmount()
   })
 })

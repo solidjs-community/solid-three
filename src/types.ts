@@ -21,7 +21,6 @@ import type {
 import type { WebGPURenderer } from "three/webgpu"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
-import type { EventRaycaster } from "./events/raycasters.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
@@ -390,7 +389,7 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
-  raycaster: Raycaster | EventRaycaster
+  raycaster: Raycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
   props: CanvasProps
@@ -398,7 +397,7 @@ export interface Context {
   requestRender: () => void
   scene: Meta<Scene>
   setCamera(camera: CameraKind): () => void
-  setRaycaster(camera: Raycaster): () => void
+  setRaycaster(raycaster: Raycaster): () => void
   viewport: Viewport
 }
 

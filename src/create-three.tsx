@@ -32,7 +32,6 @@ import {
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
 import { Stack } from "./data-structure/stack.ts"
-import { CursorRaycaster, type EventRaycaster } from "./events/raycasters.ts"
 import { frameContext, threeContext } from "./hooks.ts"
 import { useProps, useSceneGraph } from "./props.ts"
 import type {
@@ -244,13 +243,13 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   const raycaster = createMemo(() => {
     if (raycasterIsInstance()) {
-      return meta<Raycaster | EventRaycaster>(props.raycaster as Raycaster, {
+      return meta<Raycaster>(props.raycaster as Raycaster, {
         get props() {
           return props.raycaster || {}
         },
       })
     }
-    return meta<Raycaster | EventRaycaster>(new CursorRaycaster(), {
+    return meta<Raycaster>(new Raycaster(), {
       get props() {
         return props.raycaster || {}
       },

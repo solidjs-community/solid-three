@@ -10,7 +10,6 @@ import {
   type WebGLRendererParameters,
 } from "three"
 import { createThree } from "./create-three.tsx"
-import type { EventRaycaster } from "./events/raycasters.ts"
 import type {
   BaseProps,
   CanvasPropsOf,
@@ -33,7 +32,7 @@ export interface CanvasProps<
   /** Configuration for the camera used in the scene. */
   camera?: Partial<BaseProps<PerspectiveCamera> | BaseProps<OrthographicCamera>> | Camera
   /** Configuration for the Raycaster used for mouse and pointer events. */
-  raycaster?: Partial<BaseProps<EventRaycaster>> | EventRaycaster | Raycaster
+  raycaster?: Partial<BaseProps<Raycaster>> | Raycaster
   /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element
   /** Toggles flat interpolation for texture filtering. */
