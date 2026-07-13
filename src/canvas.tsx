@@ -1,5 +1,5 @@
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { createRenderEffect, onMount, type JSX, type ParentProps } from "solid-js"
+import { onMount, type JSX, type ParentProps } from "solid-js"
 import {
   Camera,
   OrthographicCamera,
@@ -10,7 +10,7 @@ import {
   type WebGLRendererParameters,
 } from "three"
 import { createThree } from "./create-three.tsx"
-import type { EventRaycaster } from "./raycasters.tsx"
+import type { EventRaycaster } from "./events/raycasters.ts"
 import type {
   BaseProps,
   CanvasPropsOf,
@@ -96,33 +96,8 @@ export function Canvas<const TPlugins extends readonly Plugin[] = readonly Plugi
 
   onMount(() => {
     if (!canvas || !container) return
+    // `createThree` installs the `plugins` and wires their contributed canvas props.
     const context = createThree(canvas, props)
-
-    // Eagerly install every plugin's one-time canvas setup (the second of the two
-    // required install triggers — the lazy counterpart runs from the first plugged
-    // element in `useProps`; `initializePlugin`'s token dedup makes the pair harmless),
-    // then resolve the canvas-level methods each plugin contributes.
-    const canvasMethods: Record<string, (value: any) => void> = {}
-    for (const plugin of props.plugins ?? []) {
-      if (plugin.install) {
-        context.initializePlugin(plugin.token ?? plugin, () => plugin.install?.(context))
-      }
-      if (!plugin.canvas) continue
-      for (const [key, method] of Object.entries(plugin.canvas(context))) {
-        if (process.env.DEV && key in canvasMethods) {
-          console.warn(
-            `S3: two plugins contribute the canvas prop "${key}" — the last one wins. Rename one of them if both were meant to fire.`,
-          )
-        }
-        canvasMethods[key] = method
-      }
-    }
-
-    createRenderEffect(() => {
-      for (const key of Object.keys(canvasMethods)) {
-        createRenderEffect(() => canvasMethods[key]((props as Record<string, any>)[key]))
-      }
-    })
 
     // Resize observer for the canvas to adjust camera and renderer on size change
     createResizeObserver(container, function onResize() {

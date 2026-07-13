@@ -1,6 +1,6 @@
 import { Quaternion, Raycaster, Vector2, Vector3, type Intersection, type Object3D } from "three"
-import type { Context, Meta } from "./types.ts"
-import { getMeta } from "./utils.ts"
+import type { Context, Meta } from "../types.ts"
+import { getMeta } from "../utils.ts"
 
 const CENTER = new Vector2(0, 0)
 

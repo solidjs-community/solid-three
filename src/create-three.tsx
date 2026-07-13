@@ -31,12 +31,10 @@ import {
   type WebGLRendererParameters,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
-import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
+import { CursorRaycaster, type EventRaycaster } from "./events/raycasters.ts"
 import { frameContext, threeContext } from "./hooks.ts"
-import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
-import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
 import type {
   CameraKind,
   Context,
@@ -372,7 +370,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     },
     canvas,
     clock,
-    eventRegistry: [],
     get dpr() {
       // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
       // anything — reporting `1` is honest. Users who need the device's
@@ -583,12 +580,38 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   /**********************************************************************************/
   /*                                                                                */
-  /*                                     Events                                     */
+  /*                                     Plugins                                    */
   /*                                                                                */
   /**********************************************************************************/
 
-  // Initialize event-system
-  const { addEventListener } = createEvents(context)
+  // Eager install: every plugin listed on the canvas gets its one-time per-context
+  // setup now, before any element mounts. This is one of the two install triggers —
+  // the lazy counterpart runs from the first plugged element in `useProps`, and
+  // `initializePlugin`'s token dedup makes the pair harmless. It lives here rather
+  // than in `<Canvas>` so every entry point into a scene (the `<Canvas>` component,
+  // and `test()`/`TestCanvas` from `solid-three/testing`, which call `createThree`
+  // directly) installs plugins identically.
+  const canvasMethods: Record<string, (value: any) => void> = {}
+  for (const plugin of props.plugins ?? []) {
+    if (plugin.install) {
+      context.initializePlugin(plugin.token ?? plugin, () => plugin.install?.(context))
+    }
+    if (!plugin.canvas) continue
+    for (const [key, method] of Object.entries(plugin.canvas(context))) {
+      if (process.env.DEV && key in canvasMethods) {
+        console.warn(
+          `S3: two plugins contribute the canvas prop "${key}" — the last one wins. Rename one of them if both were meant to fire.`,
+        )
+      }
+      canvasMethods[key] = method
+    }
+  }
+
+  // Feed each contributed canvas prop its value, reactively. `canvasMethods` is built
+  // once (plugins aren't reactive), so one effect per contributed prop is enough.
+  for (const key of Object.keys(canvasMethods)) {
+    createRenderEffect(() => canvasMethods[key]((props as Record<string, any>)[key]))
+  }
 
   /**********************************************************************************/
   /*                                                                                */
@@ -597,11 +620,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   const c = children(() => (
-    <eventContext.Provider value={addEventListener}>
-      <frameContext.Provider value={addFrameListener}>
-        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-      </frameContext.Provider>
-    </eventContext.Provider>
+    <frameContext.Provider value={addFrameListener}>
+      <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
+    </frameContext.Provider>
   ))
 
   useSceneGraph(context.scene, {

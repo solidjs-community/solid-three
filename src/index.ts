@@ -6,10 +6,7 @@ export { createXR, useXR } from "./create-xr.tsx"
 export type { XRContext, XRState } from "./create-xr.tsx"
 export { useFrame, useLoader, useThree } from "./hooks.ts"
 export { plugin } from "./plugin.ts"
-export { hasPointerCapture } from "./pointer-capture.ts"
-export { createThreeEvent, Pointer, type PointerRaycaster } from "./pointers.ts"
 export { useProps } from "./props.ts"
-export * from "./raycasters.tsx"
 export * as S3 from "./types.ts"
 // Direct re-exports of types that users commonly need at the top level.
 // `Register` is augmentable from `declare module "solid-three"` (see its

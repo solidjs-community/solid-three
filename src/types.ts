@@ -2,9 +2,7 @@ import type { Accessor, JSX, Owner } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
-  Intersection,
   Loader,
-  Object3D,
   OrthographicCamera,
   PerspectiveCamera,
   Raycaster,
@@ -23,7 +21,7 @@ import type {
 import type { WebGPURenderer } from "three/webgpu"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
-import type { EventRaycaster } from "./raycasters.tsx"
+import type { EventRaycaster } from "./events/raycasters.ts"
 import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
@@ -320,17 +318,35 @@ export type Props<T, TPlugins extends readonly Plugin[]> = Omit<
 > &
   Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
 
-/** Resolves the contributed props for element type `TKind` across `TPlugins`. */
-export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
-  {
-    [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
-      string,
-      any
+/**
+ * Resolves the contributed props for element type `TKind` across `TPlugins`.
+ *
+ * Guarded for the no-plugins case exactly as {@link ContributedKeys} is, and for the same
+ * reason. With the loose default `readonly Plugin[]`, `PluginReturn` widens to `any` and
+ * the mapped type degrades into an index signature that swallows EVERY prop — so
+ * `createT(THREE)` would accept `onClick` (and any typo) and then silently drop it, since
+ * no engine is installed to act on it. That is precisely the dead-handler failure the
+ * event boundary exists to turn into a compile error, so the guard yields `{}` instead:
+ * no plugins inferred, no contributed props.
+ *
+ * The trade-off is the same one `ContributedKeys` documents: a plugin list passed as a
+ * pre-typed `Plugin[]` variable (rather than an inline/`const` array) still reads as
+ * loose, so its contributed props are not typed and must be passed through a namespace
+ * whose plugins TypeScript can actually see. Runtime is unaffected either way.
+ */
+export type PluginPropsOf<
+  TKind,
+  TPlugins extends readonly Plugin[],
+> = number extends TPlugins["length"]
+  ? {}
+  : UnionToIntersection<
+      {
+        [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends
+          Record<string, any>
+          ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+          : {}
+      }[number]
     >
-      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
-      : {}
-  }[number]
->
 
 /** Resolves the canvas-level contributed props across `TPlugins`. */
 export type CanvasPropsOf<TPlugins extends readonly Plugin[]> = UnionToIntersection<
@@ -359,8 +375,6 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
-  /** Objects carrying any pointer handler; raycast by the pointer system. */
-  eventRegistry: Object3D[]
   raycaster: Raycaster | EventRaycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
@@ -395,107 +409,16 @@ export type FrameListener = (
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                      Event                                     */
+/*                                  Type Helpers                                  */
 /*                                                                                */
 /**********************************************************************************/
 
+/**
+ * `U` unless `T` is exactly `false` — the switch a config flag flips. Used by the
+ * event engine's `ThreeEvent` to add or drop whole slices of the event shape; it
+ * lives here because it is a plain type utility, not an event concept.
+ */
 export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
-
-export type ThreeEvent<
-  TEvent,
-  TConfig extends { stoppable?: boolean; intersections?: boolean } = {
-    stoppable: true
-    intersections: true
-  },
-> = Intersect<
-  [
-    {
-      nativeEvent: TEvent
-      /**
-       * The object a bubbled handler is currently firing on (the ancestor reached
-       * while walking up the hit chain), or `undefined` for the canvas-level
-       * dispatch — the 3D analogue of a DOM event's `currentTarget`, so it's only
-       * valid during the handler. Set by `Pointer.dispatch`; plugin sources read it.
-       */
-      currentObject?: Object3D
-    },
-    When<
-      TConfig["stoppable"],
-      {
-        stopped: boolean
-        stopPropagation: () => void
-      }
-    >,
-    When<
-      TConfig["intersections"],
-      {
-        currentIntersection: Intersection
-        intersection: Intersection
-        intersections: Intersection[]
-        /** The closest hit object — `intersections[0].object`. The 3D analogue of a DOM event's `target`; stable after dispatch. */
-        object: Object3D
-      }
-    >,
-  ]
->
-
-export type PointerCapture = {
-  /**
-   * Capture this event's pointer to an object — by default the node the handler is
-   * firing on (`event.currentObject`). Subsequent move/up for this pointer deliver
-   * exclusively to that object's chain (still bubbling to the canvas-level handler)
-   * until released — even off-ray and, for the DOM source, off-canvas. Off-ray,
-   * `event.intersection` is reprojected onto the captured plane so `point` keeps tracking.
-   *
-   * Options:
-   * - `object` — capture this object instead of `event.currentObject`. Required to
-   *   start a capture later (after an `await`/timer), since `currentObject` is cleared
-   *   after dispatch (like a DOM event's `currentTarget`); with no live hit the drag
-   *   plane is camera-facing through the object's centre.
-   * - `normal` — a world-space normal for the drag plane, through the grab point,
-   *   instead of the default (the hit surface's normal, or camera-facing). Use it to
-   *   constrain a drag, e.g. `{ normal: new Vector3(0, 1, 0) }` to slide on the ground.
-   *
-   * With no `object`, call it synchronously in the handler.
-   */
-  setPointerCapture(options?: { object?: Object3D; normal?: ThreeVector3 }): void
-  /**
-   * Release a capture started with `setPointerCapture`. Also released
-   * automatically on pointerup/cancel for the DOM source, and on the paired end
-   * event for XR.
-   */
-  releasePointerCapture(): void
-  /** Whether `object` (default: this event's `currentObject`) currently holds the pointer capture. */
-  hasPointerCapture(object?: Object3D): boolean
-}
-
-type EventHandlersMap = {
-  onClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onWheel: Prettify<ThreeEvent<WheelEvent>>
-  // The miss. Object-level fires on every registered object the click did not land on;
-  // canvas-level fires only on a total miss. Non-stoppable, no intersection payload.
-  onPointerMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-}
-
-export type EventHandlers = {
-  [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
-}
-
-// The canvas exposes only the miss now — every other pointer handler is object-level
-// (r3f has no canvas-level 3D handler except onPointerMissed).
-export type CanvasEventHandlers = {
-  onPointerMissed: (event: EventHandlersMap["onPointerMissed"]) => void
-}
-
-/** The names of all `EventHandlers` */
-export type EventName = keyof EventHandlersMap
 
 /**********************************************************************************/
 /*                                                                                */
@@ -558,16 +481,20 @@ export type MapToRepresentation<T> = {
 }
 
 /**
- * Generic `solid-three` props of a given class. Plugin-contributed props are NOT
- * baked in here — they're intersected directly at the composition sites (`createT`
- * proxy + `<Entity>`) via {@link PluginPropsOf}, which keeps `TPlugins` inferable at
- * those sites (burying it in this `Overwrite` defeats inference — see notes).
+ * Generic `solid-three` props of a given class. Pointer handlers are NOT here: core
+ * ships no event engine, so `onClick` is a prop of `T.Mesh` only once an engine
+ * contributes it (`createT(THREE, [pointerEvents()])`) — without one it is a compile
+ * error, not a silently dead handler.
+ *
+ * Plugin-contributed props are likewise not baked in here — they're intersected
+ * directly at the composition sites (`createT` proxy + `<Entity>`) via
+ * {@link PluginPropsOf}, which keeps `TPlugins` inferable at those sites (burying it
+ * in this `Overwrite` defeats inference — see notes).
  */
 export type BaseProps<T> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,
-      EventHandlers,
       {
         args: T extends Constructor ? ConstructorOverloadParameters<T> : undefined
         attach: string | ((parent: object, self: Meta<InstanceOf<T>>) => () => void)

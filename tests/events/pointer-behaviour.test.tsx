@@ -1,14 +1,15 @@
 import { fireEvent } from "@solidjs/testing-library"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
+import { pointerEvents } from "../../src/events/index.ts"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
 /**
  * Behavioural tests for the pointer-event system: what actually fires when the
- * user interacts, on a real scene through the real raycaster. Most of the rest
- * of `tests/core` pins which objects get *registered*; these pin which handlers
- * get *called* on a click / move / wheel.
+ * user interacts, on a real scene through the real raycaster. The rest of the
+ * suite pins which objects get *registered*; these pin which handlers get
+ * *called* on a click / move / wheel.
  *
  * NOTE: raycasting reads each object's `matrixWorld`, which is refreshed once
  * per render frame. A synthetic `fireEvent` fires before the first frame, so
@@ -17,7 +18,10 @@ import { test } from "../../src/testing/index.tsx"
  * only an origin mesh (or an empty scene) don't need it.
  */
 
-const T = createT(THREE)
+// One engine instance, installed both into the namespace (so `T.Mesh` has pointer
+// props) and onto the canvas (so the canvas-level `onPointerMissed` reaches it).
+const engine = pointerEvents()
+const T = createT(THREE, [engine])
 
 // (640,400) hits a 2×2 box centred at origin (camera at z=5).
 const HIT_X = 640
@@ -69,6 +73,7 @@ describe("a mesh whose only handler is a different event still counts as a hit",
       it(`clicking a ${u}-only mesh does not fire onPointerMissed (union: it is a hit)`, () => {
         const missed = vi.fn()
         const { canvas } = test(() => <SoleHandlerBox eventType={u} />, {
+          plugins: [engine],
           onPointerMissed: missed,
         })
 
@@ -264,7 +269,7 @@ describe("raycastable={false} skips the mesh and the ray passes through to what 
 describe("clicking empty space is a void", () => {
   it("a void fires onPointerMissed and nothing else", () => {
     let missed = 0
-    const { canvas } = test(() => null, { onPointerMissed: () => missed++ })
+    const { canvas } = test(() => null, { plugins: [engine], onPointerMissed: () => missed++ })
 
     fire(canvas, "click")
 

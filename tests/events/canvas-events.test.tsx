@@ -2,10 +2,14 @@ import { fireEvent } from "@solidjs/testing-library"
 import { createSignal } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
-import { createT, hasPointerCapture } from "../../src/index.ts"
+import { hasPointerCapture, pointerEvents } from "../../src/events/index.ts"
+import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
-const T = createT(THREE)
+// One engine instance, installed both into the namespace (so `T.Mesh` has pointer
+// props) and onto the canvas (so the canvas-level `onPointerMissed` reaches it).
+const engine = pointerEvents()
+const T = createT(THREE, [engine])
 
 // offsetX/Y that hits the 2×2 BoxGeometry centred at origin (camera at z=5)
 const HIT_X = 640
@@ -58,6 +62,7 @@ describe("canvas onPointerMissed", () => {
     it(`fires when ${g.name} misses all registered meshes`, () => {
       const handleMissed = vi.fn()
       const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        plugins: [engine],
         onPointerMissed: handleMissed,
       })
 
@@ -68,7 +73,7 @@ describe("canvas onPointerMissed", () => {
 
     it(`fires when ${g.name} occurs with no meshes in the scene`, () => {
       const handleMissed = vi.fn()
-      const { canvas } = test(() => null, { onPointerMissed: handleMissed })
+      const { canvas } = test(() => null, { plugins: [engine], onPointerMissed: handleMissed })
 
       fireEvent(canvas, hitEvent(g.dom))
 
@@ -78,6 +83,7 @@ describe("canvas onPointerMissed", () => {
     it(`does not fire when ${g.name} hits a registered mesh`, () => {
       const handleMissed = vi.fn()
       const { canvas } = test(() => <ListeningMesh eventType="onClick" />, {
+        plugins: [engine],
         onPointerMissed: handleMissed,
       })
 
@@ -258,7 +264,9 @@ describe("pointer capture", () => {
 
 describe("listener lifecycle", () => {
   it("removes its canvas listeners when the Canvas unmounts", () => {
-    const three = test(() => null)
+    // The engine has to be installed for there to be listeners at all — an empty scene
+    // never triggers the lazy per-element install, so list it on the canvas.
+    const three = test(() => null, { plugins: [engine] })
     const removeSpy = vi.spyOn(three.canvas, "removeEventListener")
 
     three.unmount()

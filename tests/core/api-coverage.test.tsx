@@ -4,8 +4,6 @@ import { afterEach, assertType, beforeEach, describe, expect, it, vi } from "vit
 import {
   createEntity,
   createT,
-  CursorRaycaster,
-  CenterRaycaster,
   getMeta,
   hasMeta,
   load,
@@ -13,6 +11,7 @@ import {
   Resource,
   useProps,
 } from "../../src/index.ts"
+import { CenterRaycaster, CursorRaycaster, pointerEvents } from "../../src/events/index.ts"
 import { LoaderCache } from "../../src/data-structure/loader-cache.ts"
 import { useLoader } from "../../src/hooks.ts"
 import { test } from "../../src/testing/index.tsx"
@@ -185,7 +184,8 @@ describe("CursorRaycaster / CenterRaycaster", () => {
 
 describe("pointer capture types", () => {
   it("exposes pointer-capture methods on pointer events", () => {
-    const _T = createT(THREE)
+    // `onPointerDown` is a prop of `T.Mesh` only because the engine contributes it.
+    const _T = createT(THREE, [pointerEvents()])
     type MeshProps = Parameters<typeof _T.Mesh>[0]
     const onPointerDown: NonNullable<MeshProps["onPointerDown"]> = event => {
       assertType<() => void>(event.setPointerCapture)

@@ -9,6 +9,7 @@ import {
 } from "solid-js"
 import * as THREE from "three"
 import { beforeAll, describe, expect, it, vi } from "vitest"
+import { pointerEvents } from "../../src/events/index.ts"
 import { createT, Entity, Portal, useFrame, useThree } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 import type { Context, Meta, RendererLike } from "../../src/types.ts"
@@ -404,7 +405,13 @@ describe("renderer", () => {
     const object2 = new THREE.Group()
 
     const Test = (props: { first?: boolean }) => (
-      <Entity from={props.first ? object1 : object2} onPointerMove={() => null}>
+      // The pointer engine is what gives this Entity an `onPointerMove` prop at all —
+      // the handler is here so the swap happens on an event-registered object.
+      <Entity
+        from={props.first ? object1 : object2}
+        plugins={[pointerEvents()]}
+        onPointerMove={() => null}
+      >
         <T.Group />
       </Entity>
     )

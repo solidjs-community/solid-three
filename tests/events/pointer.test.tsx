@@ -1,13 +1,30 @@
 import { assertType, describe, expect, it, vi } from "vitest"
 import { type Intersection, Object3D, PerspectiveCamera, Ray, Vector3 } from "three"
-import { createThreeEvent, Pointer, type PointerRaycaster } from "../../src/pointers.ts"
+import {
+  createThreeEvent,
+  Pointer,
+  type PointerEngine,
+  type PointerRaycaster,
+} from "../../src/events/index.ts"
 import { meta } from "../../src/utils.ts"
 
 function eventful(handlers: Record<string, any>) {
   return meta(new Object3D(), { props: handlers }) as any as Object3D
 }
-function ctx(eventRegistry: Object3D[], props: Record<string, any> = {}) {
-  return { eventRegistry, props } as any
+/**
+ * A stand-in for the engine a `Pointer` dispatches against: the registry it raycasts,
+ * the canvas-level miss handler, and the three context (of which only `camera` is read,
+ * and only when a capture has to synthesize a camera-facing drag plane).
+ */
+function engine(
+  registry: Object3D[],
+  options: { onPointerMissed?: (event: any) => void; camera?: PerspectiveCamera } = {},
+): PointerEngine {
+  return {
+    registry,
+    onPointerMissed: options.onPointerMissed,
+    context: { camera: options.camera },
+  } as unknown as PointerEngine
 }
 // Mutable ray state a test tweaks between gestures.
 type RayState = { target?: Object3D; point?: Vector3; normal?: Vector3 }
@@ -39,7 +56,7 @@ describe("Pointer dispatch", () => {
     const leave = vi.fn()
     const mesh = eventful({ onPointerEnter: enter, onPointerLeave: leave })
     const state: { target?: Object3D } = { target: mesh }
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster(state))
 
     pointer.move(new Event("pointermove"))
     expect(enter).toHaveBeenCalledTimes(1)
@@ -52,7 +69,7 @@ describe("Pointer dispatch", () => {
   it("does not re-fire enter while staying on the object", () => {
     const enter = vi.fn()
     const mesh = eventful({ onPointerEnter: enter })
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }))
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster({ target: mesh }))
 
     pointer.move(new Event("pointermove"))
     pointer.move(new Event("pointermove"))
@@ -65,7 +82,7 @@ describe("Pointer dispatch", () => {
     const parent = eventful({ onPointerMove: parentMove })
     const child = eventful({ onPointerMove: childMove })
     ;(child as any).parent = parent
-    const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
+    const pointer = new Pointer(engine([child]), fakeRaycaster({ target: child }))
 
     pointer.move(new Event("pointermove"))
     expect(childMove).toHaveBeenCalledTimes(1)
@@ -75,7 +92,7 @@ describe("Pointer dispatch", () => {
   it("fires onClick on the hit object", () => {
     const click = vi.fn()
     const mesh = eventful({ onClick: click })
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }))
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster({ target: mesh }))
 
     pointer.click("onClick", new MouseEvent("click"))
     expect(click).toHaveBeenCalledTimes(1)
@@ -86,7 +103,7 @@ describe("Pointer dispatch", () => {
     const parent = eventful({ onClick: (e: any) => seen.push(e.currentObject) })
     const child = eventful({ onClick: (e: any) => seen.push(e.currentObject) })
     ;(child as any).parent = parent
-    const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
+    const pointer = new Pointer(engine([child]), fakeRaycaster({ target: child }))
 
     pointer.click("onClick", new MouseEvent("click"))
     expect(seen[0]).toBe(child) // handler on child sees child
@@ -97,7 +114,10 @@ describe("Pointer dispatch", () => {
     const meshMissed = vi.fn()
     const canvasMissed = vi.fn()
     const mesh = eventful({ onPointerMissed: meshMissed })
-    const pointer = new Pointer(ctx([mesh], { onPointerMissed: canvasMissed }), fakeRaycaster({}))
+    const pointer = new Pointer(
+      engine([mesh], { onPointerMissed: canvasMissed }),
+      fakeRaycaster({}),
+    )
 
     pointer.click("onClick", new MouseEvent("click"))
 
@@ -114,7 +134,7 @@ describe("Pointer dispatch", () => {
       onPing: (e: any) => seen.push({ currentObject: e.currentObject, k: e.k }),
     })
     ;(child as any).parent = parent
-    const pointer = new Pointer(ctx([child]), fakeRaycaster({ target: child }))
+    const pointer = new Pointer(engine([child]), fakeRaycaster({ target: child }))
 
     ;(pointer as any).dispatch("onPing", new Event("x"), { k: 42 })
     expect(seen[0].currentObject).toBe(child) // handler on child sees child
@@ -151,7 +171,7 @@ describe("Pointer dispatch", () => {
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
-    const pointer = new Pointer(ctx([childA, childB]), raycaster)
+    const pointer = new Pointer(engine([childA, childB]), raycaster)
 
     pointer.down(new Event("pointerdown"))
     expect(childADown).toHaveBeenCalledTimes(1) // each distinct hit still fires
@@ -179,7 +199,7 @@ describe("Pointer dispatch", () => {
       aim: () => {},
       ray: new Ray(),
     } as any as PointerRaycaster
-    const pointer = new Pointer(ctx([front, back]), raycaster)
+    const pointer = new Pointer(engine([front, back]), raycaster)
 
     pointer.move(new Event("pointermove"))
     expect(frontMove).toHaveBeenCalledTimes(1)
@@ -196,7 +216,7 @@ describe("Pointer capture lifecycle", () => {
   it("capture() stores the object and calls the sink; release() clears it and calls the sink", () => {
     const mesh = eventful({})
     const sink = spySink()
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster({ target: mesh }), sink)
 
     pointer.capture(mesh, {
       object: mesh,
@@ -214,7 +234,7 @@ describe("Pointer capture lifecycle", () => {
   it("dropCapture() clears state WITHOUT calling the sink's release", () => {
     const mesh = eventful({})
     const sink = spySink()
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster({ target: mesh }), sink)
 
     pointer.capture(mesh, {
       object: mesh,
@@ -228,7 +248,7 @@ describe("Pointer capture lifecycle", () => {
 
   it("capture(null) is a no-op", () => {
     const sink = spySink()
-    const pointer = new Pointer(ctx([]), fakeRaycaster({}), sink)
+    const pointer = new Pointer(engine([]), fakeRaycaster({}), sink)
     pointer.capture(null, {} as any)
     expect(sink.capture).not.toHaveBeenCalled()
   })
@@ -241,7 +261,7 @@ describe("Pointer capture lifecycle", () => {
       }),
       release: vi.fn(),
     }
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster({ target: mesh }), sink)
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster({ target: mesh }), sink)
     expect(() =>
       pointer.capture(mesh, {
         object: mesh,
@@ -267,7 +287,7 @@ describe("Pointer capture lifecycle", () => {
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
-    const pointer = new Pointer(ctx([element]), raycaster)
+    const pointer = new Pointer(engine([element]), raycaster)
     pointer.capture(element, {
       object: hitLeaf,
       point: new Vector3(),
@@ -291,7 +311,7 @@ describe("Pointer capture lifecycle", () => {
       aim: () => {},
       ray: new Ray(new Vector3(2, 1, 0), new Vector3(-1, 0, 0)), // toward -x, offset +1 in y
     }
-    const pointer = new Pointer(ctx([mesh]), raycaster)
+    const pointer = new Pointer(engine([mesh]), raycaster)
     pointer.capture(
       mesh,
       { object: mesh, point: new Vector3(), face: { normal: new Vector3(0, 0, 1) } } as any,
@@ -311,7 +331,7 @@ describe("Pointer capture lifecycle", () => {
       onPointerLeave: leave,
     })
     const state: RayState = { target: mesh, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster(state))
 
     pointer.move(new Event("pointermove")) // hover onto the mesh
     pointer.down(new Event("pointerdown")) // captures it
@@ -338,11 +358,7 @@ describe("Pointer capture lifecycle", () => {
     const camera = new PerspectiveCamera()
     camera.updateMatrixWorld() // syntheticHit builds a camera-facing plane
     const sink = spySink()
-    const pointer = new Pointer(
-      { eventRegistry: [mesh], props: {}, camera } as any,
-      fakeRaycaster({ target: mesh }),
-      sink,
-    )
+    const pointer = new Pointer(engine([mesh], { camera }), fakeRaycaster({ target: mesh }), sink)
 
     pointer.down(new Event("pointerdown")) // handler only stashes
     expect(pointer.hasCaptured(mesh)).toBe(false)
@@ -364,7 +380,7 @@ describe("Pointer capture lifecycle", () => {
     })
     const other = eventful({ onPointerUp: otherUp })
     const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown")) // captures `captured`
     state.target = other // ray now hits `other`
@@ -387,7 +403,7 @@ describe("Pointer capture lifecycle", () => {
       normal: new Vector3(0, 0, 1),
     }
     const raycaster = fakeRaycaster(state)
-    const pointer = new Pointer(ctx([captured]), raycaster)
+    const pointer = new Pointer(engine([captured]), raycaster)
 
     pointer.down(new Event("pointerdown"))
     state.target = undefined
@@ -407,7 +423,7 @@ describe("Pointer capture lifecycle", () => {
     })
     const other = eventful({ onPointerUp: otherUp })
     const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
     pointer.up(new Event("pointerup")) // captured up, then releases
@@ -425,7 +441,7 @@ describe("Pointer capture lifecycle", () => {
     })
     const other = eventful({ onPointerEnter: otherEnter, onPointerMove: vi.fn() })
     const state: RayState = { target: captured, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([captured, other]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([captured, other]), fakeRaycaster(state))
 
     pointer.down(new Event("pointerdown"))
     state.target = other // ray now over `other`
@@ -438,7 +454,7 @@ describe("Pointer capture lifecycle", () => {
   it("can start a capture from onPointerMove", () => {
     const mesh = eventful({ onPointerMove: (e: any) => e.setPointerCapture() })
     const state: RayState = { target: mesh, point: new Vector3(), normal: new Vector3(0, 0, 1) }
-    const pointer = new Pointer(ctx([mesh]), fakeRaycaster(state))
+    const pointer = new Pointer(engine([mesh]), fakeRaycaster(state))
 
     pointer.move(new Event("pointermove"))
     expect(pointer.hasCaptured(mesh)).toBe(true)

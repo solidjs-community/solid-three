@@ -2,10 +2,11 @@ import { fireEvent } from "@solidjs/testing-library"
 import { createSignal } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
+import { pointerEvents } from "../../src/events/index.ts"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
-const T = createT(THREE)
+const T = createT(THREE, [pointerEvents()])
 
 describe("events", () => {
   it("can handle onPointerDown", async () => {

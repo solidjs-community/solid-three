@@ -10,15 +10,12 @@ import {
   untrack,
 } from "solid-js"
 import { Color, type Object3D, RGBAFormat, Texture, UnsignedByteType } from "three"
-import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
-import { addToEventListeners } from "./internal-context.ts"
 import { resolvePluginMethods } from "./plugin.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import {
   getMeta,
   hasColorSpace,
-  hasMeta,
   isBufferGeometry,
   isFog,
   isMaterial,
@@ -193,8 +190,8 @@ const NEEDS_UPDATE = [
 ]
 
 /**
- * Applies a specified property value to an `AugmentedElement`. This function handles nested properties,
- * automatic updates of the `needsUpdate` flag, color space conversions, and event listener management.
+ * Applies a specified property value to an `AugmentedElement`. This function handles plugin-contributed
+ * props, nested properties, automatic updates of the `needsUpdate` flag, and color space conversions.
  * It efficiently manages property assignments with appropriate handling for different data types and structures.
  *
  * @param source - The target object for property application.
@@ -253,21 +250,6 @@ function applyProp<T extends Record<string, any>>(
       type = "outputColorSpace"
       value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
     }
-  }
-
-  if (isEventType(type)) {
-    if (isObject3D(source) && hasMeta(source)) {
-      const cleanup = addToEventListeners(source, type)
-      onCleanup(cleanup)
-    } else {
-      console.error(
-        "Event handlers can only be added to Three elements extending from Object3D. Ignored event-type:",
-        type,
-        "from element",
-        source,
-      )
-    }
-    return
   }
 
   const target = source[type]

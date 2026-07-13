@@ -1,6 +1,7 @@
 import { type Accessor, type JSX, createRoot, mergeProps } from "solid-js"
 import type { CanvasProps } from "../canvas.tsx"
 import { createThree } from "../create-three.tsx"
+import type { CanvasPropsOf, Plugin } from "../types.ts"
 import { useRef } from "../utils.ts"
 
 const activeUnmounts = new Set<() => void>()
@@ -21,6 +22,10 @@ export function cleanup() {
  * Initializes a testing environment for `solid-three`. Designed to run in a
  * real browser (e.g. vitest browser mode). jsdom is not supported.
  *
+ * Accepts the same props as `<Canvas>`, `plugins` included — so an engine's
+ * contributed canvas props (e.g. `onPointerMissed` from `pointerEvents()`) are typed
+ * and delivered here exactly as they are on the real component.
+ *
  * @param children - An accessor for the `AugmentedElement` to render.
  * @param [props] - Optional properties to configure canvas.
  * @returns `S3.Context` augmented with methods to unmount the scene and to wait for the next animation frame.
@@ -30,9 +35,9 @@ export function cleanup() {
  * await testScene.waitTillNextFrame();
  * testScene.unmount();
  */
-export function test(
+export function test<const TPlugins extends readonly Plugin[] = readonly Plugin[]>(
   children: Accessor<JSX.Element>,
-  props?: Omit<CanvasProps, "children">,
+  props?: Omit<CanvasProps<TPlugins>, "children"> & Partial<CanvasPropsOf<TPlugins>>,
 ): TestApi {
   const canvas = createTestCanvas()
   let context: ReturnType<typeof createThree> = null!
@@ -62,7 +67,7 @@ export function test(
           },
         },
         props,
-      ),
+      ) as CanvasProps,
     )
   })
 
