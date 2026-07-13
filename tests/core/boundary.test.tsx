@@ -60,7 +60,7 @@ function fakeEngine(
         context.canvas.addEventListener("click", onClick)
         onCleanup(() => context.canvas.removeEventListener("click", onClick))
       },
-      canvas: (context: Context) => ({
+      canvas: (_context: Context) => ({
         onFakeMissed: (value: unknown) => received(value),
       }),
     },
@@ -158,8 +158,9 @@ describe("core's raycaster", () => {
     // `toBeInstanceOf(Raycaster)` would pass even if core still defaulted to
     // an engine raycaster (every engine raycaster IS a Raycaster), so this
     // also checks core did not smuggle one in.
-    expect(seen && "cast" in (seen as object)).toBe(false)
-    expect(seen && "setCursor" in (seen as object)).toBe(false)
+    const raycaster: object = seen instanceof Raycaster ? seen : {}
+    expect("cast" in raycaster).toBe(false)
+    expect("setCursor" in raycaster).toBe(false)
   })
 
   it("core has no event registry", async () => {
