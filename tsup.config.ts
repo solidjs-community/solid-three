@@ -20,7 +20,7 @@ export default defineConfig(config => {
       { dev: true, solid: true },
     ]
 
-    return packageEntries.flatMap(({ dev, solid }, j) => {
+    return packageEntries.flatMap(({ dev, solid }) => {
       const outFilename = `${name}${dev ? ".dev" : ""}${solid ? ".solid" : ""}`
 
       return {
@@ -28,7 +28,13 @@ export default defineConfig(config => {
         target: "esnext",
         format: "esm",
         clean: i === 0,
-        dts: j === 0,
+        // No `dts` here. Each entry point is its own `tsup` build, so a `dts` rollup
+        // per entry point gave each one a private copy of every shared internal type
+        // — including `$S3C`, whose `unique symbol` identity is per-declaration. The
+        // `Plugin` from `solid-three/events` was then unrelated to the `Plugin` that
+        // `createT` from `solid-three` expects. Declarations are emitted instead by a
+        // single `tsc` pass over the whole source tree — see `tsconfig.build.json`
+        // and the `types` script.
         entry: { [outFilename]: entry },
         treeshake: watching ? undefined : { preset: "safest" },
         replaceNodeEnv: true,

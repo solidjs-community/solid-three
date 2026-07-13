@@ -1,0 +1,22 @@
+{
+  // Declaration build. `tsup` emits the JavaScript; this emits every `.d.ts`.
+  //
+  // It has to be ONE compilation covering all three entry points, with the module
+  // structure preserved. Rolling each entry point up on its own (which is what
+  // `tsup`'s `dts` option did) gives every bundle a private copy of `$S3C` — and a
+  // `unique symbol` is nominal, so `solid-three`'s `Meta`/`Context`/`Plugin` and
+  // `solid-three/events`' identically-spelled ones are then unrelated types. A
+  // consumer could not pass `pointerEvents()` to `createT` at all.
+  //
+  // Emitting the whole source tree at once instead means `$S3C` is declared exactly
+  // once, in `types/constants.d.ts`, and every entry point imports that one symbol.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "types",
+    "sourceMap": false
+  },
+  "include": ["src"]
+}

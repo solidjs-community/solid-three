@@ -1,0 +1,21 @@
+{
+  // A consumer's tsconfig, not the library's. It deliberately does NOT extend the root
+  // config: no `paths`, and — most importantly — no `allowImportingTsExtensions`, which
+  // the library sets for its own source but no installed consumer ever would. So the
+  // only way `solid-three` and `solid-three/events` resolve here is the way they resolve
+  // for a real dependent: through this package's `exports` map, onto the BUILT
+  // declarations in `types/`. Run `pnpm build` first; `pnpm lint:types` runs this.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["."]
+}
