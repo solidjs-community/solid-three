@@ -1,5 +1,5 @@
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { onMount, type JSX, type ParentProps } from "solid-js"
+import { createRenderEffect, onMount, type JSX, type ParentProps } from "solid-js"
 import {
   Camera,
   OrthographicCamera,
@@ -13,8 +13,9 @@ import { createThree } from "./create-three.tsx"
 import type { EventRaycaster } from "./raycasters.tsx"
 import type {
   BaseProps,
-  CanvasEventHandlers,
+  CanvasPropsOf,
   Context,
+  Plugin,
   RefWithCleanup,
   ResolvedRenderer,
 } from "./types.ts"
@@ -22,7 +23,11 @@ import type {
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
+export interface CanvasProps<
+  TPlugins extends readonly Plugin[] = readonly Plugin[],
+> extends ParentProps {
+  /** Event engines and other plugins installed on this canvas. */
+  plugins?: TPlugins
   ref?: RefWithCleanup<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
@@ -83,13 +88,41 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @param props - Configuration options include camera settings, style, and children elements.
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
-export function Canvas(props: ParentProps<CanvasProps>) {
+export function Canvas<const TPlugins extends readonly Plugin[] = readonly Plugin[]>(
+  props: ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>,
+) {
   let canvas: HTMLCanvasElement | undefined
   let container: HTMLDivElement | undefined
 
   onMount(() => {
     if (!canvas || !container) return
     const context = createThree(canvas, props)
+
+    // Eagerly install every plugin's one-time canvas setup (the second of the two
+    // required install triggers — the lazy counterpart runs from the first plugged
+    // element in `useProps`; `initializePlugin`'s token dedup makes the pair harmless),
+    // then resolve the canvas-level methods each plugin contributes.
+    const canvasMethods: Record<string, (value: any) => void> = {}
+    for (const plugin of props.plugins ?? []) {
+      if (plugin.install) {
+        context.initializePlugin(plugin.token ?? plugin, () => plugin.install?.(context))
+      }
+      if (!plugin.canvas) continue
+      for (const [key, method] of Object.entries(plugin.canvas(context))) {
+        if (process.env.DEV && key in canvasMethods) {
+          console.warn(
+            `S3: two plugins contribute the canvas prop "${key}" — the last one wins. Rename one of them if both were meant to fire.`,
+          )
+        }
+        canvasMethods[key] = method
+      }
+    }
+
+    createRenderEffect(() => {
+      for (const key of Object.keys(canvasMethods)) {
+        createRenderEffect(() => canvasMethods[key]((props as Record<string, any>)[key]))
+      }
+    })
 
     // Resize observer for the canvas to adjust camera and renderer on size change
     createResizeObserver(container, function onResize() {

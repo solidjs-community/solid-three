@@ -4,6 +4,14 @@ import { defineConfig } from "vitest/config"
 
 export default defineConfig({
   plugins: [solidPlugin({ hot: false })],
+  // `process` doesn't exist as a global in the real browser tests run in (no
+  // Node, no polyfill) — tsup's build defines `process.env.DEV` for the
+  // shipped dist, but the raw source under test never goes through that
+  // esbuild `define` step. Mirror it here so dev-gated code (e.g. plugin
+  // collision warnings) can use `process.env.DEV` and still run under test.
+  define: {
+    "process.env.DEV": "true",
+  },
   test: {
     include: ["tests/**/*.test.{ts,tsx}"],
     setupFiles: ["./tests/setup.ts"],
