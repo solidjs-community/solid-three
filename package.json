@@ -107,6 +107,7 @@
   },
   "devDependencies": {
     "@bigmistqke/repl": "link:../repl",
+    "@pmndrs/pointer-events": "6.6.30",
     "@solidjs/router": "^0.15.3",
     "@solidjs/testing-library": "^0.8.8",
     "@types/three": "^0.181.0",
