@@ -191,9 +191,23 @@ describe("no engine, no events", () => {
 
     await renderThree(() => <T.Mesh />)
 
+    // The exact listener names `DOMPointerManager.connect` registers
+    // (src/events/pointer-managers.ts) — kept explicit rather than a
+    // `startsWith("pointer")` heuristic, which misses "lostpointercapture".
+    const engineListenerNames = [
+      "pointermove",
+      "pointerdown",
+      "pointerup",
+      "pointerleave",
+      "pointercancel",
+      "lostpointercapture",
+      "click",
+      "dblclick",
+      "contextmenu",
+      "wheel",
+    ]
     const pointerListeners = addEventListener.mock.calls.filter(([type]) =>
-      String(type).startsWith("pointer") ||
-      ["click", "dblclick", "contextmenu", "wheel"].includes(String(type)),
+      engineListenerNames.includes(String(type)),
     )
     expect(pointerListeners).toHaveLength(0)
     addEventListener.mockRestore()
@@ -251,6 +265,24 @@ describe("disjoint provenance", () => {
 })
 
 describe("token stability", () => {
+  // Layer A: the module-level `POINTER_EVENTS_TOKEN` in `src/events/index.ts` is the
+  // dedup key `Context.initializePlugin` uses, so every `pointerEvents()` call must
+  // return the SAME token. This is the layer the name "token stability" refers to,
+  // and it is checked here in isolation — no canvas, no engine, no `installEngine`
+  // Layer-B guard involved — so a regression to a per-call `Symbol()` fails this test
+  // even though `installEngine`'s own `engines.has(context)` guard (Layer B) would
+  // still silently prevent a double install below.
+  it("pointerEvents() returns the same module-level token across instances", () => {
+    expect(pointerEvents().token).toBe(pointerEvents().token)
+    expect(typeof pointerEvents().token).toBe("symbol")
+  })
+
+  // Layer A + Layer B together: the end-to-end guarantee that two `pointerEvents()`
+  // instances on one canvas still produce exactly one manager and one dispatch. This
+  // does NOT isolate which layer is doing the deduping — `installEngine`'s own
+  // `engines.has(context)` guard (Layer B) is sufficient on its own to make this pass,
+  // so it stays valuable as a composite/end-to-end check but cannot, alone, catch a
+  // Layer-A-only regression (see the token-identity test above for that).
   it("two pointerEvents() instances install one manager and dispatch once", async () => {
     const first = pointerEvents()
     const second = pointerEvents()
