@@ -279,11 +279,22 @@ export interface PluginFn {
   ): Plugin<(element: T) => Methods>
 }
 
+/**
+ * `true` iff `T` is exactly `any` (the only type that is assignable both to and from
+ * `0 extends 1 & T` — a literal type, a union, `unknown`, and `never` all fail this
+ * check). Used to detect when {@link PluginReturn} bottoms out at `any` because the
+ * loose `Plugin` default (`TFn = (element: any) => any`) was never narrowed by a real
+ * plugin tuple — see {@link PluginPropsOf}.
+ */
+type IsAny<T> = 0 extends 1 & T ? true : false
+
 type PluginReturn<TKind, TPlugin> =
   TPlugin extends Plugin<infer TFn>
     ? TFn extends { (element: infer TElement): infer TReturnType }
       ? TKind extends TElement
-        ? TReturnType
+        ? IsAny<TReturnType> extends true
+          ? {}
+          : TReturnType
         : {}
       : {}
     : {}
@@ -293,16 +304,14 @@ type PluginReturn<TKind, TPlugin> =
  * of the same name (a plugin intercepts the prop at runtime, so its type must replace the
  * native one, not intersect with it — `nativeMethod & V` is satisfiable by nothing).
  *
- * Guarded for the no-plugins case: when no specific plugins are inferred, `TPlugins` is the
- * loose default `readonly Plugin[]` whose `length` is `number` (not a literal). There's no
- * contribution to key off, and `keyof PluginPropsOf<…, Plugin[]>` would be every key — so
- * yield `never` (drop nothing). Only a real inferred tuple (literal `length`, e.g. from an
- * inline or `const` plugin array) contributes keys. A pre-typed `Plugin[]` variable still
- * reads as loose, so its overrides fall back to the (harmless) intersection.
+ * No no-plugins guard needed here: with the loose default `readonly Plugin[]`,
+ * `PluginPropsOf` itself resolves to `{}` (see its doc comment and {@link IsAny}), so
+ * `keyof PluginPropsOf<…, Plugin[]>` is already `never` — nothing to drop.
  */
-type ContributedKeys<T, TPlugins extends readonly Plugin[]> = number extends TPlugins["length"]
-  ? never
-  : keyof PluginPropsOf<InstanceOf<T>, TPlugins>
+type ContributedKeys<T, TPlugins extends readonly Plugin[]> = keyof PluginPropsOf<
+  InstanceOf<T>,
+  TPlugins
+>
 
 /**
  * An element's full prop type: its base {@link BaseProps} with the props contributed by
@@ -321,32 +330,38 @@ export type Props<T, TPlugins extends readonly Plugin[]> = Omit<
 /**
  * Resolves the contributed props for element type `TKind` across `TPlugins`.
  *
- * Guarded for the no-plugins case exactly as {@link ContributedKeys} is, and for the same
- * reason. With the loose default `readonly Plugin[]`, `PluginReturn` widens to `any` and
- * the mapped type degrades into an index signature that swallows EVERY prop — so
- * `createT(THREE)` would accept `onClick` (and any typo) and then silently drop it, since
- * no engine is installed to act on it. That is precisely the dead-handler failure the
- * event boundary exists to turn into a compile error, so the guard yields `{}` instead:
+ * Handles the no-plugins case at the root cause rather than by guarding on
+ * `TPlugins["length"]`: with the loose default `readonly Plugin[]`, `Plugin`'s own
+ * default (`TFn = (element: any) => any`) makes {@link PluginReturn} resolve to `any`
+ * for every plugin in the tuple. Without {@link IsAny}, a mapped type over `any`
+ * degrades into an index signature that swallows EVERY prop — so `createT(THREE)`
+ * would accept `onClick` (and any typo) and then silently drop it, since no engine is
+ * installed to act on it. That is precisely the dead-handler failure the event
+ * boundary exists to turn into a compile error. `IsAny` catches that `any` inside
+ * `PluginReturn` and yields `{}` there instead, so this type falls out to `{}` too —
  * no plugins inferred, no contributed props.
  *
- * The trade-off is the same one `ContributedKeys` documents: a plugin list passed as a
- * pre-typed `Plugin[]` variable (rather than an inline/`const` array) still reads as
- * loose, so its contributed props are not typed and must be passed through a namespace
- * whose plugins TypeScript can actually see. Runtime is unaffected either way.
+ * A length guard would additionally reject the ordinary *hoisted* case
+ * (`const plugins = [pointerEvents()]; createT(THREE, plugins)`), because a `const`
+ * array's inferred type still has a `number` `length` even though its elements are a
+ * literal tuple. Fixing this at `PluginReturn` avoids that regression.
+ *
+ * The one remaining trade-off: a plugin list passed as a pre-typed `Plugin[]`
+ * variable (rather than an inline/hoisted array) has no concrete `TFn` to narrow
+ * from, so its contributed props are not typed and must be passed through a
+ * namespace whose plugins TypeScript can actually see. Runtime is unaffected either
+ * way.
  */
-export type PluginPropsOf<
-  TKind,
-  TPlugins extends readonly Plugin[],
-> = number extends TPlugins["length"]
-  ? {}
-  : UnionToIntersection<
-      {
-        [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends
-          Record<string, any>
-          ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
-          : {}
-      }[number]
+export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
+  {
+    [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
+      string,
+      any
     >
+      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      : {}
+  }[number]
+>
 
 /** Resolves the canvas-level contributed props across `TPlugins`. */
 export type CanvasPropsOf<TPlugins extends readonly Plugin[]> = UnionToIntersection<

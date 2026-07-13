@@ -92,13 +92,15 @@ type TestApi = ReturnType<typeof createThree> & {
  * @example
  * render(() => <TestCanvas camera={{ position: [0,0,5] }} />);
  */
-export function TestCanvas(props: CanvasProps) {
+export function TestCanvas<const TPlugins extends readonly Plugin[] = readonly Plugin[]>(
+  props: CanvasProps<TPlugins> & Partial<CanvasPropsOf<TPlugins>>,
+) {
   const canvas = createTestCanvas()
   const container = (
     <div style={{ width: "100%", height: "100%" }}>{canvas}</div>
   ) as HTMLDivElement
 
-  const three = createRoot(() => createThree(canvas, props))
+  const three = createRoot(() => createThree(canvas, props as CanvasProps))
   useRef(props, three)
 
   return container

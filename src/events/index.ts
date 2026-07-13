@@ -86,23 +86,35 @@ export function pointerEvents(options?: { raycaster?: ScreenRaycaster }): Pointe
   return Object.assign(base, {
     token: POINTER_EVENTS_TOKEN,
     install: (context: Context) => installEngine(context, options?.raycaster),
-    canvas: (context: Context) => ({
-      onPointerMissed: (handler: EventHandlers["onPointerMissed"]) => {
-        const engine = getEngine(context)
-        if (!engine) return
-        // As above: the prop's runtime value can be undefined (an unset canvas prop),
-        // which clears the handler rather than installing a non-function.
-        //
-        // The cast bridges the dispatcher's internal event to the public one. The
-        // `Pointer` builds a `DispatchEvent`, whose `nativeEvent` is typed as the
-        // widest `Event` because one dispatcher serves every gesture; the miss is only
-        // ever fired from the click family, so the `MouseEvent` the handler declares is
-        // what actually arrives.
-        engine.onPointerMissed =
-          typeof handler === "function"
-            ? (handler as unknown as (event: DispatchEvent) => void)
-            : undefined
-      },
-    }),
+    canvas: (context: Context) => {
+      // Also attempt install here. `install` is called through `Context.initializePlugin`,
+      // which dedups by `token` — shared across every `pointerEvents()` instance — so a
+      // second instance's `install` closure (and the `raycaster` option it closes over)
+      // never runs at all. Canvas-prop resolution, by contrast, runs unconditionally for
+      // every plugin listed on `<Canvas plugins>`, so it's the one place a second
+      // instance's `raycaster` is actually reachable. `installEngine` is idempotent (it
+      // no-ops past the first real install), so this is a harmless extra call for the
+      // first instance and the only way `installEngine` can warn about a differing
+      // `raycaster` on a later one.
+      installEngine(context, options?.raycaster)
+      return {
+        onPointerMissed: (handler: EventHandlers["onPointerMissed"]) => {
+          const engine = getEngine(context)
+          if (!engine) return
+          // As above: the prop's runtime value can be undefined (an unset canvas prop),
+          // which clears the handler rather than installing a non-function.
+          //
+          // The cast bridges the dispatcher's internal event to the public one. The
+          // `Pointer` builds a `DispatchEvent`, whose `nativeEvent` is typed as the
+          // widest `Event` because one dispatcher serves every gesture; the miss is only
+          // ever fired from the click family, so the `MouseEvent` the handler declares is
+          // what actually arrives.
+          engine.onPointerMissed =
+            typeof handler === "function"
+              ? (handler as unknown as (event: DispatchEvent) => void)
+              : undefined
+        },
+      }
+    },
   })
 }
