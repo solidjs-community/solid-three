@@ -1,6 +1,6 @@
 import { playwright } from "@vitest/browser-playwright"
 import solidPlugin from "vite-plugin-solid"
-import { defineConfig } from "vitest/config"
+import { configDefaults, defineConfig } from "vitest/config"
 
 export default defineConfig({
   plugins: [solidPlugin({ hot: false })],
@@ -14,6 +14,10 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.{ts,tsx}"],
+    // `tests/published` runs against the BUILT package, not `src/`, so it needs a build
+    // to have happened and its own resolution rules. It has its own config and its own
+    // script — `pnpm test:published`. See `vitest.published.config.ts`.
+    exclude: [...configDefaults.exclude, "tests/published/**"],
     setupFiles: ["./tests/setup.ts"],
     // `vite-plugin-solid` defaults `test.environment` to `'jsdom'` whenever
     // the user doesn't set one, which makes vitest exit 1 because jsdom

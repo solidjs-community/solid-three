@@ -33,8 +33,9 @@
     "lint:format": "prettier --check 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'consumer/**/*.{ts,tsx}' 'demo/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx,mdx}' '*.{ts,js,mjs,cjs}'",
     "lint:types": "tsc --noEmit && pnpm lint:types:consumer",
     "lint:types:consumer": "tsc -p consumer/tsconfig.json",
-    "prepublishOnly": "pnpm build && pnpm lint",
+    "prepublishOnly": "pnpm build && pnpm lint && pnpm test:published",
     "test": "vitest run",
+    "test:published": "pnpm build && vitest run --config vitest.published.config.ts",
     "types": "rm -rf types && tsc -p tsconfig.build.json"
   },
   "exports": {
@@ -126,6 +127,7 @@
     "rollup": "^4.18.0",
     "rollup-plugin-dts": "^6.1.1",
     "solid-js": "^1.8.17",
+    "solid-three": "link:.",
     "three": "^0.181.2",
     "three-stdlib": "^2.36.0",
     "tsup": "^8.0.2",
