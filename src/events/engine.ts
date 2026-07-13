@@ -16,9 +16,9 @@ export class PointerEventsEngine implements PointerEngine {
   readonly context: Context
   readonly registry: Object3D[] = []
   /**
-   * The screen raycaster this engine was installed with — exposed so a later,
-   * skipped `installEngine` call can tell whether its own `raycaster` option
-   * differs from the one actually in effect (see `installEngine`).
+   * The screen raycaster this engine was installed with — exposed so
+   * `warnOnIgnoredRaycaster` can tell whether a later `pointerEvents()` instance's
+   * `raycaster` option differs from the one actually in effect.
    */
   readonly raycaster: ScreenRaycaster
   private refCounts = new Map<Object3D, number>()
@@ -87,27 +87,13 @@ export function getEngine(context: Context): PointerEventsEngine | undefined {
  * The engine's one-time per-context setup, run by `Context.initializePlugin` under the
  * Canvas's owner — so `onCleanup` here removes the canvas listeners when the Canvas
  * unmounts, not when whichever element installed the engine first goes away.
+ *
+ * Reachable ONLY through `Context.initializePlugin` — that is what guarantees this runs
+ * under the Canvas's owner (via `runWithOwner`) rather than some short-lived per-element
+ * render-effect scope. Do not call this from anywhere else.
  */
 export function installEngine(context: Context, raycaster?: ScreenRaycaster) {
-  const installed = engines.get(context)
-  if (installed) {
-    // A second `pointerEvents()` instance's `install` is never actually called here —
-    // `initializePlugin`'s token dedup (the engine's token is shared across every
-    // instance, by design — see `POINTER_EVENTS_TOKEN`) skips it before `installEngine`
-    // is reached. `pointerEvents()`'s `canvas` contribution calls `installEngine` again
-    // as a workaround: canvas-prop resolution runs unconditionally per plugin instance,
-    // so it's what actually gets a second instance's `raycaster` option this far. This
-    // guard is the source of truth for "one engine per context" either way, and this is
-    // the one place a differing `raycaster` option going nowhere becomes observable.
-    if (process.env.DEV && raycaster && raycaster !== installed.raycaster) {
-      console.warn(
-        "S3: a second pointerEvents() instance was installed on a context that already " +
-          "has an engine — its `raycaster` option is ignored; only the first instance's " +
-          "`raycaster` takes effect. Configure the raycaster on that one instead.",
-      )
-    }
-    return
-  }
+  if (engines.has(context)) return
   // The screen pointer's ray strategy: the engine's configured raycaster, else the
   // canvas's own when that is a screen raycaster, else a fresh `CursorRaycaster`.
   const candidate: unknown = raycaster ?? context.raycaster
@@ -117,6 +103,27 @@ export function installEngine(context: Context, raycaster?: ScreenRaycaster) {
   const engine = new PointerEventsEngine(context, screenRaycaster)
   engines.set(context, engine)
   onCleanup(engine.connect())
+}
+
+/**
+ * A pure read: tells the caller whether a `pointerEvents()` instance's `raycaster`
+ * option is being silently ignored, without installing anything. Only the first
+ * instance to install on a given context (through `Context.initializePlugin`'s token
+ * dedup) ever actually configures the engine's raycaster — every later instance's
+ * `raycaster` option, if it differs, goes nowhere. This is the DEV-only warning for
+ * that case; it never mutates `engines`.
+ */
+export function warnOnIgnoredRaycaster(context: Context, raycaster?: ScreenRaycaster) {
+  if (!process.env.DEV) return
+  const installed = engines.get(context)
+  if (!installed) return
+  if (!raycaster) return
+  if (raycaster === installed.raycaster) return
+  console.warn(
+    "S3: an engine is already installed on this canvas, so this pointerEvents() " +
+      "instance's `raycaster` option is ignored — the first instance to install wins. " +
+      "Configure the raycaster on that instance instead.",
+  )
 }
 
 function isScreenRaycaster(value: unknown): value is ScreenRaycaster {

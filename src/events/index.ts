@@ -3,7 +3,7 @@ import { Object3D } from "three"
 import { plugin } from "../plugin.ts"
 import type { Context, Plugin } from "../types.ts"
 import { getMeta } from "../utils.ts"
-import { getEngine, installEngine } from "./engine.ts"
+import { getEngine, installEngine, warnOnIgnoredRaycaster } from "./engine.ts"
 import type { DispatchEvent } from "./pointers.ts"
 import type { ScreenRaycaster } from "./raycasters.ts"
 import type { EventHandlers, EventName, PointerEventMethods } from "./types.ts"
@@ -60,7 +60,15 @@ const EVENT_NAMES = [
  *
  * @param options.raycaster - Ray strategy for the screen pointer (e.g. a
  *   `CenterRaycaster` for gaze input). Defaults to the canvas's raycaster when that is
- *   a screen raycaster, else a fresh `CursorRaycaster`.
+ *   a screen raycaster, else a fresh `CursorRaycaster`. Only the first `pointerEvents()`
+ *   instance to install on a given canvas actually configures the engine — engine state
+ *   is per-canvas, not per-instance. If several instances are in play (e.g. one listed
+ *   on `<Canvas plugins>` and another on the namespace via `createT(THREE, [...])`),
+ *   configure the raycaster on the instance you list on `<Canvas plugins>`: that's the
+ *   one that installs, and every later instance's `raycaster` option is silently
+ *   ignored (a DEV warning fires when it differs, but only when the ignored instance
+ *   is also listed on `<Canvas plugins>` — a namespace-only instance's option can't be
+ *   observed at all).
  */
 export function pointerEvents(options?: { raycaster?: ScreenRaycaster }): PointerEventsPlugin {
   const base = plugin([Object3D], (object: Object3D) => {
@@ -87,16 +95,14 @@ export function pointerEvents(options?: { raycaster?: ScreenRaycaster }): Pointe
     token: POINTER_EVENTS_TOKEN,
     install: (context: Context) => installEngine(context, options?.raycaster),
     canvas: (context: Context) => {
-      // Also attempt install here. `install` is called through `Context.initializePlugin`,
-      // which dedups by `token` — shared across every `pointerEvents()` instance — so a
-      // second instance's `install` closure (and the `raycaster` option it closes over)
-      // never runs at all. Canvas-prop resolution, by contrast, runs unconditionally for
-      // every plugin listed on `<Canvas plugins>`, so it's the one place a second
-      // instance's `raycaster` is actually reachable. `installEngine` is idempotent (it
-      // no-ops past the first real install), so this is a harmless extra call for the
-      // first instance and the only way `installEngine` can warn about a differing
-      // `raycaster` on a later one.
-      installEngine(context, options?.raycaster)
+      // A pure read: `install` (and the engine it sets up) is reached only through
+      // `Context.initializePlugin`, which dedups by `token` — shared across every
+      // `pointerEvents()` instance — so a second instance's `install` closure never
+      // runs. Canvas-prop resolution, by contrast, runs unconditionally for every
+      // plugin listed on `<Canvas plugins>`, so it's the one place a second instance's
+      // `raycaster` option is reachable — hence the warning lives here, not in
+      // `installEngine`.
+      warnOnIgnoredRaycaster(context, options?.raycaster)
       return {
         onPointerMissed: (handler: EventHandlers["onPointerMissed"]) => {
           const engine = getEngine(context)
