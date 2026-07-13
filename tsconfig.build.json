@@ -18,5 +18,10 @@
     "declarationDir": "types",
     "sourceMap": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  // `src/events-pmndrs` is deliberately UNSHIPPED — no `exports` entry, no `dist` bundle.
+  // Left in, `tsc` would still emit `types/events-pmndrs/index.d.ts`, which `files: ["types/**"]`
+  // publishes and which imports `@pmndrs/pointer-events` — a devDependency, absent from a
+  // consumer's install. That is a dangling reference in the tarball for code nothing can reach.
+  "exclude": ["src/events-pmndrs"]
 }

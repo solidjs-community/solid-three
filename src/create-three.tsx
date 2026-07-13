@@ -58,9 +58,13 @@ import {
 import { useMeasure } from "./utils/use-measure.ts"
 
 /**
- * Creates and manages a `solid-three` scene. It initializes necessary objects like
- * camera, renderer, raycaster, and scene, manages the scene graph, setups up an event system
- * and rendering loop based on the provided properties.
+ * Creates and manages a `solid-three` scene. It initializes the objects core owns —
+ * camera, renderer, raycaster, scene — manages the scene graph, and runs the rendering
+ * loop, based on the provided properties.
+ *
+ * It sets up NO event system: core ships no event engine. Pointer events arrive only when
+ * an engine plugin is installed via the `plugins` prop, which this function also does —
+ * running each plugin's `install` and wiring its contributed canvas-level props.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
