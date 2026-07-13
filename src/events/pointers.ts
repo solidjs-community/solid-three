@@ -1,3 +1,4 @@
+import type { Accessor } from "solid-js"
 import { Plane, Vector3, type Intersection, type Object3D, type Ray } from "three"
 import type { Context, Meta, Prettify } from "../types.ts"
 import { getMeta } from "../utils.ts"
@@ -131,7 +132,14 @@ export class Pointer {
 
   constructor(
     private engine: PointerEngine,
-    private raycaster: PointerRaycaster,
+    /**
+     * The raycaster to pick with — either the raycaster itself, or an accessor for it (the
+     * same `T | Accessor<T>` shape `Stack` takes). The DOM source passes an accessor for
+     * the top of the engine's raycaster stack, so a subtree that pushes a raycaster changes
+     * what this pointer hits; a source with one fixed ray strategy (an XR controller) passes
+     * the raycaster directly.
+     */
+    private raycasterSource: PointerRaycaster | Accessor<PointerRaycaster>,
     private sink?: PointerCaptureSink,
     private captureRegistry?: PointerCaptureRegistry,
   ) {}
@@ -139,6 +147,16 @@ export class Pointer {
   /** The three.js context this pointer dispatches in — the engine's. */
   private get context(): Context {
     return this.engine.context
+  }
+
+  /**
+   * The raycaster to cast/aim with right now. Resolved afresh at every use — never
+   * captured — so it always reflects the current top of the engine's raycaster stack.
+   */
+  private get raycaster(): PointerRaycaster {
+    return typeof this.raycasterSource === "function"
+      ? this.raycasterSource()
+      : this.raycasterSource
   }
 
   /** Whether this pointer currently holds `object` captured. */
@@ -216,10 +234,13 @@ export class Pointer {
    * intersection — the ray is parallel to, or points away from, the plane.
    */
   private reproject(captured: Captured): Intersection {
-    this.raycaster.aim(this.context)
-    const point = this.raycaster.ray.intersectPlane(captured.plane, new Vector3())
+    // One resolution of the stack for the whole reprojection — aiming and reading the ray
+    // must both act on the same raycaster.
+    const raycaster = this.raycaster
+    raycaster.aim(this.context)
+    const point = raycaster.ray.intersectPlane(captured.plane, new Vector3())
     if (!point) return captured.intersection
-    const distance = this.raycaster.ray.origin.distanceTo(point)
+    const distance = raycaster.ray.origin.distanceTo(point)
     return { ...captured.intersection, point, distance }
   }
 

@@ -1,4 +1,4 @@
-import { onCleanup } from "solid-js"
+import { onCleanup, type Accessor } from "solid-js"
 import { Object3D } from "three"
 import { useThree } from "../hooks.ts"
 import { plugin } from "../plugin.ts"
@@ -60,14 +60,15 @@ const EVENT_NAMES = [
  * contributed to `<Canvas>` — so the engine must also be listed there, either with
  * `<Canvas plugins={[engine]}>` or through `createT.withCanvas`.
  *
- * The engine owns the raycaster: core has none. Configure it here, read and mutate it at
- * runtime with {@link useRaycaster}.
+ * The engine owns the raycaster: core has none. Configure it here, and at runtime read,
+ * mutate or override it with {@link useRaycaster}.
  *
  * @param options.raycaster - How this canvas picks. Either a whole ray strategy — a
  *   `ScreenRaycaster` instance such as `new CenterRaycaster()` for gaze input — or a plain
  *   config object of raycaster properties (`{ far: 10, near: 1 }`) applied to the engine's
  *   own `CursorRaycaster`. Defaults to an unconfigured `CursorRaycaster`. The option is
- *   read once, at install; runtime changes go through {@link useRaycaster}. Only the first
+ *   read once, at install, and sets the engine's own raycaster — the bottom of the
+ *   raycaster stack; at runtime {@link useRaycaster} mutates it or pushes over it. Only the first
  *   `pointerEvents()` instance to install on a given canvas actually configures the engine
  *   — engine state is per-canvas, not per-instance. If several instances are in play (e.g.
  *   one listed on `<Canvas plugins>` and another on the namespace via
@@ -132,13 +133,41 @@ export function pointerEvents(options?: { raycaster?: RaycasterOption }): Pointe
   })
 }
 
+/** What {@link useRaycaster} hands back: the raycaster stack's two halves. */
+export interface RaycasterHandle {
+  /**
+   * The raycaster this canvas picks with right now — the top of the stack. An ACCESSOR, so
+   * it stays live under destructuring and reactive in a tracking scope: it re-reads when a
+   * subtree pushes a raycaster or pops one.
+   */
+  raycaster: Accessor<ScreenRaycaster>
+  /**
+   * Push a raycaster: this canvas picks with it from here on. Returns a disposer that pops
+   * it, restoring whatever was underneath. The push is also tied to the calling owner, so
+   * an unmounting subtree restores the previous raycaster on its own.
+   */
+  setRaycaster: (raycaster: ScreenRaycaster) => () => void
+}
+
 /**
- * The raycaster this canvas picks with — the engine's own, and the only one there is.
- * Mutate it and picking changes on the next event:
+ * Reach the raycaster this canvas picks with. It is a stack: the engine's own raycaster
+ * (from `pointerEvents({ raycaster })`, or the default `CursorRaycaster`) sits at the
+ * bottom, and a subtree can push its own over it.
+ *
+ * `raycaster()` is the top of the stack — the very object that picks, so mutating it
+ * changes what gets hit on the next event:
  *
  * ```tsx
- * const raycaster = useRaycaster()
- * createEffect(() => (raycaster.far = reach()))
+ * const { raycaster, setRaycaster } = useRaycaster()
+ * createEffect(() => (raycaster().far = reach()))
+ * ```
+ *
+ * `setRaycaster(next)` pushes a whole ray strategy for a subtree and returns a disposer
+ * that pops it:
+ *
+ * ```tsx
+ * const restore = setRaycaster(new CenterRaycaster()) // this subtree picks by gaze
+ * onCleanup(restore) // and the previous raycaster comes back
  * ```
  *
  * Must be called under a `<Canvas>` that has a `pointerEvents()` engine installed — there
@@ -146,7 +175,7 @@ export function pointerEvents(options?: { raycaster?: RaycasterOption }): Pointe
  *
  * @throws If called outside a `<Canvas>`, or inside one with no engine installed.
  */
-export function useRaycaster(): ScreenRaycaster {
+export function useRaycaster(): RaycasterHandle {
   // Throws "S3: Hooks can only be used within the Canvas component!" outside a Canvas.
   const context = useThree()
   const engine = getEngine(context)
@@ -159,5 +188,8 @@ export function useRaycaster(): ScreenRaycaster {
         "handler, so it may not exist yet when this hook runs.",
     )
   }
-  return engine.raycaster
+  return {
+    raycaster: () => engine.raycaster,
+    setRaycaster: raycaster => engine.setRaycaster(raycaster),
+  }
 }

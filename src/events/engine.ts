@@ -1,5 +1,6 @@
 import { onCleanup } from "solid-js"
 import type { Object3D, Raycaster } from "three"
+import { Stack } from "../data-structure/stack.ts"
 import { useProps } from "../props.ts"
 import type { BaseProps, Context } from "../types.ts"
 import { captureRegistry } from "./pointer-capture.ts"
@@ -17,8 +18,9 @@ import type { EventName } from "./types.ts"
  * - a plain CONFIG OBJECT of raycaster properties, e.g. `{ far: 10, near: 1 }`, applied to
  *   the engine's own `CursorRaycaster`.
  *
- * Static per engine: it configures the raycaster once, at install. To change the raycaster
- * at runtime, mutate it through `useRaycaster()` — that is the same object.
+ * Static per engine: it configures the engine's own raycaster once, at install — the one at
+ * the BOTTOM of the raycaster stack. At runtime, `useRaycaster()` reaches the stack: mutate
+ * the raycaster it hands back, or push a different one over it for a subtree.
  */
 export type RaycasterOption = ScreenRaycaster | Partial<BaseProps<Raycaster>>
 
@@ -31,10 +33,17 @@ export class PointerEventsEngine implements PointerEngine {
   readonly context: Context
   readonly registry: Object3D[] = []
   /**
-   * The raycaster this engine picks with — the only one on the canvas. `useRaycaster()`
-   * hands it out, so mutating what that hook returns genuinely changes what gets picked.
+   * The engine's own raycaster — the one built from the `raycaster` option (or the default
+   * `CursorRaycaster`). It sits at the BOTTOM of the stack: it picks whenever no subtree has
+   * pushed an override.
    */
-  readonly raycaster: ScreenRaycaster
+  readonly baseRaycaster: ScreenRaycaster
+  /**
+   * The raycaster overrides, innermost last. A subtree pushes with {@link setRaycaster} and
+   * pops on unmount, so the previous raycaster is restored. Reading it (through
+   * {@link raycaster}) is reactive: the stack is signal-backed.
+   */
+  private raycasterStack = new Stack<ScreenRaycaster>("raycaster")
   /**
    * The `raycaster` OPTION this engine was installed with (an instance, a config object,
    * or nothing) — kept so `warnOnIgnoredRaycaster` can tell the instance that actually
@@ -49,9 +58,32 @@ export class PointerEventsEngine implements PointerEngine {
 
   constructor(context: Context, raycaster: ScreenRaycaster, raycasterOption?: RaycasterOption) {
     this.context = context
-    this.raycaster = raycaster
+    this.baseRaycaster = raycaster
     this.raycasterOption = raycasterOption
-    this.manager = new DOMPointerManager(context, raycaster, captureRegistry, this)
+    // The manager (and through it every `Pointer`) gets an ACCESSOR, never a captured
+    // reference: aiming and casting both resolve the top of the stack at the moment of the
+    // event, so pushing a raycaster genuinely changes what gets hit.
+    this.manager = new DOMPointerManager(context, () => this.raycaster, captureRegistry, this)
+  }
+
+  /**
+   * The raycaster this canvas picks with right now: the top of the stack, or the engine's
+   * own when nothing is pushed. Every aim and every cast goes through here.
+   *
+   * Reactive — reading it in a tracking scope re-runs when a subtree pushes or pops.
+   */
+  get raycaster(): ScreenRaycaster {
+    return this.raycasterStack.peek() ?? this.baseRaycaster
+  }
+
+  /**
+   * Push `raycaster` on top of the stack: this canvas picks with it until it is popped.
+   * Returns a disposer that pops it, restoring whatever was underneath. The push is also
+   * tied to the calling owner, so an unmounting subtree restores the previous raycaster on
+   * its own.
+   */
+  setRaycaster(raycaster: ScreenRaycaster): () => void {
+    return this.raycasterStack.push(raycaster)
   }
 
   /** Attach the source's listeners; returns the disconnect. */
@@ -115,9 +147,10 @@ export function getEngine(context: Context): PointerEventsEngine | undefined {
  */
 export function installEngine(context: Context, raycasterOption?: RaycasterOption) {
   if (engines.has(context)) return
-  // The one raycaster on this canvas. An instance IS the ray strategy, so it's used as
-  // given; anything else is a config object applied to the engine's own `CursorRaycaster`
-  // — the same raycaster `useRaycaster()` then hands out.
+  // The engine's own raycaster — the bottom of the stack. An instance IS the ray strategy,
+  // so it's used as given; anything else is a config object applied to the engine's own
+  // `CursorRaycaster` — the raycaster `useRaycaster()` hands out until something is pushed
+  // over it.
   let screenRaycaster: ScreenRaycaster
   if (isScreenRaycaster(raycasterOption)) {
     screenRaycaster = raycasterOption

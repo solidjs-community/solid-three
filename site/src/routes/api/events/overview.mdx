@@ -31,7 +31,7 @@ import { pointerEvents } from "solid-three/events"
 const { T, Canvas } = createT.withCanvas(THREE, [pointerEvents()])
 ```
 
-The engine also owns the raycaster it picks with — core has none. Configure it with `pointerEvents({ raycaster: … })`, and reach it at runtime with `useRaycaster()`. See [Raycasters](/api/utilities/raycasters).
+The engine also owns the raycaster it picks with — core has none. Configure it with `pointerEvents({ raycaster: … })`, and reach it at runtime with `useRaycaster()`, which hands back the raycaster currently picking plus a `setRaycaster` that pushes one for a subtree. See [Raycasters](/api/utilities/raycasters).
 
 ## Supported events
 

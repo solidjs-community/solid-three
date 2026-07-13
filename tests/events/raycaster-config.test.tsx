@@ -14,7 +14,8 @@ import { test } from "../../src/testing/index.tsx"
  *  - `pointerEvents({ raycaster })` at setup: a config OBJECT (`{ far: … }`) applied to
  *    the engine's own `CursorRaycaster`, or a screen-raycaster INSTANCE (e.g.
  *    `CenterRaycaster`) used as the whole ray strategy. Plus the no-option default.
- *  - `useRaycaster()` at runtime: mutating what it returns must change what gets picked.
+ *  - `useRaycaster()` at runtime: mutating the raycaster it hands back must change what gets
+ *    picked. (Pushing a different raycaster over it — the stack — is `raycaster-stack.test.tsx`.)
  */
 
 // One engine instance, installed both into the namespace (so `T.Mesh` has pointer
@@ -124,7 +125,7 @@ describe("useRaycaster()", () => {
 
     const { canvas } = test(
       () => {
-        raycaster = useRaycaster()
+        raycaster = useRaycaster().raycaster()
         return <Box onClick={onClick} />
       },
       { plugins: [engine], onPointerMissed: missed },
@@ -150,7 +151,7 @@ describe("useRaycaster()", () => {
 
     test(
       () => {
-        seen = useRaycaster()
+        seen = useRaycaster().raycaster()
         return null
       },
       { plugins: [configured] },

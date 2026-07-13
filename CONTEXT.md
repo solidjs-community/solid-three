@@ -122,7 +122,7 @@ A plugin that owns a pointer paradigm end to end — its own **eventRegistry**, 
 The set of **objects** carrying event handlers; what an **event engine** raycasts. Belongs to the engine, one per **Context** — not to core.
 
 **raycaster**:
-Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform. Belongs to the **event engine**, one per **Context**, and there is exactly one: configured at install with `pointerEvents({ raycaster })` (an instance, or a config object applied to the engine's `CursorRaycaster`), reached at runtime with `useRaycaster()`. Core has none — nothing in core casts a ray.
+Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform. Belongs to the **event engine**, not to core — nothing in core casts a ray. It is stack-based, like the **camera**: the engine's own raycaster (configured at install with `pointerEvents({ raycaster })` — an instance, or a config object applied to the engine's `CursorRaycaster`) sits at the bottom, and `useRaycaster().setRaycaster(next)` pushes an override that pops on cleanup. The engine resolves the top of the stack at cast time, so a push genuinely changes what gets hit.
 
 **NDC**:
 Normalized device coordinates — the `[-1, 1]` cursor space a **screen raycaster** aims from.
@@ -167,8 +167,8 @@ WebXR (VR/AR) session management (`createXR` / `useXR`). _In flux_: being extern
 - A **Plugin** matches **elements** via its **selector** and contributes **plugin props**; a plugin prop **overrides** the native prop of the same name
 - A dispatch runs **raycast propagation** then **tree propagation**; `stopPropagation()` halts both. `event.object` is `event.intersections[0].object`
 - A **pointer source** drives one or more **Pointers**; each **Pointer** raycasts the **eventRegistry** with a **raycaster**, then dispatches via **raycast propagation** and **tree propagation**
-- The **raycaster** belongs to the **event engine**, not to core — one per **Context**, and the same object `useRaycaster()` returns, so mutating it always changes what gets picked
-- The active **camera** is stack-based: setting one (via the `Canvas` prop or `useThree().setCamera`) pushes an override that pops on cleanup, restoring the previous
+- The **raycaster** belongs to the **event engine**, not to core, and is stack-based: `useRaycaster()` returns `{ raycaster, setRaycaster }`, `raycaster()` is the object that actually picks (so mutating it always changes what gets picked), and `setRaycaster(next)` pushes an override that pops on cleanup
+- The active **camera** is stack-based too: setting one (via the `Canvas` prop or `useThree().setCamera`) pushes an override that pops on cleanup, restoring the previous
 
 ## Example dialogue
 
