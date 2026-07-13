@@ -1,0 +1,27 @@
+{
+  // Declaration build. `tsup` emits the JavaScript; this emits every `.d.ts`.
+  //
+  // It has to be ONE compilation covering all three entry points, with the module
+  // structure preserved. Rolling each entry point up on its own (which is what
+  // `tsup`'s `dts` option did) gives every bundle a private copy of `$S3C` — and a
+  // `unique symbol` is nominal, so `solid-three`'s `Meta`/`Context`/`Plugin` and
+  // `solid-three/events`' identically-spelled ones are then unrelated types. A
+  // consumer could not pass `pointerEvents()` to `createT` at all.
+  //
+  // Emitting the whole source tree at once instead means `$S3C` is declared exactly
+  // once, in `types/constants.d.ts`, and every entry point imports that one symbol.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "types",
+    "sourceMap": false
+  },
+  "include": ["src"],
+  // `src/events-pmndrs` is deliberately UNSHIPPED — no `exports` entry, no `dist` bundle.
+  // Left in, `tsc` would still emit `types/events-pmndrs/index.d.ts`, which `files: ["types/**"]`
+  // publishes and which imports `@pmndrs/pointer-events` — a devDependency, absent from a
+  // consumer's install. That is a dangling reference in the tarball for code nothing can reach.
+  "exclude": ["src/events-pmndrs"]
+}

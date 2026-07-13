@@ -2,12 +2,9 @@ import type { Accessor, JSX, Owner } from "solid-js"
 import type {
   Clock,
   ColorRepresentation,
-  Intersection,
   Loader,
-  Object3D,
   OrthographicCamera,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   Color as ThreeColor,
   Euler as ThreeEuler,
@@ -23,7 +20,6 @@ import type {
 import type { WebGPURenderer } from "three/webgpu"
 import type { CanvasProps } from "./canvas.tsx"
 import type { $S3C } from "./constants.ts"
-import type { EventRaycaster } from "./raycasters.tsx"
 import type { Measure } from "./utils/use-measure.ts"
 
 /**********************************************************************************/
@@ -242,11 +238,29 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
   : never
 
 /**
- * A composable extension: a function `(element) => methods`. A contributed
- * method's first-param type becomes the element's prop type (see {@link PluginPropsOf}).
+ * Optional statics an engine-style plugin attaches to its function. `plugin()` does not
+ * add them; the engine does, via `Object.assign`.
+ */
+export interface PluginStatics {
+  /**
+   * Stable per-engine identity — a MODULE-LEVEL symbol, never the plugin instance.
+   * Two instances of the same engine share one installation per context. Using the
+   * instance here double-installs and double-dispatches.
+   */
+  token?: symbol
+  /** One-time per-context setup, run through `Context.initializePlugin` under the canvas owner. */
+  install?: (context: Context) => void
+  /** Canvas-level contributed props: prop name -> method receiving the prop value. */
+  canvas?: (context: Context) => Record<string, (value: any) => void>
+}
+
+/**
+ * A composable extension: a function `(element) => methods`, optionally carrying
+ * {@link PluginStatics}. A contributed method's first-param type becomes the element's
+ * prop type (see {@link PluginPropsOf}).
  * Created via {@link PluginFn} (`plugin()`); a non-matching element yields `undefined`.
  */
-export type Plugin<TFn = (element: any) => any> = TFn
+export type Plugin<TFn = (element: any) => any> = TFn & PluginStatics
 
 /** The three `plugin()` creation forms: global, class-filtered, type-guard. */
 export interface PluginFn {
@@ -263,11 +277,39 @@ export interface PluginFn {
   ): Plugin<(element: T) => Methods>
 }
 
+/**
+ * `true` iff `T` is exactly `any` (the only type that is assignable both to and from
+ * `0 extends 1 & T` — a literal type, a union, `unknown`, and `never` all fail this
+ * check). Used to detect when {@link PluginReturn} bottoms out at `any` because the
+ * loose `Plugin` default (`TFn = (element: any) => any`) was never narrowed by a real
+ * plugin tuple — see {@link PluginPropsOf}.
+ */
+type IsAny<T> = 0 extends 1 & T ? true : false
+
+/**
+ * `true` iff `Methods` is keyed by an INDEX SIGNATURE rather than by known keys — i.e. it
+ * names no prop in particular. The sibling of {@link IsAny}, and it guards the same hole
+ * from the other side: mapping over `Record<string, (value: any) => void>` produces
+ * `{ [x: string]: any }`, which accepts EVERY prop and silently drops it, since the plugin
+ * only ever acts on the keys it really contributes.
+ *
+ * That loose type is not hypothetical: it is what {@link PluginStatics} itself declares for
+ * `canvas`, so an engine author who annotates against the published contract lands on it.
+ * (`pointerEvents()` avoids it by spelling its `canvas` static out concretely — see
+ * `PointerEventsPlugin`.) Yielding `{}` here means a loose plugin contributes NOTHING
+ * rather than EVERYTHING, so an unknown prop stays the compile error this boundary exists
+ * to produce. `any` also lands here (`keyof any` is `string | number | symbol`), which
+ * makes this a superset of {@link IsAny} for the mapped-type sites.
+ */
+type IsLoose<Methods> = string extends keyof Methods ? true : false
+
 type PluginReturn<TKind, TPlugin> =
   TPlugin extends Plugin<infer TFn>
     ? TFn extends { (element: infer TElement): infer TReturnType }
       ? TKind extends TElement
-        ? TReturnType
+        ? IsAny<TReturnType> extends true
+          ? {}
+          : TReturnType
         : {}
       : {}
     : {}
@@ -277,16 +319,14 @@ type PluginReturn<TKind, TPlugin> =
  * of the same name (a plugin intercepts the prop at runtime, so its type must replace the
  * native one, not intersect with it — `nativeMethod & V` is satisfiable by nothing).
  *
- * Guarded for the no-plugins case: when no specific plugins are inferred, `TPlugins` is the
- * loose default `readonly Plugin[]` whose `length` is `number` (not a literal). There's no
- * contribution to key off, and `keyof PluginPropsOf<…, Plugin[]>` would be every key — so
- * yield `never` (drop nothing). Only a real inferred tuple (literal `length`, e.g. from an
- * inline or `const` plugin array) contributes keys. A pre-typed `Plugin[]` variable still
- * reads as loose, so its overrides fall back to the (harmless) intersection.
+ * No no-plugins guard needed here: with the loose default `readonly Plugin[]`,
+ * `PluginPropsOf` itself resolves to `{}` (see its doc comment and {@link IsAny}), so
+ * `keyof PluginPropsOf<…, Plugin[]>` is already `never` — nothing to drop.
  */
-type ContributedKeys<T, TPlugins extends readonly Plugin[]> = number extends TPlugins["length"]
-  ? never
-  : keyof PluginPropsOf<InstanceOf<T>, TPlugins>
+type ContributedKeys<T, TPlugins extends readonly Plugin[]> = keyof PluginPropsOf<
+  InstanceOf<T>,
+  TPlugins
+>
 
 /**
  * An element's full prop type: its base {@link BaseProps} with the props contributed by
@@ -302,14 +342,51 @@ export type Props<T, TPlugins extends readonly Plugin[]> = Omit<
 > &
   Partial<PluginPropsOf<InstanceOf<T>, TPlugins>>
 
-/** Resolves the contributed props for element type `TKind` across `TPlugins`. */
+/**
+ * Resolves the contributed props for element type `TKind` across `TPlugins`.
+ *
+ * Handles the no-plugins case at the root cause rather than by guarding on
+ * `TPlugins["length"]`: with the loose default `readonly Plugin[]`, `Plugin`'s own
+ * default (`TFn = (element: any) => any`) makes {@link PluginReturn} resolve to `any`
+ * for every plugin in the tuple. Without {@link IsAny}, a mapped type over `any`
+ * degrades into an index signature that swallows EVERY prop — so `createT(THREE)`
+ * would accept `onClick` (and any typo) and then silently drop it, since no engine is
+ * installed to act on it. That is precisely the dead-handler failure the event
+ * boundary exists to turn into a compile error. `IsAny` catches that `any` inside
+ * `PluginReturn` and yields `{}` there instead, so this type falls out to `{}` too —
+ * no plugins inferred, no contributed props.
+ *
+ * A length guard would additionally reject the ordinary *hoisted* case
+ * (`const plugins = [pointerEvents()]; createT(THREE, plugins)`), because a `const`
+ * array's inferred type still has a `number` `length` even though its elements are a
+ * literal tuple. Fixing this at `PluginReturn` avoids that regression.
+ *
+ * The one remaining trade-off: a plugin list passed as a pre-typed `Plugin[]`
+ * variable (rather than an inline/hoisted array) has no concrete `TFn` to narrow
+ * from, so its contributed props are not typed and must be passed through a
+ * namespace whose plugins TypeScript can actually see. Runtime is unaffected either
+ * way.
+ */
 export type PluginPropsOf<TKind, TPlugins extends readonly Plugin[]> = UnionToIntersection<
   {
     [K in keyof TPlugins]: PluginReturn<TKind, TPlugins[K]> extends infer Methods extends Record<
       string,
       any
     >
-      ? { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      ? IsLoose<Methods> extends true
+        ? {}
+        : { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
+      : {}
+  }[number]
+>
+
+/** Resolves the canvas-level contributed props across `TPlugins`. */
+export type CanvasPropsOf<TPlugins extends readonly Plugin[]> = UnionToIntersection<
+  {
+    [K in keyof TPlugins]: TPlugins[K] extends { canvas: (context: any) => infer Methods }
+      ? IsLoose<Methods> extends true
+        ? {}
+        : { [M in keyof Methods]: Methods[M] extends (value: infer V) => any ? V : never }
       : {}
   }[number]
 >
@@ -324,12 +401,14 @@ export interface Context {
    * XR plugin wiring its controller source on the first `onXRSelect` registration.
    */
   initializePlugin(token: unknown, fn: () => void): void
+  /**
+   * Subscribe to the frame loop. The engine-facing half of `useFrame`: a plugin has
+   * no Solid context, so the loop must be reachable from `Context` itself.
+   */
+  addFrameListener: FrameListener
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
-  /** Objects carrying any pointer handler; raycast by the pointer system. */
-  eventRegistry: Object3D[]
-  raycaster: Raycaster | EventRaycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
   props: CanvasProps
@@ -337,7 +416,6 @@ export interface Context {
   requestRender: () => void
   scene: Meta<Scene>
   setCamera(camera: CameraKind): () => void
-  setRaycaster(camera: Raycaster): () => void
   viewport: Viewport
 }
 
@@ -363,107 +441,16 @@ export type FrameListener = (
 
 /**********************************************************************************/
 /*                                                                                */
-/*                                      Event                                     */
+/*                                  Type Helpers                                  */
 /*                                                                                */
 /**********************************************************************************/
 
+/**
+ * `U` unless `T` is exactly `false` — the switch a config flag flips. Used by the
+ * event engine's `ThreeEvent` to add or drop whole slices of the event shape; it
+ * lives here because it is a plain type utility, not an event concept.
+ */
 export type When<T, U> = T extends false ? (T extends true ? U : unknown) : U
-
-export type ThreeEvent<
-  TEvent,
-  TConfig extends { stoppable?: boolean; intersections?: boolean } = {
-    stoppable: true
-    intersections: true
-  },
-> = Intersect<
-  [
-    {
-      nativeEvent: TEvent
-      /**
-       * The object a bubbled handler is currently firing on (the ancestor reached
-       * while walking up the hit chain), or `undefined` for the canvas-level
-       * dispatch — the 3D analogue of a DOM event's `currentTarget`, so it's only
-       * valid during the handler. Set by `Pointer.dispatch`; plugin sources read it.
-       */
-      currentObject?: Object3D
-    },
-    When<
-      TConfig["stoppable"],
-      {
-        stopped: boolean
-        stopPropagation: () => void
-      }
-    >,
-    When<
-      TConfig["intersections"],
-      {
-        currentIntersection: Intersection
-        intersection: Intersection
-        intersections: Intersection[]
-        /** The closest hit object — `intersections[0].object`. The 3D analogue of a DOM event's `target`; stable after dispatch. */
-        object: Object3D
-      }
-    >,
-  ]
->
-
-export type PointerCapture = {
-  /**
-   * Capture this event's pointer to an object — by default the node the handler is
-   * firing on (`event.currentObject`). Subsequent move/up for this pointer deliver
-   * exclusively to that object's chain (still bubbling to the canvas-level handler)
-   * until released — even off-ray and, for the DOM source, off-canvas. Off-ray,
-   * `event.intersection` is reprojected onto the captured plane so `point` keeps tracking.
-   *
-   * Options:
-   * - `object` — capture this object instead of `event.currentObject`. Required to
-   *   start a capture later (after an `await`/timer), since `currentObject` is cleared
-   *   after dispatch (like a DOM event's `currentTarget`); with no live hit the drag
-   *   plane is camera-facing through the object's centre.
-   * - `normal` — a world-space normal for the drag plane, through the grab point,
-   *   instead of the default (the hit surface's normal, or camera-facing). Use it to
-   *   constrain a drag, e.g. `{ normal: new Vector3(0, 1, 0) }` to slide on the ground.
-   *
-   * With no `object`, call it synchronously in the handler.
-   */
-  setPointerCapture(options?: { object?: Object3D; normal?: ThreeVector3 }): void
-  /**
-   * Release a capture started with `setPointerCapture`. Also released
-   * automatically on pointerup/cancel for the DOM source, and on the paired end
-   * event for XR.
-   */
-  releasePointerCapture(): void
-  /** Whether `object` (default: this event's `currentObject`) currently holds the pointer capture. */
-  hasPointerCapture(object?: Object3D): boolean
-}
-
-type EventHandlersMap = {
-  onClick: Prettify<ThreeEvent<MouseEvent>>
-  onClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onDoubleClick: Prettify<ThreeEvent<MouseEvent>>
-  onDoubleClickMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onContextMenu: Prettify<ThreeEvent<MouseEvent>>
-  onContextMenuMissed: Prettify<ThreeEvent<MouseEvent, { stoppable: false; intersections: false }>>
-  onPointerUp: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerDown: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerMove: Prettify<ThreeEvent<PointerEvent> & PointerCapture>
-  onPointerEnter: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onPointerLeave: Prettify<ThreeEvent<PointerEvent, { stoppable: false }>>
-  onWheel: Prettify<ThreeEvent<WheelEvent>>
-}
-
-export type EventHandlers = {
-  [TKey in keyof EventHandlersMap]: (event: EventHandlersMap[TKey]) => void
-}
-
-export type CanvasEventHandlers = {
-  [TKey in keyof EventHandlersMap]: (
-    event: Prettify<Omit<EventHandlersMap[TKey], "currentIntersection">>,
-  ) => void
-}
-
-/** The names of all `EventHandlers` */
-export type EventName = keyof EventHandlersMap
 
 /**********************************************************************************/
 /*                                                                                */
@@ -526,16 +513,20 @@ export type MapToRepresentation<T> = {
 }
 
 /**
- * Generic `solid-three` props of a given class. Plugin-contributed props are NOT
- * baked in here — they're intersected directly at the composition sites (`createT`
- * proxy + `<Entity>`) via {@link PluginPropsOf}, which keeps `TPlugins` inferable at
- * those sites (burying it in this `Overwrite` defeats inference — see notes).
+ * Generic `solid-three` props of a given class. Pointer handlers are NOT here: core
+ * ships no event engine, so `onClick` is a prop of `T.Mesh` only once an engine
+ * contributes it (`createT(THREE, [pointerEvents()])`) — without one it is a compile
+ * error, not a silently dead handler.
+ *
+ * Plugin-contributed props are likewise not baked in here — they're intersected
+ * directly at the composition sites (`createT` proxy + `<Entity>`) via
+ * {@link PluginPropsOf}, which keeps `TPlugins` inferable at those sites (burying it
+ * in this `Overwrite` defeats inference — see notes).
  */
 export type BaseProps<T> = Partial<
   Overwrite<
     [
       MapToRepresentation<InstanceOf<T>>,
-      EventHandlers,
       {
         args: T extends Constructor ? ConstructorOverloadParameters<T> : undefined
         attach: string | ((parent: object, self: Meta<InstanceOf<T>>) => () => void)

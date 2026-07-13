@@ -8,6 +8,7 @@ import {
   getOwner,
   mergeProps,
   onCleanup,
+  runWithOwner,
   untrack,
 } from "solid-js"
 import {
@@ -21,7 +22,6 @@ import {
   PCFShadowMap,
   PCFSoftShadowMap,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   SRGBColorSpace,
   Vector3,
@@ -30,12 +30,9 @@ import {
   type WebGLRendererParameters,
 } from "three"
 import type { CanvasProps } from "./canvas.tsx"
-import { createEvents } from "./create-events.ts"
 import { Stack } from "./data-structure/stack.ts"
 import { frameContext, threeContext } from "./hooks.ts"
-import { eventContext } from "./internal-context.ts"
 import { useProps, useSceneGraph } from "./props.ts"
-import { CursorRaycaster, type EventRaycaster } from "./raycasters.tsx"
 import type {
   CameraKind,
   Context,
@@ -60,9 +57,14 @@ import {
 import { useMeasure } from "./utils/use-measure.ts"
 
 /**
- * Creates and manages a `solid-three` scene. It initializes necessary objects like
- * camera, renderer, raycaster, and scene, manages the scene graph, setups up an event system
- * and rendering loop based on the provided properties.
+ * Creates and manages a `solid-three` scene. It initializes the objects core owns —
+ * camera, renderer, scene — manages the scene graph, and runs the rendering loop, based
+ * on the provided properties.
+ *
+ * It sets up NO event system: core ships no event engine, and does no picking — the ray
+ * strategy that picks belongs to whichever engine dispatches. Pointer events arrive only
+ * when an engine plugin is installed via the `plugins` prop, which this function also does
+ * — running each plugin's `install` and wiring its contributed canvas-level props.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
@@ -180,7 +182,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
   const orthographicFlag = createMemo(() => !!props.orthographic)
   const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
-  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
   const glKind = createMemo<"factory" | "instance" | "default">(() => {
     const _propsGl = props.gl
     if (typeof _propsGl === "function") return "factory"
@@ -242,23 +243,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     })
   })
-
-  const raycaster = createMemo(() => {
-    if (raycasterIsInstance()) {
-      return meta<Raycaster | EventRaycaster>(props.raycaster as Raycaster, {
-        get props() {
-          return props.raycaster || {}
-        },
-      })
-    }
-    return meta<Raycaster | EventRaycaster>(new CursorRaycaster(), {
-      get props() {
-        return props.raycaster || {}
-      },
-    })
-  })
-
-  const raycasterStack = new Stack<Raycaster>("raycaster")
 
   // Tracks whether the *previous* renderer was built by us (vs supplied by
   // the user via factory/instance). Only our own renderers get disposed when
@@ -357,14 +341,20 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       return measure.bounds()
     },
     owner: getOwner(),
+    addFrameListener,
     initializePlugin(token: unknown, fn: () => void) {
       if (initializedPlugins.has(token)) return
       initializedPlugins.add(token)
-      fn()
+      // `this.owner` (not a fresh `getOwner()`) — `initializePlugin` is invoked from
+      // inside a per-element render effect, so an ambient `getOwner()` call here would
+      // resolve to that element's own reactive scope and tie the plugin's cleanup to
+      // whichever element happens to trigger the (deduped) install first, defeating the
+      // point of this change. `this.owner` is the Canvas's owner, captured once above.
+      if (this.owner) runWithOwner(this.owner, fn)
+      else fn()
     },
     canvas,
     clock,
-    eventRegistry: [],
     get dpr() {
       // Renderers without a pixel-ratio API (CSS2D/3D, SVG) didn't scale
       // anything — reporting `1` is honest. Users who need the device's
@@ -387,12 +377,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     },
     get scene() {
       return scene()
-    },
-    get raycaster() {
-      return raycasterStack.peek() || raycaster()
-    },
-    setRaycaster(raycaster: Raycaster) {
-      return raycasterStack.push(raycaster)
     },
     get gl() {
       // Internally gl is typed as Meta<SupportedRenderer> (the open union) since the
@@ -435,12 +419,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     createRenderEffect(() => {
       if (!props.scene || props.scene instanceof Scene) return
       useProps(scene, props.scene)
-    })
-
-    // Manage raycaster
-    createRenderEffect(() => {
-      if (!props.raycaster || props.raycaster instanceof Raycaster) return
-      useProps(raycaster, props.raycaster)
     })
 
     // Manage gl
@@ -575,12 +553,38 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
 
   /**********************************************************************************/
   /*                                                                                */
-  /*                                     Events                                     */
+  /*                                     Plugins                                    */
   /*                                                                                */
   /**********************************************************************************/
 
-  // Initialize event-system
-  const { addEventListener } = createEvents(context)
+  // Eager install: every plugin listed on the canvas gets its one-time per-context
+  // setup now, before any element mounts. This is one of the two install triggers —
+  // the lazy counterpart runs from the first plugged element in `useProps`, and
+  // `initializePlugin`'s token dedup makes the pair harmless. It lives here rather
+  // than in `<Canvas>` so every entry point into a scene (the `<Canvas>` component,
+  // and `test()`/`TestCanvas` from `solid-three/testing`, which call `createThree`
+  // directly) installs plugins identically.
+  const canvasMethods: Record<string, (value: any) => void> = {}
+  for (const plugin of props.plugins ?? []) {
+    if (plugin.install) {
+      context.initializePlugin(plugin.token ?? plugin, () => plugin.install?.(context))
+    }
+    if (!plugin.canvas) continue
+    for (const [key, method] of Object.entries(plugin.canvas(context))) {
+      if (process.env.DEV && key in canvasMethods) {
+        console.warn(
+          `S3: two plugins contribute the canvas prop "${key}" — the last one wins. Rename one of them if both were meant to fire.`,
+        )
+      }
+      canvasMethods[key] = method
+    }
+  }
+
+  // Feed each contributed canvas prop its value, reactively. `canvasMethods` is built
+  // once (plugins aren't reactive), so one effect per contributed prop is enough.
+  for (const key of Object.keys(canvasMethods)) {
+    createRenderEffect(() => canvasMethods[key]((props as Record<string, any>)[key]))
+  }
 
   /**********************************************************************************/
   /*                                                                                */
@@ -589,11 +593,9 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   /**********************************************************************************/
 
   const c = children(() => (
-    <eventContext.Provider value={addEventListener}>
-      <frameContext.Provider value={addFrameListener}>
-        <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
-      </frameContext.Provider>
-    </eventContext.Provider>
+    <frameContext.Provider value={addFrameListener}>
+      <threeContext.Provider value={context}>{canvasProps.children}</threeContext.Provider>
+    </frameContext.Provider>
   ))
 
   useSceneGraph(context.scene, {

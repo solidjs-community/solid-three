@@ -20,7 +20,7 @@ The namespace is the re-export of [`src/types.ts`](https://github.com/bigmistqke
 - **Renderer surface** — `Renderer`, `RendererLike`, `ResolvedRenderer`, `Register`
 - **Context** — `Context`, `Viewport`, `CameraKind`
 - **Frame loop** — `FrameListener`, `FrameListenerCallback`, `FrameListenerOptions`
-- **Events** — `ThreeEvent`, `EventHandlers`, `CanvasEventHandlers`, `EventName`
+- **Events** — `ThreeEvent`, `EventHandlers`, `EventName`. These belong to the event engine, so they are exported from `solid-three/events`, not from the core `S3` namespace.
 - **Three representations** — `Representation`, `Vector2`, `Vector3`, `Vector4`, `Color`, `Layers`, `Quaternion`, `Euler`, `Matrix3`, `Matrix4`
 - **Solid-three metadata** — `Meta`, `Data`, `MapToRepresentation`, `Props`
 - **Loaders** — `LoaderData`, `LoaderUrl`
@@ -53,11 +53,11 @@ Everything importable from `solid-three`, and where each is documented.
 
 **Utilities**
 
-| Export                                                                              | What it is                                |
-| ----------------------------------------------------------------------------------- | ----------------------------------------- |
-| [`EventRaycaster`, `CursorRaycaster`, `CenterRaycaster`](/api/utilities/raycasters) | Pointer-event raycasting strategies       |
-| [`autodispose`](/api/utilities/autodispose)                                         | Tie an object's lifetime to its component |
-| [`meta`, `getMeta`, `hasMeta`, `$S3C`](/api/utilities/metadata)                     | Read and write per-object metadata        |
+| Export                                                                                              | What it is                                                                                                                 |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [`EventRaycaster`, `CursorRaycaster`, `CenterRaycaster`, `useRaycaster`](/api/utilities/raycasters) | Pointer-event raycasting strategies, and the hook that reaches the engine's raycaster. Exported from `solid-three/events`. |
+| [`autodispose`](/api/utilities/autodispose)                                                         | Tie an object's lifetime to its component                                                                                  |
+| [`meta`, `getMeta`, `hasMeta`, `$S3C`](/api/utilities/metadata)                                     | Read and write per-object metadata                                                                                         |
 
 **Types**
 

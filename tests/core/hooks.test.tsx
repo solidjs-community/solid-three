@@ -26,7 +26,6 @@ describe("hooks", () => {
 
     expect(result.camera instanceof THREE.Camera).toBeTruthy()
     expect(result.scene instanceof THREE.Scene).toBeTruthy()
-    expect(result.raycaster instanceof THREE.Raycaster).toBeTruthy()
     // expect(result.size).toEqual({ height: 0, width: 0, top: 0, left: 0, updateStyle: false });
   })
 
@@ -191,5 +190,38 @@ describe("hooks", () => {
         [mat4.name]: mat4,
       },
     })
+  })
+
+  it("exposes addFrameListener on the context so plugins can drive the loop", async () => {
+    const ticks = vi.fn()
+    let dispose: (() => void) | undefined
+
+    const Component = () => {
+      const context = useThree()
+      dispose = context.addFrameListener(() => ticks())
+      return null
+    }
+
+    const { waitTillNextFrame } = test(() => <Component />)
+
+    await waitFor(() => expect(ticks.mock.calls.length).toBeGreaterThan(0))
+
+    dispose?.()
+
+    // Give any already-scheduled tick a chance to land, then take that as
+    // the disposed baseline.
+    const framesToWait = 10
+    for (let frame = 0; frame < framesToWait; frame++) {
+      await waitTillNextFrame()
+    }
+    const countAfterDisposal = ticks.mock.calls.length
+
+    // Wait several more real animation frames — long enough that a listener
+    // which was still firing would certainly have ticked again — and prove
+    // the count hasn't moved.
+    for (let frame = 0; frame < framesToWait; frame++) {
+      await waitTillNextFrame()
+    }
+    expect(ticks.mock.calls.length).toBe(countAfterDisposal)
   })
 })

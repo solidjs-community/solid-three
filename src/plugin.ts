@@ -42,6 +42,11 @@ export function resolvePluginMethods(
     const result = (plugin as (el: object) => Record<string, any> | undefined)(element)
     if (!result) continue
     for (const key in result) {
+      if (process.env.DEV && key in merged) {
+        console.warn(
+          `S3: two plugins contribute the prop "${key}" — the last one wins. Rename one of them if both were meant to run.`,
+        )
+      }
       const descriptor = Object.getOwnPropertyDescriptor(result, key)
       if (descriptor?.get || descriptor?.set) Object.defineProperty(merged, key, descriptor)
       else merged[key] = result[key]

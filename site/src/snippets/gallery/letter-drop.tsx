@@ -1,6 +1,7 @@
 import * as CANNON from "cannon-es"
 import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { Canvas, createT, useFrame, useThree } from "solid-three"
+import { pointerEvents } from "solid-three/events"
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js"
@@ -13,7 +14,7 @@ import { TTFLoader } from "three/examples/jsm/loaders/TTFLoader.js"
 // A relative ?url import would break in edit mode.
 const fontTtfUrl = "zalando-sans-expanded-latin-600-normal.ttf"
 
-const T = createT(THREE)
+const T = createT(THREE, [pointerEvents()])
 
 const LETTERS = ["S", "O", "L", "I", "D", "T", "H", "R", "E", "E"] as const
 const SOLID_BLUE = "#2c4f7c"

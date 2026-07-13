@@ -1,11 +1,23 @@
 import { playwright } from "@vitest/browser-playwright"
 import solidPlugin from "vite-plugin-solid"
-import { defineConfig } from "vitest/config"
+import { configDefaults, defineConfig } from "vitest/config"
 
 export default defineConfig({
   plugins: [solidPlugin({ hot: false })],
+  // `process` doesn't exist as a global in the real browser tests run in (no
+  // Node, no polyfill) — tsup's build defines `process.env.DEV` for the
+  // shipped dist, but the raw source under test never goes through that
+  // esbuild `define` step. Mirror it here so dev-gated code (e.g. plugin
+  // collision warnings) can use `process.env.DEV` and still run under test.
+  define: {
+    "process.env.DEV": "true",
+  },
   test: {
     include: ["tests/**/*.test.{ts,tsx}"],
+    // `tests/published` runs against the BUILT package, not `src/`, so it needs a build
+    // to have happened and its own resolution rules. It has its own config and its own
+    // script — `pnpm test:published`. See `vitest.published.config.ts`.
+    exclude: [...configDefaults.exclude, "tests/published/**"],
     setupFiles: ["./tests/setup.ts"],
     // `vite-plugin-solid` defaults `test.environment` to `'jsdom'` whenever
     // the user doesn't set one, which makes vitest exit 1 because jsdom

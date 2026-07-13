@@ -44,11 +44,12 @@ _Avoid_: sub-property, hyphen notation
 ### Runtime
 
 **Canvas**:
-The root component. Sets up the **renderer**, scene, camera, and raycaster, and provides the **Context** to descendants.
+The root component. Sets up the **renderer**, scene, and camera, and provides the **Context** to descendants.
 
 **Context**:
-The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `raycaster`, `clock`, `eventRegistry`, `viewport`, `bounds`, and the render loop. Returned by `useThree`.
+The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `clock`, `viewport`, `bounds`, `initializePlugin`, `addFrameListener`, and the render loop. Returned by `useThree`.
 _Avoid_: confusing it with the Solid context (`threeContext`) that distributes it — they're distinct.
+_Note_: neither the **eventRegistry** nor the **raycaster** is here. Both belong to an **event engine**, one per Context — core holds no event state and does no picking.
 
 **Renderer**:
 The three.js renderer instance (`WebGLRenderer` or `WebGPURenderer`). Named `gl` in code — the `Context.gl` field and the `Canvas` `gl` prop (which also accepts renderer params or a factory). An R3F inheritance, and a misnomer once `WebGPURenderer` is in play.
@@ -94,14 +95,14 @@ _Avoid_: target / currentTarget for the 3D sense — those stay DOM-only, on `na
 **Intersection** (intersections):
 A raycast hit — three.js `Intersection` (`object`, `point`, `distance`, `face`, `uv`, `normal`). `event.intersections` is nearest-first; `event.intersection` is the nearest.
 
-**Missed event**:
-`onClickMissed` / `onDoubleClickMissed` / `onContextMenuMissed` — fires on a registered **object** when the interaction did _not_ hit it or its descendants.
+**`onPointerMissed`**:
+The miss handler. On an **object**, the per-object "not-me" — fires when a click lands somewhere other than that object or its descendants (a different object, or empty space). On the **Canvas**, narrower — fires only on a total miss (empty space), the void/deselect signal. Non-stoppable; the missed set is the registry minus the hit-closure (hits + their ancestors), so `stopPropagation` never widens it.
 
 **raycast propagation**:
 The first dispatch phase — the handler fires on each hit **object** nearest-first along the ray.
 
 **tree propagation**:
-The second dispatch phase — after an object's handler runs, the event _bubbles_ up its ancestors, finally to the **Canvas**. `stopPropagation()` halts both phases.
+The second dispatch phase — after an object's handler runs, the event _bubbles_ up its ancestors. `stopPropagation()` halts both phases.
 
 ### Pointer system & raycasting
 
@@ -114,11 +115,14 @@ A **pointer source**'s implementation — owns the source's listeners and routes
 **Pointer**:
 The per-pointer state machine (one per `pointerId`, plus a primary) that raycasts the **eventRegistry** and dispatches/bubbles to handlers, tracking its own hover and capture state.
 
+**event engine**:
+A plugin that owns a pointer paradigm end to end — its own **eventRegistry**, **raycaster**, dispatch and propagation rules. Core ships none; `pointerEvents()` (`solid-three/events`) is the reference one. Engines are peers: each owns its own registry, so two engines on one **Canvas** partition by which namespace minted the **object**. Handler props are contributed by the engine, so without one installed, `onClick` is not a prop at all.
+
 **eventRegistry**:
-The set of **objects** carrying event handlers; what the pointer system raycasts.
+The set of **objects** carrying event handlers; what an **event engine** raycasts. Belongs to the engine, one per **Context** — not to core.
 
 **raycaster**:
-Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform.
+Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform. Belongs to the **event engine**, not to core — nothing in core casts a ray. It is stack-based, like the **camera**: the engine's own raycaster (configured at install with `pointerEvents({ raycaster })` — an instance, or a config object applied to the engine's `CursorRaycaster`) sits at the bottom, and `useRaycaster().setRaycaster(next)` pushes an override that pops on cleanup. The engine resolves the top of the stack at cast time, so a push genuinely changes what gets hit.
 
 **NDC**:
 Normalized device coordinates — the `[-1, 1]` cursor space a **screen raycaster** aims from.
@@ -163,7 +167,8 @@ WebXR (VR/AR) session management (`createXR` / `useXR`). _In flux_: being extern
 - A **Plugin** matches **elements** via its **selector** and contributes **plugin props**; a plugin prop **overrides** the native prop of the same name
 - A dispatch runs **raycast propagation** then **tree propagation**; `stopPropagation()` halts both. `event.object` is `event.intersections[0].object`
 - A **pointer source** drives one or more **Pointers**; each **Pointer** raycasts the **eventRegistry** with a **raycaster**, then dispatches via **raycast propagation** and **tree propagation**
-- The active **camera** and **raycaster** are stack-based: setting one (via `Canvas` props or `useThree`) pushes an override that pops on cleanup, restoring the previous
+- The **raycaster** belongs to the **event engine**, not to core, and is stack-based: `useRaycaster()` returns `{ raycaster, setRaycaster }`, `raycaster()` is the object that actually picks (so mutating it always changes what gets picked), and `setRaycaster(next)` pushes an override that pops on cleanup
+- The active **camera** is stack-based too: setting one (via the `Canvas` prop or `useThree().setCamera`) pushes an override that pops on cleanup, restoring the previous
 
 ## Example dialogue
 

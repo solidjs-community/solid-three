@@ -10,15 +10,12 @@ import {
   untrack,
 } from "solid-js"
 import { Color, type Object3D, RGBAFormat, Texture, UnsignedByteType } from "three"
-import { isEventType } from "./create-events.ts"
 import { useThree } from "./hooks.ts"
-import { addToEventListeners } from "./internal-context.ts"
 import { resolvePluginMethods } from "./plugin.ts"
 import type { AccessorMaybe, Context, Meta, Plugin } from "./types.ts"
 import {
   getMeta,
   hasColorSpace,
-  hasMeta,
   isBufferGeometry,
   isFog,
   isMaterial,
@@ -193,8 +190,8 @@ const NEEDS_UPDATE = [
 ]
 
 /**
- * Applies a specified property value to an `AugmentedElement`. This function handles nested properties,
- * automatic updates of the `needsUpdate` flag, color space conversions, and event listener management.
+ * Applies a specified property value to an `AugmentedElement`. This function handles plugin-contributed
+ * props, nested properties, automatic updates of the `needsUpdate` flag, and color space conversions.
  * It efficiently manages property assignments with appropriate handling for different data types and structures.
  *
  * @param source - The target object for property application.
@@ -253,21 +250,6 @@ function applyProp<T extends Record<string, any>>(
       type = "outputColorSpace"
       value = value === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace
     }
-  }
-
-  if (isEventType(type)) {
-    if (isObject3D(source) && hasMeta(source)) {
-      const cleanup = addToEventListeners(source, type)
-      onCleanup(cleanup)
-    } else {
-      console.error(
-        "Event handlers can only be added to Three elements extending from Object3D. Ignored event-type:",
-        type,
-        "from element",
-        source,
-      )
-    }
-    return
   }
 
   const target = source[type]
@@ -355,7 +337,7 @@ const EMPTY_METHODS: Record<string, (value: any) => void> = {}
 export function useProps<T extends Record<string, any>>(
   accessor: T | undefined | Accessor<T | undefined>,
   props: any,
-  context: Pick<Context, "requestRender" | "gl" | "props"> = useThree(),
+  context: Context = useThree(),
   plugins: Plugin[] = [],
 ) {
   const [local, instanceProps] = splitProps(props, ["ref", "args", "object", "attach", "children"])
@@ -381,12 +363,18 @@ export function useProps<T extends Record<string, any>>(
     // keeps plugin resolution off the per-element hot path (see plugin-system spec).
     let pluginMethods = EMPTY_METHODS
     if (plugins.length) {
+      for (const plugin of plugins) {
+        if (!plugin.install) continue
+        const token = plugin.token ?? plugin
+        context.initializePlugin(token, () => plugin.install?.(context))
+      }
+
       pluginMethods = resolvePluginMethods(object, plugins)
       // Give plugin code the mount-site context via getMeta(element).ctx. Set at
       // creation (here), not attach: contributed methods run during applyProp, before
       // a top-level element attaches to the scene. Gated, so no-plugin elements pay nothing.
       const childMeta = getMeta(object)
-      if (childMeta) childMeta.ctx = context as Context
+      if (childMeta) childMeta.ctx = context
     }
 
     // Apply the props to THREE-instance

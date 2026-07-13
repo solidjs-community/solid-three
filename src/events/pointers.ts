@@ -1,6 +1,8 @@
+import type { Accessor } from "solid-js"
 import { Plane, Vector3, type Intersection, type Object3D, type Ray } from "three"
-import type { Context, Meta, PointerCapture, Prettify } from "./types.ts"
-import { getMeta } from "./utils.ts"
+import type { Context, Meta, Prettify } from "../types.ts"
+import { getMeta } from "../utils.ts"
+import type { PointerCapture } from "./types.ts"
 
 /**
  * The dispatcher's writable view of an event while it's built and walked. Every
@@ -25,16 +27,27 @@ export type DispatchEvent<TExtra extends object = {}> = {
 
 /**
  * The slice of an `EventRaycaster` a `Pointer` needs: cast its current ray against
- * a registry, (for the click-missed phase) re-cast a single object, and — for
- * pointer capture — `aim` the live `ray` without casting (to reproject onto the
- * captured object's plane). The real `EventRaycaster` (which extends three's
- * `Raycaster`) satisfies this structurally.
+ * a registry, and — for pointer capture — `aim` the live `ray` without casting (to
+ * reproject onto the captured object's plane). The real `EventRaycaster` (which
+ * extends three's `Raycaster`) satisfies this structurally.
  */
 export type PointerRaycaster = {
   cast(registry: Object3D[], context: Context): Intersection<Meta<Object3D>>[]
-  intersectObject(object: Object3D, recursive?: boolean): Intersection[]
   aim(context: Context): void
   ray: Ray
+}
+
+/**
+ * The slice of the engine a `Pointer` dispatches against. The registry lives on the
+ * engine — not on the `Context` — which is what lets several engines co-exist on one
+ * canvas: an object only ever enters the registry of the engine whose plugin
+ * contributed its handler prop. `onPointerMissed` is the canvas-level miss handler the
+ * engine received through its contributed canvas prop.
+ */
+export interface PointerEngine {
+  readonly context: Context
+  readonly registry: Object3D[]
+  readonly onPointerMissed: ((event: DispatchEvent) => void) | undefined
 }
 
 /**
@@ -106,26 +119,45 @@ interface Captured {
 /**
  * One pointer's dispatch + per-pointer state, decoupled from the DOM. A
  * `*PointerManager` owns the source (canvas / XR controller) and the raycaster,
- * and calls these gesture methods; the `Pointer` raycasts the context's single
- * `eventRegistry` and bubbles to the `onPointer*` / `onClick` / … handlers,
- * tracking its own hover state so multiple pointers stay independent.
+ * and calls these gesture methods; the `Pointer` raycasts its engine's
+ * {@link PointerEngine.registry} and bubbles to the `onPointer*` / `onClick` / …
+ * handlers, tracking its own hover state so multiple pointers stay independent.
  *
- * Dispatch logic is ported verbatim from the previous per-kind registries
- * (`createHoverEventRegistry` / `createMissableEventRegistry` /
- * `createDefaultEventRegistry`); the only changes are per-pointer instance state
- * and the single `onPointer*` family (the redundant `onMouse*` family is gone).
+ * `propagate` is a pure chain walk — it does not fire any canvas-level handler.
+ * Only `click()`'s total-miss path fires a canvas-level handler (`onPointerMissed`).
  */
 export class Pointer {
   private hovered = new Set<Object3D>()
-  private hoveredCanvas = false
   private captured: Captured | null = null
 
   constructor(
-    private context: Context,
-    private raycaster: PointerRaycaster,
+    private engine: PointerEngine,
+    /**
+     * The raycaster to pick with — either the raycaster itself, or an accessor for it (the
+     * same `T | Accessor<T>` shape `Stack` takes). The DOM source passes an accessor for
+     * the top of the engine's raycaster stack, so a subtree that pushes a raycaster changes
+     * what this pointer hits; a source with one fixed ray strategy (an XR controller) passes
+     * the raycaster directly.
+     */
+    private raycasterSource: PointerRaycaster | Accessor<PointerRaycaster>,
     private sink?: PointerCaptureSink,
     private captureRegistry?: PointerCaptureRegistry,
   ) {}
+
+  /** The three.js context this pointer dispatches in — the engine's. */
+  private get context(): Context {
+    return this.engine.context
+  }
+
+  /**
+   * The raycaster to cast/aim with right now. Resolved afresh at every use — never
+   * captured — so it always reflects the current top of the engine's raycaster stack.
+   */
+  private get raycaster(): PointerRaycaster {
+    return typeof this.raycasterSource === "function"
+      ? this.raycasterSource()
+      : this.raycasterSource
+  }
 
   /** Whether this pointer currently holds `object` captured. */
   hasCaptured(object: Object3D): boolean {
@@ -202,10 +234,13 @@ export class Pointer {
    * intersection — the ray is parallel to, or points away from, the plane.
    */
   private reproject(captured: Captured): Intersection {
-    this.raycaster.aim(this.context)
-    const point = this.raycaster.ray.intersectPlane(captured.plane, new Vector3())
+    // One resolution of the stack for the whole reprojection — aiming and reading the ray
+    // must both act on the same raycaster.
+    const raycaster = this.raycaster
+    raycaster.aim(this.context)
+    const point = raycaster.ray.intersectPlane(captured.plane, new Vector3())
     if (!point) return captured.intersection
-    const distance = this.raycaster.ray.origin.distanceTo(point)
+    const distance = raycaster.ray.origin.distanceTo(point)
     return { ...captured.intersection, point, distance }
   }
 
@@ -245,8 +280,7 @@ export class Pointer {
     // object — hover frozen, since `dispatch` never touches `this.hovered`).
     if (this.captured) return this.dispatch("onPointerMove", nativeEvent, undefined, true)
 
-    const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
-    const props = this.context.props as Record<string, any>
+    const intersections = this.raycaster.cast(this.engine.registry, this.context)
 
     // Phase #1 — Enter (bubble up; fire onPointerEnter for newly-hovered objects).
     const enterEvent = createThreeEvent(nativeEvent, { stoppable: false, intersections })
@@ -260,10 +294,6 @@ export class Pointer {
           (getMeta(current)?.props as any)?.onPointerEnter?.(enterEvent)
         current = current.parent
       }
-    }
-    if (!this.hoveredCanvas) {
-      this.hoveredCanvas = true
-      props.onPointerEnter?.(enterEvent)
     }
 
     // Phase #2 — Move (bubble up, stoppable). Capturable: a handler may start a
@@ -292,8 +322,6 @@ export class Pointer {
   /** The pointer left the canvas/source: leave everything currently hovered. */
   leave(nativeEvent: Event) {
     const leaveEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    ;(this.context.props as Record<string, any>).onPointerLeave?.(leaveEvent)
-    this.hoveredCanvas = false
     for (const object of this.hovered) (getMeta(object)?.props as any)?.onPointerLeave?.(leaveEvent)
     this.hovered.clear()
   }
@@ -312,11 +340,11 @@ export class Pointer {
    * Propagate `handler` across the roots (nearest-first — raycast propagation) and up
    * each root's parent chain (tree propagation) — setting `event.currentIntersection`
    * for the chain and `event.currentObject` for each node it fires on — honoring
-   * `stopPropagation`, then fire the canvas-level handler if nothing stopped it. Each
-   * `[intersection, root]` pairs the starting node (`root`) with the intersection to
-   * expose while walking it: the captured path passes a single pair rooted at the
-   * captured object, the normal path one pair per hit. A node shared by several hits
-   * fires once (the closest hit's chain reaches it first), matching `move`/`click`.
+   * `stopPropagation`. Each `[intersection, root]` pairs the starting node (`root`) with
+   * the intersection to expose while walking it: the captured path passes a single pair
+   * rooted at the captured object, the normal path one pair per hit. A node shared by
+   * several hits fires once (the closest hit's chain reaches it first), matching
+   * `move`/`click`.
    */
   private propagate(event: DispatchEvent, handler: string, roots: Array<[Intersection, Object3D]>) {
     const visited = new Set<Object3D>()
@@ -331,23 +359,19 @@ export class Pointer {
       }
       if (event.stopped) break
     }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.currentObject = undefined
-      ;(this.context.props as Record<string, any>)[handler]?.(event)
-    }
+    delete event.currentIntersection
+    event.currentObject = undefined
   }
 
   /**
    * Dispatch a "default"-style gesture to an arbitrary handler name (plugin-extensible:
    * the built-in sources fire `onPointerDown`/`onPointerUp`/`onWheel`; a plugin source
    * can fire its own names, e.g. `onXRSelect`). Propagates along the hit chain honoring
-   * `stopPropagation`, then fires canvas-level if unstopped. `extra` is merged onto the
-   * event (plugin sources use it for rich fields, e.g. the XR controller payload), and
-   * `event.currentObject` exposes the node a handler is firing on. When this pointer
-   * holds a capture, delivery is exclusive to the captured object's chain (the
-   * registry is not raycast) but still bubbles to the canvas-level handler; the
-   * intersection is the live ray reprojected onto the captured plane.
+   * `stopPropagation`. `extra` is merged onto the event (plugin sources use it for rich
+   * fields, e.g. the XR controller payload), and `event.currentObject` exposes the node
+   * a handler is firing on. When this pointer holds a capture, delivery is exclusive to
+   * the captured object's chain (the registry is not raycast); the intersection is the
+   * live ray reprojected onto the captured plane.
    */
   dispatch<TExtra extends object = {}>(
     handler: string,
@@ -366,7 +390,7 @@ export class Pointer {
       return
     }
 
-    const intersections = this.raycaster.cast(this.context.eventRegistry, this.context)
+    const intersections = this.raycaster.cast(this.engine.registry, this.context)
     const event = createThreeEvent(nativeEvent, { intersections }, extra)
     if (capturable) this.attachCapture(event)
     this.propagate(
@@ -379,52 +403,47 @@ export class Pointer {
     )
   }
 
-  /** Missable gesture: bubbled `onClick`/`onDoubleClick`/`onContextMenu` + `-Missed`. */
+  /**
+   * Click-family gesture: bubble `onClick`/`onDoubleClick`/`onContextMenu` down the hit
+   * chain, then fire `onPointerMissed` on every registered object the click did NOT land
+   * on — r3f's per-object "not-me". "Landed on" means hit, or an ancestor of a hit (its
+   * subtree was hit); the missed set is the registry minus that hit-closure, computed from
+   * the raycast and so independent of `stopPropagation` — a stopped bubble can't reclassify
+   * an ancestor as missed (no Surprise B). The canvas-level `onPointerMissed` is the void
+   * signal: it fires only on a total miss (the empty-space / deselect case).
+   */
   click(kind: "onClick" | "onDoubleClick" | "onContextMenu", nativeEvent: Event) {
-    const missedType = `${kind}Missed` as const
-    const registry = this.context.eventRegistry
-    const props = this.context.props as Record<string, any>
-    if (registry.length === 0 && !props[kind] && !props[missedType]) return
+    const registry = this.engine.registry
+    if (registry.length === 0 && !this.engine.onPointerMissed) return
 
-    const missed = new Set<Object3D>(registry)
-    const visited = new Set<Object3D>()
     const intersections = this.raycaster.cast(registry, this.context)
     const event = createThreeEvent(nativeEvent, { intersections })
 
-    // Phase #1 — fire the handler, bubbling down the hit chain.
-    for (const intersection of intersections) {
-      event.currentIntersection = intersection
-      let node: Object3D | null = intersection.object
-      while (node && !event.stopped && !visited.has(node)) {
-        missed.delete(node)
-        visited.add(node)
-        event.currentObject = node
-        ;(getMeta(node)?.props as any)?.[kind]?.(event)
+    // Phase 1 — bubble the gesture down the hit chain (no canvas-level fire).
+    this.propagate(
+      event,
+      kind,
+      intersections.map((intersection): [Intersection, Object3D] => [
+        intersection,
+        intersection.object,
+      ]),
+    )
+
+    // Phase 2 — the miss. Collect the hit-closure (each hit and all its ancestors), then
+    // fire `onPointerMissed` on every registered object outside it — the "not-me". This is
+    // geometry-based, so `stopPropagation` never widens the missed set. Canvas-level fires
+    // only on a total miss.
+    const hitClosure = new Set<Object3D>()
+    for (const { object } of intersections) {
+      let node: Object3D | null = object
+      while (node && !hitClosure.has(node)) {
+        hitClosure.add(node)
         node = node.parent
       }
     }
-    if (!event.stopped) {
-      delete event.currentIntersection
-      event.currentObject = undefined
-      props[kind]?.(event)
-    }
-
-    // Phase #2 — re-raycast remaining objects to mark any genuinely under the ray as hit.
-    for (const remaining of missed) {
-      const hits = this.raycaster.intersectObject(remaining, true)
-      for (const { object } of hits) {
-        let node: Object3D | null = object
-        while (node && !visited.has(node)) {
-          missed.delete(node)
-          visited.add(node)
-          node = node.parent
-        }
-      }
-    }
-
-    // Phase #3 — fire `-Missed` on the truly-missed objects, and canvas-level on a total miss.
     const missedEvent = createThreeEvent(nativeEvent, { stoppable: false })
-    for (const object of missed) (getMeta(object)?.props as any)?.[missedType]?.(missedEvent)
-    if (intersections.length === 0) props[missedType]?.(missedEvent)
+    for (const object of registry)
+      if (!hitClosure.has(object)) (getMeta(object)?.props as any)?.onPointerMissed?.(missedEvent)
+    if (intersections.length === 0) this.engine.onPointerMissed?.(missedEvent)
   }
 }

@@ -4,15 +4,17 @@ title: Raycasters
 
 # Raycasters
 
-`solid-three` ships custom raycasters that decide how a pointer becomes a ray. They all extend `THREE.Raycaster` and implement `EventRaycaster`, which adds one method:
+`solid-three/events` ships custom raycasters that decide how a pointer becomes a ray. They all extend `THREE.Raycaster` and implement `EventRaycaster`, which adds one method:
 
 | Method                    | Description                                                                                                                                         |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `cast(registry, context)` | Aim the ray for the current pointer, then return its hits against `registry` and its descendants (honoring `raycastable !== false`), nearest-first. |
 
-The pointer system calls `cast()` on every event. How the ray is aimed is the raycaster's own business — from the camera and a cursor position for screen pointers, or from an object's world transform for an XR controller.
+The pointer-events engine calls `cast()` on every event. How the ray is aimed is the raycaster's own business — from the camera and a cursor position for screen pointers, or from an object's world transform for an XR controller.
 
-Screen-pointer raycasters also implement `ScreenRaycaster`, which adds `setCursor(ndc)`. The pointer system calls it with the cursor in normalized device coordinates before each `cast()`.
+Screen-pointer raycasters also implement `ScreenRaycaster`, which adds `setCursor(ndc)`. The engine calls it with the cursor in normalized device coordinates before each `cast()`.
+
+The engine owns the raycaster. Core has none — no `<Canvas raycaster>` prop, nothing on `useThree()`. Configure it up front with `pointerEvents({ raycaster })`, and read, mutate or override it at runtime with [`useRaycaster()`](#useraycaster).
 
 <details>
 <summary>Exact types</summary>
@@ -29,16 +31,82 @@ interface ScreenRaycaster extends EventRaycaster {
 
 </details>
 
-## CursorRaycaster
+## Configuring the raycaster
 
-The default. Tracks the cursor and casts from the active camera.
+`pointerEvents({ raycaster })` takes either form:
+
+- a **config object** of raycaster properties, applied to the engine's own `CursorRaycaster`
+- a **raycaster instance**, used as the whole ray strategy
 
 ```tsx
-import { Canvas, CursorRaycaster } from "solid-three"
+// Config: pick nothing further than 10 units away.
+pointerEvents({ raycaster: { far: 10, near: 1 } })
+
+// Instance: cast from the screen centre instead of the cursor.
+pointerEvents({ raycaster: new CenterRaycaster() })
+```
+
+The option is read once, when the engine installs. It sets the engine's own raycaster — the bottom of the [raycaster stack](#useraycaster). To change how the canvas picks while the scene is running, go through `useRaycaster()`.
+
+## useRaycaster
+
+The raycaster is a stack. The engine's own raycaster sits at the bottom, and any subtree can push its own over it. `useRaycaster()` hands back both halves:
+
+```tsx
+import { useRaycaster } from "solid-three/events"
+
+const { raycaster, setRaycaster } = useRaycaster()
+```
+
+| Member               | Description                                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `raycaster()`        | An accessor for the raycaster the canvas picks with right now — the top of the stack. Reactive.                    |
+| `setRaycaster(next)` | Pushes `next`: the canvas picks with it from here on. Returns a disposer that pops it, restoring the previous one. |
+
+`raycaster()` is the very object that picks, so mutating it changes what gets hit on the next event:
+
+```tsx
+const Reach = (props: { far: number }) => {
+  const { raycaster } = useRaycaster()
+  createEffect(() => (raycaster().far = props.far))
+  return null
+}
+```
+
+`setRaycaster()` swaps in a whole ray strategy for a subtree. The push is tied to the calling owner, so an unmounting subtree restores the previous raycaster on its own; hold on to the disposer to pop it earlier.
+
+```tsx
+import { onCleanup } from "solid-js"
+import { CenterRaycaster, useRaycaster } from "solid-three/events"
+
+// While this component is mounted, the whole canvas picks by gaze.
+const Gaze = () => {
+  const { setRaycaster } = useRaycaster()
+  const restore = setRaycaster(new CenterRaycaster())
+  onCleanup(restore)
+  return null
+}
+```
+
+Note that a push is canvas-wide, not scoped to the pushing subtree's objects: there is one pointer system per canvas, and the top of the stack is what it casts with. The subtree decides how the canvas picks for as long as it is mounted.
+
+`useRaycaster()` throws when the canvas has no engine installed, rather than handing back a raycaster that nothing casts with. List the engine on the `<Canvas>` — `<Canvas plugins={[pointerEvents()]}>`, or use `createT.withCanvas` — so it is installed before the hook runs.
+
+## CursorRaycaster
+
+The default the engine falls back to when none is configured. Tracks the cursor and casts from the active camera.
+
+```tsx
+import { Canvas } from "solid-three"
+import { CursorRaycaster, pointerEvents } from "solid-three/events"
 
 const App = () => {
-  // CursorRaycaster is the default; pass it explicitly only to swap or configure.
-  return <Canvas raycaster={new CursorRaycaster()}>{/* Your scene */}</Canvas>
+  // CursorRaycaster is the engine's default; pass it explicitly only to swap or configure.
+  return (
+    <Canvas plugins={[pointerEvents({ raycaster: new CursorRaycaster() })]}>
+      {/* Your scene */}
+    </Canvas>
+  )
 }
 ```
 
@@ -47,9 +115,14 @@ const App = () => {
 Ignores the cursor and always casts from the centre of the screen — useful for gaze or crosshair interaction.
 
 ```tsx
-import { Canvas, CenterRaycaster } from "solid-three"
+import { Canvas } from "solid-three"
+import { CenterRaycaster, pointerEvents } from "solid-three/events"
 
-const App = () => <Canvas raycaster={new CenterRaycaster()}>{/* Your scene */}</Canvas>
+const App = () => (
+  <Canvas plugins={[pointerEvents({ raycaster: new CenterRaycaster() })]}>
+    {/* Your scene */}
+  </Canvas>
+)
 ```
 
 ## ControllerRaycaster
@@ -57,7 +130,7 @@ const App = () => <Canvas raycaster={new CenterRaycaster()}>{/* Your scene */}</
 Casts from an `Object3D`'s world transform — origin at its world position, direction along its local −Z. This is the ray strategy for an XR controller; see [`createXR`](/api/hooks/create-xr).
 
 ```tsx
-import { ControllerRaycaster } from "solid-three"
+import { ControllerRaycaster } from "solid-three/events"
 
 const raycaster = new ControllerRaycaster(controllerSpace)
 ```
@@ -68,7 +141,8 @@ For a screen pointer, the simplest path is to subclass `CursorRaycaster` and res
 
 ```tsx
 import { Vector2 } from "three"
-import { Canvas, CursorRaycaster } from "solid-three"
+import { Canvas } from "solid-three"
+import { CursorRaycaster, pointerEvents } from "solid-three/events"
 
 // Damp pointer movement to half speed.
 class DampedRaycaster extends CursorRaycaster {
@@ -77,12 +151,14 @@ class DampedRaycaster extends CursorRaycaster {
   }
 }
 
-const App = () => <Canvas raycaster={new DampedRaycaster()}>{/* Your scene */}</Canvas>
+const App = () => (
+  <Canvas plugins={[pointerEvents({ raycaster: new DampedRaycaster() })]}>{/* scene */}</Canvas>
+)
 ```
 
 For a non-screen ray — a custom origin and direction — implement `cast()` directly: aim `this.ray` from whatever transform you like, then return `this.intersectObjects(registry, true)`. `ControllerRaycaster` is the reference implementation.
 
 ## See also
 
-- [Events overview](/api/events/overview) — how and when `cast()` is called.
-- [`useThree`](/api/hooks/use-three) — `raycaster` / `setRaycaster` for swapping the active raycaster at runtime.
+- [Events overview](/api/events/overview) — how and when `cast()` is called, and how to install the engine.
+- [`<Canvas/>`](/api/components/canvas) — where the engine is listed.

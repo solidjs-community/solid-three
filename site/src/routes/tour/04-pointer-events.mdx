@@ -6,8 +6,8 @@ import clickSnippet from "../../snippets/04-click.tsx?raw"
 import clickUrl from "../../snippets/04-click.tsx?importChunkUrl"
 import hoverSnippet from "../../snippets/04-hover.tsx?raw"
 import hoverUrl from "../../snippets/04-hover.tsx?importChunkUrl"
-import clickMissedSnippet from "../../snippets/04-click-missed.tsx?raw"
-import clickMissedUrl from "../../snippets/04-click-missed.tsx?importChunkUrl"
+import pointerMissedSnippet from "../../snippets/04-pointer-missed.tsx?raw"
+import pointerMissedUrl from "../../snippets/04-pointer-missed.tsx?importChunkUrl"
 import stopPropagationSnippet from "../../snippets/04-stop-propagation.tsx?raw"
 import stopPropagationUrl from "../../snippets/04-stop-propagation.tsx?importChunkUrl"
 import dragSnippet from "../../snippets/04-drag.tsx?raw"
@@ -15,20 +15,23 @@ import dragUrl from "../../snippets/04-drag.tsx?importChunkUrl"
 
 # Pointer events
 
-The button you wrote in the last chapter handled an `onClick` from the DOM.
-`solid-three` lets you put the same handler on a `<T.Mesh>` — and gives it
-the right semantics for a 3D world: it only fires when the click actually
-hits that mesh.
+The button you wrote in the last chapter handled an `onClick` from the DOM. A `<T.Mesh>` takes the same handler, with the right semantics for a 3D world: it only fires when the click actually hits that mesh.
+
+Core ships no event engine, though — you install one:
+
+```tsx
+import { pointerEvents } from "solid-three/events"
+
+const T = createT(THREE, [pointerEvents()])
+```
+
+With `pointerEvents()` in the plugin list, every `T.*` that wraps an `Object3D` gains `onClick`, `onPointerEnter`, `onPointerMove` and the rest, as typed props. Leave it out and `onClick` is not a prop of `T.Mesh` at all — a compile error, rather than a handler that silently never fires.
 
 <Demo code={clickSnippet} url={clickUrl} />
 
-Click the cube. Same toggle as before — just the target moved into the
-scene.
+Click the cube. Same toggle as before — just the target moved into the scene.
 
-Under the hood, `solid-three` runs a `Raycaster` against the pointer's
-position each event, finds which meshes the ray hits, and fires the
-corresponding handler on the nearest one. You don't have to wire any of
-that — adding `onClick` is enough.
+Under the hood, the engine runs a `Raycaster` against the pointer's position each event, finds which meshes the ray hits, and fires the corresponding handler on the nearest one. You don't have to wire any of that yourself — installing the engine and adding `onClick` is enough.
 
 ## Hover
 
@@ -43,11 +46,15 @@ flips; `scale` reads it; one property assignment runs.
 
 ## Clicking nothing
 
-Sometimes the interesting event is when the user clicks but _doesn't_ hit any
-mesh — to deselect the current selection, dismiss a tooltip, that sort of
-thing. [`<Canvas>`](/api/components/canvas) exposes `onClickMissed` for exactly that case:
+Sometimes the interesting event is when the user clicks but _doesn't_ hit any mesh — to deselect the current selection, dismiss a tooltip, that sort of thing. The engine contributes `onPointerMissed` to `<Canvas>` for exactly that case — but only to a canvas the engine is actually installed on. `createT.withCanvas` does both at once: it builds `T` and a matching `Canvas` that already has `onPointerMissed` typed in.
 
-<Demo code={clickMissedSnippet} url={clickMissedUrl} />
+```tsx
+import { pointerEvents } from "solid-three/events"
+
+const { T, Canvas } = createT.withCanvas(THREE, [pointerEvents()])
+```
+
+<Demo code={pointerMissedSnippet} url={pointerMissedUrl} />
 
 Click the cube to select it; click anywhere else in the canvas to deselect.
 The two handlers cover the full "did you hit something?" question between

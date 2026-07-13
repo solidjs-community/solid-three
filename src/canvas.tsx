@@ -4,17 +4,16 @@ import {
   Camera,
   OrthographicCamera,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   WebGLRenderer,
   type WebGLRendererParameters,
 } from "three"
 import { createThree } from "./create-three.tsx"
-import type { EventRaycaster } from "./raycasters.tsx"
 import type {
   BaseProps,
-  CanvasEventHandlers,
+  CanvasPropsOf,
   Context,
+  Plugin,
   RefWithCleanup,
   ResolvedRenderer,
 } from "./types.ts"
@@ -22,13 +21,15 @@ import type {
 /**
  * Props for the Canvas component, which initializes the Three.js rendering context and acts as the root for your 3D scene.
  */
-export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
+export interface CanvasProps<
+  TPlugins extends readonly Plugin[] = readonly Plugin[],
+> extends ParentProps {
+  /** Event engines and other plugins installed on this canvas. */
+  plugins?: TPlugins
   ref?: RefWithCleanup<Context>
   class?: string
   /** Configuration for the camera used in the scene. */
   camera?: Partial<BaseProps<PerspectiveCamera> | BaseProps<OrthographicCamera>> | Camera
-  /** Configuration for the Raycaster used for mouse and pointer events. */
-  raycaster?: Partial<BaseProps<EventRaycaster>> | EventRaycaster | Raycaster
   /** Element to render while the main content is loading asynchronously.  */
   fallback?: JSX.Element
   /** Toggles flat interpolation for texture filtering. */
@@ -83,12 +84,15 @@ export interface CanvasProps extends ParentProps<Partial<CanvasEventHandlers>> {
  * @param props - Configuration options include camera settings, style, and children elements.
  * @returns A div element containing the WebGL canvas configured to occupy the full available space.
  */
-export function Canvas(props: ParentProps<CanvasProps>) {
+export function Canvas<const TPlugins extends readonly Plugin[] = readonly Plugin[]>(
+  props: ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>,
+) {
   let canvas: HTMLCanvasElement | undefined
   let container: HTMLDivElement | undefined
 
   onMount(() => {
     if (!canvas || !container) return
+    // `createThree` installs the `plugins` and wires their contributed canvas props.
     const context = createThree(canvas, props)
 
     // Resize observer for the canvas to adjust camera and renderer on size change

@@ -13,7 +13,7 @@
   },
   "module": "./dist/index.js",
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./types/index.d.ts",
   "sideEffects": false,
   "license": "MIT",
   "files": [
@@ -22,19 +22,21 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && pnpm types",
     "build:site": "pnpm -C site build",
-    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist",
+    "clean": "rm -rf .turbo && rm -rf node_modules && rm -rf dist && rm -rf types",
     "dev:site": "pnpm -C site dev",
-    "format": "prettier --write 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'demo/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx,mdx}' '*.{ts,js,mjs,cjs}'",
+    "format": "prettier --write 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'consumer/**/*.{ts,tsx}' 'demo/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx,mdx}' '*.{ts,js,mjs,cjs}'",
     "lint": "pnpm lint:circular && pnpm lint:code && pnpm lint:format && pnpm lint:types",
     "lint:circular": "dpdm -T src",
     "lint:code": "eslint --max-warnings 0 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx}'",
-    "lint:format": "prettier --check 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'demo/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx,mdx}' '*.{ts,js,mjs,cjs}'",
-    "lint:types": "tsc --noEmit",
-    "prepublishOnly": "pnpm lint && pnpm build",
+    "lint:format": "prettier --check 'src/**/*.{ts,tsx}' 'tests/**/*.{ts,tsx}' 'consumer/**/*.{ts,tsx}' 'demo/**/*.{ts,tsx}' 'site/src/**/*.{ts,tsx,mdx}' '*.{ts,js,mjs,cjs}'",
+    "lint:types": "tsc --noEmit && pnpm lint:types:consumer",
+    "lint:types:consumer": "tsc -p consumer/tsconfig.json",
+    "prepublishOnly": "pnpm build && pnpm lint && pnpm test:published",
     "test": "vitest run",
-    "types": "tsc --emitDeclarationOnly --declarationDir types"
+    "test:published": "pnpm build && vitest run --config vitest.published.config.ts",
+    "types": "rm -rf types && tsc -p tsconfig.build.json"
   },
   "exports": {
     ".": {
@@ -44,13 +46,29 @@
       },
       "development": {
         "import": {
-          "types": "./dist/index.d.ts",
+          "types": "./types/index.d.ts",
           "default": "./dist/index.dev.js"
         }
       },
       "import": {
-        "types": "./dist/index.d.ts",
+        "types": "./types/index.d.ts",
         "default": "./dist/index.js"
+      }
+    },
+    "./events": {
+      "solid": {
+        "development": "./dist/events.dev.solid.jsx",
+        "import": "./dist/events.dev.js"
+      },
+      "development": {
+        "import": {
+          "types": "./types/events/index.d.ts",
+          "default": "./dist/events.dev.js"
+        }
+      },
+      "import": {
+        "types": "./types/events/index.d.ts",
+        "default": "./dist/events.js"
       }
     },
     "./testing": {
@@ -60,20 +78,23 @@
       },
       "development": {
         "import": {
-          "types": "./dist/testing.d.ts",
+          "types": "./types/testing/index.d.ts",
           "default": "./dist/testing.dev.js"
         }
       },
       "import": {
-        "types": "./dist/testing/index.d.ts",
+        "types": "./types/testing/index.d.ts",
         "default": "./dist/testing.js"
       }
     }
   },
   "typesVersions": {
     "*": {
+      "events": [
+        "./types/events/index.d.ts"
+      ],
       "testing": [
-        "./dist/testing/index.d.ts"
+        "./types/testing/index.d.ts"
       ]
     }
   },
@@ -86,8 +107,10 @@
   },
   "devDependencies": {
     "@bigmistqke/repl": "link:../repl",
+    "@pmndrs/pointer-events": "6.6.30",
     "@solidjs/router": "^0.15.3",
     "@solidjs/testing-library": "^0.8.8",
+    "@types/node": "^26.1.1",
     "@types/three": "^0.181.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
@@ -106,6 +129,7 @@
     "rollup": "^4.18.0",
     "rollup-plugin-dts": "^6.1.1",
     "solid-js": "^1.8.17",
+    "solid-three": "link:.",
     "three": "^0.181.2",
     "three-stdlib": "^2.36.0",
     "tsup": "^8.0.2",

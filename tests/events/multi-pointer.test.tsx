@@ -1,10 +1,11 @@
 import { fireEvent } from "@solidjs/testing-library"
 import * as THREE from "three"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { pointerEvents } from "../../src/events/index.ts"
 import { createT } from "../../src/index.ts"
 import { cleanup, test } from "../../src/testing/index.tsx"
 
-const T = createT(THREE)
+const T = createT(THREE, [pointerEvents()])
 
 afterEach(cleanup)
 

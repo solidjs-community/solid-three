@@ -1,9 +1,12 @@
+import { Show, createSignal, onCleanup } from "solid-js"
 import { assertType, describe, expect, it, vi } from "vitest"
+import * as THREE from "three"
 import { Mesh, Object3D, PerspectiveCamera, Vector3 } from "three"
 import { plugin, resolvePluginMethods } from "../../src/plugin.ts"
 import { createT } from "../../src/create-t.tsx"
 import { Entity } from "../../src/components.tsx"
 import { test as renderThree } from "../../src/testing/index.tsx"
+import type { Context } from "../../src/types.ts"
 import { getMeta } from "../../src/utils.ts"
 
 describe("plugin()", () => {
@@ -38,6 +41,31 @@ describe("resolvePluginMethods", () => {
     const merged = resolvePluginMethods(new Mesh(), [a, b, c])
     expect(Object.keys(merged).sort()).toEqual(["ping", "shake"])
     expect(resolvePluginMethods(new Mesh(), [])).toEqual({})
+  })
+
+  it("warns in dev when two plugins contribute the same element prop, and last-wins still holds", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const first = plugin([Mesh], () => ({ onPing: () => "first" }))
+    const second = plugin([Mesh], () => ({ onPing: () => "second" }))
+
+    const merged = resolvePluginMethods(new Mesh(), [first, second])
+
+    expect(merged.onPing(undefined)).toBe("second")
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("onPing"))
+    warn.mockRestore()
+  })
+
+  it("does not warn when two plugins contribute different element props", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    const first = plugin([Mesh], () => ({ onPing: () => "ping" }))
+    const second = plugin([Mesh], () => ({ onPong: () => "pong" }))
+
+    const merged = resolvePluginMethods(new Mesh(), [first, second])
+
+    expect(merged.onPing(undefined)).toBe("ping")
+    expect(merged.onPong(undefined)).toBe("pong")
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 })
 
@@ -114,5 +142,75 @@ describe("meta.ctx + initializePlugin", () => {
     expect(setupOnce).toHaveBeenCalledTimes(1) // once per ctx across both meshes
     expect(getMeta(three.scene.children[0])?.ctx?.scene).toBe(three.scene)
     three.unmount()
+  })
+})
+
+describe("plugin statics", () => {
+  it("runs install once per context, under the canvas owner, keyed by token", () => {
+    const TOKEN = Symbol("test-engine")
+    const install = vi.fn()
+    const cleanup = vi.fn()
+
+    // Two distinct instances of the "same engine" — separate function objects,
+    // sharing one module-level token. If dedup keyed off the plugin instance
+    // (or the plugin array entry) rather than `.token`, both would install.
+    const makeEngine = () =>
+      Object.assign(
+        plugin([Object3D], () => ({ onPing: (_handler: () => void) => {} })),
+        {
+          token: TOKEN,
+          install: (context: Context) => {
+            install(context)
+            onCleanup(cleanup)
+          },
+        },
+      )
+    const engineInstanceOne = makeEngine()
+    const engineInstanceTwo = makeEngine()
+    expect(engineInstanceOne).not.toBe(engineInstanceTwo)
+
+    const T = createT(THREE, [engineInstanceOne, engineInstanceTwo])
+    const three = renderThree(() => <T.Mesh onPing={() => {}} />)
+
+    expect(install).toHaveBeenCalledTimes(1)
+    expect(cleanup).not.toHaveBeenCalled()
+
+    three.unmount()
+    expect(cleanup).toHaveBeenCalledTimes(1)
+  })
+
+  it("ties install's cleanup to the canvas, not to whichever element mounted first", async () => {
+    const TOKEN = Symbol("test-engine-owner")
+    const cleanup = vi.fn()
+
+    const engine = Object.assign(
+      plugin([Object3D], () => ({ onPing: (_handler: () => void) => {} })),
+      {
+        token: TOKEN,
+        install: (_context: Context) => {
+          onCleanup(cleanup)
+        },
+      },
+    )
+
+    const T = createT(THREE, [engine])
+    const [visible, setVisible] = createSignal(true)
+    const three = renderThree(() => (
+      <Show when={visible()}>
+        <T.Mesh onPing={() => {}} />
+      </Show>
+    ))
+
+    await three.waitTillNextFrame()
+
+    // Unmount the (only, first-to-install) element while the canvas stays alive —
+    // if `install` ran under that element's own reactive scope instead of the
+    // canvas owner, this would fire `cleanup` prematurely.
+    setVisible(false)
+    await three.waitTillNextFrame()
+    expect(cleanup).not.toHaveBeenCalled()
+
+    three.unmount()
+    expect(cleanup).toHaveBeenCalledTimes(1)
   })
 })

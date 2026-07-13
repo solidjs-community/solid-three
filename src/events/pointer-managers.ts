@@ -1,7 +1,8 @@
+import type { Accessor } from "solid-js"
 import { Vector2, type Object3D } from "three"
-import { Pointer, type PointerCaptureRegistry } from "./pointers.ts"
-import type { ScreenRaycaster } from "./raycasters.tsx"
-import type { Context } from "./types.ts"
+import type { Context } from "../types.ts"
+import { Pointer, type PointerCaptureRegistry, type PointerEngine } from "./pointers.ts"
+import type { ScreenRaycaster } from "./raycasters.ts"
 
 type RayEvent = PointerEvent | MouseEvent | WheelEvent
 
@@ -12,9 +13,14 @@ type RayEvent = PointerEvent | MouseEvent | WheelEvent
  * click/dblclick/contextmenu/wheel gestures — those are `MouseEvent`s with no
  * `pointerId`, so they don't belong to a specific touch.
  *
- * It aims the (single, shared) screen raycaster from each event before calling
- * the pointer's gesture method; that's safe because `setCursor` → `cast` runs
- * synchronously within one event, so concurrent pointers never collide.
+ * It aims the shared screen raycaster from each event before calling the pointer's
+ * gesture method; that's safe because `setCursor` → `cast` runs synchronously within
+ * one event, so concurrent pointers never collide.
+ *
+ * The raycaster arrives as an ACCESSOR, not a value: which raycaster the canvas picks
+ * with is the top of the engine's raycaster stack, and a subtree can push a different
+ * one at any time. Aiming resolves it per event, and each `Pointer` gets the same
+ * accessor so its casts resolve it too.
  */
 export class DOMPointerManager {
   private pointers = new Map<number, Pointer>()
@@ -26,10 +32,11 @@ export class DOMPointerManager {
 
   constructor(
     private context: Context,
-    private raycaster: ScreenRaycaster,
-    private captureRegistry?: PointerCaptureRegistry,
+    private raycaster: Accessor<ScreenRaycaster>,
+    private captureRegistry: PointerCaptureRegistry,
+    private engine: PointerEngine,
   ) {
-    this.primary = new Pointer(context, raycaster, undefined, captureRegistry)
+    this.primary = new Pointer(engine, raycaster, undefined, captureRegistry)
   }
 
   /**
@@ -49,7 +56,7 @@ export class DOMPointerManager {
     if (!pointer) {
       const canvas = this.context.canvas
       pointer = new Pointer(
-        this.context,
+        this.engine,
         this.raycaster,
         {
           capture: () => canvas.setPointerCapture(id),
@@ -72,7 +79,8 @@ export class DOMPointerManager {
   /** Attach all canvas listeners; returns a disconnect that removes them. */
   connect(): () => void {
     const canvas = this.context.canvas
-    const aim = (event: RayEvent) => this.raycaster.setCursor(this.ndc(event))
+    // Resolve the top of the raycaster stack per event — never a captured reference.
+    const aim = (event: RayEvent) => this.raycaster().setCursor(this.ndc(event))
 
     const onMove = (event: PointerEvent) => {
       aim(event)
