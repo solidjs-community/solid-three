@@ -203,22 +203,21 @@ describe("createT.withCanvas", () => {
   })
 })
 
-describe("core's raycaster", () => {
-  it("keeps a plain raycaster in core, reachable from useThree, with no engine installed", async () => {
-    let seen: unknown
+describe("core owns no picking machinery", () => {
+  /**
+   * Not "core keeps a raycaster it never casts with" — core has NO raycaster at all. The
+   * raycaster belongs to the engine that picks with it (`useRaycaster()` from
+   * `solid-three/events`), so there is exactly one, and mutating it always affects
+   * picking. A claim that can't rot: nothing to police.
+   */
+  it("exposes no raycaster on the context", async () => {
+    let context: Context | undefined
     await renderThree(() => {
-      seen = useThree().raycaster
+      context = useThree()
       return null
     })
-    expect(seen).toBeInstanceOf(Raycaster)
-    // A plain `Raycaster` has no event-strategy methods — those belong to the
-    // engine's `EventRaycaster`/`ScreenRaycaster` subclasses. Asserting only
-    // `toBeInstanceOf(Raycaster)` would pass even if core still defaulted to
-    // an engine raycaster (every engine raycaster IS a Raycaster), so this
-    // also checks core did not smuggle one in.
-    const raycaster: object = seen instanceof Raycaster ? seen : {}
-    expect("cast" in raycaster).toBe(false)
-    expect("setCursor" in raycaster).toBe(false)
+    expect(context && "raycaster" in context).toBe(false)
+    expect(context && "setRaycaster" in context).toBe(false)
   })
 
   it("core has no event registry", async () => {
@@ -230,15 +229,12 @@ describe("core's raycaster", () => {
     expect(context && "eventRegistry" in context).toBe(false)
   })
 
-  it("never calls the raycaster's picking methods across a rendered frame, with no engine installed", async () => {
-    const three = renderThree(() => null)
-    const intersectObjects = vi.spyOn(three.raycaster, "intersectObjects")
-    const setFromCamera = vi.spyOn(three.raycaster, "setFromCamera")
-
-    await three.waitTillNextFrame()
-
-    expect(intersectObjects).not.toHaveBeenCalled()
-    expect(setFromCamera).not.toHaveBeenCalled()
+  it("takes no raycaster config on <Canvas> (type-level)", () => {
+    const three = renderThree(
+      () => null,
+      // @ts-expect-error the raycaster is configured on the engine — pointerEvents({ raycaster }) — not here.
+      { raycaster: { far: 10 } },
+    )
     three.unmount()
   })
 })

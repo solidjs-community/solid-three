@@ -1,20 +1,20 @@
 import { fireEvent } from "@solidjs/testing-library"
+import { ErrorBoundary } from "solid-js"
 import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
-import { CenterRaycaster, pointerEvents } from "../../src/events/index.ts"
+import { CenterRaycaster, pointerEvents, useRaycaster } from "../../src/events/index.ts"
+import type { ScreenRaycaster } from "../../src/events/raycasters.ts"
 import { createT } from "../../src/index.ts"
 import { test } from "../../src/testing/index.tsx"
 
 /**
- * Guards the full `<Canvas raycaster={…}>` config matrix reaching the raycaster that
- * actually does picking:
+ * The engine owns the raycaster — core has none. This file guards the two ways to reach
+ * it, and that both reach the SAME object, the one that actually picks:
  *
- *  - a props-OBJECT config (`{ far: … }`) must land on the raycaster the engine casts
- *    with, not on some other raycaster nobody consults (the regression this file pins).
- *  - a screen-raycaster INSTANCE (e.g. `CenterRaycaster`) must be used directly by the
- *    engine — config application is for the props-object form only.
- *  - no `raycaster` prop at all must still pick normally, through the engine's own
- *    default `CursorRaycaster`.
+ *  - `pointerEvents({ raycaster })` at setup: a config OBJECT (`{ far: … }`) applied to
+ *    the engine's own `CursorRaycaster`, or a screen-raycaster INSTANCE (e.g.
+ *    `CenterRaycaster`) used as the whole ray strategy. Plus the no-option default.
+ *  - `useRaycaster()` at runtime: mutating what it returns must change what gets picked.
  */
 
 // One engine instance, installed both into the namespace (so `T.Mesh` has pointer
@@ -44,13 +44,13 @@ function Box(props: { onClick?: (event: any) => void }) {
   )
 }
 
-describe("<Canvas raycaster={{ ... }}> config reaches the raycaster that actually picks", () => {
+describe("pointerEvents({ raycaster: config }) configures the raycaster that actually picks", () => {
   it("far excludes an object beyond it (the object sits at distance 4 from the camera)", () => {
     const onClick = vi.fn()
     const missed = vi.fn()
+    const configured = pointerEvents({ raycaster: { far: 3 } })
     const { canvas } = test(() => <Box onClick={onClick} />, {
-      plugins: [engine],
-      raycaster: { far: 3 },
+      plugins: [configured],
       onPointerMissed: missed,
     })
 
@@ -62,9 +62,9 @@ describe("<Canvas raycaster={{ ... }}> config reaches the raycaster that actuall
 
   it("control: the same object is picked when far is wide enough to include it", () => {
     const onClick = vi.fn()
+    const configured = pointerEvents({ raycaster: { far: 10, near: 1 } })
     const { canvas } = test(() => <Box onClick={onClick} />, {
-      plugins: [engine],
-      raycaster: { far: 10, near: 1 },
+      plugins: [configured],
     })
 
     fireEvent(canvas, clickAt(HIT_X, HIT_Y))
@@ -73,12 +73,12 @@ describe("<Canvas raycaster={{ ... }}> config reaches the raycaster that actuall
   })
 })
 
-describe("<Canvas raycaster={instance}> is used directly by the engine", () => {
+describe("pointerEvents({ raycaster: instance }) is used directly by the engine", () => {
   it("a CenterRaycaster instance keeps casting from screen centre, ignoring the cursor", () => {
     const onClick = vi.fn()
+    const configured = pointerEvents({ raycaster: new CenterRaycaster() })
     const { canvas } = test(() => <Box onClick={onClick} />, {
-      plugins: [engine],
-      raycaster: new CenterRaycaster(),
+      plugins: [configured],
     })
 
     // Cursor is at the top-left corner — a cursor-based raycaster would miss — but
@@ -89,7 +89,7 @@ describe("<Canvas raycaster={instance}> is used directly by the engine", () => {
   })
 })
 
-describe("no <Canvas raycaster> prop falls back to the engine's default CursorRaycaster", () => {
+describe("no raycaster option falls back to the engine's default CursorRaycaster", () => {
   it("picks the object under the cursor", () => {
     const onClick = vi.fn()
     const { canvas } = test(() => <Box onClick={onClick} />, { plugins: [engine] })
@@ -106,5 +106,78 @@ describe("no <Canvas raycaster> prop falls back to the engine's default CursorRa
     fireEvent(canvas, clickAt(MISS_X, MISS_Y))
 
     expect(onClick).not.toHaveBeenCalled()
+  })
+})
+
+describe("useRaycaster()", () => {
+  /**
+   * The point of moving the raycaster into the engine. There is exactly ONE raycaster on
+   * the canvas now, so a runtime mutation through the hook lands on the object that
+   * picks. This test is what a second, inert raycaster (core's old `useThree().raycaster`,
+   * which nothing ever cast with) fails: the click after `far = 3` would still hit, and
+   * the final `toHaveBeenCalledTimes(1)` would read 2.
+   */
+  it("far, set at runtime, changes what gets picked", () => {
+    const onClick = vi.fn()
+    const missed = vi.fn()
+    let raycaster: ScreenRaycaster | undefined
+
+    const { canvas } = test(
+      () => {
+        raycaster = useRaycaster()
+        return <Box onClick={onClick} />
+      },
+      { plugins: [engine], onPointerMissed: missed },
+    )
+
+    // Control: with the engine's default reach, the box (distance 4) is picked.
+    fireEvent(canvas, clickAt(HIT_X, HIT_Y))
+    expect(onClick).toHaveBeenCalledTimes(1)
+    expect(missed).not.toHaveBeenCalled()
+
+    if (!raycaster) throw new Error("useRaycaster() returned nothing")
+    raycaster.far = 3 // now shorter than the box's front face at distance 4
+
+    fireEvent(canvas, clickAt(HIT_X, HIT_Y))
+    expect(onClick).toHaveBeenCalledTimes(1) // still the one from before — the box is out of reach
+    expect(missed).toHaveBeenCalledTimes(1)
+  })
+
+  it("hands out the very raycaster the engine was configured with", () => {
+    const centerRaycaster = new CenterRaycaster()
+    const configured = pointerEvents({ raycaster: centerRaycaster })
+    let seen: ScreenRaycaster | undefined
+
+    test(
+      () => {
+        seen = useRaycaster()
+        return null
+      },
+      { plugins: [configured] },
+    )
+
+    expect(seen).toBe(centerRaycaster)
+  })
+
+  it("throws on a canvas with no engine installed, rather than handing back an inert raycaster", () => {
+    let error: unknown
+    const Probe = () => {
+      useRaycaster()
+      return null
+    }
+
+    test(() => (
+      <ErrorBoundary
+        fallback={caught => {
+          error = caught
+          return null
+        }}
+      >
+        <Probe />
+      </ErrorBoundary>
+    ))
+
+    expect(error).toBeInstanceOf(Error)
+    expect(String(error)).toContain("useRaycaster()")
   })
 })

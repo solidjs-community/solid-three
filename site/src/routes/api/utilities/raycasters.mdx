@@ -14,7 +14,7 @@ The pointer-events engine calls `cast()` on every event. How the ray is aimed is
 
 Screen-pointer raycasters also implement `ScreenRaycaster`, which adds `setCursor(ndc)`. The engine calls it with the cursor in normalized device coordinates before each `cast()`.
 
-Core's own `<Canvas raycaster>` prop is unrelated to any of this — it configures a plain `THREE.Raycaster` that core itself never casts. The events engine reads that same prop's configuration (near/far/etc.) and applies it to whichever raycaster the engine ends up using, but only once the engine is installed.
+The engine owns the raycaster. Core has none — no `<Canvas raycaster>` prop, nothing on `useThree()` — so there is exactly one raycaster per canvas: the one the engine picks with. Configure it up front with `pointerEvents({ raycaster })`, and read or change it at runtime with [`useRaycaster()`](#useraycaster).
 
 <details>
 <summary>Exact types</summary>
@@ -30,6 +30,39 @@ interface ScreenRaycaster extends EventRaycaster {
 ```
 
 </details>
+
+## Configuring the raycaster
+
+`pointerEvents({ raycaster })` takes either form:
+
+- a **config object** of raycaster properties, applied to the engine's own `CursorRaycaster`
+- a **raycaster instance**, used as the whole ray strategy
+
+```tsx
+// Config: pick nothing further than 10 units away.
+pointerEvents({ raycaster: { far: 10, near: 1 } })
+
+// Instance: cast from the screen centre instead of the cursor.
+pointerEvents({ raycaster: new CenterRaycaster() })
+```
+
+The option is read once, when the engine installs. To change the raycaster while the scene is running, mutate what `useRaycaster()` returns.
+
+## useRaycaster
+
+`useRaycaster()` returns the raycaster this canvas picks with — the engine's own, and the only one there is. Mutate it and the next event picks differently.
+
+```tsx
+import { useRaycaster } from "solid-three/events"
+
+const Reach = (props: { far: number }) => {
+  const raycaster = useRaycaster()
+  createEffect(() => (raycaster.far = props.far))
+  return null
+}
+```
+
+It throws when the canvas has no engine installed, rather than handing back a raycaster that nothing casts with. List the engine on the `<Canvas>` — `<Canvas plugins={[pointerEvents()]}>`, or use `createT.withCanvas` — so it is installed before the hook runs.
 
 ## CursorRaycaster
 
@@ -100,4 +133,4 @@ For a non-screen ray — a custom origin and direction — implement `cast()` di
 ## See also
 
 - [Events overview](/api/events/overview) — how and when `cast()` is called, and how to install the engine.
-- [`useThree`](/api/hooks/use-three) — `raycaster` / `setRaycaster` for swapping core's raycaster slot at runtime.
+- [`<Canvas/>`](/api/components/canvas) — where the engine is listed.

@@ -1,13 +1,15 @@
 import { onCleanup } from "solid-js"
 import { Object3D } from "three"
+import { useThree } from "../hooks.ts"
 import { plugin } from "../plugin.ts"
 import type { Context, Plugin } from "../types.ts"
 import { getMeta } from "../utils.ts"
-import { getEngine, installEngine, warnOnIgnoredRaycaster } from "./engine.ts"
+import { getEngine, installEngine, warnOnIgnoredRaycaster, type RaycasterOption } from "./engine.ts"
 import type { DispatchEvent } from "./pointers.ts"
 import type { ScreenRaycaster } from "./raycasters.ts"
 import type { EventHandlers, EventName, PointerEventMethods } from "./types.ts"
 
+export type { RaycasterOption } from "./engine.ts"
 export { createThreeEvent, Pointer, type PointerEngine, type PointerRaycaster } from "./pointers.ts"
 export { hasPointerCapture } from "./pointer-capture.ts"
 export * from "./raycasters.ts"
@@ -58,19 +60,24 @@ const EVENT_NAMES = [
  * contributed to `<Canvas>` — so the engine must also be listed there, either with
  * `<Canvas plugins={[engine]}>` or through `createT.withCanvas`.
  *
- * @param options.raycaster - Ray strategy for the screen pointer (e.g. a
- *   `CenterRaycaster` for gaze input). Defaults to the canvas's raycaster when that is
- *   a screen raycaster, else a fresh `CursorRaycaster`. Only the first `pointerEvents()`
- *   instance to install on a given canvas actually configures the engine — engine state
- *   is per-canvas, not per-instance. If several instances are in play (e.g. one listed
- *   on `<Canvas plugins>` and another on the namespace via `createT(THREE, [...])`),
- *   configure the raycaster on the instance you list on `<Canvas plugins>`: that's the
- *   one that installs, and every later instance's `raycaster` option is silently
- *   ignored (a DEV warning fires when it differs, but only when the ignored instance
- *   is also listed on `<Canvas plugins>` — a namespace-only instance's option can't be
- *   observed at all).
+ * The engine owns the raycaster: core has none. Configure it here, read and mutate it at
+ * runtime with {@link useRaycaster}.
+ *
+ * @param options.raycaster - How this canvas picks. Either a whole ray strategy — a
+ *   `ScreenRaycaster` instance such as `new CenterRaycaster()` for gaze input — or a plain
+ *   config object of raycaster properties (`{ far: 10, near: 1 }`) applied to the engine's
+ *   own `CursorRaycaster`. Defaults to an unconfigured `CursorRaycaster`. The option is
+ *   read once, at install; runtime changes go through {@link useRaycaster}. Only the first
+ *   `pointerEvents()` instance to install on a given canvas actually configures the engine
+ *   — engine state is per-canvas, not per-instance. If several instances are in play (e.g.
+ *   one listed on `<Canvas plugins>` and another on the namespace via
+ *   `createT(THREE, [...])`), configure the raycaster on the instance you list on
+ *   `<Canvas plugins>`: that's the one that installs, and every later instance's
+ *   `raycaster` option is silently ignored (a DEV warning fires when it differs, but only
+ *   when the ignored instance is also listed on `<Canvas plugins>` — a namespace-only
+ *   instance's option can't be observed at all).
  */
-export function pointerEvents(options?: { raycaster?: ScreenRaycaster }): PointerEventsPlugin {
+export function pointerEvents(options?: { raycaster?: RaycasterOption }): PointerEventsPlugin {
   const base = plugin([Object3D], (object: Object3D) => {
     const methods = {} as Record<EventName, (handler: EventHandlers[EventName]) => void>
     for (const name of EVENT_NAMES) {
@@ -123,4 +130,34 @@ export function pointerEvents(options?: { raycaster?: ScreenRaycaster }): Pointe
       }
     },
   })
+}
+
+/**
+ * The raycaster this canvas picks with — the engine's own, and the only one there is.
+ * Mutate it and picking changes on the next event:
+ *
+ * ```tsx
+ * const raycaster = useRaycaster()
+ * createEffect(() => (raycaster.far = reach()))
+ * ```
+ *
+ * Must be called under a `<Canvas>` that has a `pointerEvents()` engine installed — there
+ * is no raycaster otherwise, and handing back an inert one would silently do nothing.
+ *
+ * @throws If called outside a `<Canvas>`, or inside one with no engine installed.
+ */
+export function useRaycaster(): ScreenRaycaster {
+  // Throws "S3: Hooks can only be used within the Canvas component!" outside a Canvas.
+  const context = useThree()
+  const engine = getEngine(context)
+  if (!engine) {
+    throw new Error(
+      "S3: useRaycaster() needs the pointer-events engine, which owns the raycaster — " +
+        "this Canvas has none installed. List it on the Canvas: " +
+        "<Canvas plugins={[pointerEvents()]}> (or use createT.withCanvas). An engine listed " +
+        "only on createT's namespace installs lazily, on the first element carrying a " +
+        "handler, so it may not exist yet when this hook runs.",
+    )
+  }
+  return engine.raycaster
 }

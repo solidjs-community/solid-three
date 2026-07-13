@@ -13,7 +13,6 @@ title: Canvas
 | `camera`       | `Partial<Props<Camera>> \| Camera`                                                         | `new PerspectiveCamera()`            | The scene camera — partial props for the default camera, or an instance you built.                                                                                                                                                          |
 | `gl`           | `object \| ((canvas: HTMLCanvasElement) => Renderer) \| Renderer`                          | `new WebGLRenderer({ alpha: true })` | How the renderer is built. See [The `gl` prop](#the-gl-prop).                                                                                                                                                                               |
 | `scene`        | `Partial<Props<Scene>> \| Scene`                                                           | `new Scene()`                        | Settings for the scene, or an existing `Scene`.                                                                                                                                                                                             |
-| `raycaster`    | `Partial<Props<Raycaster>> \| Raycaster`                                                   | `new Raycaster()`                    | Configuration for a plain `THREE.Raycaster`. Core never casts this itself — it's config storage that a pointer-event engine (if one is installed) reads. See [Raycasters](/api/utilities/raycasters).                                       |
 | `shadows`      | `boolean \| "basic" \| "percentage" \| "soft" \| "variance" \| WebGLRenderer["shadowMap"]` | off                                  | Enables shadows. See [Rendering defaults](#rendering-defaults) for the string mapping.                                                                                                                                                      |
 | `orthographic` | `boolean`                                                                                  | `false`                              | Use an `OrthographicCamera` for the default camera.                                                                                                                                                                                         |
 | `linear`       | `boolean`                                                                                  | `false`                              | Use a linear output color space instead of sRGB.                                                                                                                                                                                            |
@@ -43,7 +42,6 @@ interface CanvasProps extends ParentProps {
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   scene?: Partial<Props<Scene>> | Scene
-  raycaster?: Partial<Props<Raycaster>> | Raycaster
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   orthographic?: boolean
   linear?: boolean
@@ -196,5 +194,5 @@ interface RendererLike {
 ## See also
 
 - [`useThree`](/api/hooks/use-three) — read the renderer, scene, camera, and more from inside the canvas.
-- [Raycasters](/api/utilities/raycasters) — the raycaster types accepted by the `raycaster` prop.
+- [Raycasters](/api/utilities/raycasters) — the raycaster the pointer-events engine picks with, configured on the engine rather than here.
 - [Events overview](/api/events/overview) — the handlers you can pass to `<Canvas>`.

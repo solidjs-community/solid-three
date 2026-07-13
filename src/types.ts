@@ -5,7 +5,6 @@ import type {
   Loader,
   OrthographicCamera,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   Color as ThreeColor,
   Euler as ThreeEuler,
@@ -410,7 +409,6 @@ export interface Context {
   canvas: HTMLCanvasElement
   clock: Clock
   camera: CameraKind
-  raycaster: Raycaster
   dpr: number
   gl: Meta<ResolvedRenderer>
   props: CanvasProps
@@ -418,7 +416,6 @@ export interface Context {
   requestRender: () => void
   scene: Meta<Scene>
   setCamera(camera: CameraKind): () => void
-  setRaycaster(raycaster: Raycaster): () => void
   viewport: Viewport
 }
 

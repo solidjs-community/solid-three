@@ -31,6 +31,8 @@ import { pointerEvents } from "solid-three/events"
 const { T, Canvas } = createT.withCanvas(THREE, [pointerEvents()])
 ```
 
+The engine also owns the raycaster it picks with — core has none. Configure it with `pointerEvents({ raycaster: … })`, and reach it at runtime with `useRaycaster()`. See [Raycasters](/api/utilities/raycasters).
+
 ## Supported events
 
 ### Click events
@@ -300,4 +302,5 @@ To keep an object from being hit while it still receives events that bubble up f
 
 - [Pointer events](/tour/04-pointer-events) — the tutorial chapter, with a worked walk-through.
 - [`raycastable`](/api/events/raycastable) — opt an object out of hit-testing while keeping bubbled events.
+- [Raycasters](/api/utilities/raycasters) — configuring the engine's raycaster, and `useRaycaster()`.
 - [`<Canvas/>`](/api/components/canvas) — where the canvas-level `onPointerMissed` fires.

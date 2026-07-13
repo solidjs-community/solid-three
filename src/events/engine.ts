@@ -1,12 +1,26 @@
-import { createRenderEffect, onCleanup } from "solid-js"
-import { Raycaster, type Object3D } from "three"
+import { onCleanup } from "solid-js"
+import type { Object3D, Raycaster } from "three"
 import { useProps } from "../props.ts"
-import type { Context } from "../types.ts"
+import type { BaseProps, Context } from "../types.ts"
 import { captureRegistry } from "./pointer-capture.ts"
 import { DOMPointerManager } from "./pointer-managers.ts"
 import type { DispatchEvent, PointerEngine } from "./pointers.ts"
 import { CursorRaycaster, type ScreenRaycaster } from "./raycasters.ts"
 import type { EventName } from "./types.ts"
+
+/**
+ * The `raycaster` option of `pointerEvents()`. Either form configures the ONE raycaster
+ * the engine picks with — core holds none:
+ *
+ * - a {@link ScreenRaycaster} INSTANCE — a whole ray strategy, e.g. `new CenterRaycaster()`
+ *   for gaze input. The engine picks with that object itself.
+ * - a plain CONFIG OBJECT of raycaster properties, e.g. `{ far: 10, near: 1 }`, applied to
+ *   the engine's own `CursorRaycaster`.
+ *
+ * Static per engine: it configures the raycaster once, at install. To change the raycaster
+ * at runtime, mutate it through `useRaycaster()` — that is the same object.
+ */
+export type RaycasterOption = ScreenRaycaster | Partial<BaseProps<Raycaster>>
 
 /**
  * One engine state per `Context`. The registry lives HERE, not in core — which is
@@ -17,20 +31,26 @@ export class PointerEventsEngine implements PointerEngine {
   readonly context: Context
   readonly registry: Object3D[] = []
   /**
-   * The screen raycaster this engine was installed with — exposed so
-   * `warnOnIgnoredRaycaster` can tell whether a later `pointerEvents()` instance's
-   * `raycaster` option differs from the one actually in effect.
+   * The raycaster this engine picks with — the only one on the canvas. `useRaycaster()`
+   * hands it out, so mutating what that hook returns genuinely changes what gets picked.
    */
   readonly raycaster: ScreenRaycaster
+  /**
+   * The `raycaster` OPTION this engine was installed with (an instance, a config object,
+   * or nothing) — kept so `warnOnIgnoredRaycaster` can tell the instance that actually
+   * installed apart from a later one whose option goes nowhere.
+   */
+  readonly raycasterOption: RaycasterOption | undefined
   private refCounts = new Map<Object3D, number>()
   private manager: DOMPointerManager
 
   /** The canvas-level miss handler, set through the engine's contributed canvas prop. */
   onPointerMissed: ((event: DispatchEvent) => void) | undefined
 
-  constructor(context: Context, raycaster: ScreenRaycaster) {
+  constructor(context: Context, raycaster: ScreenRaycaster, raycasterOption?: RaycasterOption) {
     this.context = context
     this.raycaster = raycaster
+    this.raycasterOption = raycasterOption
     this.manager = new DOMPointerManager(context, raycaster, captureRegistry, this)
   }
 
@@ -93,32 +113,22 @@ export function getEngine(context: Context): PointerEventsEngine | undefined {
  * under the Canvas's owner (via `runWithOwner`) rather than some short-lived per-element
  * render-effect scope. Do not call this from anywhere else.
  */
-export function installEngine(context: Context, raycaster?: ScreenRaycaster) {
+export function installEngine(context: Context, raycasterOption?: RaycasterOption) {
   if (engines.has(context)) return
-  // The screen pointer's ray strategy: the engine's configured raycaster, else the
-  // canvas's own when that is a screen raycaster, else a fresh `CursorRaycaster`.
-  const candidate: unknown = raycaster ?? context.raycaster
-  const isCandidateScreenRaycaster = isScreenRaycaster(candidate)
-  const screenRaycaster: ScreenRaycaster = isCandidateScreenRaycaster
-    ? candidate
-    : new CursorRaycaster()
-  // The engine had to fall back to its own raycaster — core's `raycaster()` memo isn't
-  // shaped like a screen raycaster (it's a plain `THREE.Raycaster`, since the engine
-  // that WOULD make it one lives here, not in core). So the canvas's `raycaster`
-  // CONFIG has to be applied here too, onto the raycaster that actually casts, or a
-  // `<Canvas raycaster={{ far, near, ... }}>` silently stops affecting picking. Mirrors
-  // core's own gate in `create-three.tsx`: skip when there is no config object, or when
-  // the user passed a raycaster INSTANCE (an instance's own values already won, and —
-  // per `isCandidateScreenRaycaster` above — a screen-raycaster instance is used
-  // directly instead of reaching this branch at all).
-  if (!isCandidateScreenRaycaster) {
-    createRenderEffect(() => {
-      const configuredRaycaster = context.props.raycaster
-      if (!configuredRaycaster || configuredRaycaster instanceof Raycaster) return
-      useProps(screenRaycaster, configuredRaycaster, context)
-    })
+  // The one raycaster on this canvas. An instance IS the ray strategy, so it's used as
+  // given; anything else is a config object applied to the engine's own `CursorRaycaster`
+  // — the same raycaster `useRaycaster()` then hands out.
+  let screenRaycaster: ScreenRaycaster
+  if (isScreenRaycaster(raycasterOption)) {
+    screenRaycaster = raycasterOption
+  } else {
+    screenRaycaster = new CursorRaycaster()
+    // `useProps` (rather than `Object.assign`) so the config object accepts the same
+    // shapes an element's props do — pierced paths like `params-Line-threshold`,
+    // array-to-`set` conversion, and so on.
+    if (raycasterOption) useProps(screenRaycaster, raycasterOption, context)
   }
-  const engine = new PointerEventsEngine(context, screenRaycaster)
+  const engine = new PointerEventsEngine(context, screenRaycaster, raycasterOption)
   engines.set(context, engine)
   onCleanup(engine.connect())
 }
@@ -131,12 +141,15 @@ export function installEngine(context: Context, raycaster?: ScreenRaycaster) {
  * `raycaster` option, if it differs, goes nowhere. This is the DEV-only warning for
  * that case; it never mutates `engines`.
  */
-export function warnOnIgnoredRaycaster(context: Context, raycaster?: ScreenRaycaster) {
+export function warnOnIgnoredRaycaster(context: Context, raycasterOption?: RaycasterOption) {
   if (!process.env.DEV) return
   const installed = engines.get(context)
   if (!installed) return
-  if (!raycaster) return
-  if (raycaster === installed.raycaster) return
+  if (!raycasterOption) return
+  // Identity, not equality: the instance that installed passes the very option object it
+  // was constructed with, so it never warns about itself — while a second instance
+  // carrying its own (even identical-looking) option is genuinely being ignored.
+  if (raycasterOption === installed.raycasterOption) return
   console.warn(
     "S3: an engine is already installed on this canvas, so this pointerEvents() " +
       "instance's `raycaster` option is ignored — the first instance to install wins. " +

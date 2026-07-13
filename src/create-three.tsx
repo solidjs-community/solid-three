@@ -22,7 +22,6 @@ import {
   PCFShadowMap,
   PCFSoftShadowMap,
   PerspectiveCamera,
-  Raycaster,
   Scene,
   SRGBColorSpace,
   Vector3,
@@ -59,12 +58,13 @@ import { useMeasure } from "./utils/use-measure.ts"
 
 /**
  * Creates and manages a `solid-three` scene. It initializes the objects core owns —
- * camera, renderer, raycaster, scene — manages the scene graph, and runs the rendering
- * loop, based on the provided properties.
+ * camera, renderer, scene — manages the scene graph, and runs the rendering loop, based
+ * on the provided properties.
  *
- * It sets up NO event system: core ships no event engine. Pointer events arrive only when
- * an engine plugin is installed via the `plugins` prop, which this function also does —
- * running each plugin's `install` and wiring its contributed canvas-level props.
+ * It sets up NO event system: core ships no event engine, and does no picking — the ray
+ * strategy that picks belongs to whichever engine dispatches. Pointer events arrive only
+ * when an engine plugin is installed via the `plugins` prop, which this function also does
+ * — running each plugin's `install` and wiring its contributed canvas-level props.
  */
 export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const canvasProps = defaultProps(props, { frameloop: "always" })
@@ -182,7 +182,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
   const cameraIsInstance = createMemo(() => props.camera instanceof Camera)
   const orthographicFlag = createMemo(() => !!props.orthographic)
   const sceneIsInstance = createMemo(() => props.scene instanceof Scene)
-  const raycasterIsInstance = createMemo(() => props.raycaster instanceof Raycaster)
   const glKind = createMemo<"factory" | "instance" | "default">(() => {
     const _propsGl = props.gl
     if (typeof _propsGl === "function") return "factory"
@@ -244,23 +243,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
       },
     })
   })
-
-  const raycaster = createMemo(() => {
-    if (raycasterIsInstance()) {
-      return meta<Raycaster>(props.raycaster as Raycaster, {
-        get props() {
-          return props.raycaster || {}
-        },
-      })
-    }
-    return meta<Raycaster>(new Raycaster(), {
-      get props() {
-        return props.raycaster || {}
-      },
-    })
-  })
-
-  const raycasterStack = new Stack<Raycaster>("raycaster")
 
   // Tracks whether the *previous* renderer was built by us (vs supplied by
   // the user via factory/instance). Only our own renderers get disposed when
@@ -396,12 +378,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     get scene() {
       return scene()
     },
-    get raycaster() {
-      return raycasterStack.peek() || raycaster()
-    },
-    setRaycaster(raycaster: Raycaster) {
-      return raycasterStack.push(raycaster)
-    },
     get gl() {
       // Internally gl is typed as Meta<SupportedRenderer> (the open union) since the
       // memo can produce any concrete renderer the user chose. Externally it
@@ -443,12 +419,6 @@ export function createThree(canvas: HTMLCanvasElement, props: CanvasProps) {
     createRenderEffect(() => {
       if (!props.scene || props.scene instanceof Scene) return
       useProps(scene, props.scene)
-    })
-
-    // Manage raycaster
-    createRenderEffect(() => {
-      if (!props.raycaster || props.raycaster instanceof Raycaster) return
-      useProps(raycaster, props.raycaster)
     })
 
     // Manage gl

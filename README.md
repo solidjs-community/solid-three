@@ -107,7 +107,6 @@ The `Canvas` component initializes the `three.js` rendering context and acts as 
 - **fallback**: Element to render while the main content is loading asynchronously.
 - **gl**: A flat object mixing `WebGLRenderer` constructor params (e.g. `antialias`, `alpha`, `powerPreference`) and instance-writable props (e.g. `toneMapping`) — solid-three splits the two internally. Instance props stay reactive (set them after construction, update them anytime). **Constructor params are applied once.** They're passed to `new WebGLRenderer({ ... })` at the first construction and never re-read. Updating one later does **not** rebuild the renderer or recreate the WebGL context, because `canvas.getContext("webgl2")` is idempotent: the browser returns the same context object on every subsequent call, with the original creation flags. solid-three logs a warning when it detects a reactive change to one of these keys. If you genuinely need to change them at runtime, unmount and remount the `<Canvas>` (e.g. gate it behind a `<Show>` keyed on the value you want to swap) — that gives you a fresh `<canvas>` element and therefore a fresh context. Also accepts a factory returning any renderer (`WebGLRenderer`, `WebGPURenderer`, `SVGRenderer`, `CSS2D/3DRenderer`, custom), or a pre-built renderer instance. See [Custom renderers](#custom-renderers) for narrowing the accepted renderer type project-wide.
 - **scene**: Provides custom settings for the Scene instance or an existing Scene.
-- **raycaster**: Configures the Raycaster for mouse and pointer events.
 - **shadows**: Enables and configures shadows in the scene with various shadow mapping techniques.
 - **orthographic**: Toggles between Orthographic and Perspective camera for the default camera.
 - **linear**: Toggles linear interpolation for texture filtering.
@@ -133,7 +132,6 @@ interface CanvasProps {
     | ((canvas: HTMLCanvasElement) => ResolvedRenderer)
     | ResolvedRenderer
   scene?: Partial<Scene> | Scene
-  raycaster?: Partial<Raycaster> | Raycaster
   shadows?: boolean | "basic" | "percentage" | "soft" | "variance" | WebGLRenderer["shadowMap"]
   orthographic?: boolean
   linear?: boolean
@@ -155,7 +153,6 @@ interface CanvasProps {
   fallback={<div>Loading...</div>}
   gl={{ antialias: true, alpha: true }}
   scene={{ fog: new Fog(0xffffff, 1, 100) }}
-  raycaster={{ params: { Line: { threshold: 0.1 } } }}
   shadows="soft"
   orthographic={false}
   linear={false}
@@ -488,21 +485,21 @@ const camera = useThree(ctx => ctx.camera)
 - **clock** (`Clock`): The `three.js` clock for timing.
 - **dpr** (`number`): Device pixel ratio reported by the active renderer (falls back to `1` for renderers without `getPixelRatio`, e.g. `CSS3DRenderer` / `SVGRenderer`).
 - **gl** (`Renderer`): The active renderer — `WebGLRenderer | WebGPURenderer | RendererLike` by default. Narrow to a concrete type project-wide via [Register augmentation](#narrowing-the-renderer-type-project-wide).
-- **raycaster** (`Raycaster`): The current raycaster used for pointer events.
-- **setRaycaster** (`(raycaster: Raycaster) => () => void`): A setter-function for setting the current raycaster.
 - **render** (`(timestamp: number, frame?: XRFrame) => void`): Drives a single frame — runs the registered `useFrame` callbacks, then renders the scene. The optional `frame` is forwarded to those callbacks; an active WebXR session passes it on each immersive frame.
 - **requestRender** (`() => void`): Function to request a render on the next frame.
 - **scene** (`Scene`): The root scene.
 
-**Camera and Raycaster Stack System:**
+There is no raycaster here. Core does no picking, so it owns no raycaster: that belongs to the pointer-events engine, which hands it out through [`useRaycaster()`](#raycasters).
 
-`solid-three` implements a stack-based system for managing its current camera and raycaster:
+**Camera Stack System:**
 
-- **Stack-based Management**: Both cameras and raycasters are managed as stacks internally
-- **Default at Tail**: The `camera` and `raycaster` from Canvas props form the tail of their respective stacks
-- **Current Active Camera at Head**: The camera/raycaster at the top of the stack is the currently active camera/raycaster
-- **Push To The Stack To Become Active**: By calling `setCamera(camera)` and `setRaycaster(raycaster)`, the camera/raycaster is pushed to the stack. This causes it to become the currently active camera/raycaster
-- **Pop From The Stack To Deactivate**: `setCamera(camera)` and `setRaycaster(raycaster)` return a cleanup-function to pop the camera/raycaster from the stack. If the camera/raycaster was on top of the stack, the previous camera/raycaster in the stack becomes active again
+`solid-three` implements a stack-based system for managing its current camera:
+
+- **Stack-based Management**: Cameras are managed as a stack internally
+- **Default at Tail**: The `camera` from Canvas props forms the tail of the stack
+- **Current Active Camera at Head**: The camera at the top of the stack is the currently active camera
+- **Push To The Stack To Become Active**: By calling `setCamera(camera)`, the camera is pushed to the stack. This causes it to become the currently active camera
+- **Pop From The Stack To Deactivate**: `setCamera(camera)` returns a cleanup-function to pop the camera from the stack. If the camera was on top of the stack, the previous camera in the stack becomes active again
 
 **Usage:**
 
@@ -916,99 +913,90 @@ export function OrbitControls(props: S3.Props<typeof ThreeOrbitControls>) {
 
 ### Raycasters
 
-`solid-three` provides custom raycaster implementations that handle pointer tracking internally. All raycasters extend THREE.Raycaster and implement the `EventRaycaster` interface.
+The raycaster belongs to the pointer-events engine, not to core: core does no picking, so it owns no raycaster. There is exactly one per canvas — the one the engine casts with — and `solid-three/events` ships the strategies it can cast with. They all extend `THREE.Raycaster` and implement `EventRaycaster`:
 
-The interface adds one method to the standard THREE.Raycaster:
+- **cast(registry, context)**: aim the ray for the current pointer, then return its hits against the registry and its descendants, nearest-first.
+- **aim(context)**: position the ray without intersecting anything — the aiming half of `cast`.
 
-- **update**: Called automatically before intersection testing to update the raycaster's position based on the event
+Screen-pointer raycasters also implement `ScreenRaycaster`, which adds **setCursor(ndc)**: the engine calls it with the cursor in normalized device coordinates before each `cast()`.
 
 <details>
 <summary>Typescript Interface</summary>
 
 ```tsx
 interface EventRaycaster extends THREE.Raycaster {
-  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context): void
+  cast(registry: Object3D[], context: Context): Intersection[]
+  aim(context: Context): void
+}
+
+interface ScreenRaycaster extends EventRaycaster {
+  setCursor(ndc: Vector2): void
 }
 ```
 
 </details>
 
-**When `update()` is called:**
+#### Configuring the raycaster
 
-The `update()` method is automatically called by `solid-three`'s event system whenever:
+`pointerEvents({ raycaster })` takes either a config object of raycaster properties — applied to the engine's own `CursorRaycaster` — or a raycaster instance, used as the whole ray strategy:
 
-- **Mouse events**: `click`, `mousedown`, `mouseup`, `mousemove`, `contextmenu`, `dblclick`
-- **Pointer events**: `pointerdown`, `pointerup`, `pointermove`
-- **Wheel events**: `wheel`
+```tsx
+import { Canvas } from "solid-three"
+import { CenterRaycaster, pointerEvents } from "solid-three/events"
 
-This happens before intersection testing, ensuring the raycaster is properly positioned for accurate 3D object detection.
+// Config: pick nothing further than 10 units away.
+;<Canvas plugins={[pointerEvents({ raycaster: { far: 10, near: 1 } })]}>{/* Your scene */}</Canvas>
+
+// Instance: cast from the screen centre instead of the cursor.
+;<Canvas plugins={[pointerEvents({ raycaster: new CenterRaycaster() })]}>{/* Your scene */}</Canvas>
+```
+
+The option is read once, when the engine installs.
+
+#### useRaycaster
+
+`useRaycaster()` returns the raycaster this canvas picks with — the engine's own, and the only one there is. Mutate it and the next event picks differently. It throws when no engine is installed, rather than handing back a raycaster that nothing casts with.
+
+```tsx
+import { useRaycaster } from "solid-three/events"
+
+const Reach = (props: { far: number }) => {
+  const raycaster = useRaycaster()
+  createEffect(() => (raycaster.far = props.far))
+  return null
+}
+```
 
 #### CursorRaycaster
 
-The default raycaster that tracks the cursor position:
-
-```tsx
-import { Canvas } from "solid-three"
-import { CursorRaycaster } from "solid-three"
-
-const App = () => {
-  const raycaster = new CursorRaycaster()
-
-  // CursorRaycaster is used by default, but you can explicitly set it:
-  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
-}
-```
+The default the engine falls back to when none is configured. Tracks the cursor and casts from the active camera.
 
 #### CenterRaycaster
 
-A raycaster that always casts from the center of the screen:
-
-```tsx
-import { Canvas } from "solid-three"
-import { CenterRaycaster } from "solid-three"
-
-const App = () => {
-  const raycaster = new CenterRaycaster()
-
-  return <Canvas raycaster={raycaster}>>{/* Your scene */}</Canvas>
-}
-```
+Ignores the cursor and always casts from the center of the screen — useful for gaze or crosshair interaction.
 
 #### Creating Your Own Raycaster
 
-You can create custom raycasters by extending THREE.Raycaster and (optionally) implementing the `EventRaycaster` interface:
+For a screen pointer, the simplest path is to subclass `CursorRaycaster` and reshape the cursor — `cast()` is inherited:
 
 ```tsx
-import { Raycaster, Vector2 } from "three"
-import type { EventRaycaster, Context } from "solid-three"
+import { Vector2 } from "three"
+import { Canvas } from "solid-three"
+import { CursorRaycaster, pointerEvents } from "solid-three/events"
 
-class CustomRaycaster extends Raycaster implements EventRaycaster {
-  constructor() {
-    super()
-    // Initialize your custom raycaster
-  }
-
-  update(event: PointerEvent | MouseEvent | WheelEvent, context: Context) {
-    const pointer = new Vector2()
-
-    // Calculate normalized device coordinates based on your custom logic
-
-    // Example: Apply custom transformation to pointer coordinates
-    pointer.x = ((event.offsetX / context.bounds.width) * 2 - 1) * 0.5 // Scale down horizontal movement
-    pointer.y = (-(event.offsetY / context.bounds.height) * 2 + 1) * 0.5 // Scale down vertical movement
-
-    // Update the raycaster with the transformed coordinates
-    this.setFromCamera(pointer, context.camera)
+// Damp pointer movement to half speed.
+class DampedRaycaster extends CursorRaycaster {
+  setCursor(ndc: Vector2) {
+    super.setCursor(new Vector2(ndc.x * 0.5, ndc.y * 0.5))
   }
 }
 
-// Usage
-const App = () => {
-  const raycaster = new CustomRaycaster()
-
-  return <Canvas raycaster={raycaster}>{/* Your scene */}</Canvas>
-}
+const App = () => (
+  <Canvas plugins={[pointerEvents({ raycaster: new DampedRaycaster() })]}>{/* Your scene */}</Canvas>
+)
 ```
+
+For a non-screen ray — a custom origin and direction — implement `cast()` directly: aim `this.ray` from whatever transform you like, then return `this.intersectObjects(registry, true)`. `ControllerRaycaster` is the reference implementation.
 
 ### LoaderCache
 

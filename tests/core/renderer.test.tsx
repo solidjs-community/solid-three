@@ -804,8 +804,8 @@ describe("renderer", () => {
   })
 
   /**
-   * Construction firewall — see `cameraInput`/`sceneInput`/`raycasterInput`/
-   * `glInput` memos in `create-three.tsx`. Each prop is read through a
+   * Construction firewall — see `cameraInput`/`sceneInput`/`glInput` memos
+   * in `create-three.tsx`. Each prop is read through a
    * `createMemo({equals: shallowEqual})` so reactive config-objects with
    * fresh references but identical *shape* don't re-allocate three.js
    * objects (which would break held refs).
@@ -853,20 +853,6 @@ describe("renderer", () => {
       const initial = state.scene
       setTick(1)
       expect(state.scene).toBe(initial)
-    })
-
-    it("raycaster memo doesn't recreate when prop reference changes but shape is equal", () => {
-      const [tick, setTick] = createSignal(0)
-      const state = test(() => <T.Group />, {
-        get raycaster() {
-          tick()
-          return { near: 0.1, far: 1000 }
-        },
-      })
-
-      const initial = state.raycaster
-      setTick(1)
-      expect(state.raycaster).toBe(initial)
     })
 
     it("gl memo doesn't recreate when prop reference changes but shape is equal", () => {

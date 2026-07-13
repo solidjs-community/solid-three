@@ -44,12 +44,12 @@ _Avoid_: sub-property, hyphen notation
 ### Runtime
 
 **Canvas**:
-The root component. Sets up the **renderer**, scene, camera, and raycaster, and provides the **Context** to descendants.
+The root component. Sets up the **renderer**, scene, and camera, and provides the **Context** to descendants.
 
 **Context**:
-The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `raycaster`, `clock`, `viewport`, `bounds`, `initializePlugin`, `addFrameListener`, and the render loop. Returned by `useThree`.
+The per-**Canvas** runtime state — the **renderer**, `scene`, `camera`, `clock`, `viewport`, `bounds`, `initializePlugin`, `addFrameListener`, and the render loop. Returned by `useThree`.
 _Avoid_: confusing it with the Solid context (`threeContext`) that distributes it — they're distinct.
-_Note_: the **eventRegistry** is not here. It belongs to an **event engine**, one per Context — core holds no event state.
+_Note_: neither the **eventRegistry** nor the **raycaster** is here. Both belong to an **event engine**, one per Context — core holds no event state and does no picking.
 
 **Renderer**:
 The three.js renderer instance (`WebGLRenderer` or `WebGPURenderer`). Named `gl` in code — the `Context.gl` field and the `Canvas` `gl` prop (which also accepts renderer params or a factory). An R3F inheritance, and a misnomer once `WebGPURenderer` is in play.
@@ -122,7 +122,7 @@ A plugin that owns a pointer paradigm end to end — its own **eventRegistry**, 
 The set of **objects** carrying event handlers; what an **event engine** raycasts. Belongs to the engine, one per **Context** — not to core.
 
 **raycaster**:
-Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform.
+Aims a ray and casts it against the **eventRegistry**. Variants differ by how they aim — a **screen raycaster** from a cursor in **NDC** (`CursorRaycaster` = mouse, `CenterRaycaster` = gaze), or a `ControllerRaycaster` from an XR controller's transform. Belongs to the **event engine**, one per **Context**, and there is exactly one: configured at install with `pointerEvents({ raycaster })` (an instance, or a config object applied to the engine's `CursorRaycaster`), reached at runtime with `useRaycaster()`. Core has none — nothing in core casts a ray.
 
 **NDC**:
 Normalized device coordinates — the `[-1, 1]` cursor space a **screen raycaster** aims from.
@@ -167,7 +167,8 @@ WebXR (VR/AR) session management (`createXR` / `useXR`). _In flux_: being extern
 - A **Plugin** matches **elements** via its **selector** and contributes **plugin props**; a plugin prop **overrides** the native prop of the same name
 - A dispatch runs **raycast propagation** then **tree propagation**; `stopPropagation()` halts both. `event.object` is `event.intersections[0].object`
 - A **pointer source** drives one or more **Pointers**; each **Pointer** raycasts the **eventRegistry** with a **raycaster**, then dispatches via **raycast propagation** and **tree propagation**
-- The active **camera** and **raycaster** are stack-based: setting one (via `Canvas` props or `useThree`) pushes an override that pops on cleanup, restoring the previous
+- The **raycaster** belongs to the **event engine**, not to core — one per **Context**, and the same object `useRaycaster()` returns, so mutating it always changes what gets picked
+- The active **camera** is stack-based: setting one (via the `Canvas` prop or `useThree().setCamera`) pushes an override that pops on cleanup, restoring the previous
 
 ## Example dialogue
 
