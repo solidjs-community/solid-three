@@ -1,6 +1,7 @@
-import { createMemo, type Component, type JSX } from "solid-js"
+import { createMemo, mergeProps, type Component, type JSX, type ParentProps } from "solid-js"
+import { Canvas, type CanvasProps } from "./canvas.tsx"
 import { useProps } from "./props.ts"
-import type { BaseProps, Plugin, Props } from "./types.ts"
+import type { BaseProps, CanvasPropsOf, Plugin, Props } from "./types.ts"
 import { autodispose, meta } from "./utils.ts"
 
 /**********************************************************************************/
@@ -63,4 +64,23 @@ export function createEntity<TConstructor>(
     useProps(memo, props, undefined, plugins)
     return memo as unknown as JSX.Element
   }
+}
+
+/**
+ * `createT` plus a `Canvas` typed by the same plugins. Sugar over `<Canvas plugins={…}>`
+ * for the common single-namespace case: the returned `Canvas` defaults its `plugins` prop
+ * to `plugins`, and the prop stays available to override or extend (co-existence).
+ */
+createT.withCanvas = function withCanvas<
+  const TCatalogue extends Record<string, unknown>,
+  const TPlugins extends readonly Plugin[],
+>(catalogue: TCatalogue, plugins: TPlugins) {
+  const T = createT(catalogue, plugins)
+  const BoundCanvas = (
+    props: ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>,
+  ) => {
+    const merged = mergeProps({ plugins }, props)
+    return Canvas(merged as ParentProps<CanvasProps<TPlugins>> & Partial<CanvasPropsOf<TPlugins>>)
+  }
+  return { T, Canvas: BoundCanvas }
 }

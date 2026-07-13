@@ -1,7 +1,9 @@
 import { render } from "@solidjs/testing-library"
 import { Object3D } from "three"
+import * as THREE from "three"
 import { describe, expect, it, vi } from "vitest"
 import { Canvas } from "../../src/canvas.tsx"
+import { createT } from "../../src/create-t.tsx"
 import { plugin } from "../../src/plugin.ts"
 import type { Context } from "../../src/types.ts"
 
@@ -55,5 +57,44 @@ describe("canvas-props channel", () => {
     expect(first).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("onFakeMissed"))
     warn.mockRestore()
+  })
+})
+
+describe("createT.withCanvas", () => {
+  it("returns a Canvas with the plugins pre-bound", async () => {
+    const received = vi.fn()
+    const engine = fakeEngine("bound", received)
+    const handler = () => {}
+
+    const { T, Canvas: BoundCanvas } = createT.withCanvas(THREE, [engine])
+
+    render(() => (
+      <BoundCanvas onFakeMissed={handler}>
+        <T.Mesh />
+      </BoundCanvas>
+    ))
+    await Promise.resolve()
+
+    expect(received).toHaveBeenCalledWith(handler)
+  })
+
+  it("still lets an explicit plugins prop override the pre-bound default", async () => {
+    const defaultReceived = vi.fn()
+    const overrideReceived = vi.fn()
+    const defaultEngine = fakeEngine("default", defaultReceived)
+    const overrideEngine = fakeEngine("override", overrideReceived)
+    const handler = () => {}
+
+    const { T, Canvas: BoundCanvas } = createT.withCanvas(THREE, [defaultEngine])
+
+    render(() => (
+      <BoundCanvas plugins={[overrideEngine]} onFakeMissed={handler}>
+        <T.Mesh />
+      </BoundCanvas>
+    ))
+    await Promise.resolve()
+
+    expect(overrideReceived).toHaveBeenCalledWith(handler)
+    expect(defaultReceived).not.toHaveBeenCalled()
   })
 })
