@@ -53,6 +53,22 @@
         "default": "./dist/index.js"
       }
     },
+    "./events": {
+      "solid": {
+        "development": "./dist/events.dev.solid.jsx",
+        "import": "./dist/events.dev.js"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/events.d.ts",
+          "default": "./dist/events.dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/events/index.d.ts",
+        "default": "./dist/events.js"
+      }
+    },
     "./testing": {
       "solid": {
         "development": "./dist/testing.dev.solid.jsx",
@@ -72,6 +88,9 @@
   },
   "typesVersions": {
     "*": {
+      "events": [
+        "./dist/events/index.d.ts"
+      ],
       "testing": [
         "./dist/testing/index.d.ts"
       ]

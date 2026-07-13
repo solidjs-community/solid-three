@@ -9,6 +9,7 @@ export default defineConfig(config => {
 
   const packageEntries: Entry[] = [
     { entry: "src/index.ts", name: "index" },
+    { entry: "src/events/index.ts", name: "events" },
     { entry: "src/testing/index.tsx", name: "testing" },
   ]
 
